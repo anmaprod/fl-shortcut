@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FL Shortcuts</title>
+<meta name="description" content="L'app qui met FL Studio sur ton clavier : raccourcis, macros, organiser. Mac et Windows, prix libre.">
+<link rel="icon" href="img/icone.png">
+<style>
+/* Mise en page : une affiche suisse en trois bandes, noir, papier blanc, rouge plein, sur une grille de 12 colonnes
+   numérotée et visible partout, même à travers les lettres. Grands mots en minuscules, petits libellés en capitales.
+   Décalé : les mots en escalier, le disque et ses cercles qui débordent, l'ombre rouge des touches qui s'enfoncent. */
+:root {
+  --ink: #000000;
+  --paper: #FFFFFF;
+  --gray: #8C8C8C;
+  --gray-p: #6E6E6E;
+  --soft: #B4B4B4;
+  --line: #2C2C2C;
+  --line-p: #CFCFCF;
+  --grid-p: #E6E6E6;
+  --red: #FF3B1F;
+  --display: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --text: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --gap: 20px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--ink); }
+body { margin: 0; background: var(--ink); color: var(--paper); font: 16px/1.45 var(--text); -webkit-font-smoothing: antialiased; }
+.cadre { overflow-x: clip; }
+[hidden] { display: none !important; }
+h1, h2, h3, h4, h5 { font-family: var(--display); font-weight: 700; margin: 0; }
+p { margin: 0; }
+a { color: inherit; text-decoration: none; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+.page { max-width: 1352px; margin: 0 auto; position: relative; z-index: 1;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.g { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap); }
+.label { font: 700 11px/1.25 var(--text); letter-spacing: 1.4px; text-transform: uppercase; color: var(--gray); }
+.label.red { color: var(--red); }
+.point { color: var(--red); }
+
+/* Les bandes pleines, d'un bord à l'autre */
+.bande { margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); padding-left: calc(50vw - 50%); padding-right: calc(50vw - 50%); }
+/* Ordre des plans, du fond vers l'avant : lettres qui tombent (2), fond des pages suivantes (3), traits de la page
+   blanche (4), rond rouge (5), contenu des pages suivantes (6), bas de l'ouverture avec « Obtenir » (7).
+   Les lettres glissent derrière les pages ; le rond rouge passe devant le papier et les traits, pas devant le reste. */
+.bande { position: relative; }
+.bande::before { content: ""; position: absolute; inset: 0; z-index: 3; background: inherit; pointer-events: none; }
+.papier { background: var(--paper); color: var(--ink); }
+.papier .label { color: var(--gray-p); }
+.rouge { background: var(--red); color: var(--ink); }
+.rouge .label { color: var(--ink); }
+
+/* La grille, seulement derrière le papier blanc */
+.idees-in { position: relative; }
+.grille-p { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+.grille-p .g { height: 100%; }
+.grille-p i { border-left: 1px solid var(--grid-p); border-right: 1px solid var(--grid-p); transform-origin: top; }
+.idees-in > .tete, .idee > h2, .idee > .dit { position: relative; z-index: 6; }
+
+/* Boutons : l'ombre rouge décalée, qui s'enfonce */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 12px; height: 48px; padding: 0 22px;
+  font: 700 12px/1 var(--text); letter-spacing: 1.5px; text-transform: uppercase; white-space: nowrap; cursor: pointer;
+  border: 1px solid var(--paper); background: var(--ink); color: var(--paper);
+  transition: transform .12s ease, box-shadow .12s ease, background .15s, color .15s; }
+.btn:hover { background: var(--paper); color: var(--ink); }
+.btn.main { background: var(--paper); color: var(--ink); box-shadow: 6px 6px 0 var(--red); }
+.btn.main:hover { transform: translate(3px, 3px); box-shadow: 3px 3px 0 var(--red); }
+.btn.main:active { transform: translate(6px, 6px); box-shadow: 0 0 0 var(--red); }
+.btn.big { height: 64px; padding: 0 36px; font-size: 14px; letter-spacing: 2px; }
+.btn.full { width: 100%; }
+
+/* Touches : carrées, ombre rouge décalée */
+.cap { width: 64px; height: 64px; border: 2px solid currentColor; display: inline-grid; place-items: center; background: var(--paper);
+  color: var(--ink); font: 700 28px/1 var(--display); box-shadow: 6px 6px 0 var(--red); transition: transform .12s, box-shadow .12s; flex: none; }
+.cap:hover { transform: translate(6px, 6px); box-shadow: 0 0 0 var(--red); }
+
+/* En-tête */
+.top { align-items: center; height: 64px; border-bottom: 1px solid var(--paper); }
+.brand { grid-column: 1 / 5; display: flex; align-items: center; gap: 12px; font: 700 17px/1 var(--display); letter-spacing: -0.02em; }
+.brand img { width: 28px; height: 28px; border-radius: 6px; display: block; }
+.nom-haut { font: 700 30px/1 var(--display); letter-spacing: -0.065em; gap: 0; white-space: nowrap; }
+.top nav { grid-column: 5 / 9; display: flex; gap: 28px; }
+.top nav a { font: 700 11px/1 var(--text); letter-spacing: 1.4px; text-transform: uppercase; color: var(--gray); }
+.top nav a:hover { color: var(--paper); }
+.top .btn { grid-column: 9 / 13; justify-self: end; height: 38px; padding: 0 16px; font-size: 11px; }
+
+/* 1. Affiche d'ouverture, sur noir */
+.hero { position: relative; display: flow-root; margin-top: 22px; padding-block: 0 88px; }
+.meta { row-gap: 10px; margin-top: 22px; }
+.meta div { display: flex; flex-direction: column; gap: 4px; padding-top: 10px; border-top: 1px solid var(--paper); }
+.meta div:nth-child(1) { grid-column: 1 / 4; } .meta div:nth-child(2) { grid-column: 4 / 7; } .meta div:nth-child(3) { grid-column: 7 / 10; }
+.meta b { font-size: 14px; }
+.mots { margin-top: 105px; position: relative; z-index: 2; }
+.mot { font: 700 clamp(60px, 13vw, 186px)/0.84 var(--display); letter-spacing: -0.06em; white-space: nowrap; display: block;
+  padding-bottom: 0.16em; margin-bottom: -0.12em; }
+.mot span { display: inline-block; }
+.lettre { display: inline-block; will-change: transform; }
+.m1 { grid-column: 1 / -1; } .m2 { grid-column: 4 / -1; } .m3 { grid-column: 2 / -1; }
+.disque { position: absolute; z-index: 5; right: -7%; top: 313px; width: clamp(230px, 34vw, 480px); aspect-ratio: 1 / 1; border-radius: 50%;
+  background: var(--red); color: var(--ink); display: grid; place-items: center; transform: rotate(-12deg); }
+.disque .in { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-left: -12%; }
+.disque .k { font: 700 clamp(56px, 8vw, 116px)/1 var(--display); letter-spacing: -0.05em; }
+.disque .s { font: 700 clamp(10px, 1vw, 13px)/1 var(--text); letter-spacing: 1.6px; text-transform: uppercase; }
+.anneau { position: absolute; z-index: 1; border-radius: 50%; border: 1.5px solid var(--paper); pointer-events: none; aspect-ratio: 1 / 1; }
+.a1 { width: clamp(300px, 46vw, 660px); right: -14%; top: 203px; }
+.bas { margin-top: 64px; align-items: end; position: relative; z-index: 7; }
+.bas p { grid-column: 1 / 6; font-size: clamp(20px, 2vw, 26px); line-height: 1.2; letter-spacing: -0.015em; }
+.bas .act { grid-column: 8 / 13; display: flex; justify-content: flex-end; align-items: center; gap: 22px; }
+.bas .act .label { text-align: right; }
+
+/* 2. Les idées, sur papier blanc : un grand mot, une phrase */
+.idees { padding-block: 22px 0; }
+.idees .tete { display: flex; justify-content: space-between; padding-bottom: 10px; }
+.idee { position: relative; align-items: center; padding-block: 52px; }
+.idee::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px; background: var(--line-p); z-index: 4; }
+.idee:first-of-type::before { height: 2px; background: var(--ink); }
+.idee h2 { font: 700 clamp(48px, 9.4vw, 134px)/0.84 var(--display); letter-spacing: -0.06em; white-space: nowrap; }
+.idee h2 span { display: inline-block; transition: transform .25s ease; }
+.idee:hover h2 span { transform: translateX(12px); }
+.i1 h2 { grid-column: 1 / 9; } .i2 h2 { grid-column: 3 / 9; } .i3 h2 { grid-column: 2 / 9; } .i4 h2 { grid-column: 1 / 9; }
+.dit { grid-column: 9 / 13; display: flex; flex-direction: column; gap: 22px; align-items: flex-start; }
+.dit p { font-size: clamp(19px, 1.8vw, 24px); font-weight: 700; line-height: 1.15; letter-spacing: -0.02em; }
+.dit .ligne { display: flex; align-items: center; gap: 16px; }
+.dit .plus { font: 700 24px/1 var(--display); color: var(--gray-p); }
+.dit img { width: 100%; max-width: 380px; display: block; box-shadow: 10px 10px 0 var(--red); }
+.fichier { display: inline-flex; align-items: center; gap: 12px; height: 44px; padding: 0 14px; border: 2px solid var(--ink);
+  font-size: 14px; font-weight: 700; box-shadow: 6px 6px 0 var(--red); background: var(--paper); position: relative; z-index: 1; }
+.fichier i { width: 10px; height: 10px; background: var(--red); display: block; }
+
+/* 3. Prix libre, sur rouge plein */
+.prix { padding-block: 104px 96px; }
+.prix .inner { align-items: end; position: relative; z-index: 6; }
+.prix .grand { grid-column: 1 / 8; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.zero { position: relative; font: 700 clamp(150px, 25vw, 360px)/0.76 var(--display); letter-spacing: -0.075em; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.zero .plus2 { position: absolute; color: var(--paper); font-size: 0.42em; top: -0.18em; margin-left: 0.04em; letter-spacing: 0; }
+.prix .grand p { font-size: clamp(20px, 2vw, 26px); line-height: 1.2; letter-spacing: -0.015em; font-weight: 700; }
+.carte { grid-column: 8 / 13; padding: 26px; display: flex; flex-direction: column; gap: 18px; background: var(--ink); color: var(--paper);
+  outline: 3px solid transparent; outline-offset: 8px; transition: outline-color .5s; }
+.carte .label { color: var(--gray); }
+.carte.appel { outline-color: var(--paper); }
+.field { display: flex; flex-direction: column; gap: 8px; border: 0; padding: 0; margin: 0; min-width: 0; }
+.field legend { padding: 0; margin-bottom: 8px; }
+.input { display: flex; align-items: center; height: 58px; border: 1px solid var(--paper); padding: 0 16px; gap: 10px; }
+.input input { flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; outline: none; font: 700 28px/1 var(--text); letter-spacing: -0.02em; }
+.input .unit { color: var(--gray); font-size: 22px; font-weight: 700; }
+.input:focus-within { outline: 2px solid var(--red); outline-offset: 3px; }
+.input.small { height: 50px; }
+.input.small input { font: 400 16px/1 var(--text); letter-spacing: 0; }
+.input.small input::placeholder { color: var(--gray); }
+.chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.chips button, .seg label { height: 42px; display: grid; place-items: center; border: 1px solid var(--line); margin-left: -1px; background: var(--ink);
+  font: 700 13px/1 var(--text); cursor: pointer; }
+.chips button:first-child, .seg label:first-child { margin-left: 0; }
+.chips button:hover { border-color: var(--paper); position: relative; }
+.chips button.on { background: var(--paper); color: var(--ink); border-color: var(--paper); position: relative; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { border-color: var(--paper); letter-spacing: 1.4px; text-transform: uppercase; font-size: 12px; }
+.seg label:has(input:checked) { background: var(--paper); color: var(--ink); }
+.seg label:has(input:focus-visible) { outline: 2px solid var(--red); outline-offset: 2px; position: relative; }
+.req { font-size: 12.5px; color: var(--gray); }
+
+/* Pied : le nom en très grand, en minuscules */
+.pied { padding-block: 22px 32px; }
+.pied .nom { grid-column: 1 / -1; font: 700 clamp(52px, 13.2vw, 190px)/0.8 var(--display); letter-spacing: -0.065em; white-space: nowrap; }
+.pied nav { grid-column: 1 / 8; display: flex; flex-wrap: wrap; gap: 12px 26px; margin-top: 28px; }
+.pied nav a { font: 700 11px/1 var(--text); letter-spacing: 1.4px; text-transform: uppercase; color: var(--soft); }
+.pied nav a:hover { color: var(--paper); }
+.pied .legal { grid-column: 8 / 13; margin-top: 28px; font-size: 12px; color: var(--gray); text-align: right; }
+
+/* Fenêtre d'achat */
+dialog { width: min(560px, calc(100% - 32px)); max-height: calc(100% - 32px); padding: 0; border: 1px solid var(--paper);
+  background: var(--ink); color: var(--paper); overflow: auto; box-shadow: 10px 10px 0 var(--red); }
+dialog::backdrop { background: rgba(0, 0, 0, 0.88); }
+.dlg { padding: 22px 26px 26px; display: flex; flex-direction: column; gap: 18px; }
+.dlg-head { display: flex; justify-content: space-between; align-items: center; }
+.dlg-head .brand { font-size: 15px; gap: 10px; }
+.dlg-head .brand img { width: 24px; height: 24px; border-radius: 5px; }
+.dlg-head .marque-dlg { font: 700 22px/1 var(--display); letter-spacing: -0.065em; gap: 10px; }
+.dlg-head .marque-dlg svg { display: block; flex: none; }
+.close { background: none; border: 0; cursor: pointer; padding: 6px 0; }
+.dlg h2 { font-size: 48px; line-height: 0.9; letter-spacing: -0.05em; padding-bottom: 12px; border-bottom: 1px solid var(--paper); }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.two .input + .input { margin-left: -1px; }
+.card-rows .two .input { margin-top: -1px; }
+.total { display: flex; justify-content: space-between; align-items: baseline; padding-top: 14px; border-top: 1px solid var(--line); }
+.total b { font-size: 36px; letter-spacing: -0.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+.hint { font-size: 13px; color: var(--gray); }
+.merci-titre { font-size: 132px !important; line-height: 0.8 !important; letter-spacing: -0.07em !important; border: 0 !important; padding: 0 !important; }
+.dl { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.dl .btn { height: 58px; flex-direction: column; gap: 6px; }
+.dl .btn small { font-size: 10px; letter-spacing: 1px; text-transform: none; font-weight: 400; opacity: 0.75; }
+.guide ol { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--paper); }
+.guide li { display: grid; grid-template-columns: 34px minmax(0, 1fr); padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+.guide li b.n { color: var(--red); font-size: 11px; letter-spacing: 1px; padding-top: 3px; }
+.maquette { font-size: 12px; color: var(--gray); border: 1px dashed var(--line); padding: 8px 10px; }
+
+/* Paiement : case de rétractation, formulaire SumUp posé sur une feuille de papier, messages */
+.renonce { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 12px; align-items: start; font-size: 13.5px; line-height: 1.4; cursor: pointer; }
+.renonce input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--red); cursor: pointer; }
+.sumup-zone { background: var(--paper); color: var(--ink); padding: 14px; box-shadow: 6px 6px 0 var(--red); min-height: 120px; }
+.msg { font-size: 14px; line-height: 1.4; }
+.msg.err { color: var(--red); font-weight: 700; }
+.btn[disabled] { opacity: .45; cursor: not-allowed; transform: none !important; box-shadow: 6px 6px 0 var(--red) !important; }
+.btn.lien { height: auto; padding: 0; border: 0; background: none; color: var(--paper); text-decoration: underline; text-underline-offset: 4px; letter-spacing: 1.2px; font-size: 11px; justify-content: flex-start; }
+.btn.lien:hover { background: none; color: var(--red); }
+a.btn { text-decoration: none; }
+.guide { display: flex; flex-direction: column; gap: 10px; }
+
+@media (max-width: 860px) {
+  :root { --gap: 10px; }
+  .top { height: 58px; }
+  .top nav { display: none; }
+  .brand { grid-column: 1 / 8; }
+  .top .btn { grid-column: 8 / 13; }
+  .hero { padding-block: 0 60px; }
+  .meta div:nth-child(1) { grid-column: 1 / 7; } .meta div:nth-child(2) { grid-column: 7 / 13; } .meta div:nth-child(3) { grid-column: 1 / 13; }
+  .mots { margin-top: 148px; }
+  .m2 { grid-column: 3 / -1; }
+  .disque { top: 326px; right: -30%; width: 230px; }
+  .a1 { width: 320px; right: -40%; top: 276px; }
+  .disque .in { display: none; }
+  .bas { margin-top: 48px; row-gap: 26px; }
+  .bas p, .bas .act { grid-column: 1 / -1; }
+  .bas .act { justify-content: space-between; }
+  .idee { padding-block: 36px; row-gap: 20px; }
+  .i1 h2, .i4 h2 { grid-column: 1 / -1; } .i2 h2 { grid-column: 3 / -1; } .i3 h2 { grid-column: 2 / -1; }
+  .dit { grid-column: 1 / -1; }
+  .prix { padding-block: 72px 64px; }
+  .prix .inner { row-gap: 36px; }
+  .prix .grand, .carte { grid-column: 1 / -1; }
+  .pied nav, .pied .legal { grid-column: 1 / -1; text-align: left; }
+  .pied .legal { margin-top: 18px; }
+  .dlg { padding: 18px 18px 20px; }
+  .merci-titre { font-size: 96px !important; }
+  .dl { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="cadre"><div class="page">
+  <header class="top g">
+    <a class="brand nom-haut" href="#">fl shortcuts<span class="point">.</span></a>
+    <nav><a href="#idees">L'app</a><a href="#obtenir">Prix</a></nav>
+    <button class="btn" type="button" data-aller>Obtenir</button>
+  </header>
+
+  <section class="hero" aria-label="FL Shortcuts">
+    <h1 class="mots g">
+      <span class="mot m1"><span>raccourcis</span></span>
+      <span class="mot m2"><span>macros</span></span>
+      <span class="mot m3"><span>organiser<span class="point">.</span></span></span>
+    </h1>
+    <span class="anneau a1" aria-hidden="true"></span>
+    <div class="disque" aria-hidden="true"></div>    <div class="bas g">
+      <p>L'app qui met FL Studio sur ton clavier.</p>    </div>
+  </section>
+
+  <section class="idees bande papier" id="idees" aria-label="Ce que fait l'app"><div class="idees-in">
+    <div class="grille-p" aria-hidden="true"><div class="g"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+    <div class="tete"><span class="label">L'app</span><span class="label">4 idées</span></div>
+    <article class="idee i1 g">
+      <h2><span>raccourcis<span class="point">.</span></span></h2>
+      <div class="dit">
+        <p>Change les raccourcis de FL comme tu veux, pour aller plus vite.</p>
+        <div class="ligne" aria-hidden="true"><span class="label">Outil pinceau</span><span class="cap">B</span></div>
+      </div>
+    </article>
+    <article class="idee i2 g">
+      <h2><span>macros<span class="point">.</span></span></h2>
+      <div class="dit">
+        <p>Ce que tu fais dix fois par jour, fais-le d'une seule touche.</p>
+        <div class="ligne" aria-hidden="true"><span class="cap" id="t1">⌥</span><span class="plus">+</span><span class="cap" id="t2">R</span></div>
+      </div>
+    </article>
+    <article class="idee i3 g">
+      <h2><span>organiser<span class="point">.</span></span></h2>
+      <div class="dit">
+        <p>Un clic, et ton projet est rangé.</p>
+      </div>
+    </article>
+    <article class="idee i4 g">
+      <h2><span>communauté<span class="point">.</span></span></h2>
+      <div class="dit">
+        <p>Le son, ça se partage. Tes macros aussi.</p>
+        <span class="fichier" aria-hidden="true"><i></i>Enregistrer une voix</span>
+      </div>
+    </article>
+  </div></section>
+
+  <section class="prix bande rouge" id="obtenir" aria-labelledby="prix-titre">
+    <div class="inner g">
+      <div class="grand">
+        <span class="label" id="prix-titre">Prix libre</span>
+        <div class="zero" aria-live="polite"><span id="gros">0</span>&nbsp;€<span class="plus2">+</span></div>
+        <p>Donne ce que tu veux, même rien.</p>
+      </div>
+      <form class="carte" id="achat-form" novalidate>
+        <fieldset class="field">
+          <legend class="label">Ton prix</legend>
+          <div class="input"><input id="prix" name="prix" type="text" inputmode="numeric" autocomplete="off" value="0" aria-label="Ton prix en euros"><span class="unit">€</span></div>
+          <div class="chips" role="group" aria-label="Prix rapides">
+            <button type="button" data-v="0" class="on">0 €</button><button type="button" data-v="3">3 €</button><button type="button" data-v="5">5 €</button><button type="button" data-v="10">10 €</button>
+          </div>
+        </fieldset>
+        <fieldset class="field">
+          <legend class="label">Ton système</legend>
+          <div class="seg">
+            <label><input type="radio" name="systeme" id="sys-mac" value="mac" checked>Mac</label>
+            <label><input type="radio" name="systeme" id="sys-win" value="windows">Windows</label>
+          </div>
+        </fieldset>
+        <button class="btn main big full" type="submit" id="go">Télécharger gratuitement</button>      </form>
+    </div>
+  </section>
+
+  <footer class="pied g">
+    <div class="nom" aria-hidden="true">fl shortcuts<span class="point">.</span></div>
+    <nav><a href="#">Tuto</a><a href="#">Modes d'emploi</a></nav>
+    <p class="legal">Outil indépendant, non affilié à Image-Line. FL Studio est une marque d'Image-Line.</p>
+  </footer>
+</div></div>
+
+<dialog id="achat" aria-labelledby="dlg-titre">
+  <div class="dlg" id="vue-form">
+    <div class="dlg-head"><span class="brand marque-dlg" role="img" aria-label="fl shortcuts"><svg viewBox="0 0 1024 1024" width="46" height="46" aria-hidden="true" style="overflow:visible"><circle cx="590" cy="440" r="380" fill="none" stroke="#FFFFFF" stroke-width="40"/><circle id="rouge-dlg" cx="470" cy="580" r="290" fill="#FF3B1F"/></svg></span><button class="close label" type="button" data-fermer>Fermer ✕</button></div>
+    <h2 id="dlg-titre">obtenir l'app<span class="point">.</span></h2>
+    <label class="renonce" for="renonce" id="bloc-renonce" hidden><input type="checkbox" id="renonce"><span>J'accepte que le téléchargement soit disponible dès le paiement et je renonce à mon droit de rétractation de 14 jours.</span></label>
+    <div class="sumup-zone" id="sumup-bloc" hidden><div id="sumup-card"></div></div>
+    <p class="msg" id="dlg-msg" role="status" aria-live="polite" hidden></p>
+    <div class="total"><span class="label">Total · <span id="dlg-sys">Mac</span></span><b id="dlg-total">0 €</b></div>
+    <button class="btn main big full" type="button" id="dlg-go">Télécharger gratuitement</button>
+    <button class="btn lien" type="button" id="dlg-gratuit" hidden>Télécharger gratuitement à la place</button>
+  </div>
+  <div class="dlg" id="vue-merci" hidden>
+    <div class="dlg-head"><span aria-hidden="true"></span><button class="close label" type="button" data-fermer>Fermer ✕</button></div>
+    <h2 class="merci-titre" id="merci-titre">merci<span class="point">.</span></h2>
+    <p id="merci-texte">Tu peux télécharger tout de suite.</p>
+    <div class="dl">
+      <a class="btn main" id="dl-mac" href="https://github.com/anmaprod/fl-shortcut/releases/latest/download/FLShortcut.dmg">Télécharger pour Mac<small>FLShortcut.dmg · macOS 13 ou plus récent</small></a>
+      <a class="btn main" id="dl-win" href="https://github.com/anmaprod/fl-shortcut/releases/latest/download/FLShortcut-Windows-Setup.exe" hidden>Télécharger pour Windows<small>Installeur · Windows 10 ou 11</small></a>
+    </div>
+    <div class="guide" id="guide-mac">
+      <span class="label">Installer</span>
+      <ol>
+        <li><b class="n">01</b><span>Ouvre FLShortcut.dmg et glisse FL Shortcut dans Applications.</span></li>
+        <li><b class="n">02</b><span>Lance FL Shortcut : il s'installe dans la barre des menus.</span></li>
+        <li><b class="n">03</b><span>Clique sur Autoriser… puis active FL Shortcut dans Réglages Système › Confidentialité et sécurité › Accessibilité.</span></li>
+      </ol>
+      <p class="hint">Si macOS dit qu'il ne peut pas vérifier l'app : Réglages Système › Confidentialité et sécurité, tout en bas, Ouvrir quand même.</p>
+    </div>
+    <div class="guide" id="guide-win" hidden>
+      <span class="label">Installer</span>
+      <ol>
+        <li><b class="n">01</b><span>Double-clique sur l'installeur, puis Installer. Aucun droit administrateur demandé.</span></li>
+        <li><b class="n">02</b><span>FL Shortcut se range dans la zone de notification, à côté de l'horloge.</span></li>
+        <li><b class="n">03</b><span>Ouvre FL Studio et utilise tes raccourcis.</span></li>
+      </ol>
+      <p class="hint">Si Windows affiche « Windows a protégé votre ordinateur » : Informations complémentaires, puis Exécuter quand même.</p>
+    </div>
+  </div>
+</dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js"></script>
+<script>
+(function () {
+  var reduit = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var aGsap = typeof window.gsap !== 'undefined';
+  var aST = aGsap && typeof window.ScrollTrigger !== 'undefined';
+  if (aST) gsap.registerPlugin(ScrollTrigger);
+  var anime = aGsap && !reduit;
+
+  /* ---------- Ouverture : la grille se trace, les mots montent en escalier, disque et cercles arrivent ---------- */
+  // Dégringolade : chaque lettre tombe du haut de l'écran en tournant, dans l'ordre de l'escalier,
+  // se pose pile sur sa ligne avec un seul rebond sec ; le point rouge tombe en dernier.
+  function decouper(el) {
+    var lettres = [];
+    Array.prototype.slice.call(el.childNodes).forEach(function (n) {
+      if (n.nodeType === 3) {
+        var bout = document.createDocumentFragment();
+        n.textContent.split('').forEach(function (ch) {
+          var s = document.createElement('span'); s.className = 'lettre'; s.textContent = ch;
+          bout.appendChild(s); lettres.push(s);
+        });
+        el.replaceChild(bout, n);
+      } else { n.classList.add('lettre'); lettres.push(n); }
+    });
+    return lettres;
+  }
+  if (anime) {
+    var titre = document.querySelector('.mots');
+    titre.setAttribute('aria-label', 'raccourcis macros organiser.');
+    var lignes = [];
+    document.querySelectorAll('.mot > span').forEach(function (m) { m.setAttribute('aria-hidden', 'true'); lignes.push(decouper(m)); });
+    gsap.timeline({ defaults: { ease: 'expo.out' } })
+      .from('.disque', { scale: 0.4, rotation: -120, duration: 1.3 }, 0.1)
+      .from('.a1', { scale: 0.7, duration: 1.4 }, 0.15)      .from('.bas > *', { y: 16, duration: 0.8, stagger: 0.08 }, 0.3);
+    if (aST) {
+      // Chute des lettres au défilement, d'après les effets « gravité » les plus réussis :
+      // 1. la lettre se décroche, elle pivote un peu sur un de ses coins du bas ;
+      // 2. puis elle tombe de plus en plus vite, en tournant, et sort de la page noire, derrière la page blanche ;
+      // 3. ça s'effondre par le bas : « organiser. » d'abord, puis « macros », puis « raccourcis ».
+      // Pas fluide, voulu : chaque chute n'a que 6 images, le décrochage se fait d'un coup, les angles vont de 15 en 15
+      // degrés, et toute la scène n'avance que par 28 images sur la longueur du défilement, comme un vieux film image par image.
+      var hero = document.querySelector('.hero'), IMAGES = 6, IMAGES_SCENE = 28, quinze = gsap.utils.snap(15);
+      var graviteSaccadee = function (p) { var q = Math.floor(p * IMAGES) / IMAGES; return q * q; };
+      var decroche = function (p) { return p > 0 ? 1 : 0; };
+      var chute = gsap.timeline({ paused: true });
+      lignes.slice().reverse().forEach(function (ls, li) {
+        ls.forEach(function (l, j) {
+          var sens = gsap.utils.random([-1, 1]);
+          var debut = li * 0.32 + j * 0.035 + gsap.utils.random(0, 0.04);
+          gsap.set(l, { transformOrigin: sens > 0 ? '100% 100%' : '0% 100%' });
+          chute.to(l, { rotation: sens * 15, duration: 0.14, ease: decroche }, debut)
+            .to(l, {
+              y: function () {
+                var haut = l.getBoundingClientRect().top - gsap.getProperty(l, 'y');
+                return hero.getBoundingClientRect().bottom - haut + gsap.utils.random(40, 220);
+              },
+              x: sens * gsap.utils.random(10, 60),
+              rotation: sens * quinze(gsap.utils.random(45, 90)),
+              duration: 0.7, ease: graviteSaccadee
+            }, debut + 0.14);
+        });
+      });
+      var image = function (p) { return Math.floor(p * IMAGES_SCENE) / IMAGES_SCENE; };
+      ScrollTrigger.create({
+        // La chute commence dès le premier pixel de défilement.
+        trigger: '.hero', start: 0, end: 'bottom 35%',
+        onUpdate: function (self) { chute.progress(image(self.progress)); },
+        // Avant de recalculer les chutes, les lettres reviennent à leur place : sinon une lettre déjà tombée
+        // prendrait sa position de chute comme nouveau départ et ne reviendrait plus.
+        onRefresh: function (self) { chute.progress(0); chute.invalidate(); chute.progress(image(self.progress)); }
+      });
+    }
+  }
+
+  /* ---------- Au défilement : disque et cercles se décalent, les grands mots glissent en sens contraires ---------- */
+  if (anime && aST) {
+    var haut = { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: 0.6 };
+    gsap.to('.disque', { yPercent: 40, rotation: 40, ease: 'none', scrollTrigger: haut });
+    gsap.to('.a1', { yPercent: -18, xPercent: 8, ease: 'none', scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: 0.6 } });    gsap.from('.grille-p i', { scaleY: 0, duration: 1.2, stagger: 0.04, ease: 'power3.inOut',
+      scrollTrigger: { trigger: '.idees', start: 'top 85%' } });
+    document.querySelectorAll('.idee h2').forEach(function (h, k) {
+      gsap.fromTo(h, { xPercent: k % 2 ? 6 : -6 }, { xPercent: k % 2 ? -3 : 3, ease: 'none',
+        scrollTrigger: { trigger: h, start: 'top bottom', end: 'bottom top', scrub: 0.6 } });
+    });
+    ScrollTrigger.create({ trigger: '.i2', start: 'top 65%', onEnter: presse, onEnterBack: presse });
+  }
+  function presse() {
+    gsap.timeline()
+      .to('#t1', { x: 6, y: 6, boxShadow: '0px 0px 0 #FF3B1F', duration: 0.12 })
+      .to('#t2', { x: 6, y: 6, boxShadow: '0px 0px 0 #FF3B1F', duration: 0.12 }, '+=0.08')
+      .to(['#t1', '#t2'], { x: 0, y: 0, boxShadow: '6px 6px 0 #FF3B1F', duration: 0.3, ease: 'power3.out' }, '+=0.25');
+  }
+
+  /* ---------- Prix libre ---------- */
+  var champ = document.getElementById('prix'), gros = document.getElementById('gros'), go = document.getElementById('go');
+  var puces = document.querySelectorAll('.chips button');
+  var montant = 0, affiche = { v: 0 };
+  function prix(v, depuisChamp) {
+    v = Math.max(0, Math.min(999, parseInt(String(v).replace(/[^0-9]/g, ''), 10) || 0));
+    montant = v;
+    if (!depuisChamp) champ.value = String(v);
+    puces.forEach(function (p) { p.classList.toggle('on', +p.dataset.v === v); });
+    go.textContent = v > 0 ? 'Obtenir pour ' + v + ' €' : 'Télécharger gratuitement';
+    if (anime) gsap.to(affiche, { v: v, duration: 0.5, ease: 'power3.out', onUpdate: function () { gros.textContent = Math.round(affiche.v); } });
+    else gros.textContent = v;
+  }
+  champ.addEventListener('input', function () { prix(champ.value, true); });
+  champ.addEventListener('blur', function () { champ.value = String(montant); });
+  puces.forEach(function (p) { p.addEventListener('click', function () { prix(p.dataset.v); }); });
+
+  // « Obtenir » descend seulement jusqu'à la bande du prix libre, sans rien choisir à la place de la personne.
+  var carte = document.getElementById('achat-form');
+  document.querySelectorAll('[data-aller]').forEach(function (b) { b.addEventListener('click', function () {
+    document.getElementById('obtenir').scrollIntoView({ behavior: reduit ? 'auto' : 'smooth', block: 'start' });
+  }); });
+
+  /* ---------- Fenêtre d'achat, puis Merci ---------- */
+  var dlg = document.getElementById('achat'), vForm = document.getElementById('vue-form'), vMerci = document.getElementById('vue-merci');
+  function systeme() { return document.getElementById('sys-win').checked ? 'windows' : 'mac'; }
+  var dlgGo = document.getElementById('dlg-go'), dlgGratuit = document.getElementById('dlg-gratuit');
+  var renonce = document.getElementById('renonce'), blocRenonce = document.getElementById('bloc-renonce');
+  var blocSumup = document.getElementById('sumup-bloc'), msg = document.getElementById('dlg-msg');
+  var widget = null;
+
+  function texteBouton() { return montant > 0 ? 'Payer ' + montant + ' €' : 'Télécharger gratuitement'; }
+  function message(texte, erreur) { msg.textContent = texte || ''; msg.hidden = !texte; msg.classList.toggle('err', !!erreur); }
+  function retirerWidget() {
+    if (widget) { try { widget.unmount(); } catch (e) { /* déjà retiré */ } }
+    widget = null; blocSumup.hidden = true;
+  }
+  // Remet la fenêtre au début : case de rétractation à cocher (paiement seulement), bouton principal visible.
+  function preparer() {
+    retirerWidget(); message('');
+    blocRenonce.hidden = montant === 0; renonce.checked = false;
+    dlgGratuit.hidden = true; dlgGo.hidden = false;
+    dlgGo.textContent = texteBouton(); dlgGo.disabled = montant > 0;
+  }
+  function ouvrir() {
+    vForm.hidden = false; vMerci.hidden = true;
+    document.getElementById('dlg-total').textContent = montant + ' €';
+    document.getElementById('dlg-sys').textContent = systeme() === 'mac' ? 'Mac' : 'Windows';
+    preparer();
+    if (!dlg.open) { if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', ''); }
+    if (anime) gsap.from(dlg, { x: -10, y: -10, duration: 0.4, ease: 'power3.out' });
+  }
+  function fermer() { retirerWidget(); if (dlg.close) dlg.close(); else dlg.removeAttribute('open'); }
+  carte.addEventListener('submit', function (e) { e.preventDefault(); ouvrir(); });
+  document.querySelectorAll('[data-fermer]').forEach(function (b) { b.addEventListener('click', fermer); });
+  dlg.addEventListener('click', function (e) { if (e.target === dlg) fermer(); });
+  dlg.addEventListener('close', retirerWidget);
+  renonce.addEventListener('change', function () { dlgGo.disabled = !renonce.checked; });
+  /* ---------- Fenêtre de téléchargement seulement : le rouge du logo suit la souris, mais seulement sur son axe,
+     la ligne qui le relie au centre du cercle blanc ---------- */
+  if (anime && window.matchMedia('(pointer: fine)').matches) {
+    // Le rouge glisse le long du cercle blanc, comme une bille : son centre reste à la même distance du centre
+    // du cercle, et tourne autour pour se mettre du côté de la souris, par le chemin le plus court.
+    var rouge = document.getElementById('rouge-dlg'), logo = rouge.ownerSVGElement;
+    var CX = 590, CY = 440, RX = 470, RY = 580;
+    // Quand la souris entre dans le cercle blanc, le rouge se rapproche du centre ; souris au milieu, rouge au milieu.
+    var rayon = Math.hypot(RX - CX, RY - CY), CERCLE = 380, orbite = { a: Math.atan2(RY - CY, RX - CX), r: rayon };
+    function placer() { gsap.set(rouge, { x: CX + orbite.r * Math.cos(orbite.a) - RX, y: CY + orbite.r * Math.sin(orbite.a) - RY }); }
+    window.addEventListener('pointermove', function (e) {
+      if (!dlg.open) return;
+      var b = logo.getBoundingClientRect(), k = b.width / 1024;
+      var vx = (e.clientX - (b.left + CX * k)) / k, vy = (e.clientY - (b.top + CY * k)) / k;
+      var vise = Math.atan2(vy, vx), loin = Math.hypot(vx, vy);
+      var ecart = Math.atan2(Math.sin(vise - orbite.a), Math.cos(vise - orbite.a));
+      gsap.to(orbite, { a: orbite.a + ecart, r: rayon * Math.min(loin / CERCLE, 1), duration: 0.6, ease: 'power3.out', overwrite: true, onUpdate: placer });
+    }, { passive: true });
+  }
+
+  /* ---------- Merci : seulement le téléchargement et le mode d'emploi du système choisi ---------- */
+  function merci(texte) {
+    retirerWidget();
+    document.getElementById('merci-texte').textContent = texte;
+    var mac = systeme() === 'mac';
+    document.getElementById('dl-mac').hidden = !mac;
+    document.getElementById('dl-win').hidden = mac;
+    document.getElementById('guide-mac').hidden = !mac;
+    document.getElementById('guide-win').hidden = mac;
+    vForm.hidden = true; vMerci.hidden = false; dlg.scrollTop = 0;
+    if (anime) {
+      gsap.from('#merci-titre', { yPercent: 40, duration: 0.7, ease: 'expo.out' });
+      gsap.from(vMerci.querySelectorAll('.dl, .guide:not([hidden])'), { y: 16, duration: 0.5, stagger: 0.08, delay: 0.15, ease: 'power3.out' });
+    }
+  }
+
+  /* ---------- Paiement SumUp ----------
+     1. le serveur (/api/paiement) crée un paiement SumUp du montant choisi ;
+     2. le formulaire de SumUp (carte, Apple Pay, Google Pay, PayPal) s'affiche dans la fenêtre ;
+     3. le serveur confirme auprès de SumUp que le paiement est bien reçu, puis Merci.
+     Le numéro de carte ne passe jamais par ce site. Le téléchargement reste gratuit dans tous les cas. */
+  var CLE = 'fls-paiement';
+  function garder(v) { try { if (v) sessionStorage.setItem(CLE, JSON.stringify(v)); else sessionStorage.removeItem(CLE); } catch (e) { /* stockage bloqué */ } }
+  function relire() { try { return JSON.parse(sessionStorage.getItem(CLE) || 'null'); } catch (e) { return null; } }
+  function appel(adresse, options) {
+    return fetch(adresse, options).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, http: r.status, d: d }; });
+    });
+  }
+  var sdk = null;
+  function chargerSdk() {
+    if (window.SumUpCard) return Promise.resolve();
+    if (!sdk) sdk = new Promise(function (ok, ko) {
+      var s = document.createElement('script');
+      s.src = 'https://gateway.sumup.com/gateway/ecom/card/v2/sdk.js';
+      s.onload = ok; s.onerror = function () { sdk = null; ko(new Error('sdk')); };
+      document.head.appendChild(s);
+    });
+    return sdk;
+  }
+  function echec(texte) { preparer(); message(texte, true); }
+
+  function payer() {
+    dlgGo.disabled = true; dlgGo.textContent = 'Préparation du paiement…'; message('');
+    appel('/api/paiement', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ montant: montant, systeme: systeme() }) })
+      .then(function (r) {
+        if (r.http === 503) {
+          // Paiement pas encore ouvert (SumUp pas encore configuré) : on propose le téléchargement gratuit.
+          dlgGo.hidden = true; blocRenonce.hidden = true; dlgGratuit.hidden = false;
+          message("Le paiement en ligne n'est pas encore ouvert. Tu peux télécharger gratuitement en attendant.");
+          return;
+        }
+        if (!r.ok || !r.d.id) { echec(r.d.erreur || "Le paiement n'a pas pu démarrer. Réessaie dans un instant."); return; }
+        garder({ id: r.d.id, montant: montant, systeme: systeme() });
+        return chargerSdk().then(function () { afficherSumup(r.d); });
+      })
+      .catch(function () { echec("Le paiement n'a pas pu démarrer. Vérifie ta connexion et réessaie."); });
+  }
+  function afficherSumup(p) {
+    dlgGo.hidden = true; blocRenonce.hidden = true; blocSumup.hidden = false;
+    var reglages = {
+      id: 'sumup-card', checkoutId: p.id, locale: 'fr-FR', country: 'FR', currency: 'EUR',
+      amount: montant.toFixed(2), showEmail: true,
+      onResponse: function (type) {
+        if (type === 'success') { message('Vérification du paiement…'); verifier(p.id, 0); }
+        else if (type === 'fail') echec('Le paiement a été annulé ou a expiré. Tu peux réessayer.');
+        else if (type === 'error') message("Le paiement n'est pas passé. Vérifie tes informations ou choisis un autre moyen de paiement.", true);
+      }
+    };
+    if (p.googlePay) reglages.googlePay = p.googlePay;
+    widget = window.SumUpCard.mount(reglages);
+  }
+  // Demande au serveur l'état du paiement chez SumUp. « En attente » : on redemande quelques fois.
+  function verifier(id, essai) {
+    appel('/api/paiement/' + encodeURIComponent(id))
+      .then(function (r) {
+        var statut = r.ok ? r.d.statut : null;
+        if (statut === 'PAID') { garder(null); merci('Paiement reçu. Merci pour ton soutien !'); }
+        else if (statut === 'PENDING' && essai < 5) setTimeout(function () { verifier(id, essai + 1); }, 1500);
+        else if (statut === 'PENDING') { garder(null); merci('Ton paiement est en cours de validation chez SumUp. Tu peux déjà télécharger.'); }
+        else if (statut === 'FAILED' || statut === 'EXPIRED') { garder(null); echec("Le paiement n'est pas passé. Aucun montant n'a été prélevé. Tu peux réessayer."); }
+        else if (essai < 5) setTimeout(function () { verifier(id, essai + 1); }, 1500);
+        else incertain();
+      })
+      .catch(function () {
+        if (essai < 5) setTimeout(function () { verifier(id, essai + 1); }, 1500);
+        else incertain();
+      });
+  }
+  // SumUp ne répond pas : le téléchargement est gratuit de toute façon, on le donne sans attendre.
+  function incertain() {
+    garder(null);
+    merci("On n'a pas pu confirmer ton paiement pour l'instant. Si ton compte a été débité, garde le reçu de SumUp. Tu peux déjà télécharger.");
+  }
+
+  dlgGo.addEventListener('click', function () {
+    if (montant === 0) merci('Tu peux télécharger tout de suite.');
+    else if (renonce.checked) payer();
+  });
+  dlgGratuit.addEventListener('click', function () { merci('Tu peux télécharger tout de suite.'); });
+
+  // Retour sur le site après PayPal ou une validation bancaire (3-D Secure) : on reprend où on en était.
+  (function () {
+    var params = new URLSearchParams(location.search);
+    if (params.get('paiement') !== 'retour') return;
+    history.replaceState(null, '', location.pathname + location.hash);
+    var p = relire();
+    if (!p || !p.id) return;
+    document.getElementById(p.systeme === 'windows' ? 'sys-win' : 'sys-mac').checked = true;
+    prix(p.montant);
+    ouvrir();
+    dlgGo.hidden = true; blocRenonce.hidden = true;
+    message('Vérification du paiement…');
+    verifier(p.id, 0);
+  })();
+})();
+</script>
+
+</body>
+</html>

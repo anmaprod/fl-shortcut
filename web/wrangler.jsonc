@@ -1,0 +1,12 @@
+// Site FL Shortcuts sur Cloudflare Workers : pages statiques (public/) + paiement SumUp (src/worker.js).
+// Mise en ligne et réglages : voir README.md de ce dossier.
+{
+  "name": "fl-shortcuts",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-06-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "observability": { "enabled": true }
+}
