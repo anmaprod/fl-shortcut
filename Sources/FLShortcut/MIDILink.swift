@@ -724,7 +724,7 @@ final class MIDILink: ObservableObject {
     }
 
     /// FL relie le script à un appareil qui vient d'apparaître : PING jusqu'à son HELLO.
-    static let warmUpLimit: TimeInterval = 6
+    static let warmUpLimit: TimeInterval = 8
 
     private func warmUp() {
         let deadline = Date().addingTimeInterval(Self.warmUpLimit)
@@ -787,10 +787,21 @@ final class MIDILink: ObservableObject {
     /// Macro : réveil bref du script, actions, puis il se rendort (file de la macro, bloquant). Ces blocs ont leur
     /// touche de repli : lien fermé (mode léger, ni Organiser ni bloc qui s'en sert), ils passent tout de suite au
     /// clavier, sans faire apparaître « FL Shortcuts Link » dans FL.
-    func runBriefly(_ ids: [Int]) -> String? {
+    /// `borrowing` (07/11 au soir, « j'ai bien installé le lien et ça ne fonctionne toujours pas ») : une action SANS
+    /// touche de repli (Bypass, Piste suivante…) ouvre le lien le temps du bloc, comme « Nom et couleur » ; avant, elle
+    /// échouait toujours (« lien fermé »), le lien n'était jamais ouvert pour elle.
+    func runBriefly(_ ids: [Int], borrowing: Bool = false) -> String? {
+        if borrowing, AppMode.light {
+            if mutedRecently { return Self.mutedMessage }
+            return borrow { runActions(ids) }
+        }
         if AppMode.light, users.value.isEmpty, core.snapshot.hasKey {
             return String(localized: "lien avec FL fermé (ouvert seulement pendant l'Organiser)")
         }
+        return runActions(ids)
+    }
+
+    private func runActions(_ ids: [Int]) -> String? {
         guard transport.isReady else { return unavailable }
         if mutedRecently { return Self.mutedMessage }
         // 1,5 s au plus : un script qui ne répond pas ne doit pas figer la macro (réponse normale : quelques ms).

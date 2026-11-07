@@ -146,7 +146,12 @@ extension MacroEffectsMac {
         let ids = group.compactMap { FLActions.id(forKey: $0.key) }
         guard ids.count == group.count, !ids.isEmpty else { return .fail(String(localized: "action de FL inconnue")) }
         let names = group.map { $0.key == "armon" ? "arm" : $0.key == "recon" ? "REC" : $0.key }
-        guard let why = MIDILink.shared.runBriefly(ids) else {
+        // Une action sans repli au clavier ne peut passer que par le lien : il est ouvert le temps du bloc.
+        let needsLink = group.contains { call in
+            if case .none = call.fallback { return !MuteSolo.handlesWithoutLink(call.key) }
+            return false
+        }
+        guard let why = MIDILink.shared.runBriefly(ids, borrowing: needsLink) else {
             MacroLog.shared.write("MIDI", "\(names.joined(separator: " + ")) acknowledged")
             return .ok
         }

@@ -17,6 +17,8 @@ struct FLPProject: Equatable {
         /// Chemin du fichier de son (clip audio, sampler), tel que FL l'écrit (« %FLStudioUserData%/… ») ; nil s'il
         /// n'y en a pas.
         var samplePath: String? = nil
+        /// Numéro de l'icône du canal dans FL (0 = aucune) ; nil s'il n'est pas écrit.
+        var icon: UInt32? = nil
 
         /// Nom de ce fichier, sans dossier ni extension.
         var sample: String? { samplePath.flatMap(FLPProject.fileName) }
@@ -52,6 +54,8 @@ struct FLPProject: Equatable {
         static let currentArrangement: UInt8 = 100
         /// Groupe affiché par le Channel rack (-1 : « All »), écrit avant les canaux.
         static let channelGroup: UInt8 = 146
+        /// Icône d'un canal (4 octets : le numéro de l'icône dans FL, 0 = aucune ; `icon` de PyFLP).
+        static let channelIcon: UInt8 = 155
         static let patternName: UInt8 = 193
         /// Chemin du fichier de son d'un canal.
         static let samplePath: UInt8 = 196
@@ -104,7 +108,7 @@ struct FLPProject: Equatable {
 
     init(_ file: FLPFile) throws {
         var channels: [Channel] = []
-        var channel: (iid: Int, type: Int?, name: String?, children: [Int], samplePath: String?)?
+        var channel: (iid: Int, type: Int?, name: String?, children: [Int], samplePath: String?, icon: UInt32?)?
         var notes: [Int: [Int: Int]] = [:]
         var noteEvents: [Int: Int] = [:]
         var firstChannel: Int?
@@ -116,7 +120,7 @@ struct FLPProject: Equatable {
         func closeChannel() {
             if let c = channel {
                 channels.append(Channel(iid: c.iid, type: c.type, name: c.name, children: c.children,
-                                        samplePath: c.samplePath))
+                                        samplePath: c.samplePath, icon: c.icon))
             }
             channel = nil
         }
@@ -128,7 +132,7 @@ struct FLPProject: Equatable {
                 guard i + 1 < file.events.count, file.events[i + 1].id == Event.channelType else { break }
                 closeChannel()
                 guard Int(event.value) == channels.count else { throw FLPError.unsupported("canaux") }
-                channel = (Int(event.value), Int(file.events[i + 1].value), nil, [], nil)
+                channel = (Int(event.value), Int(file.events[i + 1].value), nil, [], nil, nil)
                 if firstChannel == nil { firstChannel = i }
             case Event.channelName:
                 if channel != nil, channel?.name == nil { channel?.name = event.text }
@@ -136,6 +140,8 @@ struct FLPProject: Equatable {
                 if channel != nil, channel?.samplePath == nil { channel?.samplePath = event.text }
             case Event.children:
                 channel?.children.append(Int(event.value))
+            case Event.channelIcon:
+                if channel != nil { channel?.icon = event.value }
             case Event.pattern:
                 // Les patterns (noms, couleurs) sont écrits au milieu du premier canal : il ne prend plus rien après.
                 closeChannel()
@@ -346,7 +352,11 @@ struct FLPProject: Equatable {
     /// projet d'origine restaient sur d'autres pistes, « il y en a qui ont été faits, il y en a qui n'ont pas été
     /// faits ») : seules les pistes de `grouped` sont groupées avec celle du dessus, toutes les autres plus. Tout le
     /// reste est recopié octet pour octet.
-    func rearranged(_ file: FLPFile, tracks: [Int: Int], grouped: Set<Int> = [], headers: Set<Int> = []) throws -> FLPFile {
+    /// `icons` (07/11 au soir, « les icônes fonctionnent dans Mixer et Channel rack mais pas sur la Playlist ») : le
+    /// numéro d'icône de FL de chaque piste (celui de sa famille, appris d'un rangement précédent) ; les autres pistes
+    /// n'en ont aucune.
+    func rearranged(_ file: FLPFile, tracks: [Int: Int], grouped: Set<Int> = [], headers: Set<Int> = [],
+                    icons: [Int: UInt32] = [:]) throws -> FLPFile {
         var out = showingAll(file)
         guard let playlistEvent else { return out }
         guard clips.allSatisfy({ !mutedTracks.contains($0.track) }) else { throw FLPError.unsupported("piste coupée") }
@@ -382,7 +392,7 @@ struct FLPProject: Equatable {
             // Plus aucune icône dans la Playlist rangée (02/11 : une clé de fa restée sur « Snare 3 », un clavier sur
             // « Hi-hat » ; « si aucune icône n'est mise et qu'il y en a déjà dans la Playlist, il faut les enlever ») :
             // celles de l'ancien projet restaient sur leur piste, même vide, quand les clips bougeaient.
-            FLPBytes.put(UInt32(0), into: &out.events[index].bytes, at: Self.trackIcon, size: 4)
+            FLPBytes.put(icons[track] ?? 0, into: &out.events[index].bytes, at: Self.trackIcon, size: 4)
         }
         for index in removed.sorted(by: >) { out.events.remove(at: index) }
         return out

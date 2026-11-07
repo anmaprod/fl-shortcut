@@ -1153,7 +1153,9 @@ private struct CardRowModifier: ViewModifier {
             // 07/11 (vidéo : « quand je déplace un bloc… il n'y a que 2 trucs, on voit pas la case blanche derrière ») :
             // la ligne pleine aussi DANS la ligne (le fond de la liste n'est pas dans l'image que macOS fait glisser) ;
             // le bloc glissé part entier, aux couleurs du thème.
-            .background(Rectangle().fill(lifted && stamp != nil ? (hover ?? Swiss.text) : Color.clear))
+            // Seulement la ligne choisie (07/11 au soir, vidéo : au survol, ce fond et celui de la liste ne s'animaient pas
+            // ensemble et un « bloc blanc » apparaissait) ; une ligne glissée est toujours la ligne choisie.
+            .background(Rectangle().fill(selected && stamp != nil ? (hover ?? Swiss.text) : Color.clear))
             .offset(x: lifted && stamp != nil ? -2 : 0, y: lifted && stamp != nil ? -2 : 0)
         return Group {
             if hover != nil {

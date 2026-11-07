@@ -446,6 +446,16 @@
   `SwissMenu` sur le flyout). Écrans de texte : 480 de large, taille fixe ; aperçu seul redimensionnable (min 440 ×
   420) avec curseurs ↔ ↕ sur ses bords (`EdgeResizeCursors`). Image MIDI Settings : découpes recadrées (pastilles
   entières), « voir en grand » dans la fenêtre (plus de bulle).
+- **Retours du 07/11 au soir** : « bloc blanc » au survol dans le créateur (le fond ajouté DANS la ligne pour le
+  glisser ne s'animait pas avec celui de la liste) → seulement sur la ligne choisie ; Mon compte sans compte = la
+  connexion seule (plus la carte Thème, Mac et Windows) ; recherche de l'Aide qui lâche la main au clic ailleurs (Mac
+  `ReleaseOnOutsideClick` ; Windows : tout champ, `MainShell.ReleaseFieldsOnOutsideClick`). Lien MIDI : VRAI BUG, une
+  « Action de FL » sans touche de repli n'ouvrait JAMAIS le lien (`MIDILink.runBriefly` répondait « lien fermé ») →
+  `runBriefly(ids, borrowing:)` l'ouvre le temps du bloc comme « Nom et couleur » (attente 8 s, `warmUpLimit`) ;
+  Windows ouvrait déjà ses ports. Icônes de la Playlist : FL range chaque icône sous un numéro non documenté →
+  appris dans la copie enregistrée (canal, événement 155, `learnIconIDs`, réglage `organizerIconIDs`) et écrit sur la
+  piste de tête et les pistes groupées de chaque famille au rangement SUIVANT (`playlistIcons`,
+  `FLPProject.rearranged(icons:)`) ; jamais deviné.
 - **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : plus de Liquid Glass depuis le 29/10 (plaques dessinées), sans lavis ni lueur ; fond de
   fenêtre plein (« sans le Liquid Glass derrière »), verre devant : cartes, touches, cartes de l'Organiser
   (`GlassPlate`, dessiné : pas de `glassEffect` par ligne) ; titre de

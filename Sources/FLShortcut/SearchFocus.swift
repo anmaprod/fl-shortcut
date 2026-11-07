@@ -176,3 +176,57 @@ struct SearchFocusBinding: ViewModifier {
         }
     }
 }
+
+/// Champ qui lâche la main au premier clic hors de lui, dans la fenêtre comme dehors (07/11 au soir, recherche de
+/// l'Aide : « quand j'appuie ailleurs ça ne m'enlève pas… comme la barre de recherche »). Posé en fond du champ : sa
+/// place dit où est le champ ; un clic ailleurs, et la fenêtre reprend la main si c'est ce champ qui l'avait (un autre
+/// champ cliqué la garde). Rien ne tourne au repos : un moniteur local et un observateur, retirés avec la vue.
+struct ReleaseOnOutsideClick: NSViewRepresentable {
+    func makeNSView(context: Context) -> Watcher { Watcher() }
+    func updateNSView(_ nsView: Watcher, context: Context) {}
+    static func dismantleNSView(_ nsView: Watcher, coordinator: ()) { nsView.stop() }
+
+    final class Watcher: NSView {
+        private var monitor: Any?
+        private var resign: NSObjectProtocol?
+
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            stop()
+            guard let window else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+                guard let self, let window = self.window, event.window === window else { return event }
+                let mine = self.convert(self.bounds, to: nil)
+                guard !mine.contains(event.locationInWindow) else { return event }
+                DispatchQueue.main.async { [weak self, weak window] in
+                    guard let self, let window else { return }
+                    self.releaseIfEditing(window)
+                }
+                return event
+            }
+            resign = NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: window,
+                                                            queue: .main) { [weak self, weak window] _ in
+                guard let self, let window else { return }
+                self.releaseIfEditing(window)
+            }
+        }
+
+        func stop() {
+            if let monitor { NSEvent.removeMonitor(monitor) }
+            monitor = nil
+            if let resign { NotificationCenter.default.removeObserver(resign) }
+            resign = nil
+        }
+
+        /// Le champ en cours d'écriture est le nôtre (sa place croise la nôtre) : la fenêtre reprend la main.
+        private func releaseIfEditing(_ window: NSWindow) {
+            guard let editor = window.firstResponder as? NSTextView, editor.isFieldEditor,
+                  let field = editor.delegate as? NSView, field.window === window else { return }
+            let fieldRect = field.convert(field.bounds, to: nil)
+            guard fieldRect.intersects(convert(bounds, to: nil)) else { return }
+            window.makeFirstResponder(nil)
+        }
+    }
+}

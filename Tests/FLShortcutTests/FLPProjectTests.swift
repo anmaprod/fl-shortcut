@@ -241,6 +241,44 @@ final class FLPProjectTests: XCTestCase {
         XCTAssertThrowsError(try project.rearranged(file, tracks: [:], headers: [12]))
     }
 
+    /// 07/11 au soir (« les icônes fonctionnent dans Mixer et Channel rack mais pas sur la Playlist ») : l'icône de la
+    /// famille sur sa piste de tête et ses pistes groupées, au numéro appris de FL ; aucune ailleurs.
+    func testFamilyIconsOnPlaylistTracks() throws {
+        let file = FLPSample.sample()
+        let project = try FLPProject(file)
+        let copy = try project.rearranged(file, tracks: [:], grouped: [3, 4], headers: [2], icons: [2: 41, 3: 41, 4: 41])
+        let icons = copy.events.filter { $0.id == 238 }.map { FLPBytes.uint($0.bytes, at: FLPProject.trackIcon, size: 4) }
+        XCTAssertEqual(icons, [0, 0, 41, 41, 41, 0, 0, 0, 0, 0, 0, 0])
+
+        var layout = PlaylistLayout.Result()
+        layout.count = 7
+        layout.headers = [0: 1, 4: 2]
+        layout.grouped = [1, 2, 5]
+        var styles = FamilyStyles.initial
+        styles[.drums]?.icon = try XCTUnwrap(FLIcon(code: "7-4"))
+        styles[.bass]?.icon = try XCTUnwrap(FLIcon(code: "6-0"))
+        let families: [Int: SoundFamily] = [1: .drums, 2: .bass]
+        let ids: [String: UInt32] = ["7-4": 88]                 // celui de la Basse pas encore appris : rien
+        XCTAssertEqual(OrganizerApplier.playlistIcons(layout, styles: styles, ids: ids) { families[$0] },
+                       [0: 88, 1: 88, 2: 88])
+        XCTAssertEqual(OrganizerApplier.playlistIcons(layout, styles: styles, ids: [:]) { families[$0] }, [:],
+                       "aucun numéro connu : aucune icône (jamais devinée)")
+    }
+
+    /// Le numéro de chaque icône posée, relu sur son canal dans la copie enregistrée par FL (événement 155).
+    func testIconNumbersAreLearnedFromTheSavedCopy() throws {
+        var file = FLPSample.sample()
+        let firstChannel = try XCTUnwrap(file.events.firstIndex { $0.id == 21 })
+        var icon = FLPEvent(id: 155, bytes: [])
+        FLPBytes.put(UInt32(73), into: &icon.bytes, at: 0, size: 4)
+        file.events.insert(icon, at: firstChannel + 1)
+        let project = try FLPProject(file)
+        XCTAssertEqual(project.channels.first?.icon, 73)
+        let placed = [(icon: try XCTUnwrap(FLIcon(code: "3-2")), place: 0), (icon: try XCTUnwrap(FLIcon(code: "4-4")), place: 1)]
+        XCTAssertEqual(OrganizerApplier.learnIconIDs(placed, in: project), ["3-2": 73], "sans icône écrite : rien appris")
+        XCTAssertEqual(OrganizerApplier.learnIconIDs(placed, in: nil), [:])
+    }
+
     /// Retour du 01/11 : un groupe (la flèche de FL) par famille, jamais les groupes de l'ancien projet ; une piste
     /// « à vérifier » n'est jamais groupée.
     func testEachFamilyIsGroupedUnderItsFirstTrack() throws {

@@ -126,6 +126,8 @@ struct HelpPage: View {
         .frame(height: 60)
         .background(Rectangle().fill(Swiss.background))
         .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 2))
+        // 07/11 au soir : comme la recherche des raccourcis, elle lâche la main au premier clic ailleurs.
+        .background(ReleaseOnOutsideClick())
     }
 
     /// Les questions (maquette du 05/11) : une carte par question, la réponse en étapes numérotées ; un clic l'ouvre.

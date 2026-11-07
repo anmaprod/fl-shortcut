@@ -76,10 +76,8 @@ struct AccountPage: View {
             } else if let session = community.session {
                 signedIn(session)
             } else {
-                VStack(spacing: 0) {
-                    CommunitySignIn(community: community, page: .account)
-                    themeBelow
-                }
+                // 07/11 au soir (« quand on n'est pas connecté, enlève les thèmes ») : la connexion seule.
+                CommunitySignIn(community: community, page: .account)
             }
         }
         // Connexion, déconnexion : la page passe de l'une à l'autre en fondu.
@@ -138,13 +136,6 @@ struct AccountPage: View {
             EditProfileSheet(community: community)
                 .swissSheet()
         }
-    }
-
-    /// Sans compte : le choix du thème reste visible sous la page, fermé (07/11 : thèmes seulement avec un compte).
-    private var themeBelow: some View {
-        AccountThemeCard(locked: true)
-            .padding(.horizontal, 26)
-            .padding(.bottom, 20)
     }
 }
 

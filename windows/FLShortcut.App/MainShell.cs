@@ -82,6 +82,7 @@ internal sealed partial class MainShell
 
         root.Background = Brush(WindowColor);
         root.RequestedTheme = MacLook.SurfaceTheme;
+        ReleaseFieldsOnOutsideClick(root);
         window.Title = "FL Shortcuts";
         window.ExtendsContentIntoTitleBar = true;
         _titleBar.Margin = new Thickness(SidebarWidth + 16, 0, 0, 0);
@@ -284,6 +285,22 @@ internal sealed partial class MainShell
             }));
         var status = _app.Enabled ? Loc.T(_app.StatusTitle) : Loc.T("En pause");
         TrayMenu.Show(status, _app.Enabled && _app.Status is StatusKind.Linked or StatusKind.FlClosed, entries, () => ShowFromTray(ask: true), Quit);
+    }
+
+    /// Un clic hors du champ qui a la main la lui fait lâcher (07/11 au soir, comme le Mac : la recherche de l'Aide
+    /// gardait la main) ; elle passe à une case invisible, sans cadre de focus.
+    private static void ReleaseFieldsOnOutsideClick(Grid root)
+    {
+        var sink = new ContentControl { IsTabStop = true, Width = 0, Height = 0, UseSystemFocusVisuals = false, Opacity = 0 };
+        AutomationProperties.SetAccessibilityView(sink, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
+        root.Children.Add(sink);
+        root.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, e) =>
+        {
+            if (root.XamlRoot is not { } xamlRoot || FocusManager.GetFocusedElement(xamlRoot) is not TextBox box) return;
+            for (var node = e.OriginalSource as DependencyObject; node is not null; node = VisualTreeHelper.GetParent(node))
+                if (ReferenceEquals(node, box) || node is TextBox) return;          // dans un champ : il garde ou prend la main
+            sink.Focus(FocusState.Programmatic);
+        }), handledEventsToo: true);
     }
 
     /// Le désinstalleur posé par l'installeur à côté de l'appli (il demande lui-même confirmation), s'il existe.
@@ -863,18 +880,9 @@ internal sealed partial class MainShell
         else if (_kind == PageKind.Account)
         {
             SetTitle(Loc.T("Mon compte"));
-            var account = _account.Content(_columns);
-            if (_account.Session is null)
-            {
-                // Sans compte : le choix du thème reste là, sous la page, fermé (07/11 : thèmes avec un compte).
-                var theme = AccountPage.ThemeChoice(Theme, ChooseTheme, locked: true);
-                theme.Margin = new Thickness(26, 0, 26, 24);
-                _scroll.Content = new StackPanel { Children = { account, theme } };
-            }
-            else
-            {
-                _scroll.Content = account;
-            }
+            // Sans compte, la connexion seule (07/11 au soir : plus la carte des thèmes) ; connecté, le thème est
+            // sous le profil.
+            _scroll.Content = _account.Content(_columns);
             return;
         }
         else if (_kind == PageKind.Help)

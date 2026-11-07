@@ -63,6 +63,9 @@ struct OrganizerEnvironment {
     var runningFL: () -> Int32? = { nil }
     /// « Ouvrir FL Studio » pendant cette attente, FL fermé.
     var openFL: () -> Void = {}
+    /// Numéros d'icône de FL appris (code de la grille → numéro), pour les pistes de la Playlist (07/11 au soir).
+    var loadIconIDs: () -> [String: UInt32] = { [:] }
+    var saveIconIDs: ([String: UInt32]) -> Void = { _ in }
     /// « Quitter et rouvrir FL » (07/11) : FL quitté comme par ⌘Q (il demande d'enregistrer s'il le faut), puis
     /// relancé dès qu'il est parti.
     var restartFL: () -> Void = {}
@@ -156,6 +159,8 @@ struct OrganizerEnvironment {
                 guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.image-line.flstudio") else { return }
                 NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
             },
+            loadIconIDs: { OrganizerEnvironment.storedIconIDs() },
+            saveIconIDs: { OrganizerEnvironment.storeIconIDs($0) },
             restartFL: {
                 guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: "com.image-line.flstudio")
                     .first(where: { !$0.isTerminated }),
@@ -387,6 +392,27 @@ struct OrganizerEnvironment {
         let restored = FLScriptInstaller.repairIfNeeded() != nil || AppStatus.shared.scriptNeedsFLRestart
         // Appareil tout juste apparu : FL le voit et charge son script ; sans réponse, l'Organiser réessaie seul.
         return restored ? .restored : .ready(warmUp: fresh ? 2 : 0)
+    }
+
+    /// Numéros d'icône appris, gardés dans les réglages (rien de sensible : une mauvaise valeur ne change qu'une
+    /// icône de la Playlist ; seuls des codes de la grille et des nombres sont lus).
+    static let iconIDsKey = "organizerIconIDs"
+
+    static func storedIconIDs() -> [String: UInt32] {
+        let raw = UserDefaults.standard.dictionary(forKey: iconIDsKey) ?? [:]
+        var out: [String: UInt32] = [:]
+        for (code, value) in raw {
+            guard FLIcon(code: code) != nil, let n = value as? Int, (1...0xFFFF).contains(n) else { continue }
+            out[code] = UInt32(n)
+        }
+        return out
+    }
+
+    static func storeIconIDs(_ learned: [String: UInt32]) {
+        guard !learned.isEmpty else { return }
+        var all = storedIconIDs()
+        for (code, id) in learned { all[code] = id }
+        UserDefaults.standard.set(all.mapValues { Int($0) }, forKey: iconIDsKey)
     }
 
     /// Mêmes étapes et garde-fous que le bloc « Nom et couleur » (FL au premier plan, Échap) ; le clic droit sur le
@@ -1201,6 +1227,7 @@ final class OrganizerController: ObservableObject {
                                        moveTrack: env.moveTrack(link), moveClips: env.moveClips(link),
                                        readClips: env.readClips(link), moveClip: env.moveClip(link),
                                        wait: env.sleep, listen: env.timing.trackListen, files: env.projectFiles(),
+                                       iconIDs: env.loadIconIDs(),
                                        report: { [weak self] text in
                                            DispatchQueue.main.async { self?.applyStep = text }
                                        })
@@ -1208,6 +1235,7 @@ final class OrganizerController: ObservableObject {
         queue.async { [weak self] in
             let outcome = applier.apply(plan, result: result, styles: styles)
             DispatchQueue.main.async {
+                self?.env.saveIconIDs(outcome.learnedIconIDs)
                 self?.snapshot = outcome.snapshot
                 self?.lastApply = outcome
                 self?.phase = .applied(outcome.error)

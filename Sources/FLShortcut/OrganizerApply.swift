@@ -231,6 +231,9 @@ struct ApplyOutcome: Equatable {
     /// La copie rangée ouverte dans FL ; FL ne l'a pas enregistrée à la fin (à faire soi-même : ⌘S).
     var copy: URL?
     var copyNotSaved = false
+    /// Numéros d'icône de FL appris dans la copie enregistrée (code de la grille → numéro) : la Playlist les reçoit
+    /// au rangement suivant (07/11 au soir).
+    var learnedIconIDs: [String: UInt32] = [:]
     /// Étapes de l'application en mots et nombres (diagnostic : jamais un nom).
     var trace: [String] = []
 }
@@ -297,6 +300,10 @@ final class OrganizerApplier {
     /// patterns, de la Playlist, du Mixer, ça oublie de les ranger ») : avant, celles du Channel rack se posaient
     /// avant les patterns, le Mixer et la Playlist, et le moindre accroc pendant une icône arrêtait tout le reste.
     private var pendingIcons: [(icons: [Int: FLIcon], kind: ItemKind, places: [Int: Int])] = []
+    /// Icônes posées dans le Channel rack (place finale) : relues dans la copie enregistrée pour apprendre leur numéro.
+    private var placedRack: [(icon: FLIcon, place: Int)] = []
+    /// Numéro de FL de chaque icône de la grille, appris des rangements précédents (code → numéro).
+    private let iconIDs: [String: UInt32]
     /// Boîtes de FL répondues pendant l'ouverture de la copie (4 au plus : jamais Entrée sans fin).
     private var dialogAnswers = 0
 
@@ -318,9 +325,11 @@ final class OrganizerApplier {
          wait: @escaping (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) },
          listen: TimeInterval = 1.5,
          files: ProjectFileAccess? = nil,
+         iconIDs: [String: UInt32] = [:],
          marker: String = ProjectFile.marker(Int.random(in: 1000...9999)),
          report: @escaping (String) -> Void = { _ in }) {
         self.files = files
+        self.iconIDs = iconIDs
         self.marker = marker
         self.report = report
         self.link = link
@@ -414,6 +423,7 @@ final class OrganizerApplier {
         restored = 0
         iconMiss = nil
         pendingIcons = []
+        placedRack = []
         do {
             if let project = result.project {
                 // Toujours dans une copie (son Channel rack sur « All ») ; la Playlist n'y est rangée que si on l'a
@@ -497,6 +507,11 @@ final class OrganizerApplier {
             if let copy = outcome.copy, let files, case .failure = files.save(copy) {
                 // La copie rangée n'a pas été enregistrée par FL : l'utilisateur le fera (⌘S).
                 outcome.copyNotSaved = true
+            } else if let copy = outcome.copy, let files, !placedRack.isEmpty {
+                // Le numéro que FL donne à chaque icône posée (relu dans la copie enregistrée) : la Playlist le
+                // recevra au rangement suivant (aucun numéro deviné : jamais une mauvaise icône).
+                outcome.learnedIconIDs = Self.learnIconIDs(placedRack, in: (try? files.read(copy)).flatMap { try? FLPProject($0) })
+                if !outcome.learnedIconIDs.isEmpty { outcome.trace.append("icônes apprises \(outcome.learnedIconIDs.count)") }
             }
         } catch {
             outcome.error = Self.failure(error)
@@ -542,8 +557,13 @@ final class OrganizerApplier {
         }
         let copy: FLPFile
         do {
-            copy = try layout.map {
-                try split.project.rearranged(split.file, tracks: $0.tracks, grouped: $0.grouped, headers: Set($0.headers.keys))
+            copy = try layout.map { layout in
+                let icons = Self.playlistIcons(layout, styles: styles, ids: iconIDs) { rank in
+                    SoundFamily.allCases.first { plan.source?.options.familyRank($0) == rank }
+                }
+                if !icons.isEmpty { outcome.trace.append("icônes playlist \(icons.count)") }
+                return try split.project.rearranged(split.file, tracks: layout.tracks, grouped: layout.grouped,
+                                                    headers: Set(layout.headers.keys), icons: icons)
             }
                 ?? split.project.showingAll(split.file)
         } catch {
@@ -956,6 +976,38 @@ final class OrganizerApplier {
         return true
     }
 
+    /// Pur (testé) : le numéro de FL de chaque icône posée, relu sur le canal à sa place dans la copie enregistrée.
+    static func learnIconIDs(_ placed: [(icon: FLIcon, place: Int)], in project: FLPProject?) -> [String: UInt32] {
+        guard let project else { return [:] }
+        var out: [String: UInt32] = [:]
+        for (icon, place) in placed where project.channels.indices.contains(place) {
+            if let id = project.channels[place].icon, id != 0 { out[icon.code] = id }
+        }
+        return out
+    }
+
+    /// Pur (testé) : l'icône de chaque piste de la Playlist rangée : celle de sa famille sur sa piste de tête et sur
+    /// les pistes groupées dessous, seulement si son numéro dans FL est connu.
+    static func playlistIcons(_ layout: PlaylistLayout.Result, styles: [SoundFamily: FamilyStyle], ids: [String: UInt32],
+                              family: (Int) -> SoundFamily?) -> [Int: UInt32] {
+        guard !ids.isEmpty else { return [:] }
+        var out: [Int: UInt32] = [:]
+        var current: UInt32?
+        let last = max(layout.count, (layout.headers.keys.max() ?? -1) + 1)
+        for track in 0..<last {
+            if let rank = layout.headers[track] {
+                current = family(rank).flatMap { (styles[$0] ?? FamilyStyles.initial[$0])?.icon }
+                    .flatMap { $0.isReset ? nil : ids[$0.code] }
+                if let current { out[track] = current }
+            } else if layout.grouped.contains(track) {
+                if let current { out[track] = current }
+            } else {
+                current = nil
+            }
+        }
+        return out
+    }
+
     /// Pistes du Mixer de cette plage, dans l'ordre.
     private static func tracks(_ listed: [MixerTrackInfo], _ range: ClosedRange<Int>) -> [MixerTrackInfo] {
         listed.filter { range.contains($0.index) }.sorted { $0.index < $1.index }
@@ -1125,6 +1177,7 @@ final class OrganizerApplier {
                 iconMiss = error
                 return
             }
+            if kind == .channels { placedRack.append((icon: icon, place: at)) }
         }
     }
 

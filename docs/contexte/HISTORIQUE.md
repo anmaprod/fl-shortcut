@@ -868,3 +868,6 @@ entrée 1 ≈ 0,5 s.
   était pris pour Échap → tout s'arrêtait. Maintenant à la fin, et un accroc n'arrête que les icônes. « Crash » à
   l'étape 2 : la consigne disait ⌘Q ; tapé avec l'Organiser devant, il fermait FL Shortcuts. Bouton « Quitter et
   rouvrir FL » et ⌘Q redirigé. Menu Options suisse, écrans de texte plus étroits et fixes, curseurs de bord.
+- 07/11 (5) : vidéo du bloc blanc (fond du glisser), lien MIDI « installé mais ça ne marche toujours pas » (bug : le
+  lien n'était jamais ouvert pour une action sans repli au clavier), icônes absentes de la Playlist (numéro d'icône de
+  FL appris dans la copie enregistrée, écrit au rangement suivant), thèmes cachés sans compte, recherche de l'Aide.
