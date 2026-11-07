@@ -61,6 +61,8 @@ public sealed class OrganizerEnvironment
     public Func<OrganizerLinkState> PrepareLink { get; init; } = () => new OrganizerLinkState.Ready(0);
     /// « Installer le lien » : vrai s'il est installé ; « Autre dossier de FL… ».
     public Func<bool> InstallLink { get; init; } = () => true;
+    /// « Quitter et rouvrir FL » (07/11, comme le Mac) : FL fermé (il demande d'enregistrer s'il le faut), puis relancé.
+    public Action RestartFl { get; init; } = () => { };
     public Func<bool> InstallLinkElsewhere { get; init; } = () => true;
     /// En attente de FL : nouvel essai, tout seul, à cet intervalle (secondes).
     public double WaitInterval { get; init; } = 2;
@@ -332,6 +334,9 @@ public sealed class OrganizerController
     }
 
     /// Lien installé en un clic : FL doit redémarrer pour le lire, l'Organiser attend et continue tout seul.
+    /// Étape 2 : FL quitté puis rouvert tout seul ; l'attente continue (nouveau FL vu → la suite).
+    public void RestartFl() => _env.RestartFl();
+
     public void InstallLink()
     {
         if (!_env.InstallLink() || _closed) return;

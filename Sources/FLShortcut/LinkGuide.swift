@@ -9,7 +9,7 @@ enum LinkGuide {
     /// Les étapes, dans l'ordre ; la dernière renvoie à l'image.
     static var steps: [String] {
         [String(localized: "Installe le lien"),
-         String(localized: "Quitte FL (⌘Q), puis rouvre-le"),
+         String(localized: "Quitte et rouvre FL"),             // 07/11 : plus « ⌘Q » (tapé dans FL Shortcuts, il le fermait)
          String(localized: "Dans FL : Options › MIDI Settings"),
          String(localized: "Règle les 4 cases entourées")]
     }
@@ -84,13 +84,13 @@ struct MIDISettingsCrops: View {
     /// Les deux ports d'abord, en 1 et 2 (02/11 : « pour que ça coïncide » ; les pastilles de l'image suivent).
     static var crops: [Crop] {
         [Crop(id: 1, text: String(localized: "Output : un numéro de Port (ex. 7)."),
-              rect: CGRect(x: 1090, y: 478, width: 250, height: 112)),
+              rect: CGRect(x: 1086, y: 468, width: 254, height: 122)),
          Crop(id: 2, text: String(localized: "Input : le même numéro de Port. N'importe lequel, du moment que les deux sont pareils."),
-              rect: CGRect(x: 1090, y: 955, width: 250, height: 112)),
+              rect: CGRect(x: 1096, y: 948, width: 244, height: 120)),
          Crop(id: 3, text: String(localized: "Input : clique « FL Shortcuts Link », puis allume Enable."),
-              rect: CGRect(x: 80, y: 958, width: 210, height: 105)),
+              rect: CGRect(x: 80, y: 952, width: 200, height: 112)),
          Crop(id: 4, text: String(localized: "Controller type : FL Shortcuts."),
-              rect: CGRect(x: 284, y: 932, width: 815, height: 132), wide: true)]
+              rect: CGRect(x: 280, y: 924, width: 820, height: 142), wide: true)]
     }
 
     /// Pure (testée) : la découpe en pixels de l'image réelle (l'image de référence fait 1428 pixels de large).
@@ -123,28 +123,27 @@ struct MIDISettingsCrops: View {
                 .swissRule(Swiss.line, edge: .top)
                 .accessibilityElement(children: .combine)
             }
+            // 07/11 : l'image entière s'ouvre ici même (plus une bulle à part, fragile dans le panneau de l'Organiser).
             Button {
-                large = true
+                large.toggle()
             } label: {
-                Label("Voir toute la fenêtre en grand", systemImage: "arrow.up.left.and.arrow.down.right")
+                Label(large ? "Masquer la fenêtre en grand" : "Voir toute la fenêtre en grand",
+                      systemImage: large ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
                     .swissLabel(Swiss.text, size: 10.5)
                     .padding(.vertical, 8)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .swissRule(Swiss.line, edge: .top)
-            .popover(isPresented: $large, arrowEdge: .leading) {
-                if let image = LinkGuide.image {
-                    Image(nsImage: image)
-                        .resizable()
-                        .interpolation(.high)
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 640)
-                        .padding(10)
-                        .background(Swiss.background)
-                        .onTapGesture { large = false }
-                        .accessibilityLabel(Text("MIDI Settings de FL, les 4 cases à régler entourées"))
-                }
+            if large, let image = LinkGuide.image {
+                Image(nsImage: image)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: 560)
+                    .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
+                    .onTapGesture { large = false }
+                    .accessibilityLabel(Text("MIDI Settings de FL, les 4 cases à régler entourées"))
             }
         }
     }

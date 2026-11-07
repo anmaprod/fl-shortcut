@@ -558,6 +558,14 @@ internal static class MacLook
             item.Resources["MenuFlyoutItemForegroundPointerOver"] = Brush(WindowColor);
             item.Resources["MenuFlyoutItemBackgroundPressed"] = Brush(ink);
             item.Resources["MenuFlyoutItemForegroundPressed"] = Brush(WindowColor);
+            // Choix à cocher (Options de l'Organiser) : mêmes couleurs, coche à l'encre.
+            item.Resources["ToggleMenuFlyoutItemForeground"] = Brush(ink);
+            item.Resources["ToggleMenuFlyoutItemBackgroundPointerOver"] = Brush(ink);
+            item.Resources["ToggleMenuFlyoutItemForegroundPointerOver"] = Brush(WindowColor);
+            item.Resources["ToggleMenuFlyoutItemBackgroundPressed"] = Brush(ink);
+            item.Resources["ToggleMenuFlyoutItemForegroundPressed"] = Brush(WindowColor);
+            item.Resources["ToggleMenuFlyoutItemCheckGlyphForeground"] = Brush(ink);
+            item.Resources["ToggleMenuFlyoutItemCheckGlyphForegroundPointerOver"] = Brush(WindowColor);
         }
         return menu;
     }

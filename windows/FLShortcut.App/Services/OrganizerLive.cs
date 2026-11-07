@@ -13,6 +13,32 @@ internal static class OrganizerLive
 {
     /// L'environnement de la fenêtre de l'Organiser. `choose` : « Choisir le fichier… » (fil de l'interface, vrai si un
     /// .flp a été montré) ; `installElsewhere` : « Autre dossier de FL… ».
+    /// « Quitter et rouvrir FL » : sa fenêtre principale fermée comme par la croix (FL demande d'enregistrer s'il le
+    /// faut), puis FL relancé depuis le même fichier dès qu'il est parti (2 minutes au plus).
+    private static void RestartFl()
+    {
+        if (FlPresence.RunningInstance() is not { } fl) return;
+        System.Diagnostics.Process process;
+        try { process = System.Diagnostics.Process.GetProcessById((int)fl.Pid); }
+        catch (ArgumentException) { return; }
+        var path = fl.Path;
+        try { process.CloseMainWindow(); }
+        catch (InvalidOperationException) { return; }
+        _ = Task.Run(() =>
+        {
+            using (process)
+            {
+                try
+                {
+                    if (!process.WaitForExit(TimeSpan.FromMinutes(2))) return;
+                }
+                catch (InvalidOperationException) { }
+            }
+            Thread.Sleep(1000);
+            Start(path, "");
+        });
+    }
+
     public static OrganizerEnvironment Make(AppController app, DispatcherQueue ui, Func<bool> choose, Func<bool> installElsewhere)
     {
         var worker = new SerialWorker();
@@ -53,6 +79,7 @@ internal static class OrganizerLive
             PlaceIcon = _ => OrganizerError.Failed(Loc.T("Les icônes de FL ne sont pas encore posées sur Windows. Les couleurs sont posées.")),
             PrepareLink = () => PrepareLink(app),
             InstallLink = () => app.InstallScript() is null,
+            RestartFl = RestartFl,
             InstallLinkElsewhere = installElsewhere,
             ScriptPlace = () => app.Settings.ScriptPath is { } path ? (path, File.Exists(path)) : null,
             Reveal = path => Start("explorer.exe", "/select,\"" + path + "\""),

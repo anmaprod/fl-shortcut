@@ -1299,6 +1299,7 @@
 "Marqueur suivant" = "Marqueur suivant";
 "Marqueurs" = "Marqueurs";
 "Masquer" = "Masquer";
+"Masquer la fenêtre en grand" = "Masquer la fenêtre en grand";
 "Master" = "Master";
 "Master en mono" = "Master en mono";
 "Membres" = "Membres";
@@ -1723,6 +1724,7 @@
 "Quitte et rouvre FL Studio : il trouve « FL Shortcuts Link » en démarrant et le relie tout seul. Puis « Réessayer »." = "Quitte et rouvre FL Studio : il trouve « FL Shortcuts Link » en démarrant et le relie tout seul. Puis « Réessayer ».";
 "Quitter" = "Quitter";
 "Quitter FL Shortcuts" = "Quitter FL Shortcuts";
+"Quitter et rouvrir FL" = "Quitter et rouvrir FL";
 "Quoi" = "Quoi";
 "REC non lancé (touche interdite)" = "REC non lancé (touche interdite)";
 "Raccourci" = "Raccourci";
@@ -2359,6 +2361,7 @@
 "la grille des icônes de FL est restée ouverte : choisis une case ou clique à côté" = "la grille des icônes de FL est restée ouverte : choisis une case ou clique à côté";
 "la grille des icônes ne s'est pas ouverte : relance pour montrer de nouveau « Change icon… »" = "la grille des icônes ne s'est pas ouverte : relance pour montrer de nouveau « Change icon… »";
 "la liste « More plugins… » de FL ne s'est pas ouverte" = "la liste « More plugins… » de FL ne s'est pas ouverte";
+"la page de FL a changé pendant les icônes" = "la page de FL a changé pendant les icônes";
 "la piste visée est hors de FL : clique d'abord sur ta piste dans le Mixer" = "la piste visée est hors de FL : clique d'abord sur ta piste dans le Mixer";
 "la souris est hors de FL" = "la souris est hors de FL";
 "le bloc précédent a échoué" = "le bloc précédent a échoué";

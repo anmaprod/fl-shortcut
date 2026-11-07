@@ -863,3 +863,8 @@ entrée 1 ≈ 0,5 s.
   glissée ; FL montre le nom du son sous la souris pendant le glisser (fenêtre flottante) → pris pour un menu ;
   la liste noire bloquait toute touche ⌘+Q, donc ⌥⌘Q de FL. Toutes les « Actions en plus » du mode léger doublaient
   une touche de FL (vérifié une à une dans le catalogue) : retirées. Mac et Windows (398 essais Windows verts).
+- 07/11 (4) : Organiser (2 captures + message). Icônes : la cause probable était l'ordre : les icônes du Channel rack
+  se posaient au milieu du rangement, et un accroc pendant une icône (FL pas encore devant après 0,3 s, page changée)
+  était pris pour Échap → tout s'arrêtait. Maintenant à la fin, et un accroc n'arrête que les icônes. « Crash » à
+  l'étape 2 : la consigne disait ⌘Q ; tapé avec l'Organiser devant, il fermait FL Shortcuts. Bouton « Quitter et
+  rouvrir FL » et ⌘Q redirigé. Menu Options suisse, écrans de texte plus étroits et fixes, curseurs de bord.

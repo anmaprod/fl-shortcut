@@ -434,6 +434,18 @@
   marqueur, tap tempo, cloner, grille, instrument/preset suivant, bypass, mono, piste ±, volume, Playlist ↔ Mixer,
   rétablir) : « Demande le lien avec FL (Organiser › Installer le lien). » ; dans une macro, le lien est créé le temps
   du bloc (6 s d'attente) : pas encore vu marcher sur son Mac.
+- **Organiser, retours du 07/11 (soir)** : icônes posées À LA TOUTE FIN (après patterns, Mixer, Playlist ;
+  `pendingIcons`/`placePendingIcons`) et n'importe quel accroc pendant une icône (page qui change, FL pas encore
+  devant, lien qui ne répond pas) n'arrête QUE les icônes ; seul un vrai Échap arrête tout (`livePlaceIcon` compare
+  `EventTap.escapePresses`, FL attendu devant 2 s). Avant : avec des icônes, couleurs des patterns/Playlist/Mixer et
+  rangement du Mixer « oubliés ». Étapes du lien : plus « Un clic, une seule fois », plus « ⌘Q » ; étape 2 = bouton
+  « Quitter et rouvrir FL » (Mac `env.restartFL` : terminate puis relance ; Windows `OrganizerLive.RestartFl` :
+  CloseMainWindow puis relance) ; ⌘Q tapé dans FL Shortcuts à l'étape 2 relance FL au lieu de fermer l'app
+  (`applicationShouldTerminate`, c'était le « crash » de l'étape 2). Écran « Démarrer » : la consigne seule, en grand,
+  sous le trait blanc. Menu « Options » = menu suisse avec coches (`RightClickMenu.Item.checked/enabled` ; Windows
+  `SwissMenu` sur le flyout). Écrans de texte : 480 de large, taille fixe ; aperçu seul redimensionnable (min 440 ×
+  420) avec curseurs ↔ ↕ sur ses bords (`EdgeResizeCursors`). Image MIDI Settings : découpes recadrées (pastilles
+  entières), « voir en grand » dans la fenêtre (plus de bulle).
 - **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : plus de Liquid Glass depuis le 29/10 (plaques dessinées), sans lavis ni lueur ; fond de
   fenêtre plein (« sans le Liquid Glass derrière »), verre devant : cartes, touches, cartes de l'Organiser
   (`GlassPlate`, dessiné : pas de `glassEffect` par ligne) ; titre de

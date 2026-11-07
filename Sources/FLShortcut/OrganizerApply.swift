@@ -293,6 +293,10 @@ final class OrganizerApplier {
     private var restored = 0
     /// Première icône manquée : les suivantes ne sont plus essayées, le reste du rangement continue.
     private var iconMiss: OrganizerError?
+    /// Icônes prévues, posées à la toute fin (07/11, « dès que je veux mettre des icônes… ça oublie les couleurs des
+    /// patterns, de la Playlist, du Mixer, ça oublie de les ranger ») : avant, celles du Channel rack se posaient
+    /// avant les patterns, le Mixer et la Playlist, et le moindre accroc pendant une icône arrêtait tout le reste.
+    private var pendingIcons: [(icons: [Int: FLIcon], kind: ItemKind, places: [Int: Int])] = []
     /// Boîtes de FL répondues pendant l'ouverture de la copie (4 au plus : jamais Entrée sans fin).
     private var dialogAnswers = 0
 
@@ -409,6 +413,7 @@ final class OrganizerApplier {
         var result = result
         restored = 0
         iconMiss = nil
+        pendingIcons = []
         do {
             if let project = result.project {
                 // Toujours dans une copie (son Channel rack sur « All ») ; la Playlist n'y est rangée que si on l'a
@@ -479,6 +484,8 @@ final class OrganizerApplier {
                                            unordered: &outcome.playlistUnordered)
                 if !ok { verified = false }
             }
+            // Tout le reste est fait : les icônes maintenant (une icône ratée ne défait et n'arrête plus rien).
+            try placePendingIcons()
             if outcome.notDeleted > 0 {
                 // Sons sans note pas supprimés : sélectionnés de nouveau à leur place d'arrivée (les déplacements ont
                 // changé la sélection), pour que l'utilisateur les supprime lui-même.
@@ -843,7 +850,9 @@ final class OrganizerApplier {
         let expected: [RGBColor?] = snap.arrangement.map { area.colors[$0] ?? channels[$0].color }
         guard regrouped, now == expected else { return false }
         let arrangement = snap.arrangement
-        try placeIcons(icons, kind: .channels) { arrangement.firstIndex(of: $0) }
+        var places: [Int: Int] = [:]
+        for index in icons.keys { if let at = arrangement.firstIndex(of: index) { places[index] = at } }
+        if !icons.isEmpty { pendingIcons.append((icons: icons, kind: .channels, places: places)) }
         return true
     }
 
@@ -941,7 +950,9 @@ final class OrganizerApplier {
             resetOK = resets.allSatisfy { after[place($0)]?.hasDefaultName == true }
         }
         guard regrouped, colorsOK, routesOK, resetOK, Self.namesMatch(named, read) else { return false }
-        try placeIcons(icons, kind: .mixer) { place($0) }
+        var places: [Int: Int] = [:]
+        for index in icons.keys { places[index] = place(index) }
+        if !icons.isEmpty { pendingIcons.append((icons: icons, kind: .mixer, places: places)) }
         return true
     }
 
@@ -1075,18 +1086,39 @@ final class OrganizerApplier {
         }
     }
 
+    /// Les icônes du Channel rack puis du Mixer, après tout le reste. N'importe quel accroc (page de FL qui a changé,
+    /// FL qui ne répond pas, nom introuvable) n'arrête que les icônes, dit à la fin ; seul Échap arrête tout.
+    private func placePendingIcons() throws {
+        let jobs = pendingIcons
+        pendingIcons = []
+        for job in jobs where iconMiss == nil {
+            do {
+                try placeIcons(job.icons, kind: job.kind) { job.places[$0] }
+            } catch OrganizerError.interrupted {
+                throw OrganizerError.interrupted
+            } catch {
+                iconMiss = Self.failure(error)
+            }
+        }
+    }
+
     /// Icônes en dernier (FL ne dit pas lesquelles étaient là : « Revenir comme avant » ne les retire pas). Chaque
     /// élément est sélectionné seul, puis la pose passe par la fenêtre de FL (son nom y est retrouvé d'après les
-    /// noms relus dans l'ordre de FL) ; la page doit rester devant. Une icône manquée n'arrête que les icônes
-    /// (capture du 31/10 : le Mixer n'était plus rangé) ; Échap arrête tout.
+    /// noms relus dans l'ordre de FL) ; la page est remise devant si elle ne l'est plus. Une icône manquée n'arrête
+    /// que les icônes (capture du 31/10 : le Mixer n'était plus rangé) ; Échap arrête tout.
     private func placeIcons(_ icons: [Int: FLIcon], kind: ItemKind, place: (Int) -> Int?) throws {
         guard !icons.isEmpty, iconMiss == nil else { return }
         let page: FLWindow = kind == .channels ? .channelRack : .mixer
+        if link.window != page { try link.show(page) }
         let names = kind == .channels ? IconTarget.channelNames(try link.listChannels())
                                       : IconTarget.mixerNames(try link.listMixer())
         for index in icons.keys.sorted() {
             guard let icon = icons[index], let at = place(index) else { continue }
-            guard link.window == page else { throw OrganizerError.interrupted }
+            if link.window != page { try link.show(page) }
+            guard link.window == page else {
+                iconMiss = .failed(String(localized: "la page de FL a changé pendant les icônes"))
+                return
+            }
             try link.selectOne(kind, at)
             if let error = placeIcon(icon, IconTarget(kind: kind, place: at, names: names)) {
                 if error == .interrupted { throw error }

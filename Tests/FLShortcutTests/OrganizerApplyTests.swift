@@ -228,6 +228,28 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertEqual(stopped.error, .interrupted)
         XCTAssertNil(stopped.iconsMissed)
 
+        // 07/11 : FL passe sur une autre page pendant les icônes (la grille, un plugin) : la page est remise devant et
+        // les icônes continuent ; si elle ne revient pas, seules les icônes s'arrêtent, jamais le reste.
+        let (fourth, fourthResult) = rack([.melody, .drums, .bass])
+        var count = 0
+        let wandered = applier(fourth, placeIcon: { _, _ in
+            count += 1
+            fourth.window = .playlist
+            return nil
+        }).apply(plan(fourthResult, styles: styles, options: rackOnly), result: fourthResult, styles: styles)
+        XCTAssertNil(wandered.error)
+        XCTAssertNil(wandered.iconsMissed)
+        XCTAssertEqual(count, 2)
+        let (fifth, fifthResult) = rack([.melody, .drums, .bass])
+        let stuck = applier(fifth, placeIcon: { _, _ in
+            fifth.keptWindow = .playlist
+            fifth.window = .playlist
+            return nil
+        }).apply(plan(fifthResult, styles: styles, options: rackOnly), result: fifthResult, styles: styles)
+        XCTAssertNil(stuck.error, "une page qui ne revient pas n'arrête que les icônes")
+        XCTAssertNotNil(stuck.iconsMissed)
+        XCTAssertEqual(stuck.snapshot.rack?.arrangement, [0, 2, 1])
+
         // « Reset » n'est pas une icône : rien n'est posé pour cette famille.
         var resets = styles
         resets[.drums]?.icon = try XCTUnwrap(FLIcon(code: "0-0"))

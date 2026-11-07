@@ -378,7 +378,7 @@ internal sealed class OrganizerWindow : Window
     /// Lien avec FL pas encore installé (05/11 : « un ordre à la fois ») : étape 1 sur 3, un seul bouton.
     private void Setup()
     {
-        _content.Children.Add(LinkSteps(1, Loc.T("Un clic, une seule fois.")));
+        _content.Children.Add(LinkSteps(1, ""));                 // 07/11 : plus de phrase dessous
         PortsCard();
         _right.Children.Add(SoftButton(Loc.T("Fermer"), _controller.Close));
         _right.Children.Add(BlueButton(Loc.T("Installer le lien"), _controller.InstallLink));
@@ -402,7 +402,7 @@ internal sealed class OrganizerWindow : Window
 
     private static (string Icon, string Title, string Detail) WaitText(OrganizerWait reason) => reason switch
     {
-        OrganizerWait.RestartFl => ("arrow.clockwise", Loc.T("Quitte et rouvre FL"), Loc.T("Ferme FL, puis rouvre-le.")),
+        OrganizerWait.RestartFl => ("arrow.clockwise", Loc.T("Quitte et rouvre FL"), ""),
         OrganizerWait.NoResponse => ("antenna.radiowaves.left.and.right", Loc.T("En attente de FL Studio"),
             Loc.T("FL ne répond pas encore. Vérifie MIDI Settings ci-dessous.")),
         OrganizerWait.WrongInput => ("link", Loc.T("Le lien est sur la mauvaise entrée"),
@@ -437,6 +437,9 @@ internal sealed class OrganizerWindow : Window
         _left.Children.Add(DiagnosticButton());
         _right.Children.Add(SoftButton(Loc.T("Fermer"), _controller.Close));
         _right.Children.Add(SoftButton(Loc.T("Réessayer maintenant"), _controller.Retry));
+        // 07/11 (comme le Mac) : FL quitté et rouvert d'un clic.
+        if (reason == OrganizerWait.RestartFl && FlControl.Process() is not null)
+            _right.Children.Add(BlueButton(Loc.T("Quitter et rouvrir FL"), _controller.RestartFl));
     }
 
     /// « Ça ne marche toujours pas ? » : les réglages de FL à vérifier, repliés tant qu'on ne les demande pas.
@@ -706,7 +709,7 @@ internal sealed class OrganizerWindow : Window
         menu.Items.Add(MenuItem(_controller.Copied ? Loc.T("Copié") : Loc.T("Copier le diagnostic"), _controller.CopyDiagnostic));
         menu.Items.Add(MenuItem(Loc.T("Couleurs de base…"), ShowBaseColors));
         var button = SoftButton(Loc.T("Options"), () => { }, Loc.T("Ce que l'Organiser range, et le diagnostic à copier pour l'équipe"));
-        button.Flyout = menu;
+        button.Flyout = SwissMenu(menu);              // 07/11 : menu suisse, comme le Mac
         return button;
     }
 
@@ -1208,7 +1211,7 @@ internal sealed class OrganizerWindow : Window
         var title = PageTitle(big, 30);
         title.HorizontalAlignment = HorizontalAlignment.Left;
         panel.Children.Add(title);
-        panel.Children.Add(Paragraph(detail, 13));
+        if (detail.Length > 0) panel.Children.Add(Paragraph(detail, 13));
         var list = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
         for (var i = 0; i < 3; i++)
         {

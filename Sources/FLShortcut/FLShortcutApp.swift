@@ -329,6 +329,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var quitAsked: Date?
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        // Organiser, étape 2 « Quitte et rouvre FL » (07/11 : « j'étais dans l'étape 2 et ça s'est fermé ») : ⌘Q tapé
+        // pendant que la fenêtre de l'Organiser était devant fermait FL Shortcuts, pas FL. FL est quitté et rouvert,
+        // FL Shortcuts reste là.
+        if NSApp.currentEvent?.type == .keyDown, let organizer = OrganizerWindow.controller, organizer.waitingForFLRestart {
+            MacroLog.shared.write("QUIT", "⌘Q at Organiser step 2 → FL restarted instead")
+            organizer.restartFL()
+            return .terminateCancel
+        }
         if Uninstaller.didUninstall {
             SingleInstance.noteNoRelaunch()
             Uninstaller.quitAfterUninstall()

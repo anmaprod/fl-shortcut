@@ -430,6 +430,9 @@ struct RightClickMenu: NSViewRepresentable {
     struct Item {
         let title: String
         var destructive = false
+        /// Choix à cocher (menu « Options » de l'Organiser) : coché ou non ; nil : un simple bouton.
+        var checked: Bool? = nil
+        var enabled = true
         let action: () -> Void
     }
 
@@ -539,10 +542,11 @@ private struct SwissMenuList: View {
     let pick: (RightClickMenu.Item) -> Void
 
     var body: some View {
+        let checks = items.contains { $0?.checked != nil }
         VStack(alignment: .leading, spacing: 0) {
             ForEach(items.indices, id: \.self) { i in
                 if let item = items[i] {
-                    SwissMenuRow(item: item) { pick(item) }
+                    SwissMenuRow(item: item, checkColumn: checks) { pick(item) }
                 } else {
                     Rectangle().fill(Swiss.line).frame(height: 1).padding(.vertical, 4)
                 }
@@ -558,23 +562,35 @@ private struct SwissMenuList: View {
 
 private struct SwissMenuRow: View {
     let item: RightClickMenu.Item
+    var checkColumn = false
     let action: () -> Void
     @State private var hovering = false
 
     var body: some View {
-        let ink: Color = item.destructive ? Swiss.red : Swiss.text
+        let ink: Color = !item.enabled ? Swiss.gray : item.destructive ? Swiss.red : Swiss.text
+        let lit = hovering && item.enabled
         Button(action: action) {
-            Text(item.title)
-                .font(Swiss.font(13))
-                .lineLimit(1)
+            HStack(spacing: 8) {
+                if checkColumn {
+                    // Case carrée du style suisse : pleine quand c'est coché.
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10, weight: .heavy))
+                        .opacity(item.checked == true ? 1 : 0)
+                        .frame(width: 12)
+                }
+                Text(item.title)
+                    .font(Swiss.font(13))
+                    .lineLimit(1)
+            }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
-                .foregroundStyle(hovering ? Swiss.background : ink)
-                .background(Rectangle().fill(hovering ? ink : Color.clear))
+                .foregroundStyle(lit ? Swiss.background : ink)
+                .background(Rectangle().fill(lit ? ink : Color.clear))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(!item.enabled)
         .onHover { hovering = $0 }
     }
 }

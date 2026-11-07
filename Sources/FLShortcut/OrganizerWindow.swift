@@ -63,6 +63,9 @@ struct OrganizerEnvironment {
     var runningFL: () -> Int32? = { nil }
     /// « Ouvrir FL Studio » pendant cette attente, FL fermé.
     var openFL: () -> Void = {}
+    /// « Quitter et rouvrir FL » (07/11) : FL quitté comme par ⌘Q (il demande d'enregistrer s'il le faut), puis
+    /// relancé dès qu'il est parti.
+    var restartFL: () -> Void = {}
     /// Lecture de la fenêtre de FL permise (« Enregistrement de l'écran ») : les icônes en ont besoin.
     var screenAllowed: () -> Bool = { true }
     /// « Autoriser » : la page « Enregistrement de l'écran » des Réglages Système.
@@ -152,6 +155,23 @@ struct OrganizerEnvironment {
             openFL: {
                 guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.image-line.flstudio") else { return }
                 NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+            },
+            restartFL: {
+                guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: "com.image-line.flstudio")
+                    .first(where: { !$0.isTerminated }),
+                      let url = app.bundleURL ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.image-line.flstudio")
+                else { return }
+                app.terminate()
+                // Relancé dès qu'il est parti (2 minutes au plus : le temps de répondre à « Enregistrer ? » dans FL).
+                DispatchQueue.global(qos: .userInitiated).async {
+                    let deadline = Date().addingTimeInterval(120)
+                    while !app.isTerminated && Date() < deadline { Thread.sleep(forTimeInterval: 0.3) }
+                    guard app.isTerminated else { return }
+                    Thread.sleep(forTimeInterval: 1)
+                    DispatchQueue.main.async {
+                        NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+                    }
+                }
             },
             screenAllowed: { ScreenLook.allowed },
             // Retour du 31/10 (« aucune page ne s'ouvre ») : la page des Réglages toujours ouverte, l'app inscrite
@@ -373,9 +393,14 @@ struct OrganizerEnvironment {
     /// nom de l'élément, retrouvé dans la fenêtre de FL.
     static func livePlaceIcon(_ icon: FLIcon, _ target: IconTarget) -> OrganizerError? {
         guard let pid = flPID() else { return .failed(String(localized: "FL Studio n'est pas ouvert.")) }
+        let escapes = EventTap.shared.escapePresses
         if EventTap.shared.currentConfig.frontmostPID != pid {
             _ = NSRunningApplication(processIdentifier: pid)?.activate(options: [])
-            Thread.sleep(forTimeInterval: 0.3)
+            // FL devant avant la pose (07/11 : 0,3 s ne suffisaient pas toujours ; la pose voyait « FL n'est plus au
+            // premier plan » et tout le rangement s'arrêtait).
+            let deadline = Date().addingTimeInterval(2)
+            repeat { Thread.sleep(forTimeInterval: 0.05) }
+            while EventTap.shared.currentConfig.frontmostPID != pid && Date() < deadline
         }
         // L'Organiser ne couvre jamais le menu de FL ni sa grille des icônes.
         OrganizerWindow.stepAside(true)
@@ -392,7 +417,13 @@ struct OrganizerEnvironment {
         }
         switch MacroEffectsMac(pid: pid).placeIcon(icon, at: point, alsoColored: false) {
         case .ok, .warn: return nil
-        case .cancel: return .interrupted                     // Échap, ou FL plus devant : tout s'arrête
+        case .cancel(let why):
+            // Seul Échap (appuyé pour de vrai) arrête tout ; FL qui passe derrière n'arrête que les icônes.
+            if EventTap.shared.escapePresses != escapes || CGEventSource.keyState(.combinedSessionState, key: 53) {
+                return .interrupted
+            }
+            IconTargets.forget()
+            return .failed(why)
         case .fail(let why):
             IconTargets.forget()
             return .failed(why.replacingOccurrences(of: String(localized: "icône non posée : "), with: ""))
@@ -718,6 +749,15 @@ final class OrganizerController: ObservableObject {
     }
 
     func openFL() { env.openFL() }
+
+    /// Étape 2 : FL quitté puis rouvert tout seul ; l'attente continue (nouveau FL vu → « Démarrer »).
+    func restartFL() { env.restartFL() }
+
+    /// Étape 2 en cours, FL encore ouvert : ⌘Q tapé dans FL Shortcuts visait FL.
+    var waitingForFLRestart: Bool {
+        if case .waiting(.restartFL) = phase { return !flClosedForRestart }
+        return false
+    }
 
     /// Des icônes choisies, mais FL Shortcuts ne peut pas lire la fenêtre de FL : dit avant « Organiser » (capture du
     /// 31/10 : l'échec ne venait qu'au moment de les poser).
@@ -1381,6 +1421,9 @@ enum OrganizerWindow {
     static let maxWidth: CGFloat = 760
     /// Largeur donnée à l'aperçu à son arrivée : les familles sur deux colonnes (maquette du 28/10).
     static let previewWidth: CGFloat = 720
+    /// Largeur des écrans de texte (07/11 : « les pages avec des textes un peu longs… plus petites, plus carrées
+    /// qu'un rectangle » ; « je réduis la page jusqu'à 0, il faudrait une limite ») : fixe, ni tirée ni réduite.
+    static let textWidth: CGFloat = 480
 
     private final class Delegate: NSObject, NSWindowDelegate {
         func windowWillClose(_ notification: Notification) { OrganizerWindow.close() }
@@ -1408,7 +1451,7 @@ enum OrganizerWindow {
         controller.onClose = { OrganizerWindow.close() }
         let host = NSHostingView(rootView: OrganizerView(controller: controller))
         host.sizingOptions = []                                       // taille posée ici, à chaque étape
-        let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: OrganizerView.width, height: 220),
+        let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: textWidth, height: 220),
                         styleMask: [.titled, .closable, .resizable, .fullSizeContentView, .nonactivatingPanel],
                         backing: .buffered, defer: false)
         p.contentMinSize = NSSize(width: OrganizerView.width, height: minHeight)
@@ -1458,7 +1501,8 @@ enum OrganizerWindow {
         let screen = (panel.screen ?? NSScreen.main)?.visibleFrame
         let tallest = screen.map { $0.height - 40 } ?? .greatestFiniteMagnitude
         if preview {
-            // L'aperçu se tire en hauteur, sans descendre sous ce qu'il lui faut.
+            // L'aperçu se tire en hauteur et en largeur, sans descendre sous ce qu'il lui faut.
+            panel.styleMask.insert(.resizable)
             panel.contentMinSize = NSSize(width: OrganizerView.width, height: min(previewMinHeight, tallest))
             panel.contentMaxSize = NSSize(width: maxWidth, height: .greatestFiniteMagnitude)
             if !entering { return }
@@ -1468,11 +1512,11 @@ enum OrganizerWindow {
         // L'aperçu arrive assez large pour deux colonnes de familles (sans dépasser l'écran) ; la largeur choisie
         // ensuite par l'utilisateur est gardée.
         let widest = screen.map { $0.width - 40 } ?? maxWidth
-        let width = entering ? min(max(content.width, previewWidth), widest) : content.width
+        let width = preview ? (entering ? min(max(content.width, previewWidth), widest) : content.width) : textWidth
         if !preview {
-            // Les autres étapes : la hauteur de leur contenu, fixe ; seule la largeur se tire.
-            panel.contentMinSize = NSSize(width: OrganizerView.width, height: min(target, content.height))
-            panel.contentMaxSize = NSSize(width: maxWidth, height: max(target, content.height))
+            // Les autres étapes : la taille de leur contenu, fixe (largeur des écrans de texte, hauteur du contenu).
+            panel.contentMinSize = NSSize(width: min(textWidth, content.width), height: min(target, content.height))
+            panel.contentMaxSize = NSSize(width: max(textWidth, content.width), height: max(target, content.height))
         }
         guard abs(target - content.height) > 0.5 || abs(width - content.width) > 0.5 else {
             if !preview { pin(panel, height: target) }
@@ -1490,8 +1534,9 @@ enum OrganizerWindow {
 
     /// Hauteur d'une étape fixée (après le changement de taille, qui doit pouvoir passer d'une hauteur à l'autre).
     private static func pin(_ panel: NSPanel, height: CGFloat) {
-        panel.contentMinSize = NSSize(width: OrganizerView.width, height: height)
-        panel.contentMaxSize = NSSize(width: maxWidth, height: height)
+        panel.contentMinSize = NSSize(width: textWidth, height: height)
+        panel.contentMaxSize = NSSize(width: textWidth, height: height)
+        panel.styleMask.remove(.resizable)
     }
 
     /// Depuis la vue : après sa mise à jour (la fenêtre ne change pas de taille au milieu d'un dessin de SwiftUI).
@@ -1620,6 +1665,8 @@ struct OrganizerView: View {
         // Collé en haut, et le fond remplit toute la fenêtre : pendant qu'elle change de taille (Réessayer, étape
         // suivante), plus de bandes noires en haut et en bas (vidéo de l'utilisateur : le contenu se centrait).
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // 07/11 : l'aperçu se tire par ses bords, avec le curseur de macOS qui le dit (↔, ↕).
+        .overlay { if isPreview { EdgeResizeCursors() } }
         // Plus de lueur de couleur dans le fond (28/10, « pas de fond »).
         .motion(Motion.morph, value: stepKey)
         // Nouvelle analyse : les colonnes des familles reviennent à leur coupe automatique.
@@ -1911,19 +1958,15 @@ struct OrganizerView: View {
     /// à la fermeture de l'Organiser.
     private var ready: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .center, spacing: 14) {
-                OrganizerBadge(symbol: "wand.and.stars", tint: Self.tint)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(String(localized: "Organiser ton projet")).font(.system(size: 14, weight: .semibold))
-                    Text(String(localized: "Ne touche pas à FL jusqu'à la fin."))
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(14)
-            .organizerCard()
-            .morphIn(1)
+            // 07/11 : plus « Organiser ton projet » ni les deux traits gris ; la consigne seule, en grand (« c'est
+            // vraiment important »), sous le trait blanc du titre.
+            Text(String(localized: "Ne touche pas à FL jusqu'à la fin."))
+                .font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
+                .foregroundStyle(Swiss.text)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 10)
+                .morphIn(1)
             HStack(spacing: 12) {
                 Spacer()
                 Button(String(localized: "Fermer")) { controller.close() }
@@ -1943,7 +1986,8 @@ struct OrganizerView: View {
     /// un seul bouton ; la suite se fait toute seule.
     private var setup: some View {
         VStack(alignment: .leading, spacing: 14) {
-            LinkSteps(current: 1, detail: String(localized: "Un clic, une seule fois."))
+            // 07/11 : plus de phrase dessous (« un clic, une seule fois, on s'en fout, c'est inutile »).
+            LinkSteps(current: 1, detail: "")
                 .morphIn(1)
             HStack {
                 Spacer()
@@ -2002,6 +2046,11 @@ struct OrganizerView: View {
                     .primaryButton()
                     .controlSize(.large)
                     .morphIn(3)
+            } else if reason == .restartFL {
+                Button("Quitter et rouvrir FL") { controller.restartFL() }
+                    .primaryButton()
+                    .controlSize(.large)
+                    .morphIn(3)
             }
             if reason == .midiSettings {
                 // L'image du README (retour du 31/10) : la fenêtre MIDI Settings, les 4 cases entourées et numérotées.
@@ -2034,8 +2083,8 @@ struct OrganizerView: View {
     static func waitText(_ reason: OrganizerController.Wait) -> (symbol: String, title: String, detail: String) {
         switch reason {
         case .restartFL:
-            return ("arrow.clockwise", String(localized: "Quitte et rouvre FL"),
-                    String(localized: "Dans FL : ⌘Q, puis rouvre-le."))
+            // 07/11 : plus « Dans FL : ⌘Q… » ; le bouton « Quitter et rouvrir FL » le fait.
+            return ("arrow.clockwise", String(localized: "Quitte et rouvre FL"), "")
         case .midiSettings:
             return ("slider.horizontal.3", String(localized: "Options › MIDI Settings"),
                     String(localized: "Règle les 4 cases, dans l'ordre."))
@@ -2421,35 +2470,39 @@ private struct OrganizerMainButton<Label: View>: View {
 private struct OrganizerOptionsMenu: View {
     @ObservedObject var controller: OrganizerController
 
+    /// 07/11 (« après avoir cliqué sur Options… plus un Liquid Glass, un vrai truc dans le style suisse ») : le menu
+    /// suisse du clic droit, avec ses coches, sous la souris.
     var body: some View {
-        Menu {
-            Toggle("Channel rack", isOn: $controller.options.rack)
-            Toggle("Patterns", isOn: $controller.options.patterns)
-            Toggle("Mixer", isOn: $controller.options.mixer)
-            Toggle("Playlist", isOn: $controller.options.playlist)
-            Divider()
-            Toggle("Renommer", isOn: $controller.options.rename)
-            Toggle("Un bus par famille", isOn: $controller.options.buses)
-                .disabled(!controller.options.mixer)
-            Toggle("Pré-master", isOn: $controller.options.premaster)
-                .disabled(!controller.options.mixer || !controller.options.buses)
-            Toggle(isOn: $controller.options.deleteUnused) {
-                Text(controller.organizesCopy
-                    ? String(localized: "Supprimer les sons sans note")
-                    : String(localized: "Supprimer les sons sans note (définitif)"))
-            }
-            Divider()
-            Button(controller.copied ? String(localized: "Copié") : String(localized: "Copier le diagnostic")) {
-                controller.copyDiagnostic()
-            }
-            Button("Couleurs de base…") { controller.editingBaseColors = true }
-        } label: {
-            Text("Options")
+        Button("Options") { SwissContextMenu.shared.show(items, at: NSEvent.mouseLocation) }
+            .secondaryButton()
+            .fixedSize()
+            .help("Ce que l'Organiser range, et le diagnostic à copier pour l'équipe")
+    }
+
+    private var items: [RightClickMenu.Item?] {
+        let c = controller
+        let o = c.options
+        func toggle(_ title: String, _ on: Bool, enabled: Bool = true, _ flip: @escaping () -> Void) -> RightClickMenu.Item {
+            RightClickMenu.Item(title: title, checked: on, enabled: enabled, action: flip)
         }
-        .menuStyle(.button)
-        .secondaryButton()
-        .fixedSize()
-        .help("Ce que l'Organiser range, et le diagnostic à copier pour l'équipe")
+        return [
+            toggle(String(localized: "Channel rack"), o.rack) { c.options.rack.toggle() },
+            toggle(String(localized: "Patterns"), o.patterns) { c.options.patterns.toggle() },
+            toggle(String(localized: "Mixer"), o.mixer) { c.options.mixer.toggle() },
+            toggle(String(localized: "Playlist"), o.playlist) { c.options.playlist.toggle() },
+            nil,
+            toggle(String(localized: "Renommer"), o.rename) { c.options.rename.toggle() },
+            toggle(String(localized: "Un bus par famille"), o.buses, enabled: o.mixer) { c.options.buses.toggle() },
+            toggle(String(localized: "Pré-master"), o.premaster, enabled: o.mixer && o.buses) { c.options.premaster.toggle() },
+            toggle(c.organizesCopy ? String(localized: "Supprimer les sons sans note")
+                                   : String(localized: "Supprimer les sons sans note (définitif)"), o.deleteUnused) {
+                c.options.deleteUnused.toggle()
+            },
+            nil,
+            RightClickMenu.Item(title: c.copied ? String(localized: "Copié") : String(localized: "Copier le diagnostic"),
+                                checked: false) { c.copyDiagnostic() },
+            RightClickMenu.Item(title: String(localized: "Couleurs de base…"), checked: false) { c.editingBaseColors = true },
+        ]
     }
 }
 
@@ -3257,7 +3310,9 @@ private struct LinkSteps: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Étape \(current) sur 3").swissLabel(Swiss.red)
                 SwissPageTitle(text: Self.names[max(0, min(current, 3) - 1)], size: 30)
-                Text(detail).font(.system(size: 13)).foregroundStyle(Swiss.gray)
+                if !detail.isEmpty {
+                    Text(detail).font(.system(size: 13)).foregroundStyle(Swiss.gray)
+                }
             }
             VStack(spacing: 0) {
                 ForEach(0..<3, id: \.self) { i in
@@ -3280,3 +3335,43 @@ private struct LinkSteps: View {
     }
 }
 
+/// Curseurs de redimensionnement sur les bords d'une fenêtre qui n'est pas la fenêtre active (07/11 : « quand on met
+/// la souris vers un des côtés… le curseur comme dans Mac pour rétrécir une page ») : l'Organiser flotte au-dessus de
+/// FL sans jamais devenir actif, et macOS n'y montrait que la flèche. Des zones de 6 points le long des bords, qui
+/// ne prennent aucun clic (le bord se tire toujours par macOS).
+struct EdgeResizeCursors: NSViewRepresentable {
+    func makeNSView(context: Context) -> EdgeView { EdgeView() }
+    func updateNSView(_ nsView: EdgeView, context: Context) {}
+
+    final class EdgeView: NSView {
+        private static let margin: CGFloat = 6
+
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            trackingAreas.forEach(removeTrackingArea)
+            let m = Self.margin, b = bounds
+            let zones: [(NSRect, NSCursor)] = [
+                (NSRect(x: 0, y: m, width: m, height: max(0, b.height - 2 * m)), .resizeLeftRight),
+                (NSRect(x: b.width - m, y: m, width: m, height: max(0, b.height - 2 * m)), .resizeLeftRight),
+                (NSRect(x: 0, y: 0, width: b.width, height: m), .resizeUpDown),
+                (NSRect(x: 0, y: b.height - m, width: b.width, height: m), .resizeUpDown),
+            ]
+            for (rect, cursor) in zones where rect.width > 0 && rect.height > 0 {
+                addTrackingArea(NSTrackingArea(rect: rect, options: [.activeAlways, .cursorUpdate, .mouseEnteredAndExited],
+                                               owner: self, userInfo: ["cursor": cursor]))
+            }
+        }
+
+        override func cursorUpdate(with event: NSEvent) {
+            (event.trackingArea?.userInfo?["cursor"] as? NSCursor)?.set()
+        }
+
+        override func mouseEntered(with event: NSEvent) {
+            (event.trackingArea?.userInfo?["cursor"] as? NSCursor)?.set()
+        }
+
+        override func mouseExited(with event: NSEvent) { NSCursor.arrow.set() }
+    }
+}

@@ -1299,6 +1299,7 @@
 "Marqueur suivant" = "Next marker";
 "Marqueurs" = "Markers";
 "Masquer" = "Hide";
+"Masquer la fenêtre en grand" = "Hide the large window";
 "Master" = "Master";
 "Master en mono" = "Master in mono";
 "Membres" = "Members";
@@ -1723,6 +1724,7 @@
 "Quitte et rouvre FL Studio : il trouve « FL Shortcuts Link » en démarrant et le relie tout seul. Puis « Réessayer »." = "Quit and reopen FL Studio: it finds “FL Shortcuts Link” when it starts and links it on its own. Then “Try again”.";
 "Quitter" = "Quit";
 "Quitter FL Shortcuts" = "Quit FL Shortcuts";
+"Quitter et rouvrir FL" = "Quit and reopen FL";
 "Quoi" = "What";
 "REC non lancé (touche interdite)" = "REC not started (forbidden key)";
 "Raccourci" = "Shortcut";
@@ -2359,6 +2361,7 @@
 "la grille des icônes de FL est restée ouverte : choisis une case ou clique à côté" = "FL's icon grid stayed open: pick a cell or click outside it";
 "la grille des icônes ne s'est pas ouverte : relance pour montrer de nouveau « Change icon… »" = "the icon grid didn't open: run it again to show “Change icon…” once more";
 "la liste « More plugins… » de FL ne s'est pas ouverte" = "FL's “More plugins…” list didn't open";
+"la page de FL a changé pendant les icônes" = "the FL page changed during the icons";
 "la piste visée est hors de FL : clique d'abord sur ta piste dans le Mixer" = "the target track is outside FL: first click your track in the Mixer";
 "la souris est hors de FL" = "the mouse is outside FL";
 "le bloc précédent a échoué" = "the previous block failed";
