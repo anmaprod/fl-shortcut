@@ -28,7 +28,10 @@ final class CommunitySessionKeychain {
 final class CommunityStore: ObservableObject {
     static let shared = CommunityStore()
 
-    @Published private(set) var session: CommunitySession?
+    @Published private(set) var session: CommunitySession? {
+        // Thèmes seulement avec un compte (07/11) : connexion, déconnexion, session oubliée. Pas pour les exemples.
+        didSet { if !demo { AppTheme.accountChanged(signedIn: session != nil) } }
+    }
     @Published private(set) var shares: [Share] = []
     @Published private(set) var busy = false
     @Published private(set) var isAdmin = false
@@ -105,9 +108,10 @@ final class CommunityStore: ObservableObject {
     /// Session du Trousseau reprise une fois (lancement, page Communauté). Hors ligne : gardée telle quelle, le jeton
     /// sera rafraîchi à la prochaine demande ; refusée par le serveur : oubliée (reconnexion demandée).
     func restoreSession() async {
-        guard !demo, let client, !restored else { return }
+        guard !demo, !restored else { return }
+        guard let client else { AppTheme.accountChanged(signedIn: false); return }   // pas de compte possible
         restored = true
-        guard let saved = keychain.load() else { return }
+        guard let saved = keychain.load() else { AppTheme.accountChanged(signedIn: false); return }
         do {
             set(try await client.refresh(saved))
         } catch let error as CommunityError where Self.sessionRefused(error) {

@@ -634,6 +634,7 @@
 "Conflit de port MIDI : une autre copie de FL Shortcuts tourne peut-être." = "Conflit de port MIDI : une autre copie de FL Shortcuts tourne peut-être.";
 "Connecte-toi d'abord." = "Connecte-toi d'abord.";
 "Connecte-toi dans « Mon compte » (barre latérale) : tes raccourcis et tes macros sont sauvegardés en ligne quelques secondes après chaque changement. Sur un autre Mac, connecte-toi avec le même compte : tout revient. À la déconnexion, ils quittent ce Mac et restent dans ton compte. Si ce Mac et ton compte ont chacun des changements, l'app te demande lequel garder." = "Connecte-toi dans « Mon compte » (barre latérale) : tes raccourcis et tes macros sont sauvegardés en ligne quelques secondes après chaque changement. Sur un autre Mac, connecte-toi avec le même compte : tout revient. À la déconnexion, ils quittent ce Mac et restent dans ton compte. Si ce Mac et ton compte ont chacun des changements, l'app te demande lequel garder.";
+"Connecte-toi pour choisir ton thème." = "Connecte-toi pour choisir ton thème.";
 "Connecte-toi sur un autre Mac : tout revient. À la déconnexion, ils quittent ce Mac et restent dans ton compte." = "Connecte-toi sur un autre Mac : tout revient. À la déconnexion, ils quittent ce Mac et restent dans ton compte.";
 "Connecté en tant que @%@" = "Connecté en tant que @%@";
 "Connexion" = "Connexion";

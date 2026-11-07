@@ -42,6 +42,32 @@ final class AppThemeTests: XCTestCase {
         XCTAssertEqual(AppTheme.orange.appearanceName, .aqua)
     }
 
+    /// Demande du 07/11 : les thèmes seulement avec un compte connecté ; sans compte, Noir, et le choix revient à la
+    /// connexion.
+    @MainActor func testThemesOnlyWithAnAccount() {
+        let defaults = UserDefaults.standard
+        let theme = defaults.object(forKey: AppTheme.key), account = defaults.object(forKey: AppTheme.accountKey)
+        defer {
+            defaults.set(theme, forKey: AppTheme.key)
+            defaults.set(account, forKey: AppTheme.accountKey)
+        }
+        AppTheme.use(nil)
+        AppTheme.choose(.papier)
+        AppTheme.accountChanged(signedIn: false)
+        XCTAssertFalse(AppTheme.unlocked)
+        XCTAssertEqual(AppTheme.current, .noir)
+        XCTAssertEqual(AppTheme.chosen, .papier, "choix gardé pour la prochaine connexion")
+        AppTheme.accountChanged(signedIn: true)
+        XCTAssertEqual(AppTheme.current, .papier)
+        XCTAssertTrue(defaults.bool(forKey: AppTheme.accountKey), "état gardé pour le lancement")
+        AppTheme.accountChanged(signedIn: false)
+        XCTAssertEqual(AppTheme.current, .noir)
+        // Photos de la CI : un thème montré passe avant le compte.
+        AppTheme.use(.orange)
+        XCTAssertEqual(AppTheme.current, .orange)
+        AppTheme.choose(.noir)
+    }
+
     func testUnknownStoredValueIsNotATheme() {
         XCTAssertNil(AppTheme(rawValue: "violet"))
         XCTAssertEqual(AppTheme.allCases.map(\.rawValue), ["noir", "papier", "orange"])

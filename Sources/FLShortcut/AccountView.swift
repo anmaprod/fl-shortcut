@@ -72,7 +72,6 @@ struct AccountPage: View {
                     CommunityMessage(symbol: "person.crop.circle.badge.xmark", tint: SidebarItem.account.tint,
                                      title: String(localized: "Les comptes ne sont pas encore ouverts"),
                                      text: String(localized: "Tes raccourcis et tes macros restent sur ce Mac en attendant."))
-                    themeBelow
                 }
             } else if let session = community.session {
                 signedIn(session)
@@ -141,9 +140,9 @@ struct AccountPage: View {
         }
     }
 
-    /// Sans compte (ou comptes pas encore ouverts) : le choix du thème reste là, sous la page.
+    /// Sans compte : le choix du thème reste visible sous la page, fermé (07/11 : thèmes seulement avec un compte).
     private var themeBelow: some View {
-        AccountThemeCard()
+        AccountThemeCard(locked: true)
             .padding(.horizontal, 26)
             .padding(.bottom, 20)
     }
@@ -151,7 +150,10 @@ struct AccountPage: View {
 
 /// Choix du thème (demande du 04/11, maquette validée) : trois aperçus, Noir, Papier, Orange ; le choisi entouré et
 /// soulevé sur son ombre rouge ; un clic le prend tout de suite, pour toute l'app (AppTheme.choose).
+/// `locked` (sans compte, 07/11 : « les thèmes… que si la personne crée un compte ou se connecte ») : aperçus
+/// éteints, rien à cliquer, une ligne pour se connecter.
 struct AccountThemeCard: View {
+    var locked = false
     @State private var chosen = AppTheme.current
 
     var body: some View {
@@ -160,13 +162,21 @@ struct AccountThemeCard: View {
                 .accessibilityAddTraits(.isHeader)
             HStack(spacing: 12) {
                 ForEach(AppTheme.allCases) { theme in
-                    ThemeTile(theme: theme, selected: theme == chosen) {
+                    ThemeTile(theme: theme, selected: !locked && theme == chosen) {
                         chosen = theme
                         AppTheme.choose(theme)
                     }
                 }
             }
             .padding(.trailing, 4)
+            .opacity(locked ? 0.35 : 1)
+            .disabled(locked)
+            .accessibilityHidden(locked)
+            if locked {
+                Text("Connecte-toi pour choisir ton thème.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Swiss.gray)
+            }
         }
         .swissPanel()
     }

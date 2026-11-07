@@ -130,22 +130,30 @@ internal sealed class AccountPage
 
     /// Choix du thème (demande du 04/11, comme le Mac) : trois aperçus, Noir, Papier, Orange ; le choisi entouré et
     /// soulevé sur son ombre rouge ; un clic le prend (MainShell.ChooseTheme relance l'app dans ce thème).
-    public static FrameworkElement ThemeChoice(AppTheme current, Action<AppTheme> choose)
+    /// `locked` (sans compte, 07/11) : aperçus éteints, rien à cliquer, une ligne pour se connecter.
+    public static FrameworkElement ThemeChoice(AppTheme current, Action<AppTheme> choose, bool locked = false)
     {
         var tiles = new Grid { ColumnSpacing = 12 };
         var themes = Enum.GetValues<AppTheme>();
         for (var i = 0; i < themes.Length; i++)
         {
             tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            var tile = ThemeTile(themes[i], themes[i] == current, choose);
+            var tile = ThemeTile(themes[i], !locked && themes[i] == current, choose);
+            if (tile is Control control) control.IsEnabled = !locked;
             Grid.SetColumn(tile, i);
             tiles.Children.Add(tile);
         }
         var label = SwissLabel(Loc.T("Thème"));
         AutomationProperties.SetHeadingLevel(label, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2);
+        var content = new StackPanel { Spacing = 12, Children = { label, tiles } };
+        if (locked)
+        {
+            tiles.Opacity = 0.35;
+            content.Children.Add(Label(Loc.T("Connecte-toi pour choisir ton thème."), 13, MacLook.Secondary));
+        }
         return new Border
         {
-            Child = new StackPanel { Spacing = 12, Children = { label, tiles } },
+            Child = content,
             MaxWidth = 560,
             HorizontalAlignment = HorizontalAlignment.Left,
             Padding = new Thickness(22, 20, 26, 20),

@@ -1,7 +1,8 @@
 // Thèmes de l'app (demande du 04/11 : « dans mon compte la possibilité de changer de thèmes ») : Noir, le style suisse
 // d'origine ; Papier, blanc à l'encre noire ; Orange, le rouge de la marque en fond, la barre de gauche et les cartes
 // en noir. D'après les maquettes validées (artefact 1EFC8zLVn5ATRWAnQMBZrB). Choisi dans Mon compte, gardé dans les
-// réglages : rien de sensible n'en dépend (un autre programme qui l'écrirait ne changerait que les couleurs).
+// réglages : rien de sensible n'en dépend (un autre programme qui l'écrirait ne changerait que les couleurs). Depuis le
+// 07/11, seulement avec un compte connecté : sans compte, Noir (le choix est gardé pour la prochaine connexion).
 //
 // Les couleurs du style suisse (`Swiss`) se lisent au moment du dessin, d'après le thème et l'apparence de macOS
 // (sombre pour Noir, claire pour Papier et Orange) : rien à reconstruire, la fenêtre se redessine quand l'apparence
@@ -16,20 +17,42 @@ enum AppTheme: String, CaseIterable, Identifiable {
 
     /// Clé du réglage.
     static let key = "theme"
+    /// Dernier état connu du compte (connecté ou non), pour le lancement : le Trousseau n'est lu qu'ensuite.
+    static let accountKey = "themeAccount"
 
-    private static let stored = Locked<AppTheme?>(nil)
+    /// Thème choisi dans Mon compte (enregistré) ; Noir si rien n'est choisi ou si la valeur est inconnue.
+    private static let saved = Locked<AppTheme?>(nil)
+    /// Thème montré sans rien enregistrer (essais, photos de la CI) : passe avant tout.
+    private static let forced = Locked<AppTheme?>(nil)
+    /// Compte connecté ou non (nil : pas encore su, dernier état connu des réglages).
+    private static let account = Locked<Bool?>(nil)
 
-    /// Thème choisi ; Noir si rien n'est choisi ou si la valeur est inconnue. Lu à chaque dessin : gardé en mémoire.
+    /// Thème affiché, lu à chaque dessin. Demande du 07/11 (« les thèmes… que si la personne crée un compte ou se
+    /// connecte ») : sans compte connecté, toujours Noir ; le choix est gardé et revient à la connexion.
     static var current: AppTheme {
-        if let theme = stored.value { return theme }
+        if let theme = forced.value { return theme }
+        return unlocked ? chosen : .noir
+    }
+
+    /// Thème choisi dans Mon compte, même sans compte connecté (il n'est alors pas affiché).
+    static var chosen: AppTheme {
+        if let theme = saved.value { return theme }
         let theme = AppTheme(rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .noir
-        stored.withLock { $0 = theme }
+        saved.withLock { $0 = theme }
         return theme
     }
 
-    /// Thème pris sans rien enregistrer (essais, photos de la CI).
-    static func use(_ theme: AppTheme) {
-        stored.withLock { $0 = theme }
+    /// Les thèmes sont ouverts : un compte est connecté.
+    static var unlocked: Bool {
+        if let signedIn = account.value { return signedIn }
+        let signedIn = UserDefaults.standard.bool(forKey: accountKey)
+        account.withLock { $0 = signedIn }
+        return signedIn
+    }
+
+    /// Thème pris sans rien enregistrer (essais, photos de la CI), compte ou non ; nil : de nouveau le choix du compte.
+    static func use(_ theme: AppTheme?) {
+        forced.withLock { $0 = theme }
     }
 
     var title: String {
@@ -54,23 +77,44 @@ enum AppTheme: String, CaseIterable, Identifiable {
         NSApp.appearance = NSAppearance(named: current.appearanceName)
     }
 
-    /// Choisit le thème (page Mon compte) : enregistré, puis toute l'app redessinée. Papier et Orange ont la même
-    /// apparence claire de macOS : un aller-retour par la sombre fait relire les couleurs à chaque fenêtre.
-    /// `save` faux : montré sans être enregistré (photos de la CI, DebugSnapshot.theme).
+    /// Choisit le thème (page Mon compte) : enregistré, puis toute l'app redessinée.
+    /// `save` faux : montré sans être enregistré, compte ou non (photos de la CI, DebugSnapshot.theme).
     @MainActor static func choose(_ theme: AppTheme, save: Bool = true) {
         let before = current
-        if save { UserDefaults.standard.set(theme.rawValue, forKey: key) }
-        use(theme)
+        if save {
+            UserDefaults.standard.set(theme.rawValue, forKey: key)
+            saved.withLock { $0 = theme }
+            forced.withLock { $0 = nil }
+        } else {
+            use(theme)
+        }
+        redraw(from: before)
+    }
+
+    /// Connexion ou déconnexion du compte (CommunityStore) : le thème choisi revient, ou Noir sans compte.
+    @MainActor static func accountChanged(signedIn: Bool) {
+        let before = current
+        account.withLock { $0 = signedIn }
+        if UserDefaults.standard.bool(forKey: accountKey) != signedIn {
+            UserDefaults.standard.set(signedIn, forKey: accountKey)
+        }
+        redraw(from: before)
+    }
+
+    /// Toute l'app redessinée si le thème affiché a changé. Papier et Orange ont la même apparence claire de macOS :
+    /// un aller-retour par la sombre fait relire les couleurs à chaque fenêtre.
+    @MainActor private static func redraw(from before: AppTheme) {
+        let theme = current
         guard theme != before else { return }
         if before.appearanceName == theme.appearanceName {
-            NSApp.appearance = NSAppearance(named: theme.appearanceName == .aqua ? .darkAqua : .aqua)
+            NSApp?.appearance = NSAppearance(named: theme.appearanceName == .aqua ? .darkAqua : .aqua)
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 80_000_000)
-                NSApp.appearance = NSAppearance(named: current.appearanceName)
+                NSApp?.appearance = NSAppearance(named: current.appearanceName)
                 NotificationCenter.default.post(name: changed, object: nil)
             }
         } else {
-            NSApp.appearance = NSAppearance(named: theme.appearanceName)
+            NSApp?.appearance = NSAppearance(named: theme.appearanceName)
             NotificationCenter.default.post(name: changed, object: nil)
         }
     }

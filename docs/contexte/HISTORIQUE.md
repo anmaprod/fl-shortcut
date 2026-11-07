@@ -847,3 +847,12 @@ entrée 1 ≈ 0,5 s.
   drop » → le fichier .fst du plugin n'était cherché qu'au premier niveau d'Installed › <format>, au nom exact. Il est
   maintenant cherché dans toute la base (sous-dossiers, catégories de favoris de FL), avec un nom toléré (marque devant,
   « (VST3) » derrière), jamais un autre numéro. Mac et Windows (396 essais Windows verts ici).
+- 07/11 : deux vidéos (« ça ne fonctionne toujours pas pour les VST… pour plugin ça ne vise pas la piste
+  sélectionnée ») → l'effet tombait sur la piste sous la souris : « Slot N » mal lu par la lecture du texte, et l'app
+  se rabattait sur le dernier clic dans FL. « Slot » lu avec ses confusions (SIot, S1ot, l/i pour 1, flèche devant),
+  plus aucun repli au dernier clic ; la touche de la page n'est plus appuyée si la page est déjà devant (elle la
+  refermait) ; un message court dit pourquoi le dépôt n'a pas eu lieu (pas de .fst, autorisation « Enregistrement de
+  l'écran » perdue après une nouvelle version, page illisible, dépôt refusé). Mac et Windows.
+- 07/11 (2) : « les thèmes, on les met en disponibilité que si la personne crée un compte ou se connecte » → sans
+  compte connecté, Noir et carte « Thème » éteinte ; à la connexion le thème choisi revient (Mac tout de suite ;
+  Windows : relance sur Mon compte, comme un changement de thème, une fois la sauvegarde en ligne au repos).

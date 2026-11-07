@@ -43,6 +43,9 @@ public sealed record ThemePalette(uint Background, uint Text, uint Gray, uint So
         _ => "noir",
     };
 
+    /// Thème affiché : le choisi seulement avec un compte connecté (demande du 07/11, comme le Mac), sinon Noir.
+    public static AppTheme Shown(string? key, bool signedIn) => signedIn ? Parse(key) : AppTheme.Noir;
+
     /// Thème d'après le réglage ; Noir si rien n'est choisi ou si la valeur est inconnue.
     public static AppTheme Parse(string? key) => key?.Trim().ToLowerInvariant() switch
     {

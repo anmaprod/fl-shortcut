@@ -354,7 +354,12 @@
   tuto 4 de l'Organiser : « l'ancienne version part à la Corbeille » (plus « ton projet ne bouge pas »).
 - **Thèmes** (05/11, « dans mon compte la possibilité de changer de thèmes ») : Noir (d'origine), Papier (blanc,
   encre noire, grille fine derrière la page), Orange (fond #FF3B1F, encre noire, barre de gauche et cartes noires),
-  maquettes validées (artefact privé `1EFC8zLVn5ATRWAnQMBZrB`). Carte « Thème » dans Mon compte, connecté ou non.
+  maquettes validées (artefact privé `1EFC8zLVn5ATRWAnQMBZrB`). Carte « Thème » dans Mon compte. 07/11 (« les
+  thèmes… que si la personne crée un compte ou se connecte ») : SEULEMENT avec un compte connecté ; sans compte, Noir
+  et carte éteinte « Connecte-toi pour choisir ton thème. » ; le choix est gardé et revient à la connexion (Mac :
+  `AppTheme.current`/`chosen`/`unlocked`, `accountChanged` appelé par `CommunityStore.session`, dernier état connu
+  dans le réglage `themeAccount` pour le lancement ; Windows : `ThemePalette.Shown`, session lue au lancement,
+  `MainShell.ThemeFollowsAccount` relance sur Mon compte une fois la sauvegarde au repos).
   Mac : `AppTheme.swift` (réglage `theme`), jetons `Swiss` lus au dessin d'après le thème et l'apparence
   (`SwissPalette.adaptive` ; NSApp en sombre pour Noir, en clair pour Papier/Orange ; aller-retour d'apparence pour
   passer de Papier à Orange), parties noires sous Orange par `swissInverted()`/`swissCard()`. Windows : palette

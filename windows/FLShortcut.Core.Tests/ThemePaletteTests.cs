@@ -21,6 +21,17 @@ public sealed class ThemePaletteTests
         Assert.True(ThemePalette.IsLight(AppTheme.Orange));
     }
 
+    /// Demande du 07/11 (comme le Mac) : les thèmes seulement avec un compte connecté ; sans compte, Noir.
+    [Fact]
+    public void ThemesOnlyWithAnAccount()
+    {
+        Assert.Equal(AppTheme.Noir, ThemePalette.Shown("papier", signedIn: false));
+        Assert.Equal(AppTheme.Noir, ThemePalette.Shown("orange", signedIn: false));
+        Assert.Equal(AppTheme.Papier, ThemePalette.Shown("papier", signedIn: true));
+        Assert.Equal(AppTheme.Orange, ThemePalette.Shown("orange", signedIn: true));
+        Assert.Equal(AppTheme.Noir, ThemePalette.Shown(null, signedIn: true));
+    }
+
     [Fact]
     public void PalettesOfTheMockups()
     {

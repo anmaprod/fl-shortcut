@@ -166,8 +166,12 @@ internal sealed partial class MainShell
         _community = new CommunityPage(_app, _account, () => { if (_kind == PageKind.Community) RenderPage(); }, ShowToast, ConfirmAsync);
         _account.Changed += UpdateAccountButton;
         // Sauvegarde en ligne commune avec le Mac (raccourcis traduits), suivie par la page Mon compte.
-        _account.Backup = new Services.AccountBackupWin(_app, _account);
+        var backup = new Services.AccountBackupWin(_app, _account);
+        _account.Backup = backup;
         _account.Choose = ChooseAsync;
+        // Thèmes seulement avec un compte (07/11, comme le Mac) : connexion, déconnexion, fin de la sauvegarde.
+        _account.Changed += ThemeFollowsAccount;
+        backup.Changed += ThemeFollowsAccount;
         _help.Token = () => _account.Session is { } session && !session.Expired(DateTimeOffset.UtcNow) ? session.AccessToken : null;
         UpdateAccountButton();
         _macros = new MacrosPage(_app, macroStore, photos, window,
@@ -289,15 +293,42 @@ internal sealed partial class MainShell
         return System.IO.File.Exists(path) ? path : null;
     }
 
-    /// Thème choisi dans Mon compte : enregistré, puis l'app relancée sur Mon compte (ses pages sont construites une
-    /// fois, dans leurs couleurs ; la nouvelle copie attend que celle-ci soit partie, App.OnLaunched). Relance
-    /// impossible : le thème est pris au prochain lancement.
+    /// Thème choisi dans Mon compte (seulement avec un compte, 07/11) : enregistré, puis l'app relancée sur Mon compte
+    /// (ses pages sont construites une fois, dans leurs couleurs ; la nouvelle copie attend que celle-ci soit partie,
+    /// App.OnLaunched). Relance impossible : le thème est pris au prochain lancement.
     private void ChooseTheme(AppTheme theme)
     {
-        if (theme == Theme) return;
+        if (theme == Theme || _account.Session is null) return;
         _app.Settings.Theme = ThemePalette.Key(theme);
         _app.Settings.Save();
         if (_photos) return;
+        RelaunchForTheme();
+    }
+
+    private bool _themeRelaunch;
+
+    /// Connexion ou déconnexion qui change le thème affiché (sans compte : Noir ; connecté : le thème choisi) : l'app
+    /// relancée sur Mon compte, une fois la sauvegarde en ligne au repos (jamais pendant une lecture, un envoi ou la
+    /// question « ce PC ou le compte »).
+    private void ThemeFollowsAccount()
+    {
+        if (_photos || _quitting || _themeRelaunch || !ThemeChangedByAccount()) return;
+        _themeRelaunch = true;
+        _root.DispatcherQueue.TryEnqueue(async () =>
+        {
+            await Task.Delay(800);
+            _themeRelaunch = false;
+            if (!_quitting && ThemeChangedByAccount()) RelaunchForTheme();
+        });
+    }
+
+    private bool ThemeChangedByAccount() =>
+        ThemePalette.Shown(_app.Settings.Theme, _account.Session is not null) != Theme
+        && _account.Backup?.Status is not (Services.AccountBackupWin.State.Checking or Services.AccountBackupWin.State.Saving
+                                           or Services.AccountBackupWin.State.Choice);
+
+    private void RelaunchForTheme()
+    {
         try
         {
             if (Environment.ProcessPath is not { } exe) return;
@@ -835,8 +866,8 @@ internal sealed partial class MainShell
             var account = _account.Content(_columns);
             if (_account.Session is null)
             {
-                // Sans compte : le choix du thème reste là, sous la page (connecté : sous le profil).
-                var theme = AccountPage.ThemeChoice(Theme, ChooseTheme);
+                // Sans compte : le choix du thème reste là, sous la page, fermé (07/11 : thèmes avec un compte).
+                var theme = AccountPage.ThemeChoice(Theme, ChooseTheme, locked: true);
                 theme.Margin = new Thickness(26, 0, 26, 24);
                 _scroll.Content = new StackPanel { Children = { account, theme } };
             }

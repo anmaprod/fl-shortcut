@@ -71,7 +71,9 @@ public partial class App : Application
         }
         Services.AppLogFile.Install();              // journal des macros et de l'Organiser (mots fixes et nombres)
         // Le thème choisi (Mon compte), avant la première fenêtre : les pages sont construites dans ses couleurs.
-        MacLook.Theme = FLShortcut.Core.ThemePalette.Parse(Services.AppSettings.Load().Theme);
+        // Seulement avec un compte connecté (07/11, comme le Mac) : sinon Noir.
+        MacLook.Theme = FLShortcut.Core.ThemePalette.Shown(Services.AppSettings.Load().Theme,
+                                                           Services.AccountStore.Load() is not null);
         _window = new MainWindow();
         // Comme le Mac (03/11) : FL Shortcuts vit dans la zone de notification ; la fenêtre au premier lancement
         // seulement. « --tray » (démarrage de Windows) : jamais de fenêtre ni de bulle. Relancée pour le thème : sur
