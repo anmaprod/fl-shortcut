@@ -336,13 +336,41 @@ struct SidebarSearchField: NSViewRepresentable {
 final class PlainSearchField: NSTextField {
     override func becomeFirstResponder() -> Bool {
         let accepted = super.becomeFirstResponder()
-        if accepted, let editor = currentEditor() as? NSTextView {
-            editor.insertionPointColor = Swiss.NS.text
-            editor.selectedTextAttributes = [.backgroundColor: SwissPalette.adaptive(.text, alpha: 0.25),
-                                             .foregroundColor: Swiss.NS.text]
-        }
+        if accepted, let editor = currentEditor() as? NSTextView { SwissCaret.style(editor) }
         return accepted
     }
+}
+
+/// Curseur de saisie de TOUS les champs comme celui de la recherche (07/11 : « quand on clique quelque part où l'on
+/// peut écrire, la barre qui clignote identique à la barre de recherche, en rapport avec le thème ») : couleur de
+/// l'encre du thème (blanc sous Noir, noir sous Papier et Orange, blanc dans les parties noires), sélection grise.
+/// Posé sur l'éditeur de texte de macOS dès qu'il reçoit la main (sélection posée), champ SwiftUI ou AppKit.
+enum SwissCaret {
+    @MainActor private static var observers: [NSObjectProtocol] = []
+
+    @MainActor static func install() {
+        guard observers.isEmpty else { return }
+        let center = NotificationCenter.default
+        observers.append(center.addObserver(forName: NSTextView.didChangeSelectionNotification, object: nil,
+                                            queue: .main) { note in
+            guard let view = note.object as? NSTextView else { return }
+            MainActor.assumeIsolated { style(view) }
+        })
+        observers.append(center.addObserver(forName: NSControl.textDidBeginEditingNotification, object: nil,
+                                            queue: .main) { note in
+            guard let view = note.userInfo?["NSFieldEditor"] as? NSTextView else { return }
+            MainActor.assumeIsolated { style(view) }
+        })
+    }
+
+    @MainActor static func style(_ view: NSTextView) {
+        if view.insertionPointColor != Swiss.NS.text { view.insertionPointColor = Swiss.NS.text }
+        if view.selectedTextAttributes[.backgroundColor] as? NSColor != selection {
+            view.selectedTextAttributes = [.backgroundColor: selection, .foregroundColor: Swiss.NS.text]
+        }
+    }
+
+    private static let selection = SwissPalette.adaptive(.text, alpha: 0.25)
 }
 
 /// Carte de raccourcis : son titre gris au-dessus, ses lignes dans une plaque claire, un trait fin entre deux lignes.

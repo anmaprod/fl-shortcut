@@ -326,7 +326,6 @@
 "Dossier refusé : lien symbolique." = "Folder refused: symbolic link.";
 "Raccourcis illisibles ignorés : %lld." = "Unreadable shortcuts skipped: %lld.";
 "Profil illisible : copie gardée, profil recommandé chargé." = "Unreadable profile: copy kept, recommended profile loaded.";
-"Demande le lien avec FL, éteint en mode léger." = "Needs the link with FL, off in light mode.";
 "Windows : changer de disposition de clavier" = "Windows: switch keyboard layout";
 "Windows : basculer la méthode de saisie" = "Windows: switch input method";
 "Windows : menu de la fenêtre" = "Windows: window menu";

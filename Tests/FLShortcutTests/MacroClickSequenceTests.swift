@@ -181,6 +181,22 @@ final class MacroClickSequenceTests: XCTestCase {
                        KeyCombo(keyCode: 100, option: true))
     }
 
+    /// Vidéo du 07/11 : un son tiré du Browser jusqu'à la Playlist ; au lâcher, FL montre son nom dans une petite
+    /// fenêtre sous la souris. Le lâcher va dans la Playlist (pas « menu ouvert », qui rendait le bloc « À corriger »).
+    func testDragIgnoresTheLabelFLShowsUnderTheMouse() {
+        let main = CGRect(x: 0, y: 25, width: 1440, height: 875)
+        let alone = [win(1, 0, main)]
+        var drag = click(100, 200, alone)
+        let label = win(9, 101, CGRect(x: 690, y: 390, width: 120, height: 20))
+        drag.release = RecordedRelease(point: CGPoint(x: 700, y: 400), windows: [label, win(1, 0, main)])
+        let r = ClickSequenceCompiler.compile([drag], layout: FakeLayout.qwerty)
+        XCTAssertEqual(r.blocks, [
+            .drag(from: .flWindow(corner: .topLeft, dx: 100, dy: 175, size: main.size),
+                  to: .flWindow(corner: .topLeft, dx: 700, dy: 375, size: main.size)),
+        ])
+        XCTAssertNil(MacroValidation.problem(in: r.blocks.map { Block($0) }, context: ValidationContext(forbidden: .physical)))
+    }
+
     func testMenuBarPathIsValidatedAndNeverLogged() {
         let ctx = ValidationContext(forbidden: .physical)
         let spec = BlockRegistry.spec(.menuBar)

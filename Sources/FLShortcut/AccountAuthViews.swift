@@ -45,7 +45,6 @@ struct AuthPitch: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Un compte, partout").swissLabel().padding(.bottom, 14)
             VStack(alignment: .leading, spacing: 2) {
                 Text(String(localized: "Tes raccourcis,").lowercased(with: Locale.current)).swissTitle(40)
                 Text(String(localized: "tes macros,").lowercased(with: Locale.current)).swissTitle(40)

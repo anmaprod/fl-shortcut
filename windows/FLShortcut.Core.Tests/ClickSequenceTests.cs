@@ -93,6 +93,19 @@ public sealed class ClickSequenceTests
         Assert.IsType<BlockBody.Click>(r.Blocks[1]);
     }
 
+    /// 07/11 (comme le Mac) : le nom du son que FL montre sous la souris pendant le glisser n'est pas un menu ouvert.
+    [Fact]
+    public void ADragIgnoresTheLabelFlShowsUnderTheMouse()
+    {
+        var label = new FlWin(3, FlWindowRole.Menu, 390, 290, 120, 20);
+        var r = ClickSequenceCompiler.Compile(new RecordedInput[]
+        {
+            new RecordedInput.Click(100, 100, false, MainOnly, new RecordedRelease(400, 300, new[] { label, Main })),
+        });
+        var drag = Assert.IsType<BlockBody.Drag>(r.Blocks[0]);
+        Assert.IsType<ClickTarget.FlWindowPoint>(drag.To);
+    }
+
     [Fact]
     public void KeysWithoutEquivalentAreIgnoredAndEveryBlockIsValid()
     {

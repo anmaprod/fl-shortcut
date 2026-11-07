@@ -856,3 +856,10 @@ entrée 1 ≈ 0,5 s.
 - 07/11 (2) : « les thèmes, on les met en disponibilité que si la personne crée un compte ou se connecte » → sans
   compte connecté, Noir et carte « Thème » éteinte ; à la connexion le thème choisi revient (Mac tout de suite ;
   Windows : relance sur Mon compte, comme un changement de thème, une fois la sauvegarde en ligne au repos).
+- 07/11 (3) : captures et vidéos (nom de macro qui se décale et change de police, menu clic droit en verre, bloc glissé
+  sans sa case blanche, glisser-déposer enregistré « À corriger », Quantize rapide « À corriger ») + liste des
+  « Actions en plus » à retirer. Causes : le titre passait d'un texte SwiftUI à un champ de macOS (autre police, plus
+  de resserrement ni de point) → un seul champ AppKit ; la case blanche était le fond de la liste, absent de l'image
+  glissée ; FL montre le nom du son sous la souris pendant le glisser (fenêtre flottante) → pris pour un menu ;
+  la liste noire bloquait toute touche ⌘+Q, donc ⌥⌘Q de FL. Toutes les « Actions en plus » du mode léger doublaient
+  une touche de FL (vérifié une à une dans le catalogue) : retirées. Mac et Windows (398 essais Windows verts).

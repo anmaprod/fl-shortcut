@@ -26,11 +26,13 @@ public class CatalogRowsTests
     }
 
     [Fact]
-    public void LightMode_KeepsOnlyActionsWithAFlKey()
+    public void NoExtraActionDoublesAnFlKey()
     {
+        // 07/11 : plus d'« Actions en plus » qui doublent une touche de FL ; aucune en mode léger.
         var light = CatalogEntries.Build(light: true);
-        Assert.All(light.Where(e => e.Kind is CatalogEntryKind.Action),
-                   e => Assert.NotNull(LightMode.NativeEquivalent(((CatalogEntryKind.Action)e.Kind).Id)));
+        Assert.DoesNotContain(light, e => e.Kind is CatalogEntryKind.Action);
+        Assert.All(Entries.Where(e => e.Kind is CatalogEntryKind.Action),
+                   e => Assert.Null(LightMode.NativeEquivalent(((CatalogEntryKind.Action)e.Kind).Id)));
         Assert.Equal(Entries.Count(e => e.IsNative), light.Count(e => e.IsNative));
     }
 

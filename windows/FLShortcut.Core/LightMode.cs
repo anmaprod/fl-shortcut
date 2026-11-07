@@ -47,5 +47,5 @@ public static class LightMode
     public static ActionAvailability Availability(int id) =>
         !FlActions.IsKnown(id) ? new ActionAvailability.Unavailable(Loc.T("Action inconnue"))
         : NativeEquivalent(id) is not null ? new ActionAvailability.Available()
-        : new ActionAvailability.Unavailable(Loc.T("Demande le lien avec FL, éteint en mode léger."));
+        : new ActionAvailability.Unavailable(Loc.T("Demande le lien avec FL (Organiser › Installer le lien)."));
 }

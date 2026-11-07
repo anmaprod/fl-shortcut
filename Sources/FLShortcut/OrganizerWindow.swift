@@ -2702,9 +2702,13 @@ private struct FamilySection: View {
                     .onChanged { onMove($0) }
                     .onEnded { _ in onRelease() },
                  including: ghost ? .none : .all)
-        .contextMenu {
-            Button("Monter la famille") { withAnimation(Motion.quickMorph) { controller.shiftFamily(family, by: -1) } }
-            Button("Descendre la famille") { withAnimation(Motion.quickMorph) { controller.shiftFamily(family, by: 1) } }
+        .swissContextMenu {
+            [RightClickMenu.Item(title: String(localized: "Monter la famille")) {
+                withAnimation(Motion.quickMorph) { controller.shiftFamily(family, by: -1) }
+             },
+             RightClickMenu.Item(title: String(localized: "Descendre la famille")) {
+                withAnimation(Motion.quickMorph) { controller.shiftFamily(family, by: 1) }
+             }]
         }
         // Photo de la CI : la roue de la famille Drums ouverte (après l'arrivée de la fenêtre ; l'aperçu peut déjà être
         // là, venu de l'écran d'avant).

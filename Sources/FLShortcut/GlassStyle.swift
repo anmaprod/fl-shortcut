@@ -412,6 +412,8 @@ struct NoSystemSelection: NSViewRepresentable {
             guard let table = view as? NSTableView else { return }
             if table.selectionHighlightStyle != .none { table.selectionHighlightStyle = .none }
             if table.focusRingType != .none { table.focusRingType = .none }
+            // 07/11 : plus le trait bleu de macOS là où le bloc tombera ; les blocs s'écartent pour lui faire la place.
+            if table.draggingDestinationFeedbackStyle != .gap { table.draggingDestinationFeedbackStyle = .gap }
         }
     }
 }
@@ -421,9 +423,13 @@ struct NoSystemSelection: NSViewRepresentable {
 /// passe par la NSTableView de la liste, qui entoure la ligne d'un trait bleu tant que son menu est ouvert. Ce calque
 /// prend le seul clic droit (et ⌃ + clic) et ouvre lui-même le menu : la table ne le voit jamais. Tous les autres
 /// clics, le survol et le glisser le traversent (la ligne garde son encoche qui se soulève).
+/// 07/11 (capture : « le bouton supprimer ou dupliquer dans le style suisse ») : plus le menu de macOS (verre arrondi),
+/// une petite fenêtre suisse (`SwissContextMenu`) : fond plein, trait fin, coins carrés, ligne pleine d'encre au
+/// survol, « Supprimer » en rouge.
 struct RightClickMenu: NSViewRepresentable {
     struct Item {
         let title: String
+        var destructive = false
         let action: () -> Void
     }
 
@@ -444,38 +450,132 @@ struct RightClickMenu: NSViewRepresentable {
             return secondary ? super.hitTest(point) : nil
         }
 
-        override func menu(for event: NSEvent) -> NSMenu? {
-            let list = items()
-            guard list.contains(where: { $0 != nil }) else { return nil }
-            let menu = NSMenu()
-            menu.autoenablesItems = false
-            for entry in list {
-                guard let entry else {
-                    menu.addItem(.separator())
-                    continue
-                }
-                let run = Run(entry.action)
-                let item = NSMenuItem(title: entry.title, action: #selector(Run.fire), keyEquivalent: "")
-                item.target = run
-                item.representedObject = run                    // gardé en vie par l'élément
-                menu.addItem(item)
-            }
-            return menu
-        }
+        /// Jamais le menu de macOS.
+        override func menu(for event: NSEvent) -> NSMenu? { nil }
 
         override func rightMouseDown(with event: NSEvent) { pop(event) }
         override func mouseDown(with event: NSEvent) { pop(event) }
 
         private func pop(_ event: NSEvent) {
-            guard let menu = menu(for: event) else { return }
-            NSMenu.popUpContextMenu(menu, with: event, for: self)
+            let list = items()
+            guard list.contains(where: { $0 != nil }), let window else { return }
+            let point = window.convertPoint(toScreen: event.locationInWindow)
+            SwissContextMenu.shared.show(list, at: point)
         }
     }
+}
 
-    final class Run: NSObject {
-        let action: () -> Void
-        init(_ action: @escaping () -> Void) { self.action = action }
-        @objc func fire() { action() }
+extension View {
+    /// Menu du clic droit au style suisse (à la place de `.contextMenu`, menu de macOS) ; `nil` : un trait.
+    func swissContextMenu(_ items: @escaping () -> [RightClickMenu.Item?]) -> some View {
+        overlay(RightClickMenu(items: items))
+    }
+}
+
+/// Petite fenêtre du clic droit : posée sous la souris, fermée au choix, à Échap ou au moindre clic ailleurs. Noire
+/// sous Orange, comme les autres petites fenêtres.
+@MainActor final class SwissContextMenu {
+    static let shared = SwissContextMenu()
+
+    private var panel: NSPanel?
+    private var monitors: [Any] = []
+
+    private final class Panel: NSPanel {
+        override var canBecomeKey: Bool { true }
+        var onCancel: () -> Void = {}
+        override func cancelOperation(_ sender: Any?) { onCancel() }
+    }
+
+    func show(_ items: [RightClickMenu.Item?], at point: NSPoint) {
+        close()
+        let panel = Panel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        panel.isFloatingPanel = true
+        panel.level = .popUpMenu
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = false
+        panel.animationBehavior = .none
+        panel.appearance = NSAppearance(named: AppTheme.current.floatingAppearanceName)
+        panel.onCancel = { [weak self] in self?.close() }
+        let host = NSHostingView(rootView: SwissMenuList(items: items) { [weak self] item in
+            self?.close()
+            DispatchQueue.main.async { item.action() }
+        })
+        let size = host.fittingSize
+        host.frame = NSRect(origin: .zero, size: size)
+        panel.contentView = host
+        var origin = NSPoint(x: point.x, y: point.y - size.height)
+        if let screen = NSScreen.screens.first(where: { $0.frame.contains(point) }) ?? NSScreen.main {
+            let area = screen.visibleFrame
+            origin.x = min(max(area.minX, origin.x), area.maxX - size.width)
+            origin.y = min(max(area.minY, origin.y), area.maxY - size.height)
+        }
+        panel.setFrame(NSRect(origin: origin, size: size), display: true)
+        panel.makeKeyAndOrderFront(nil)
+        self.panel = panel
+        // Un clic ailleurs (dans l'app ou une autre) ferme le menu sans rien faire d'autre.
+        if let local = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown],
+                                                         handler: { [weak self] event in
+            guard let self, let panel = self.panel, event.window !== panel else { return event }
+            self.close()
+            return event
+        }) { monitors.append(local) }
+        if let global = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown],
+                                                           handler: { [weak self] _ in
+            MainActor.assumeIsolated { self?.close() }
+        }) { monitors.append(global) }
+    }
+
+    func close() {
+        monitors.forEach(NSEvent.removeMonitor)
+        monitors = []
+        panel?.orderOut(nil)
+        panel = nil
+    }
+}
+
+private struct SwissMenuList: View {
+    let items: [RightClickMenu.Item?]
+    let pick: (RightClickMenu.Item) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(items.indices, id: \.self) { i in
+                if let item = items[i] {
+                    SwissMenuRow(item: item) { pick(item) }
+                } else {
+                    Rectangle().fill(Swiss.line).frame(height: 1).padding(.vertical, 4)
+                }
+            }
+        }
+        .padding(4)
+        .frame(minWidth: 180, alignment: .leading)
+        .fixedSize()
+        .background(Rectangle().fill(Swiss.background))
+        .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
+    }
+}
+
+private struct SwissMenuRow: View {
+    let item: RightClickMenu.Item
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        let ink: Color = item.destructive ? Swiss.red : Swiss.text
+        Button(action: action) {
+            Text(item.title)
+                .font(Swiss.font(13))
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .foregroundStyle(hovering ? Swiss.background : ink)
+                .background(Rectangle().fill(hovering ? ink : Color.clear))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
     }
 }
 
@@ -1034,6 +1134,10 @@ private struct CardRowModifier: ViewModifier {
             .padding(.horizontal, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .hoverFilled(lifted)
+            // 07/11 (vidéo : « quand je déplace un bloc… il n'y a que 2 trucs, on voit pas la case blanche derrière ») :
+            // la ligne pleine aussi DANS la ligne (le fond de la liste n'est pas dans l'image que macOS fait glisser) ;
+            // le bloc glissé part entier, aux couleurs du thème.
+            .background(Rectangle().fill(lifted && stamp != nil ? (hover ?? Swiss.text) : Color.clear))
             .offset(x: lifted && stamp != nil ? -2 : 0, y: lifted && stamp != nil ? -2 : 0)
         return Group {
             if hover != nil {

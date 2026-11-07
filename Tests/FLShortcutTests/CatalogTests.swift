@@ -83,16 +83,14 @@ final class CatalogTests: XCTestCase {
         XCTAssertFalse(KeySearch.matches(changed, KeyCombo(keyCode: 35, command: true, control: true)))
     }
 
-    func testChangingAndResettingAnAction() throws {
+    /// 07/11 : plus d'« Actions en plus » qui doublent une touche de FL (Ouvrir le Mixer = F9) ; le ⌃4 du profil
+    /// Recommandé reste un de tes raccourcis, hors des lignes de FL.
+    func testActionsThatDoubleAnFLKeyAreNotListed() throws {
         let store = makeStore()
-        let row = try XCTUnwrap(store.catalogRows().rows.first { $0.entry.id == "action.mx" })
-        let original = row.current
-        XCTAssertNotNil(original)                                  // ⌃4 dans le profil Recommandé
-        store.setTrigger(nil, for: row)
-        XCTAssertNil(store.catalogRows().rows.first { $0.entry.id == "action.mx" }?.current)
-        let cleared = try XCTUnwrap(store.catalogRows().rows.first { $0.entry.id == "action.mx" })
-        store.reset(cleared)
-        XCTAssertEqual(store.catalogRows().rows.first { $0.entry.id == "action.mx" }?.current, original)
+        let (rows, others) = store.catalogRows()
+        XCTAssertFalse(rows.contains { if case .action = $0.entry.kind { return true } else { return false } })
+        XCTAssertNotNil(rows.first { $0.entry.id == "fl.general.f9" }, "la ligne de FL reste")
+        XCTAssertEqual(others.first { $0.actionID == 33 }?.trigger, KeyCombo(keyCode: 21, control: true))
     }
 
     // Une touche ne sert qu'une fois : annonce, reprise, et proposition de rechoisir pour l'autre raccourci.
@@ -100,17 +98,17 @@ final class CatalogTests: XCTestCase {
         let store = makeStore()
         let rows = store.catalogRows().rows
         let pianoP = try XCTUnwrap(rows.first { $0.entry.id == "fl.pianoRoll.p" })
-        let mixer = try XCTUnwrap(rows.first { $0.entry.id == "action.mx" })
-        let taken = try XCTUnwrap(mixer.current)                    // touche du profil Recommandé
+        let taken = KeyCombo(keyCode: 21, control: true)            // ⌃4 du profil Recommandé (Ouvrir le Mixer)
         let found = store.clashes(for: taken, editing: pianoP)
-        XCTAssertEqual(found.map(\.id), ["action.mx"])
+        XCTAssertEqual(found.count, 1)
+        XCTAssertNil(found[0].row)
         XCTAssertFalse(found[0].isFLKey)
         let follow = store.release(found)
         store.setTrigger(taken, for: pianoP)
-        XCTAssertEqual(follow, "action.mx")
-        let after = store.catalogRows().rows
-        XCTAssertNil(after.first { $0.entry.id == "action.mx" }?.current)
-        XCTAssertEqual(after.first { $0.entry.id == "fl.pianoRoll.p" }?.current, taken)
+        XCTAssertNil(follow)
+        let after = store.catalogRows()
+        XCTAssertNil(after.others.first { $0.actionID == 33 }?.trigger)
+        XCTAssertEqual(after.rows.first { $0.entry.id == "fl.pianoRoll.p" }?.current, taken)
         // Revenir à sa propre touche d'origine n'est jamais un conflit (doublons propres à FL).
         XCTAssertTrue(store.clashes(for: try XCTUnwrap(pianoP.entry.defaultTrigger), editing: pianoP).isEmpty)
     }

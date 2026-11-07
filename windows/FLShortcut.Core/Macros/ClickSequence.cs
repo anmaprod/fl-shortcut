@@ -88,7 +88,9 @@ public static class ClickSequenceCompiler
                     var target = MacroDrafts.Named(place, c.Named);
                     if (!c.Right && c.Release is { } r
                         && Math.Abs(r.X - c.X) + Math.Abs(r.Y - c.Y) > DragDistance
-                        && MacroDrafts.LearnedTarget(r.X, r.Y, r.Windows) is { } to)
+                        // Lâcher : jamais dans la petite fenêtre que FL montre sous la souris pendant le glisser (nom du
+                        // son tiré du Browser, 07/11, comme le Mac) : seules les fenêtres de FL comptent.
+                        && MacroDrafts.LearnedTarget(r.X, r.Y, r.Windows.Where(w => w.Role != FlWindowRole.Menu).ToList()) is { } to)
                     {
                         blocks.Add(new BlockBody.Drag(target, to));
                         break;

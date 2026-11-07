@@ -540,6 +540,7 @@ internal static class Specs
             Type = type, Label = Loc.T("Carte son branchée"), Category = BlockCategory.Fl, Symbol = "hifispeaker.and.homepod",
             Help = Loc.T("La carte son branchée devient la sortie et l'entrée du PC."),
             Params = Array.Empty<ParamSpec>(),
+            InPalette = false,                       // 07/11, comme le Mac : retiré de la palette
             Needs = _ => BlockNeeds.None,
             Default = () => new BlockBody.SoundCard(),
             Summary = _ => Loc.T("sortie et entrée du PC"),

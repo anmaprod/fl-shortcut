@@ -1,4 +1,5 @@
-// Audit : SEC-05 (liste noire NON contournable des cibles « Touche de FL » dangereuses : ⌘Q, ⌘⇧Q, ⌃⌘Q, ⌘W,
+// Audit : SEC-05 (liste noire NON contournable des cibles « Touche de FL » dangereuses : ⌘Q, ⌘⇧Q, ⌃⌘Q (pas ⌥⌘Q,
+//         la touche « Quantize rapide » de FL), ⌘W,
 //         ⌘⌫, ⌘⌦, ⌘⌥Échap, ⌘⇥, ⌘Espace ; appliquée à l'édition, à l'import, au chargement ET juste avant
 //         chaque injection), REL-11 / audit 05 §4.2 (conflits macOS, dont les raccourcis système lus dans
 //         com.apple.symbolichotkeys, et conflits avec les raccourcis natifs de FL), REL-18 (résolution selon la
@@ -27,6 +28,9 @@ struct ForbiddenTargets: Hashable {
     /// Raison du refus, ou `nil` si la cible est autorisée.
     func reason(for c: KeyCombo) -> String? {
         guard c.command else { return nil }
+        // ⌥⌘Q seul est la touche de FL « Quantize rapide » (07/11 : le bloc était « À corriger », le raccourci ne
+        // partait pas) ; ⌘Q, ⇧⌘Q, ⌃⌘Q et leurs mélanges restent refusés.
+        if quitKeys.contains(c.keyCode), c.option, !c.shift, !c.control { return nil }
         if quitKeys.contains(c.keyCode) { return String(localized: "⌘Q quitte l'application (⌃⌘Q verrouille la session)") }
         if closeKeys.contains(c.keyCode) { return String(localized: "⌘W ferme la fenêtre ou le projet") }
         switch c.keyCode {

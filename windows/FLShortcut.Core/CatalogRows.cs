@@ -53,7 +53,7 @@ public static class CatalogEntries
     };
 
     /// Toutes les entrées, page par page : les raccourcis d'origine de FL (ceux que Windows peut envoyer), puis les
-    /// actions du script. En mode léger, seules les actions qui ont une touche de FL restent (comme le Mac).
+    /// actions du script qui n'ont pas de touche dans FL (aucune en mode léger, comme le Mac).
     public static List<CatalogEntry> Build(bool light)
     {
         var defaults = new Dictionary<int, KeyCombo>();
@@ -70,7 +70,10 @@ public static class CatalogEntries
             foreach (var info in FlActions.All)
             {
                 if (!ActionSection.TryGetValue(info.Key, out var s) || s != section) continue;
-                if (light && LightMode.NativeEquivalent(info.Id) is null) continue;
+                // « Actions en plus » (07/11, comme le Mac) : une action qui a sa touche d'origine dans FL doublait la
+                // ligne de FL (Métronome, Ouvrir le Mixer, Quantize rapide, Pattern suivant…) : retirée. En mode
+                // léger, les autres demandent le script : retirées aussi.
+                if (light || LightMode.NativeEquivalent(info.Id) is not null) continue;
                 out_.Add(new CatalogEntry("action." + info.Key, section, Loc.T(info.Label), Loc.T(info.Detail()),
                                           new CatalogEntryKind.Action(info.Id),
                                           defaults.TryGetValue(info.Id, out var d) ? d : null));

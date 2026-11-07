@@ -107,6 +107,9 @@ struct EditProfileSheet: View {
         .onAppear {
             community.error = nil
             adoptAccountPhoto()
+            // 07/11 (« ça clique automatiquement sur le pseudo, enlève ça ») : macOS donne la main au premier champ
+            // de la feuille ; rendue tout de suite, le pseudo ne s'écrit qu'après un clic dessus.
+            DispatchQueue.main.async { NSApp.keyWindow?.makeFirstResponder(nil) }
         }
         // La photo du compte peut arriver après l'ouverture (chargée du serveur).
         .onChange(of: community.myPhoto) { _ in adoptAccountPhoto() }

@@ -257,6 +257,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// dans un autre.
     func applicationWillFinishLaunching(_ notification: Notification) {
         AppTheme.applyAtLaunch()
+        SwissCaret.install()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -497,7 +498,7 @@ final class AppStatus: ObservableObject {
         if AppMode.light {
             return AppMode.nativeEquivalent(of: id, layout: Store.shared.layout) != nil
                 ? .available
-                : .unavailable(reason: String(localized: "Demande le script MIDI dans FL (désactivé en mode léger)"))
+                : .unavailable(reason: String(localized: "Demande le lien avec FL (Organiser › Installer le lien)."))
         }
         return AvailabilityResolver.availability(of: id, caps: capabilities, flVersion: flVersion)
     }

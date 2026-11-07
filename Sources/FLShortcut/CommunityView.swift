@@ -593,17 +593,19 @@ private struct CommunityShareCard: View {
         .swissCard()
         .contentShape(Rectangle())
         .onTapGesture(perform: open)
-        .contextMenu {
+        .swissContextMenu {
+            var items: [RightClickMenu.Item?] = []
             if let showAuthor {
-                Button("Tous les partages de @\(share.authorName.displaySafe(max: 24))", action: showAuthor)
+                items.append(RightClickMenu.Item(title: String(localized: "Tous les partages de @\(share.authorName.displaySafe(max: 24))"),
+                                                 action: showAuthor))
             }
-            if !mine {
-                Button("Signaler…", action: report)
-            }
+            if !mine { items.append(RightClickMenu.Item(title: String(localized: "Signaler…"), action: report)) }
             if canDelete {
-                Button(mine ? String(localized: "Supprimer mon partage…") : String(localized: "Supprimer (administrateur)…"),
-                       role: .destructive, action: delete)
+                items.append(RightClickMenu.Item(title: mine ? String(localized: "Supprimer mon partage…")
+                                                 : String(localized: "Supprimer (administrateur)…"),
+                                                 destructive: true, action: delete))
             }
+            return items
         }
         .accessibilityElement(children: .contain)
     }

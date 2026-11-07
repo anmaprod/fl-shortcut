@@ -605,9 +605,6 @@ internal sealed class AccountPage
     private static FrameworkElement Pitch()
     {
         var panel = new StackPanel { Spacing = 0 };
-        var label = SwissLabel(Loc.T("Un compte, partout"));
-        label.Margin = new Thickness(0, 0, 0, 14);
-        panel.Children.Add(label);
         foreach (var line in new[] { Loc.T("Tes raccourcis,"), Loc.T("tes macros,") })
         {
             var t = SwissTitle(40);
@@ -1146,7 +1143,8 @@ internal sealed class AccountPage
 
         var right = new StackPanel { Spacing = 10 };
         var photoButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        photoButtons.Children.Add(Soft(Loc.T("Choisir une photo…"), ChoosePhoto));
+        var choosePhoto = Soft(Loc.T("Choisir une photo…"), ChoosePhoto);
+        photoButtons.Children.Add(choosePhoto);
         if (!_removePhoto && (_editFile is not null || _myPhoto is not null))
         {
             var remove = Soft(Loc.T("Retirer"), () =>
@@ -1181,6 +1179,14 @@ internal sealed class AccountPage
 
         var name = Input(_editName, Loc.T("ton.pseudo"));
         name.MaxLength = 24;
+        // Comme le Mac (07/11, « ça clique automatiquement sur le pseudo ») : la main posée toute seule sur le pseudo
+        // à l'ouverture (le bouton « Modifier le profil » disparu) repart ; seul un clic dessus le fait écrire.
+        var opened = DateTime.UtcNow;
+        name.GotFocus += (_, _) =>
+        {
+            if (name.FocusState != FocusState.Pointer && DateTime.UtcNow - opened < TimeSpan.FromSeconds(0.6) && choosePhoto is Control photo)
+                photo.Focus(FocusState.Programmatic);
+        };
         name.TextChanged += (_, _) =>
         {
             _editName = name.Text;

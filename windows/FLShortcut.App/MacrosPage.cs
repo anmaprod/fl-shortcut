@@ -475,7 +475,7 @@ internal sealed class MacrosPage
         }
         menu.Items.Add(new MenuFlyoutSeparator());
         Add(Loc.T("Supprimer"), () => Delete(doc));
-        return menu;
+        return SwissMenu(menu);
     }
 
     // ---------- Fichiers .flsmacro (06/11, comme le Mac) ----------
@@ -869,46 +869,46 @@ internal sealed class MacrosPage
 
     private static FrameworkElement Warning(string text) => Paragraph(text, 12, Secondary);
 
-    /// Nom de la macro au style des titres de page (06/11, comme le Mac) : en minuscules, suivi du point carré ; un clic
-    /// l'ouvre en champ (le nom tel qu'il est écrit), Entrée ou un clic ailleurs le referme.
+    /// Nom de la macro au style des titres de page (06/11, comme le Mac) : en minuscules, suivi du point carré. 07/11
+    /// (« le texte se décale… pas la même police… le point orange tout le temps, même quand on écrit ») : un seul champ,
+    /// le même au repos et pendant la frappe (police, taille et resserrement du titre, en minuscules), le point carré
+    /// toujours derrière ; un clic dedans le renomme, Entrée ou un clic ailleurs le referme.
     private FrameworkElement NameTitle(MacroDoc doc)
     {
-        static string Shown(string name) =>
-            (string.IsNullOrWhiteSpace(name) ? Loc.T("Nom de la macro") : name).ToLower(System.Globalization.CultureInfo.CurrentCulture);
-        var box = NameField(doc);
-        box.FontSize = 30;
-        box.Visibility = Visibility.Collapsed;
-        var text = Label(Shown(doc.Name), 30, Text, bold: true);
-        text.CharacterSpacing = -39;
-        text.MaxLines = 1;
-        text.TextTrimming = TextTrimming.CharacterEllipsis;
-        var show = new Button
+        const double size = 30;
+        var box = NameField(doc, lower: true);
+        box.FontSize = size;
+        box.FontFamily = SwissFont;
+        box.FontWeight = FontWeights.Bold;
+        box.CharacterSpacing = -39;
+        box.CharacterCasing = CharacterCasing.Lower;
+        box.PlaceholderText = Loc.T("Nom de la macro").ToLower(System.Globalization.CultureInfo.CurrentCulture);
+        box.MinWidth = 0;
+        box.Padding = new Thickness(0);
+        box.VerticalAlignment = VerticalAlignment.Bottom;
+        foreach (var key in new[] { "TextControlBorderThemeThickness", "TextControlBorderThemeThicknessFocused" })
+            box.Resources[key] = new Thickness(0);
+        foreach (var key in new[] { "TextControlPlaceholderForeground", "TextControlPlaceholderForegroundPointerOver",
+                                    "TextControlPlaceholderForegroundFocused" })
+            box.Resources[key] = Brush(Secondary);
+        ToolTipService.SetToolTip(box, Loc.T("Clique pour renommer la macro"));
+        var side = Math.Round(size * 0.19);
+        var dot = new Microsoft.UI.Xaml.Shapes.Rectangle
         {
-            Style = PlainButton,
-            Content = PageTitle(text, 30),
-            HorizontalAlignment = HorizontalAlignment.Left,
-            VerticalAlignment = VerticalAlignment.Center,
+            Width = side,
+            Height = side,
+            Fill = Brush(Red),
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(size * 0.09, 0, 0, Math.Round(size * 0.24)),
+            IsHitTestVisible = false,
         };
-        ToolTipService.SetToolTip(show, Loc.T("Clique pour renommer la macro"));
-        AutomationProperties.SetName(show, Loc.T("Nom de la macro"));
-        void Editing(bool on)
+        AutomationProperties.SetAccessibilityView(dot, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
+        return new StackPanel
         {
-            show.Visibility = on ? Visibility.Collapsed : Visibility.Visible;
-            box.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
-            if (on)
-            {
-                box.Focus(FocusState.Programmatic);
-                box.SelectAll();
-            }
-            else
-            {
-                text.Text = Shown(box.Text);
-            }
-        }
-        show.Click += (_, _) => Editing(true);
-        box.LostFocus += (_, _) => Editing(false);
-        box.KeyDown += (_, e) => { if (e.Key == VirtualKey.Enter) Editing(false); };
-        return new Grid { VerticalAlignment = VerticalAlignment.Center, Children = { show, box } };
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { box, dot },
+        };
     }
 
     /// Question au style de l'app (comme `SwissDialog` du Mac) ; vrai si l'on choisit `primary`.
@@ -961,11 +961,11 @@ internal sealed class MacrosPage
     }
 
     /// Le nom de la macro, en grand, sans cadre : appliqué à la sortie du champ ou à Entrée.
-    private TextBox NameField(MacroDoc doc)
+    private TextBox NameField(MacroDoc doc, bool lower = false)
     {
         var box = new TextBox
         {
-            Text = doc.Name,
+            Text = lower ? doc.Name.ToLower(System.Globalization.CultureInfo.CurrentCulture) : doc.Name,
             MaxLength = MacroValidation.MaxNameLength,
             FontSize = 22,
             FontWeight = FontWeights.Bold,
@@ -981,7 +981,7 @@ internal sealed class MacrosPage
         foreach (var key in new[] { "TextControlForeground", "TextControlForegroundFocused", "TextControlForegroundPointerOver" })
             box.Resources[key] = Brush(Text);
         AutomationProperties.SetName(box, Loc.T("Nom de la macro"));
-        var committed = doc.Name;
+        var committed = box.Text;                    // en minuscules au titre : rien à renommer tant qu'on n'écrit pas
         void Commit()
         {
             if (box.Text == committed) return;
@@ -1244,7 +1244,7 @@ internal sealed class MacrosPage
         var delete = new MenuFlyoutItem { Text = Loc.T("Supprimer") };
         delete.Click += (_, _) => Remove(doc, index);
         menu.Items.Add(delete);
-        row.ContextFlyout = menu;
+        row.ContextFlyout = SwissMenu(menu);
         row.DragStarting += (_, e) =>
         {
             e.Data.SetText(StepDrag + index.ToString(System.Globalization.CultureInfo.InvariantCulture));

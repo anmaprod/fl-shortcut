@@ -74,6 +74,7 @@ public partial class App : Application
         // Seulement avec un compte connecté (07/11, comme le Mac) : sinon Noir.
         MacLook.Theme = FLShortcut.Core.ThemePalette.Shown(Services.AppSettings.Load().Theme,
                                                            Services.AccountStore.Load() is not null);
+        MacLook.ApplyTextFieldLook(Resources);
         _window = new MainWindow();
         // Comme le Mac (03/11) : FL Shortcuts vit dans la zone de notification ; la fenêtre au premier lancement
         // seulement. « --tray » (démarrage de Windows) : jamais de fenêtre ni de bulle. Relancée pour le thème : sur

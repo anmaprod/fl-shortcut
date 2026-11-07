@@ -288,7 +288,7 @@ private struct MacroStepsPane: View {
                 model.setEnabled(row.blockID, !row.ownEnabled)
             },
             nil,
-            RightClickMenu.Item(title: String(localized: "Supprimer")) {
+            RightClickMenu.Item(title: String(localized: "Supprimer"), destructive: true) {
                 model.selection = row.id
                 withAnimation(Self.spring) { model.deleteSelection() }
             },
@@ -607,35 +607,196 @@ private struct MacroHeader: View {
     }
 }
 
-/// Nom de la macro au style des titres de page (06/11) : en minuscules, suivi du point carré ; un clic l'ouvre en
-/// champ (le nom tel qu'il est écrit), Entrée ou un clic ailleurs le referme.
+/// Nom de la macro en titre (07/11, vidéo : « le texte se décale… ce n'est pas la même police… le point orange tout le
+/// temps, même quand la personne écrit ») : un seul champ, le même au repos et pendant la frappe (Helvetica Neue gras
+/// resserré, en minuscules comme les titres des pages), suivi de son point carré à la couleur du thème ; un clic
+/// dedans le renomme, rien ne bouge. Entrée ou Échap rendent la main.
 private struct MacroNameTitle: View {
     @Binding var name: String
-    @State private var editing = false
-    @FocusState private var focused: Bool
-
-    private static let size: CGFloat = 34
 
     var body: some View {
-        Group {
-            if editing {
-                TextField("Nom de la macro", text: $name)
-                    .textFieldStyle(.plain)
-                    .font(Swiss.title(Self.size)).tracking(Swiss.titleTracking(Self.size))
-                    .lineLimit(1)
-                    .focused($focused)
-                    .onSubmit { editing = false }
-                    .onChange(of: focused) { inside in if !inside { editing = false } }
-                    .onAppear { focused = true }
-            } else {
-                SwissPageTitle(text: name.isEmpty ? String(localized: "Nom de la macro") : name, size: Self.size)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .onTapGesture { editing = true }
-                    .help("Clique pour renommer la macro")
-            }
+        MacroTitleField(name: $name, size: 34, placeholder: String(localized: "Nom de la macro"))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: MacroTitleFieldView.height(size: 34))
+            .accessibilityLabel(Text("Nom de la macro"))
+    }
+}
+
+struct MacroTitleField: NSViewRepresentable {
+    @Binding var name: String
+    let size: CGFloat
+    let placeholder: String
+
+    func makeCoordinator() -> Coordinator { Coordinator(name: $name) }
+
+    func makeNSView(context: Context) -> MacroTitleFieldView {
+        let view = MacroTitleFieldView(size: size, placeholder: placeholder)
+        view.field.delegate = context.coordinator
+        view.show(name)
+        context.coordinator.view = view
+        return view
+    }
+
+    func updateNSView(_ view: MacroTitleFieldView, context: Context) {
+        context.coordinator.name = $name
+        // Pendant la frappe, le champ fait foi ; au repos, il suit le nom (macro ouverte, renommée ailleurs).
+        if view.field.currentEditor() == nil { view.show(name) }
+    }
+
+    final class Coordinator: NSObject, NSTextFieldDelegate {
+        var name: Binding<String>
+        weak var view: MacroTitleFieldView?
+
+        init(name: Binding<String>) { self.name = name }
+
+        func controlTextDidChange(_ note: Notification) {
+            guard let view else { return }
+            view.normalizeEditor()
+            name.wrappedValue = view.field.stringValue
+            view.needsLayout = true
         }
-        .accessibilityLabel("Nom de la macro")
+
+        func controlTextDidEndEditing(_ note: Notification) {
+            guard let view else { return }
+            view.show(view.field.stringValue)
+        }
+
+        func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+            guard selector == #selector(NSResponder.insertNewline(_:)) || selector == #selector(NSResponder.cancelOperation(_:))
+            else { return false }
+            control.window?.makeFirstResponder(nil)
+            return true
+        }
+    }
+}
+
+/// Le champ du titre et son point carré, posés à la main : le point suit la fin du texte, sur sa ligne de base.
+final class MacroTitleFieldView: NSView {
+    let field = TitleTextField()
+    private let dot = TitleDot()
+    private let size: CGFloat
+    private let placeholder: String
+
+    /// Hauteur d'une ligne du titre (champ sans cadre).
+    static func height(size: CGFloat) -> CGFloat {
+        let font = titleFont(size)
+        return ceil(font.ascender - font.descender + font.leading) + 4
+    }
+
+    static func titleFont(_ size: CGFloat) -> NSFont {
+        NSFontManager.shared.font(withFamily: Swiss.fontName, traits: .boldFontMask, weight: 9, size: size)
+            ?? NSFont(name: "HelveticaNeue-Bold", size: size) ?? .boldSystemFont(ofSize: size)
+    }
+
+    private var font: NSFont { Self.titleFont(size) }
+    private var dotSize: CGFloat { (size * 0.19).rounded() }
+    private var gap: CGFloat { size * 0.09 }
+
+    func attributes(_ color: NSColor = Swiss.NS.text) -> [NSAttributedString.Key: Any] {
+        [.font: font, .kern: Swiss.titleTracking(size), .foregroundColor: color]
+    }
+
+    init(size: CGFloat, placeholder: String) {
+        self.size = size
+        self.placeholder = placeholder.lowercased(with: .current)
+        super.init(frame: .zero)
+        field.isBordered = false
+        field.drawsBackground = false
+        field.focusRingType = .none
+        field.isEditable = true
+        field.isSelectable = true
+        field.font = font
+        field.textColor = Swiss.NS.text
+        field.lineBreakMode = .byClipping
+        field.cell?.wraps = false
+        field.cell?.isScrollable = true
+        field.allowsEditingTextAttributes = false
+        field.toolTip = String(localized: "Clique pour renommer la macro")
+        field.placeholderAttributedString = NSAttributedString(string: self.placeholder,
+                                                               attributes: attributes(SwissPalette.adaptive(.gray)))
+        field.titleAttributes = { [weak self] in self?.attributes() ?? [:] }
+        addSubview(field)
+        addSubview(dot)
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    override var isFlipped: Bool { true }
+
+    /// Nom montré au repos : en minuscules, comme les titres.
+    func show(_ name: String) {
+        let shown = name.lowercased(with: .current)
+        let current = field.attributedStringValue
+        let styled = current.length == 0 || current.attribute(.kern, at: 0, effectiveRange: nil) != nil
+        if field.stringValue != shown || !styled {
+            field.attributedStringValue = NSAttributedString(string: shown, attributes: attributes())
+        }
+        needsLayout = true
+    }
+
+    /// Pendant la frappe : en minuscules, même police, même resserrement (le texte ne bouge pas, le curseur non plus).
+    func normalizeEditor() {
+        guard let editor = field.currentEditor() as? NSTextView, let storage = editor.textStorage else { return }
+        let all = NSRange(location: 0, length: storage.length)
+        if !editor.hasMarkedText() {
+            let lowered = storage.string.lowercased(with: .current)
+            if lowered != storage.string, (lowered as NSString).length == storage.length {
+                let selection = editor.selectedRanges
+                storage.replaceCharacters(in: all, with: lowered)
+                editor.selectedRanges = selection
+            }
+            storage.setAttributes(attributes(), range: NSRange(location: 0, length: storage.length))
+        }
+        editor.typingAttributes = attributes()
+    }
+
+    private var textWidth: CGFloat {
+        let text = field.stringValue.isEmpty ? placeholder : field.stringValue
+        return ceil(NSAttributedString(string: text, attributes: attributes()).size().width)
+    }
+
+    override func layout() {
+        super.layout()
+        let height = Self.height(size: size)
+        // Le champ sans cadre écrit à 2 points de son bord : décalé d'autant, le texte part du même bord que les titres.
+        let room = max(0, bounds.width - dotSize - gap)
+        let width = min(room, textWidth + 6)
+        field.frame = NSRect(x: -2, y: (bounds.height - height) / 2, width: width + 4, height: height)
+        let baseline = field.frame.minY + field.firstBaselineOffsetFromTop
+        let end = min(textWidth, room - 2)
+        dot.frame = NSRect(x: end + gap, y: (baseline - dotSize).rounded(), width: dotSize, height: dotSize)
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        dot.needsDisplay = true
+    }
+}
+
+/// Champ du titre : il prend la main au clic ; le curseur et la police du titre dès qu'il l'a.
+final class TitleTextField: NSTextField {
+    var titleAttributes: () -> [NSAttributedString.Key: Any] = { [:] }
+
+    override func becomeFirstResponder() -> Bool {
+        let accepted = super.becomeFirstResponder()
+        if accepted, let editor = currentEditor() as? NSTextView {
+            SwissCaret.style(editor)
+            editor.typingAttributes = titleAttributes()
+            if let storage = editor.textStorage {
+                storage.setAttributes(titleAttributes(), range: NSRange(location: 0, length: storage.length))
+            }
+            // Le curseur à la fin du nom (pas tout sélectionné) : on écrit à la suite, comme dans un titre.
+            editor.setSelectedRange(NSRange(location: (editor.string as NSString).length, length: 0))
+        }
+        return accepted
+    }
+}
+
+/// Point carré du titre, à la couleur du thème (rouge ; blanc sous Orange).
+final class TitleDot: NSView {
+    override func draw(_ dirtyRect: NSRect) {
+        SwissPalette.adaptive(.red).setFill()
+        bounds.fill()
     }
 }
 

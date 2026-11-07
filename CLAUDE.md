@@ -418,6 +418,22 @@
   fonctionne… mets ça pour tout ») : le .fst cherché dans TOUTE la Plugin database (sous-dossiers d'Installed, puis
   catégories de favoris, jamais « FL Shortcuts »), nom identique sinon sans marque ni format, jamais un autre numéro
   (`PluginDrop.presetFile`/`looseKey`/`matchLevel`, Mac et Windows, essais `EveryPluginIsFoundInTheWholeDatabase`).
+- **Retours du 07/11** (vidéos, captures) : Mac ET Windows. « Un compte, partout » retiré de la connexion ; curseur
+  de TOUS les champs = celui de la recherche (encre du thème, sélection grise : Mac `SwissCaret`, posé sur l'éditeur
+  de macOS à chaque sélection ; Windows `MacLook.ApplyTextFieldLook`) ; « Modifier le profil » ne donne plus la main au
+  pseudo ; nom de la macro = UN champ identique au repos et en frappe (Helvetica gras resserré, minuscules, point carré
+  toujours derrière : Mac `MacroTitleField`/`MacroTitleFieldView`, Windows `NameTitle` + `CharacterCasing.Lower`) ;
+  bloc « Carte son branchée » retiré de la palette (gardé dans les macros) ; menus du clic droit au style suisse (Mac
+  `SwissContextMenu`/`.swissContextMenu`, plus de NSMenu ni `.contextMenu` ; Windows `MacLook.SwissMenu`) ; bloc glissé
+  dans le créateur avec sa ligne pleine (fond DANS la ligne) et sans trait bleu (`draggingDestinationFeedbackStyle =
+  .gap`) ; glisser-déposer enregistré : le lâcher ignore la petite fenêtre que FL montre sous la souris (nom du son tiré
+  du Browser, prise pour un « menu ouvert » → « À corriger ») ; ⌥⌘Q (Quantize rapide de FL) n'est plus refusé (⌘Q,
+  ⇧⌘Q, ⌃⌘Q le restent) ; « Actions en plus » : plus aucune action qui double une touche d'origine de FL (Métronome,
+  Ouvrir le Mixer, Pattern suivant, Nouveau pattern + Piano Roll = Pattern vide suivant ⌘F4…) ; en mode léger la carte
+  disparaît (les touches du profil Recommandé restent, hors des listes). Actions sans touche dans FL (Stop, boucle,
+  marqueur, tap tempo, cloner, grille, instrument/preset suivant, bypass, mono, piste ±, volume, Playlist ↔ Mixer,
+  rétablir) : « Demande le lien avec FL (Organiser › Installer le lien). » ; dans une macro, le lien est créé le temps
+  du bloc (6 s d'attente) : pas encore vu marcher sur son Mac.
 - **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : plus de Liquid Glass depuis le 29/10 (plaques dessinées), sans lavis ni lueur ; fond de
   fenêtre plein (« sans le Liquid Glass derrière »), verre devant : cartes, touches, cartes de l'Organiser
   (`GlassPlate`, dessiné : pas de `glassEffect` par ligne) ; titre de

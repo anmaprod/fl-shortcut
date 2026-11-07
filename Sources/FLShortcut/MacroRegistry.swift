@@ -727,7 +727,8 @@ private enum Specs {
         type: .soundCard, label: String(localized: "Carte son branchée"), category: .fl, symbol: "hifispeaker.and.homepod",
         aide: String(localized: "Passe le son du Mac sur la carte son branchée."),
         params: [],
-        conteneur: .aucun, dansLaPalette: true,
+        // 07/11 (« tu peux enlever le bloc carte son branchée ») : plus dans la palette ; une macro qui l'a déjà le garde.
+        conteneur: .aucun, dansLaPalette: false,
         needs: { _ in [] },
         parDefaut: { .soundCard },
         resume: { _, _ in String(localized: "sortie et entrée du Mac") },

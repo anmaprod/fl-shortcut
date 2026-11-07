@@ -480,12 +480,14 @@ extension Store {
     var catalog: [CatalogEntry] {
         if let cached = catalogCache { return cached }
         var entries = Catalog.entries(layout: layout)
-        if AppMode.light {
-            // Mode léger : seules les actions qui ont une touche équivalente dans FL restent.
-            entries.removeAll {
-                if case .action(let id) = $0.kind { return AppMode.nativeEquivalent(of: id, layout: layout) == nil }
-                return false
-            }
+        // « Actions en plus » (07/11, « si ça existe déjà… dans la base de données ») : une action qui a sa touche
+        // d'origine dans FL doublait la ligne de FL (Métronome ⌘M, Ouvrir le Mixer F9, Quantize rapide ⌥⌘Q, Pattern
+        // suivant, Nouveau pattern + Piano Roll = Pattern vide suivant ⌘F4…) : retirée, la ligne de FL reste. En mode
+        // léger, les autres demandent le script : retirées aussi. Tes raccourcis déjà posés dessus restent (« Tes
+        // raccourcis sur cette page »).
+        entries.removeAll {
+            guard case .action(let id) = $0.kind else { return false }
+            return AppMode.light || AppMode.nativeEquivalent(of: id, layout: layout) != nil
         }
         catalogCache = entries
         return entries

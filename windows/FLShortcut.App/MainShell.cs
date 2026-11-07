@@ -1045,7 +1045,7 @@ internal sealed partial class MainShell
         resetItem.Click += (_, _) => Reset(row);
         menu.Items.Add(change);
         menu.Items.Add(resetItem);
-        option.ContextFlyout = menu;
+        option.ContextFlyout = SwissMenu(menu);
         return option;
     }
 
@@ -1114,7 +1114,7 @@ internal sealed partial class MainShell
         remove.Click += (_, _) => Delete(s);
         menu.Items.Add(toggle);
         menu.Items.Add(remove);
-        option.ContextFlyout = menu;
+        option.ContextFlyout = SwissMenu(menu);
         return option;
     }
 

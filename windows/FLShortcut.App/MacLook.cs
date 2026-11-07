@@ -526,6 +526,52 @@ internal static class MacLook
     /// Bouton secondaire (Annuler, Réparer…) : rectangle bordé de blanc, capitales ; au survol, blanc plein.
     public static Button Soft(string text, Action click) => SwissButton(text, click, primary: false);
 
+    /// Menu du clic droit au style suisse (07/11, comme le Mac : « le bouton supprimer ou dupliquer dans le style
+    /// suisse ») : fond plein, trait fin, coins carrés, ligne pleine d'encre au survol, « Supprimer » en rouge ; noir
+    /// sous Orange, comme les autres petites fenêtres.
+    public static MenuFlyout SwissMenu(MenuFlyout menu)
+    {
+        using var surface = Theme == AppTheme.Orange ? Inverted() : null;
+        var presenter = new Style(typeof(MenuFlyoutPresenter));
+        presenter.Setters.Add(new Setter(Control.BackgroundProperty, Brush(WindowColor)));
+        presenter.Setters.Add(new Setter(Control.BorderBrushProperty, Brush(Text)));
+        presenter.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(1)));
+        presenter.Setters.Add(new Setter(Control.CornerRadiusProperty, new CornerRadius(0)));
+        presenter.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(4)));
+        menu.MenuFlyoutPresenterStyle = presenter;
+        foreach (var entry in menu.Items)
+        {
+            if (entry is MenuFlyoutSeparator separator)
+            {
+                separator.Background = Brush(LineColor);
+                continue;
+            }
+            if (entry is not MenuFlyoutItem item) continue;
+            var ink = item.Text.StartsWith(Loc.T("Supprimer"), StringComparison.CurrentCulture) ? Red : Text;
+            item.FontFamily = SwissFont;
+            item.FontWeight = FontWeights.Bold;
+            item.FontSize = 13;
+            item.CornerRadius = new CornerRadius(0);
+            item.Foreground = Brush(ink);
+            item.Resources["MenuFlyoutItemForeground"] = Brush(ink);
+            item.Resources["MenuFlyoutItemBackgroundPointerOver"] = Brush(ink);
+            item.Resources["MenuFlyoutItemForegroundPointerOver"] = Brush(WindowColor);
+            item.Resources["MenuFlyoutItemBackgroundPressed"] = Brush(ink);
+            item.Resources["MenuFlyoutItemForegroundPressed"] = Brush(WindowColor);
+        }
+        return menu;
+    }
+
+    /// Curseur et sélection de TOUS les champs comme la recherche (07/11, comme le Mac : « la barre qui clignote
+    /// identique à la barre de recherche, en rapport avec le thème ») : texte et curseur à l'encre du thème, sélection
+    /// grise, jamais de bleu quand le champ a la main. Posé une fois dans les ressources de l'app, avant les fenêtres.
+    public static void ApplyTextFieldLook(ResourceDictionary resources)
+    {
+        resources["TextControlForegroundFocused"] = Brush(Text);
+        resources["TextControlSelectionHighlightColor"] = Brush(Tertiary);
+        resources["TextControlBorderBrushFocused"] = Brush(Text);
+    }
+
     /// Bouton principal et carte principale (maquettes du 05/11, comme le Mac) : plein blanc sous Noir et Orange, noir
     /// sous Papier ; ombre nette rouge sous Papier, noire sous Orange, aucune sous Noir (et dans les parties sombres).
     public static Color PrimaryFill => Theme == AppTheme.Papier && !DarkSurface ? Colors.Black : Colors.White;

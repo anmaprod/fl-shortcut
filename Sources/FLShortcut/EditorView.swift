@@ -1269,9 +1269,10 @@ private struct CatalogRowView: View {
         .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
         .contentShape(Rectangle())
         .onTapGesture(perform: onEdit)
-        .contextMenu {
-            Button("Changer la touche…", action: onEdit)
-            Button("Réinitialiser", action: onReset).disabled(row.isDefault)
+        .swissContextMenu {
+            var items: [RightClickMenu.Item?] = [RightClickMenu.Item(title: String(localized: "Changer la touche…"), action: onEdit)]
+            if !row.isDefault { items.append(RightClickMenu.Item(title: String(localized: "Réinitialiser"), action: onReset)) }
+            return items
         }
     }
 }
@@ -1363,11 +1364,12 @@ private struct ShortcutRow: View {
         .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
         .contentShape(Rectangle())
         .onTapGesture(perform: onOpen)
-        .contextMenu {
-            Button("Modifier…", action: onOpen)
-            Button(remap.enabled ? String(localized: "Désactiver") : String(localized: "Activer"), action: onToggle)
-            Divider()
-            Button("Supprimer", role: .destructive, action: onDelete)
+        .swissContextMenu {
+            [RightClickMenu.Item(title: String(localized: "Modifier…"), action: onOpen),
+             RightClickMenu.Item(title: remap.enabled ? String(localized: "Désactiver") : String(localized: "Activer"),
+                                 action: onToggle),
+             nil,
+             RightClickMenu.Item(title: String(localized: "Supprimer"), destructive: true, action: onDelete)]
         }
     }
 }

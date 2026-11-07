@@ -629,9 +629,14 @@ enum ClickSequenceCompiler {
                 index += smart.used
                 continue
             }
+            // Lâcher : jamais dans la petite fenêtre que FL montre sous la souris pendant le glisser (nom du son tiré du
+            // Browser, vidéo du 07/11) : prise pour un menu ouvert, le bloc était « À corriger ». Seules les fenêtres de
+            // FL comptent (Playlist, Channel rack…).
             if let release = c.release, !c.right,
                let to = MacroOutline.learnedTarget(at: release.point,
-                                                   windows: release.windows.map { (layer: $0.layer, bounds: $0.bounds) },
+                                                   windows: release.windows
+                                                       .filter { MacroEffectsMac.clickWindowLayers.contains($0.layer) }
+                                                       .map { (layer: $0.layer, bounds: $0.bounds) },
                                                    title: nil) {
                 out.append(.drag(from: Self.named(target, c.named), to: to))
                 continue

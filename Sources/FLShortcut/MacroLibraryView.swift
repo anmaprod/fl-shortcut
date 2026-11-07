@@ -391,16 +391,20 @@ private struct MacroLibraryCard: View {
         .onHover { inside in withAnimation(.easeOut(duration: 0.12)) { hovering = inside } }
         .contentShape(Rectangle())
         .onTapGesture(perform: onOpen)                  // un seul clic pour rentrer dans la macro
-        .contextMenu {
-            Button("Modifier…", action: onOpen)
-            Button("Dupliquer", action: onDuplicate)
-            Button("Exporter…", action: onExport)
+        .swissContextMenu {
+            var items: [RightClickMenu.Item?] = [
+                RightClickMenu.Item(title: String(localized: "Modifier…"), action: onOpen),
+                RightClickMenu.Item(title: String(localized: "Dupliquer"), action: onDuplicate),
+                RightClickMenu.Item(title: String(localized: "Exporter…"), action: onExport),
+            ]
             if let onToggle {
-                Divider()
-                Button(disabled ? String(localized: "Activer le raccourci") : String(localized: "Désactiver le raccourci"), action: onToggle)
+                items.append(nil)
+                items.append(RightClickMenu.Item(title: disabled ? String(localized: "Activer le raccourci")
+                                                 : String(localized: "Désactiver le raccourci"), action: onToggle))
             }
-            Divider()
-            Button("Supprimer", role: .destructive, action: onDelete)
+            items.append(nil)
+            items.append(RightClickMenu.Item(title: String(localized: "Supprimer"), destructive: true, action: onDelete))
+            return items
         }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)

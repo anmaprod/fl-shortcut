@@ -704,6 +704,7 @@
 "Dans la fenêtre de macOS, clique « Ouvrir Réglages Système… » (pas de fenêtre ? « Ouvrir les réglages » ci-dessous)." = "In the macOS window, click “Open System Settings…” (no window? Use “Open Settings” below).";
 "Dans le menu" = "In the menu";
 "Dans une copie, « %@ », à côté de l'original : l'original n'a pas bougé." = "In a copy, “%@”, next to the original: the original hasn't changed.";
+"Demande le lien avec FL (Organiser › Installer le lien)." = "Needs the FL link (Organize › Install the link).";
 "Demande le lien avec FL." = "Needs the FL link.";
 "Demande le script MIDI dans FL (désactivé en mode léger)" = "Needs the MIDI script in FL (off in light mode)";
 "Dernier essai" = "Last test";
