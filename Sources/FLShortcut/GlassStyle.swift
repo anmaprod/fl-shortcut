@@ -400,6 +400,15 @@ struct NoSystemSelection: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView { Finder() }
     func updateNSView(_ nsView: NSView, context: Context) { (nsView as? Finder)?.quiet() }
 
+    /// Dernier tableau trouvé (la liste des blocs du créateur, seule à s'en servir).
+    private static weak var table: NSTableView?
+
+    /// Donne la main à la liste (⌫, flèches) après un clic pris par une ligne qui se glisse.
+    static func focusList() {
+        guard let table, let window = table.window, window.firstResponder !== table else { return }
+        window.makeFirstResponder(table)
+    }
+
     final class Finder: NSView {
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
@@ -410,6 +419,7 @@ struct NoSystemSelection: NSViewRepresentable {
             var view = superview
             while let v = view, !(v is NSTableView) { view = v.superview }
             guard let table = view as? NSTableView else { return }
+            NoSystemSelection.table = table
             if table.selectionHighlightStyle != .none { table.selectionHighlightStyle = .none }
             if table.focusRingType != .none { table.focusRingType = .none }
             // Aucun dessin de macOS pendant un glisser (07/11 au soir : l'écartement « gap » des lignes faisait tomber

@@ -223,6 +223,10 @@ private struct MacroStepsPane: View {
                     // plus le rangement de la liste de macOS (onMove), qui faisait tomber l'app ; le bloc entier suit
                     // la souris, un trait rouge montre où il tombera (moitié haute : au-dessus, moitié basse : dessous).
                     .modifier(StepDragDrop(row: row, index: index, count: rows.count, width: rowWidth, line: $dropLine,
+                                           select: { [model] in
+                                               model.selection = row.id
+                                               NoSystemSelection.focusList()      // ⌫ et les flèches pour la liste
+                                           },
                                            drop: { providers, before in drop(providers, before: before) }))
             }
             if !rows.isEmpty {
@@ -449,6 +453,9 @@ private struct StepDragDrop: ViewModifier {
     let count: Int
     let width: CGFloat
     @Binding var line: StepDropLine?
+    /// Clic sur la ligne : elle est choisie. Le glisser à nous prend l'appui de la souris, la liste de macOS ne voyait
+    /// plus le clic (essai à vrais clics de la CI du 07/11 au soir : la ligne cliquée n'était pas choisie).
+    let select: () -> Void
     let drop: ([NSItemProvider], Int) -> Void
     @State private var height: CGFloat = 40
 
@@ -466,9 +473,11 @@ private struct StepDragDrop: ViewModifier {
 
     @ViewBuilder private func dragged(_ content: Content) -> some View {
         if row.kind == .block {
-            content.onDrag { StepDrag.provider(row) } preview: { StepDragPreview(row: row, width: width) }
-        } else {
             content
+                .onTapGesture(perform: select)
+                .onDrag { StepDrag.provider(row) } preview: { StepDragPreview(row: row, width: width) }
+        } else {
+            content.onTapGesture(perform: select)
         }
     }
 

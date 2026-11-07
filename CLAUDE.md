@@ -460,7 +460,8 @@
   bloc de trop quand je clique sur un bloc posé ») : créateur Mac, plus le rangement de la liste de macOS (`onMove`,
   `onInsert`, écartement `.gap` : l'app tombait) → glisser à nous (`StepDragDrop` : `onDrag` avec l'image du bloc
   entier `StepDragPreview`, `onDrop` par ligne, moitié haute = au-dessus, basse = dessous, trait rouge ; NE PAS remettre
-  onMove/onInsert/.gap) ; plus aucun fond DANS la ligne (le « bloc de trop ») ; Windows : trait au-dessus ou au-dessous
+  onMove/onInsert/.gap ; le clic sur une ligne passe par `select` + `NoSystemSelection.focusList`, la liste ne le voit
+  plus) ; plus aucun fond DANS la ligne (le « bloc de trop ») ; Windows : trait au-dessus ou au-dessous
   pareil. « Carte son branchée » enfin hors de la palette (listes `PaletteCatalog`/`CreatorPalette`, le réglage
   `dansLaPalette` n'y était pas lu). « Nouveau pattern + Piano Roll » sans le lien : ⌘F4 puis le Piano roll (F7, comme
   « Ouvrir une page de FL » ; Windows passe par le lien, rien à changer). Essais CI (`glisser-essai.txt`) : bloc du
