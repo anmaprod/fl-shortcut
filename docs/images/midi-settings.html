@@ -1,0 +1,126 @@
+<!doctype html>
+<!-- Fenêtre Options › MIDI Settings de FL Studio, redessinée d'après la capture du propriétaire (29/10), avec les 4
+     cases à régler entourées et numérotées. Image : Resources/MIDISettings.png (app et README). Pour la refaire :
+     node docs/images/rendre.js "$PWD/docs/images/midi-settings.html" "$PWD/Resources/MIDISettings.png"
+     (Playwright + Chromium, 714 × 842 points à 2×). -->
+<html lang="en"><head><meta charset="utf-8">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:transparent;font-family:Inter,"DejaVu Sans",sans-serif;color:#E4E4E4;-webkit-font-smoothing:antialiased}
+.page{position:relative;width:714px;height:842px}
+.win{position:absolute;left:22px;top:18px;width:670px;height:806px;background:#3A3A3A;border:1px solid #232323;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.a{position:absolute;white-space:nowrap}
+.t{font-size:11.5px}
+.title{font-size:14.5px;color:#EDEDED}
+.tab{font-size:13.5px;color:#E2E2E2;top:-1px}
+.box{position:absolute;border:1px solid #2E2E2E;background:#3E3E3E}
+.hdr{position:absolute;font-size:12px;color:#E8E8E8;background:#444;padding:2px 14px 3px 4px;clip-path:polygon(0 0,86% 0,100% 100%,0 100%)}
+.list{position:absolute;background:#363636;border:1px solid #303030}
+.cell{position:absolute;height:17px;background:#2F2F2F}
+.red{position:absolute;height:24px;border-radius:5px;background:linear-gradient(#B33A45,#8E2630);border:1px solid #5E1820;color:#F2D6D8;font-size:17px;text-align:right;padding-right:9px;line-height:22px;font-weight:300}
+.drop{position:absolute;height:22px;background:#373737;border:1px solid #2A2A2A;font-size:12px;line-height:20px;padding-left:4px;color:#E8E8E8}
+.radio{position:absolute;width:13px;height:13px;border-radius:50%;border:1.5px solid #222;background:#2C2C2C}
+.radio.on{background:radial-gradient(circle at 50% 45%,#FFB8A8 0 22%,#E8543A 45%,#B3321F 70%);border-color:#5A1E12}
+.btn{position:absolute;height:32px;background:#3C3C3C;border:1px solid #2A2A2A;font-size:12px;line-height:30px;text-align:center;color:#DADADA}
+.ring{position:absolute;border:3.5px solid #FF2A2A;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+.num{position:absolute;width:24px;height:24px;border-radius:50%;background:#FF2A2A;color:#fff;font-weight:700;font-size:14px;line-height:24px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.5)}
+</style></head><body>
+<div class="page">
+<div class="win">
+  <!-- barre de titre -->
+  <div class="a" style="left:14px;top:10px;width:14px;height:14px;border-radius:50%;background:#6A6A6A"></div>
+  <div class="a title" style="left:36px;top:8px">Settings - MIDI input / output devices</div>
+  <div class="a" style="left:648px;top:6px;font-size:16px;color:#DDD">✕</div>
+  <!-- onglets -->
+  <div class="a" style="left:6px;top:34px;width:658px;height:32px;border-bottom:1px solid #2E2E2E"></div>
+  <div class="a tab" style="left:14px;top:41px;color:#46A6FF">MIDI</div>
+  <div class="a tab" style="left:65px;top:41px">Audio</div>
+  <div class="a tab" style="left:124px;top:41px">General</div>
+  <div class="a tab" style="left:195px;top:41px">File</div>
+  <div class="a tab" style="left:239px;top:41px">Theme</div>
+  <div class="a tab" style="left:319px;top:41px">Project</div>
+  <div class="a tab" style="left:384px;top:41px">Info</div>
+  <div class="a tab" style="left:446px;top:41px">Debug</div>
+  <div class="a tab" style="left:509px;top:41px">Account</div>
+  <div class="a tab" style="left:581px;top:41px">About</div>
+
+  <!-- Output -->
+  <div class="box" style="left:30px;top:74px;width:608px;height:232px"></div>
+  <div class="hdr" style="left:31px;top:75px">Output</div>
+  <div class="list" style="left:37px;top:100px;width:594px;height:129px"></div>
+  <div class="a t" style="left:41px;top:102px">FL Shortcuts Link</div>
+  <div class="cell" style="left:357px;top:101px;width:180px"></div>
+  <div class="a t" style="left:361px;top:102px">FL Shortcuts</div>
+  <div class="cell" style="left:575px;top:101px;width:55px"></div>
+  <div class="a t" style="left:548px;top:102px">SYNC</div>
+  <div class="a t" style="left:587px;top:102px">7</div>
+  <div class="radio on" style="left:46px;top:245px"></div><div class="a t" style="left:65px;top:244px">Send master sync</div>
+  <div class="radio on" style="left:177px;top:245px"></div><div class="a t" style="left:196px;top:244px">Send all notes off</div>
+  <div class="a t" style="left:560px;top:244px">Port</div>
+  <div class="red" style="left:590px;top:239px;width:42px">7</div>
+  <div class="a t" style="left:41px;top:281px">Master sync offset (milliseconds)</div>
+  <div class="red" style="left:236px;top:276px;width:43px">0</div>
+  <div class="a t" style="left:338px;top:281px">Synchronization type</div>
+  <div class="drop" style="left:470px;top:277px;width:161px">MIDI clock<span style="position:absolute;right:6px;color:#BBB">▸</span></div>
+
+  <!-- Input -->
+  <div class="box" style="left:30px;top:314px;width:608px;height:338px"></div>
+  <div class="hdr" style="left:31px;top:315px">Input</div>
+  <div class="list" style="left:37px;top:340px;width:594px;height:129px"></div>
+  <div class="a t" style="left:41px;top:342px">FL Shortcuts Link</div>
+  <div class="cell" style="left:357px;top:341px;width:180px"></div>
+  <div class="a t" style="left:361px;top:342px">FL Shortcuts</div>
+  <div class="cell" style="left:575px;top:341px;width:55px"></div>
+  <div class="a t" style="left:587px;top:342px">7</div>
+  <div class="radio on" style="left:46px;top:486px"></div><div class="a t" style="left:65px;top:485px">Enable</div>
+  <div class="a t" style="left:126px;top:485px">Controller type</div>
+  <div class="drop" style="left:214px;top:479px;width:258px">FL Shortcuts<span style="position:absolute;right:6px;color:#BBB">▾</span></div>
+  <div class="drop" style="left:474px;top:479px;width:40px;text-align:center;padding:0">🔧</div>
+  <div class="a t" style="left:560px;top:485px">Port</div>
+  <div class="red" style="left:590px;top:479px;width:42px">7</div>
+  <div class="drop" style="left:43px;top:513px;width:101px">Velocity</div>
+  <div class="drop" style="left:146px;top:513px;width:26px"></div>
+  <div class="a t" style="left:180px;top:517px">Link note on velocity to</div>
+  <div class="drop" style="left:43px;top:542px;width:101px">Release</div>
+  <div class="drop" style="left:146px;top:542px;width:26px"></div>
+  <div class="a t" style="left:180px;top:546px">Link release velocity to</div>
+  <div class="radio" style="left:46px;top:573px"></div><div class="a t" style="left:65px;top:572px">Pickup (takeover mode)</div>
+  <div class="radio" style="left:46px;top:594px"></div><div class="a t" style="left:65px;top:593px">Auto accept detected controller</div>
+  <div class="radio" style="left:46px;top:615px"></div><div class="a t" style="left:65px;top:614px">Foot pedal controls note off</div>
+  <div class="a t" style="left:421px;top:517px">Omni preview <span style="color:#9A9A9A">MIDI channel</span></div>
+  <div class="red" style="left:601px;top:511px;width:30px;font-size:12px">···</div>
+  <div class="a t" style="left:396px;top:546px">Song marker jump <span style="color:#9A9A9A">MIDI channel</span></div>
+  <div class="red" style="left:601px;top:540px;width:30px;font-size:12px">···</div>
+  <div class="a t" style="left:390px;top:575px">Performance mode <span style="color:#9A9A9A">MIDI channel</span></div>
+  <div class="red" style="left:601px;top:569px;width:30px;font-size:12px">···</div>
+  <div class="a t" style="left:404px;top:604px">Generator muting <span style="color:#9A9A9A">MIDI channel</span></div>
+  <div class="red" style="left:601px;top:598px;width:30px;font-size:12px">···</div>
+  <div class="a" style="left:508px;top:629px;font-size:11px">Toggle on release</div>
+  <div class="radio" style="left:607px;top:630px"></div>
+
+  <!-- External sync -->
+  <div class="box" style="left:30px;top:660px;width:608px;height:84px"></div>
+  <div class="hdr" style="left:31px;top:661px">External sync</div>
+  <div class="drop" style="left:43px;top:688px;width:168px">FL Shortcuts Link<span style="position:absolute;right:6px;color:#BBB">▸</span></div>
+  <div class="a t" style="left:218px;top:692px">External clock sync</div>
+  <div class="a t" style="left:386px;top:692px">External sync offset (milliseconds)</div>
+  <div class="red" style="left:586px;top:686px;width:43px">0</div>
+  <div class="a t" style="left:42px;top:721px">Status: ready</div>
+
+  <div class="btn" style="left:29px;top:752px;width:138px">Refresh device list</div>
+  <div class="btn" style="left:174px;top:752px;width:138px">Update MIDI scripts</div>
+  <div class="a t" style="left:494px;top:760px">Enable FL Studio Remote</div>
+  <div class="radio" style="left:644px;top:761px"></div>
+
+  <!-- Ce qu'il faut régler : entouré et numéroté -->
+  <div class="ring" style="left:548px;top:229px;width:96px;height:44px"></div>
+  <div class="num" style="left:526px;top:222px">1</div>
+  <div class="ring" style="left:34px;top:474px;width:82px;height:38px"></div>
+  <div class="num" style="left:20px;top:462px">2</div>
+  <div class="ring" style="left:118px;top:468px;width:408px;height:46px"></div>
+  <div class="num" style="left:298px;top:448px">3</div>
+  <div class="ring" style="left:548px;top:469px;width:96px;height:44px"></div>
+  <div class="num" style="left:526px;top:458px">4</div>
+</div>
+</div>
+</body></html>

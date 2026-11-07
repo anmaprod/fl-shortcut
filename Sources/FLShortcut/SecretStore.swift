@@ -16,8 +16,8 @@ enum SecretStoreError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .keychain(let s): return "Trousseau indisponible (\(s))."
-        case .invalidKey: return "Clé invalide."
+        case .keychain(let s): return String(localized: "Trousseau indisponible (\(s)).")
+        case .invalidKey: return String(localized: "Clé invalide.")
         }
     }
 }
@@ -32,51 +32,150 @@ enum SecretKeyGenerator {
     }
 }
 
-/// Mot de passe générique du Trousseau de session.
-final class KeychainSecretStore: SecretStore {
-    private let service: String
-    private let account: String
+/// Un seul élément du Trousseau pour tout FL Shortcuts : la clé du script FL et la session du compte ensemble.
+/// macOS ne demande donc l'accès qu'une fois (« Toujours autoriser » : plus jamais pour cette version de l'app), et
+/// l'élément n'est lu qu'une fois par lancement, puis gardé en mémoire (retour de l'utilisateur : une demande par
+/// lecture, beaucoup trop). Les deux éléments séparés des versions d'avant sont repris puis effacés.
+final class KeychainVault {
+    struct Content: Codable {
+        /// Clé du script FL, en hexadécimal.
+        var scriptKey: String?
+        var session: CommunitySession?
 
-    init(service: String = "app.flshortcut.FLShortcut", account: String = "fl-script-key") {
-        self.service = service
-        self.account = account
+        var isEmpty: Bool { scriptKey == nil && session == nil }
     }
 
-    private var baseQuery: [String: Any] {
+    static let account = "fl-shortcuts"
+    /// Éléments des versions d'avant (un par secret).
+    static let legacyKeyAccount = "fl-script-key"
+    static let legacySessionAccount = "community-session"
+
+    private static var vaults: [String: KeychainVault] = [:]
+    private static let registry = NSLock()
+
+    /// Un coffre par service : tous ceux qui lisent ou écrivent le même élément partagent sa copie en mémoire.
+    static func shared(service: String = "app.flshortcut.FLShortcut") -> KeychainVault {
+        registry.lock()
+        defer { registry.unlock() }
+        if let vault = vaults[service] { return vault }
+        let vault = KeychainVault(service: service)
+        vaults[service] = vault
+        return vault
+    }
+
+    private let service: String
+    private let lock = NSLock()
+    /// nil : pas encore lu (ou lecture refusée : elle sera redemandée).
+    private var cache: Content?
+
+    private init(service: String) {
+        self.service = service
+    }
+
+    private func query(_ account: String) -> [String: Any] {
         [kSecClass as String: kSecClassGenericPassword,
          kSecAttrService as String: service,
          kSecAttrAccount as String: account]
     }
 
-    func load() -> [UInt8]? {
-        var query = baseQuery
-        query[kSecReturnData as String] = true
-        query[kSecMatchLimit as String] = kSecMatchLimitOne
+    private func copy(_ account: String) -> (status: OSStatus, data: Data?) {
+        var q = query(account)
+        q[kSecReturnData as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitOne
         var item: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
-              let data = item as? Data, data.count == FLProtocol.keyLength else { return nil }
-        return [UInt8](data)
+        let status = SecItemCopyMatching(q as CFDictionary, &item)
+        return (status, item as? Data)
     }
 
-    func save(_ key: [UInt8]) throws {
-        guard key.count == FLProtocol.keyLength else { throw SecretStoreError.invalidKey }
-        let data = Data(key)
-        let update = SecItemUpdate(baseQuery as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+    /// Le contenu, lu une fois par lancement. Pas encore d'élément commun : les deux éléments d'avant sont repris
+    /// (une seule fois), réunis, puis effacés.
+    func read() -> Content {
+        lock.lock()
+        defer { lock.unlock() }
+        if let cache { return cache }
+        let found = copy(Self.account)
+        if found.status == errSecSuccess {
+            let content = found.data.flatMap { try? JSONDecoder().decode(Content.self, from: $0) } ?? Content()
+            cache = content
+            return content
+        }
+        guard found.status == errSecItemNotFound else { return Content() }      // refusé : redemandé plus tard
+        var content = Content()
+        let key = copy(Self.legacyKeyAccount)
+        if let data = key.data, data.count == FLProtocol.keyLength { content.scriptKey = FLProtocol.hex([UInt8](data)) }
+        let session = copy(Self.legacySessionAccount)
+        if let data = session.data { content.session = try? JSONDecoder().decode(CommunitySession.self, from: data) }
+        if !content.isEmpty, (try? write(content)) != nil {
+            SecItemDelete(query(Self.legacyKeyAccount) as CFDictionary)
+            SecItemDelete(query(Self.legacySessionAccount) as CFDictionary)
+        }
+        if [key.status, session.status].allSatisfy({ $0 == errSecSuccess || $0 == errSecItemNotFound }) {
+            cache = content
+        }
+        return content
+    }
+
+    /// Change le contenu et l'écrit ; vide, l'élément est effacé.
+    func update(_ change: (inout Content) -> Void) throws {
+        var content = read()
+        change(&content)
+        lock.lock()
+        defer { lock.unlock() }
+        if content.isEmpty {
+            SecItemDelete(query(Self.account) as CFDictionary)
+        } else {
+            try write(content)
+        }
+        cache = content
+    }
+
+    private func write(_ content: Content) throws {
+        let data = try JSONEncoder().encode(content)
+        let update = SecItemUpdate(query(Self.account) as CFDictionary, [kSecValueData as String: data] as CFDictionary)
         if update == errSecSuccess { return }
         guard update == errSecItemNotFound else { throw SecretStoreError.keychain(update) }
-        var add = baseQuery
+        var add = query(Self.account)
         add[kSecValueData as String] = data
-        add[kSecAttrLabel as String] = "FL Shortcut – clé du script FL Studio"
+        add[kSecAttrLabel as String] = "FL Shortcuts"
+        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         let status = SecItemAdd(add as CFDictionary, nil)
         guard status == errSecSuccess else { throw SecretStoreError.keychain(status) }
     }
 
-    func delete() {
-        SecItemDelete(baseQuery as CFDictionary)
+    /// Désinstallation : l'élément commun et ceux d'avant effacés sans être lus (aucune demande d'accès).
+    func deleteAll() {
+        lock.lock()
+        defer { lock.unlock() }
+        for account in [Self.account, Self.legacyKeyAccount, Self.legacySessionAccount] {
+            SecItemDelete(query(account) as CFDictionary)
+        }
+        cache = nil
     }
 }
 
-/// Repli : fichier 0600 dans « Application Support/FL Shortcut », jamais suivi s'il est un lien.
+/// La clé du script FL, dans l'élément commun du Trousseau.
+final class KeychainSecretStore: SecretStore {
+    private let vault: KeychainVault
+
+    init(service: String = "app.flshortcut.FLShortcut") {
+        vault = .shared(service: service)
+    }
+
+    func load() -> [UInt8]? {
+        vault.read().scriptKey.flatMap(FileSecretStore.parseHex)
+    }
+
+    func save(_ key: [UInt8]) throws {
+        guard key.count == FLProtocol.keyLength else { throw SecretStoreError.invalidKey }
+        try vault.update { $0.scriptKey = FLProtocol.hex(key) }
+    }
+
+    func delete() {
+        try? vault.update { $0.scriptKey = nil }
+    }
+}
+
+/// Repli : fichier 0600 dans « Application Support/FL Shortcuts », jamais suivi s'il est un lien.
 final class FileSecretStore: SecretStore {
     let url: URL
 
@@ -154,11 +253,23 @@ final class PreferredSecretStore: SecretStore {
 
 /// Chemins de l'appli (calculés une fois, REL-21).
 enum AppPaths {
+    /// Nom de l'app et de ses dossiers avant « FL Shortcuts ».
+    static let oldName = "FL Shortcut"
+
     static let supportDirectory: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
-        return base.appendingPathComponent("FL Shortcut", isDirectory: true)
+        return renamed(base.appendingPathComponent(oldName, isDirectory: true),
+                       to: base.appendingPathComponent("FL Shortcuts", isDirectory: true))
     }()
+
+    /// Dossier à l'ancien nom de l'app : s'il existe (un vrai dossier, jamais un lien) et que le nouveau n'existe pas
+    /// encore, il prend le nouveau nom, avec tout son contenu (rename(2) : même volume, rien n'est copié). Si c'est
+    /// impossible, l'ancien reste utilisé : rien n'est perdu, le renommage sera retenté au prochain lancement.
+    static func renamed(_ old: URL, to new: URL) -> URL {
+        guard SecureFile.kind(at: new.path) == .none, SecureFile.kind(at: old.path) == .directory else { return new }
+        return rename(old.path, new.path) == 0 ? new : old
+    }
 
     static var profileURL: URL { supportDirectory.appendingPathComponent("profile.json") }
     /// Bibliothèque des macros en blocs (MacroLibraryStore.swift).

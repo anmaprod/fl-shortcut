@@ -22,8 +22,8 @@
     <LangVersion>12</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Version>0.2.0</Version>
-    <Product>FL Shortcut</Product>
-    <Company>FL Shortcut</Company>
+    <Product>FL Shortcuts</Product>
+    <Company>FL Shortcuts</Company>
     <Description>Raccourcis personnalisés pour FL Studio — outil indépendant, non affilié à Image-Line.</Description>
     <ApplicationIcon Condition="Exists('Assets\FLShortcut.ico')">Assets\FLShortcut.ico</ApplicationIcon>
   </PropertyGroup>
@@ -36,6 +36,21 @@
     <SelfContained>true</SelfContained>
   </PropertyGroup>
 
+  <!-- Serveur du compte, de la Communauté et de l'Aide : le MÊME que le Mac (Resources/Info.plist), adresse et clé
+       publique (publique par conception : les règles de supabase/schema.sql protègent les données ; jamais la clé
+       secrète ici). Les variables FLS_SUPABASE_URL et FLS_SUPABASE_ANON_KEY les remplacent si elles sont données
+       toutes les deux, comme build.sh. 04/11 : sans elles, l'app Windows n'avait aucun serveur (secrets vides sur la
+       CI) : compte, Communauté, sauvegarde et message à l'équipe ne marchaient pas. Essai : ServerAddressSameAsMac. -->
+  <PropertyGroup>
+    <FLSServerURL>https://ulzxunuytsakxrvovxen.supabase.co</FLSServerURL>
+    <FLSServerKey>sb_publishable_uSqh6eUCCeoXMioONoQYIQ_rYlriiw8</FLSServerKey>
+    <FLSServerURL Condition="'$(FLS_SUPABASE_URL)' != '' and '$(FLS_SUPABASE_ANON_KEY)' != ''">$(FLS_SUPABASE_URL)</FLSServerURL>
+    <FLSServerKey Condition="'$(FLS_SUPABASE_URL)' != '' and '$(FLS_SUPABASE_ANON_KEY)' != ''">$(FLS_SUPABASE_ANON_KEY)</FLSServerKey>
+  </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="FLSCommunityURL" Value="$(FLSServerURL)" />
+    <AssemblyMetadata Include="FLSCommunityAnonKey" Value="$(FLSServerKey)" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.241114003" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
@@ -46,9 +61,21 @@
     <ProjectReference Include="..\FLShortcut.Core\FLShortcut.Core.csproj" />
   </ItemGroup>
 
+  <!-- L'IA intégrée de l'Organiser (YAMNet + têtes apprises), à côté de l'exécutable (ClasseurSons.Partage). -->
+  <ItemGroup>
+    <None Include="..\..\ia\modele\classeur_sons.onnx" Link="classeur_sons.onnx" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!-- Le script FL (modèle avec le marqueur de clé), embarqué dans l'exécutable. -->
   <ItemGroup>
     <EmbeddedResource Include="..\..\Resources\device_FLShortcut.py" LogicalName="device_FLShortcut.py" />
+    <!-- Tuto de l'Organiser : les images du Mac (Resources/{fr,en}.lproj/OrganiserTuto1…4.png). -->
+    <EmbeddedResource Include="..\..\Resources\fr.lproj\OrganiserTuto*.png" LogicalName="%(Filename)-fr.png" />
+    <EmbeddedResource Include="..\..\Resources\en.lproj\OrganiserTuto*.png" LogicalName="%(Filename)-en.png" />
+    <!-- Logo « A » de la zone de notification (04/11, scripts/icone.py, option tray) : cercle blanc sur une barre des
+         tâches sombre, noir sur une claire ; le rond toujours rouge (TrayIcon). -->
+    <EmbeddedResource Include="Assets\TraySombre.ico" LogicalName="TraySombre.ico" />
+    <EmbeddedResource Include="Assets\TrayClaire.ico" LogicalName="TrayClaire.ico" />
   </ItemGroup>
 
 </Project>

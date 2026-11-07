@@ -143,8 +143,8 @@ final class MacroInterpreterTests: XCTestCase {
 
     func testBeginFailureStopsAtStep1() {
         let fx = FakeEffects()
-        fx.beginFailure = "autorise FL Shortcut"
-        XCTAssertEqual(run([b(.delay(ms: 1))], fx), .failed(step: 1, reason: "autorise FL Shortcut"))
+        fx.beginFailure = "autorise FL Shortcuts"
+        XCTAssertEqual(run([b(.delay(ms: 1))], fx), .failed(step: 1, reason: "autorise FL Shortcuts"))
         XCTAssertEqual(fx.trace, ["begin", "cleanup"])
     }
 

@@ -15,7 +15,22 @@ public static class FlProtocol
     // Appli → FL
     public const byte CcPing = 103;
     public const byte CcFrameFirst = 104;        // 104…111 : seq (3), action (1), MAC (4)
+    // Commande avec données (PROTOCOL.md §7, script v4) : CC 96 début, CC 97 unités, puis la trame de l'action 41.
+    public const byte CcDataStart = 96;
+    public const byte CcDataUnit = 97;
+    public const int DataActionId = 41;
+    public const int MaxDataUnits = 600;
+    /// Opérations 2 à 26 de la commande avec données (Organiser, dégradé ; script v5 et plus, PROTOCOL.md §8).
+    public const int ExtActionId = 42;
     // FL → appli
+    /// Réponse signée (PROTOCOL.md §8) : 112 début (valeur = opération), 113 unités, 114 fin, 4 × 115 MAC.
+    public const byte CcRespStart = 112;
+    public const byte CcRespUnit = 113;
+    public const byte CcRespEnd = 114;
+    public const byte CcRespMac = 115;
+    public const int MaxRespUnits = 600;
+    /// Raison d'un refus de la commande avec données, juste avant l'accusé 0.
+    public const byte CcReason = 116;
     public const byte CcCapsFirst = 90;          // 90…95
     public const byte CcWindow = 117;
     public const byte CcHeartbeat = 118;
@@ -26,6 +41,8 @@ public static class FlProtocol
     public const byte CcProto = 126;
     public const byte HelloStart = 1;
     public const byte HelloEnd = 127;
+    /// Script posé sur une autre entrée que celle de FL Shortcuts (script v8, au démarrage ; PROTOCOL.md §3).
+    public const byte HelloWrongInput = 64;
 
     public const uint SeqMax = (1u << 21) - 1;
     public const int KeyLength = 16;
@@ -33,6 +50,8 @@ public static class FlProtocol
     /// « Relié » : HELLO reçu et battement depuis moins de 6 s (PROTOCOL.md §5).
     public static readonly TimeSpan AliveTimeout = TimeSpan.FromSeconds(6);
     public static readonly TimeSpan PingInterval = TimeSpan.FromSeconds(6);
+    /// Plafond des PING sans réponse (FL ouvert mais lien pas activé dans ses réglages MIDI).
+    public static readonly TimeSpan MaxPingInterval = TimeSpan.FromSeconds(60);
     public static readonly TimeSpan ResyncPingInterval = TimeSpan.FromSeconds(2);
 
     public static byte[] SeqBytes(uint seq) =>
@@ -57,6 +76,8 @@ public readonly record struct CcMessage(byte Cc, byte Value)
     /// Message court WinMM : statut | data1 << 8 | data2 << 16.
     public uint ShortMessage => (uint)(FlProtocol.StatusCc | (Cc & 0x7F) << 8 | (Value & 0x7F) << 16);
     public static readonly CcMessage Ping = new(FlProtocol.CcPing, 1);
+    /// Réveil bref (macros, Organiser en mode léger) : le script se rendort tout seul 8 s après le dernier message.
+    public static readonly CcMessage PingBrief = new(FlProtocol.CcPing, 2);
 }
 
 /// Calcul du MAC des trames.
@@ -78,6 +99,71 @@ public sealed class FrameSigner
         var digest = HMACSHA256.HashData(_key, Message(nonce, seq, action));
         return FlProtocol.Mac28(digest);
     }
+
+    /// Commande avec données (et réponse de FL) : le MAC couvre aussi les unités (PROTOCOL.md §7, §8).
+    public byte[] Mac(IReadOnlyList<byte> nonce, uint seq, byte action, IReadOnlyList<byte> data)
+    {
+        var digest = HMACSHA256.HashData(_key, Message(nonce, seq, action).Concat(data).ToArray());
+        return FlProtocol.Mac28(digest);
+    }
+}
+
+/// Empaquetage 7 bits des données (PROTOCOL.md §7) : par groupe de 7 octets, une unité d'en-tête (bit j = bit 7 de
+/// l'octet j), puis les 7 bits bas de chaque octet.
+public static class Pack7
+{
+    public static byte[] Pack(IReadOnlyList<byte> bytes)
+    {
+        var out_ = new List<byte>(bytes.Count + (bytes.Count + 6) / 7);
+        for (var i = 0; i < bytes.Count; i += 7)
+        {
+            var count = Math.Min(7, bytes.Count - i);
+            byte header = 0;
+            for (var j = 0; j < count; j++) if ((bytes[i + j] & 0x80) != 0) header |= (byte)(1 << j);
+            out_.Add(header);
+            for (var j = 0; j < count; j++) out_.Add((byte)(bytes[i + j] & 0x7F));
+        }
+        return out_.ToArray();
+    }
+
+    /// null si mal formé (en-tête seul, bit d'en-tête au-delà du groupe, unité de plus de 7 bits).
+    public static byte[]? Unpack(IReadOnlyList<byte> units)
+    {
+        var out_ = new List<byte>();
+        var i = 0;
+        while (i < units.Count)
+        {
+            var header = units[i];
+            var count = Math.Min(7, units.Count - i - 1);
+            if (count <= 0 || header >= 128 || header >> count != 0) return null;
+            for (var j = 0; j < count; j++)
+            {
+                var u = units[i + 1 + j];
+                if (u >= 128) return null;
+                out_.Add((byte)(u | (((header >> j) & 1) == 1 ? 0x80 : 0)));
+            }
+            i += 1 + count;
+        }
+        return out_.ToArray();
+    }
+}
+
+/// Réponse de FL à une commande avec données.
+public abstract record DataReply
+{
+    public sealed record Done : DataReply;
+    /// Refus expliqué par le CC 116 (1 page, 2 rien de sélectionné, 3 plusieurs, 4 FL joue, 5 données, 6 FL trop
+    /// ancien, 7 dégradé sur un seul élément).
+    public sealed record Refused(int Reason) : DataReply;
+    public sealed record Failed(string Why) : DataReply;
+}
+
+/// Réponse de FL à une opération 2 à 26 (PROTOCOL.md §8) : les octets de sa réponse signée (vide : pas de réponse).
+public abstract record RequestReply
+{
+    public sealed record Answered(byte[] Bytes) : RequestReply;
+    public sealed record Refused(int Reason) : RequestReply;
+    public sealed record Failed(string Why) : RequestReply;
 }
 
 public static class FrameEncoder
@@ -91,6 +177,20 @@ public static class FrameEncoder
         var a = (byte)action;
         var values = FlProtocol.SeqBytes(seq).Append(a).Concat(signer.Mac(nonce, seq, a)).ToArray();
         return values.Select((v, i) => new CcMessage((byte)(FlProtocol.CcFrameFirst + i), v)).ToArray();
+    }
+
+    /// Commande avec données : CC 96, un CC 97 par unité, puis la trame de l'action 41 dont le MAC couvre les unités.
+    /// null au-delà de 600 unités ou si une valeur sort du protocole.
+    public static CcMessage[]? DataFrame(uint seq, IReadOnlyList<byte> units, IReadOnlyList<byte> nonce, FrameSigner signer)
+    {
+        if (seq < 1 || seq > FlProtocol.SeqMax || units.Count > FlProtocol.MaxDataUnits) return null;
+        if (units.Any(u => u >= 128) || nonce.Count != 4 || nonce.Any(b => b >= 128)) return null;
+        const byte a = FlProtocol.DataActionId;
+        var values = FlProtocol.SeqBytes(seq).Append(a).Concat(signer.Mac(nonce, seq, a, units)).ToArray();
+        return new[] { new CcMessage(FlProtocol.CcDataStart, 0) }
+            .Concat(units.Select(u => new CcMessage(FlProtocol.CcDataUnit, u)))
+            .Concat(values.Select((v, i) => new CcMessage((byte)(FlProtocol.CcFrameFirst + i), v)))
+            .ToArray();
     }
 }
 
@@ -114,6 +214,12 @@ public abstract record IncomingEvent
     public sealed record Window(FlWindow Value) : IncomingEvent;
     /// id de l'action exécutée, ou 0 si la trame a été rejetée / l'action a échoué.
     public sealed record Ack(int Id) : IncomingEvent;
+    /// Raison du refus d'une commande avec données (CC 116), juste avant l'accusé 0.
+    public sealed record Reason(int Value) : IncomingEvent;
+    /// Réponse complète (CC 112 à 115), MAC pas encore vérifié : seul le lien connaît le seq de la commande.
+    public sealed record Response(int Op, byte[] Units, byte[] Mac) : IncomingEvent;
+    /// FL a posé le script sur une autre entrée MIDI (carte son, clavier) : il ne recevra rien de l'appli.
+    public sealed record WrongInput : IncomingEvent;
 }
 
 /// Machine à états des messages FL → appli. WinMM livre déjà des messages courts (statut, data1, data2).
@@ -127,18 +233,50 @@ public sealed class IncomingDecoder
         public readonly byte?[] Caps = new byte?[CapabilityMask.CcCount];
     }
 
+    private sealed class PartialResponse
+    {
+        public byte Op;
+        public readonly List<byte> Units = new();
+        /// null tant que le CC 114 (fin des unités) n'est pas arrivé.
+        public List<byte>? Mac;
+    }
+
     private Partial? _partial;
+    private PartialResponse? _response;
 
     public IncomingEvent? Feed(byte status, byte cc, byte value)
     {
         if (status != FlProtocol.StatusCc || cc >= 128 || value >= 128) return null;
         switch (cc)
         {
+            case FlProtocol.CcRespStart:
+                _response = new PartialResponse { Op = value };
+                return null;
+            case FlProtocol.CcRespUnit:
+                // Unité hors réponse, après la fin, ou au-delà de 600 : la réponse est jetée.
+                if (_response is null || _response.Mac is not null || _response.Units.Count >= FlProtocol.MaxRespUnits)
+                {
+                    _response = null;
+                    return null;
+                }
+                _response.Units.Add(value);
+                return null;
+            case FlProtocol.CcRespEnd:
+                if (_response is null || _response.Mac is not null) { _response = null; return null; }
+                _response.Mac = new List<byte>();
+                return null;
+            case FlProtocol.CcRespMac:
+                if (_response?.Mac is not { } mac) { _response = null; return null; }
+                mac.Add(value);
+                if (mac.Count < 4) return null;
+                var done = _response;
+                _response = null;
+                return new IncomingEvent.Response(done.Op, done.Units.ToArray(), mac.ToArray());
             case FlProtocol.CcHello:
                 if (value == FlProtocol.HelloStart) { _partial = new Partial(); return null; }
                 if (value == FlProtocol.HelloEnd) { var r = Finish(); _partial = null; return r; }
                 _partial = null;
-                return null;
+                return value == FlProtocol.HelloWrongInput ? new IncomingEvent.WrongInput() : null;
             case >= FlProtocol.CcNonceFirst and < FlProtocol.CcNonceFirst + 4:
                 if (_partial is not null) _partial.Nonce[cc - FlProtocol.CcNonceFirst] = value;
                 return null;
@@ -157,6 +295,8 @@ public sealed class IncomingDecoder
                 return new IncomingEvent.Heartbeat();
             case FlProtocol.CcAck:
                 return new IncomingEvent.Ack(value);
+            case FlProtocol.CcReason:
+                return new IncomingEvent.Reason(value);
             default:
                 return null;
         }

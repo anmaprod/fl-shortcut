@@ -22,12 +22,14 @@ enum MacroOutcome: Equatable {
 
     var text: String {
         switch self {
-        case .done: return "Macro terminée"
-        case .doneWithWarning(let why): return "Macro terminée, mais \(why)"
-        case .failed(let step, let reason): return "Macro arrêtée à l'étape \(step) : \(reason)"
-        case .failedInBlock(let path, let label, let reason): return "Macro arrêtée au bloc \(path) (\(label)) : \(reason)"
-        case .stopped(let message): return message.map { "Macro arrêtée : \($0)" } ?? "Macro arrêtée par son bloc « Arrêter »"
-        case .cancelled(let reason): return "Macro annulée : \(reason)"
+        case .done: return String(localized: "Macro terminée")
+        case .doneWithWarning(let why): return String(localized: "Macro terminée, mais \(why)")
+        case .failed(let step, let reason): return String(localized: "Macro arrêtée à l'étape \(step) : \(reason)")
+        case .failedInBlock(let path, let label, let reason):
+            return String(localized: "Macro arrêtée au bloc \(path) (\(label)) : \(reason)")
+        case .stopped(let message):
+            return message.map { String(localized: "Macro arrêtée : \($0)") } ?? String(localized: "Macro arrêtée par son bloc « Arrêter »")
+        case .cancelled(let reason): return String(localized: "Macro annulée : \(reason)")
         }
     }
 }
@@ -127,19 +129,19 @@ final class MacroInterpreter {
         var state = RunState(startedAt: clock())
         for v in program.variables { state.variables[v.name] = v.initial }
         defer { effects.cleanup(state: &state) }
-        guard program.isRunnable else { return .failed(step: 1, reason: program.problem ?? "macro invalide") }
+        guard program.isRunnable else { return .failed(step: 1, reason: program.problem ?? String(localized: "macro invalide")) }
         if let why = effects.begin(startFeedbackEarly: program.needs.contains(.larsenEnAvance)) {
             return .failed(step: 1, reason: why)
         }
         let first = program.blocks.first { $0.enabled && $0.body.type != .comment }
         let firstNeeds = first.map { BlockRegistry.needs(of: $0.body) } ?? []
         if firstNeeds.contains(.pisteRequise), !effects.targetTrackIsInFL() {
-            return .failed(step: 1, reason: "clique d'abord sur ta piste dans le Mixer de FL, puis refais le raccourci")
+            return .failed(step: 1, reason: String(localized: "clique d'abord sur ta piste dans le Mixer de FL, puis refais le raccourci"))
         }
         // Un bloc qui clique sur la piste attend lui-même le clavier au repos ; les autres premiers blocs, ici.
         if firstNeeds.contains(.clavierAuRepos), !firstNeeds.contains(.attenteClavierInterne),
            !effects.waitForKeyboardIdle(timeout: 1.5) {
-            return .cancelled(reason: "relâche les touches du raccourci")
+            return .cancelled(reason: String(localized: "relâche les touches du raccourci"))
         }
         switch run(program.blocks, prefix: "", offset: 0, state: &state) {
         case .next:
@@ -176,10 +178,10 @@ final class MacroInterpreter {
             if case .comment = block.body { continue }
             let label = BlockRegistry.label(of: block.body)
             if state.executed >= limits.maxBlocks {
-                return .fail(path: path, label: label, reason: "trop de blocs exécutés (\(limits.maxBlocks) au plus)")
+                return .fail(path: path, label: label, reason: String(localized: "trop de blocs exécutés (\(limits.maxBlocks) au plus)"))
             }
             if clock().timeIntervalSince(state.startedAt) > limits.maxSeconds {
-                return .fail(path: path, label: label, reason: "macro trop longue (\(Int(limits.maxSeconds)) s au plus)")
+                return .fail(path: path, label: label, reason: String(localized: "macro trop longue (\(Int(limits.maxSeconds)) s au plus)"))
             }
             if let stop = effects.stopReason() { return .cancel(stop) }
 
@@ -237,7 +239,7 @@ final class MacroInterpreter {
                         break loop
                     case .success(true):
                         guard turns < maxTurns else {
-                            result = .fail("condition toujours vraie après \(maxTurns) tours")
+                            result = .fail(String(localized: "condition toujours vraie après \(maxTurns) tours"))
                             break loop
                         }
                         turns += 1
@@ -263,11 +265,11 @@ final class MacroInterpreter {
 
             case .stop(let message):
                 effects.log("STEP", "\(path) \(name) → ok in \(ms(since: began)) ms")
-                for b in group { observer?.blockFinished(b.id, path: path, result: .ok, ms: ms(since: began)) }
+                finished(group, path, .ok, ms(since: began))
                 return .stop(message)
 
             case .unknown:
-                result = .fail("bloc inconnu : macro d'une version plus récente")
+                result = .fail(String(localized: "bloc inconnu : macro d'une version plus récente"))
 
             default:
                 result = effects.perform(block.body, state: &state)
@@ -277,11 +279,11 @@ final class MacroInterpreter {
             if inner != .next {
                 // Un bloc imbriqué a arrêté la macro : son propre chemin est gardé.
                 effects.log("STEP", "\(path) \(name) → \(innerText(inner)) in \(elapsed) ms")
-                for b in group { observer?.blockFinished(b.id, path: path, result: .ok, ms: elapsed) }
+                finished(group, path, .ok, elapsed)
                 return inner
             }
             effects.log("STEP", "\(path) \(name) → \(describe(result)) in \(elapsed) ms")
-            for b in group { observer?.blockFinished(b.id, path: path, result: result, ms: elapsed) }
+            finished(group, path, result, elapsed)
             switch result {
             case .ok:
                 state.lastFailed = false
@@ -291,12 +293,17 @@ final class MacroInterpreter {
             case .fail(let why):
                 guard block.onFailure == .keepGoing else { return .fail(path: path, label: label, reason: why) }
                 state.lastFailed = true
-                state.warnings.append("étape \(path) non faite (\(why))")
+                state.warnings.append(String(localized: "étape \(path) non faite (\(why))"))
             case .cancel(let why):
                 return .cancel(why)
             }
         }
         return .next
+    }
+
+    /// Fin de chaque bloc du groupe, pour le suivi d'un essai (sans observateur : rien).
+    private func finished(_ group: [Block], _ path: String, _ result: StepResult, _ ms: Int) {
+        for b in group { observer?.blockFinished(b.id, path: path, result: result, ms: ms) }
     }
 
     private func innerText(_ f: Flow) -> String {
@@ -322,7 +329,7 @@ final class MacroInterpreter {
                 return .ok
             case .success(false):
                 if ms(since: began) >= timeoutMs {
-                    return .fail("condition toujours fausse après \(timeoutMs / 1000) s")
+                    return .fail(String(localized: "condition toujours fausse après \(timeoutMs / 1000) s"))
                 }
                 let p = effects.pause(ms: Self.pollMs)
                 if case .cancel = p { return p }
@@ -368,7 +375,7 @@ final class MacroInterpreter {
         switch source {
         case .constant(let v): return .success(v)
         case .variable(let name): return .success(state.variables[name] ?? 0)
-        case .flState: return .failure(.fail("lecture de l'état de FL : demande l'extension du lien avec FL"))
+        case .flState: return .failure(.fail(String(localized: "lecture de l'état de FL : demande l'extension du lien avec FL")))
         }
     }
 }

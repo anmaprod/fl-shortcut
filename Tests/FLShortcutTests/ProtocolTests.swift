@@ -90,6 +90,21 @@ final class ProtocolTests: XCTestCase {
         XCTAssertEqual(events, [.incompatible(protocolVersion: 3)])
     }
 
+    /// Script v8 posé sur une autre entrée MIDI (carte son) : CC 120 = 64, retenu jusqu'au prochain HELLO.
+    func testWrongInputNoticeUntilNextHello() {
+        var parser = MIDIByteParser()
+        var decoder = IncomingDecoder()
+        let events = parser.feed(Bytes.cc(120, 64)).compactMap { decoder.feed(status: $0.status, data1: $0.data1, data2: $0.data2) }
+        XCTAssertEqual(events, [.wrongInput])
+        let core = LinkCore(transport: FakeTransport(), key: Array(UInt8(0)..<UInt8(16)))
+        core.receive(Bytes.cc(120, 64))
+        XCTAssertTrue(core.snapshot.wrongInput)
+        core.receive(Bytes.hello(nonce: nonce, caps: Bytes.allCaps))
+        XCTAssertFalse(core.snapshot.wrongInput)
+        XCTAssertEqual(OrganizerController.waitReason(for: .noResponse, wrongInput: true), .wrongInput)
+        XCTAssertEqual(OrganizerController.waitReason(for: .flClosed, wrongInput: true), .openFL)
+    }
+
     func testIncompleteHelloIsIgnored() {
         var parser = MIDIByteParser()
         var decoder = IncomingDecoder()

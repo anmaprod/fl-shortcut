@@ -114,7 +114,7 @@ struct KeyRouter {
         case macro
     }
 
-    /// keyCode → propriétaire de l'appui en cours. Au plus 128 entrées (codes de touche bornés).
+    /// keyCode → propriétaire de l'appui en cours. Au plus 158 entrées (codes de touche et boutons de souris bornés).
     private(set) var owned: [UInt16: Owner] = [:]
 
     mutating func purge() { owned.removeAll() }
@@ -130,7 +130,8 @@ struct KeyRouter {
         }
         if e.isOwn { return .pass }                   // nos propres événements : jamais retraités (anti-boucle)
         let code = e.combo.keyCode
-        guard code < 128 else { return .pass }
+        // Touches (0…127) et boutons de souris du milieu et du côté (KeyCombo.mouseBase, 05/11).
+        guard code < 128 || e.combo.isMouseButton else { return .pass }
 
         if e.kind == .up {
             return owned.removeValue(forKey: code) != nil ? .swallowOnly : .pass

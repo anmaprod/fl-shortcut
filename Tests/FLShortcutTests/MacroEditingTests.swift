@@ -44,14 +44,14 @@ final class MacroEditingTests: XCTestCase {
 
     func testBadgesForLinkLearningAndProblems() {
         let blocks = [
-            Block(.flAction(key: "solo", fallback: .none)),
+            Block(.flAction(key: "bypass", fallback: .none)),
             Block(.selectInput(.legacy(key: "macroSpots.v2.input"))),
             Block(.click(.toLearn, button: .left)),
             Block(.chooseFile(path: "")),
             Block(.key(KeyRef(KeyCombo(keyCode: 12, command: true)), times: 1), onFailure: .keepGoing),
         ]
         let r = rows(blocks, learned: false)
-        XCTAssertEqual(r[0].badges, [.lienFL])
+        XCTAssertTrue(r[0].badges.isEmpty, "plus de « Lien FL »")
         XCTAssertTrue(r[1].badges.contains { if case .aApprendre = $0 { return true }; return false })
         XCTAssertEqual(r[2].badges.count, 1)
         XCTAssertTrue(r[2].badges.contains { if case .aApprendre = $0 { return true }; return false })
@@ -63,6 +63,12 @@ final class MacroEditingTests: XCTestCase {
         XCTAssertTrue(r[4].badges.contains(.continueSiEchec))
         // Entrée déjà apprise : plus de badge.
         XCTAssertTrue(rows(blocks, learned: true)[1].badges.isEmpty)
+        // Mute et solo marchent sans le script : jamais « lien FL » ; le mute attend son bouton, montré une fois.
+        MuteSwitch.forget()
+        let mixer = rows([Block(.flAction(key: "mute", fallback: .none)), Block(.flAction(key: "solo", fallback: .none))],
+                         learned: true)
+        XCTAssertEqual(mixer[0].badges, [.aApprendre(MuteSwitch.toLearn)])
+        XCTAssertTrue(mixer[1].badges.isEmpty)
     }
 
     func testInsertBelowSelectionOrInsideALoop() {
@@ -148,34 +154,47 @@ final class MacroEditingTests: XCTestCase {
         let items = PaletteCatalog.items(layout: FakeLayout.qwerty)
         XCTAssertEqual(Set(items.map(\.id)).count, items.count)
         let ready = Set(items.filter { !$0.soon }.map(\.type))
-        for t: BlockType in [.key, .click, .menuKey, .waitWindow, .trackMenu, .chooseFile, .dropFile, .flAction,
-                             .selectInput, .feedbackCheck, .repeatCount] {
+        for t: BlockType in [.key, .click, .drag, .menuKey, .waitWindow, .dropFile, .flAction,
+                             .openPage, .pageOption, .menuBar] {
             XCTAssertTrue(ready.contains(t), "\(t)")
         }
-        XCTAssertFalse(ready.contains(.ifElse))
+        // Contrôle retiré de la palette le 28/10 (Répéter, Si… sinon) : toujours compris dans les anciennes macros.
+        XCTAssertFalse(items.contains { $0.type == .repeatCount || $0.type == .ifElse })
+        XCTAssertFalse(items.contains { $0.category == .controle })
+        // Un seul « Attendre », avec l'horloge.
+        XCTAssertEqual(items.filter { $0.category == .fenetres }.map(\.id), ["wait"])
+        XCTAssertEqual(items.first { $0.id == "wait" }?.symbol, "clock")
         // Triés avec l'utilisateur : plus proposés (toujours compris dans les anciennes macros). Les attentes sont un
         // seul « Attendre ».
-        for t: BlockType in [.menuLetters, .stop, .comment, .repeatWhile, .waitUntil, .delay, .waitWindowClose] {
+        // « Ouvrir un preset (boîte Open) » aussi : « Ouvrir un preset » (le fichier déposé) fait la même chose, plus
+        // vite. « Menu de la piste » : outil technique, remplacé par « Cliquer sur… » et l'enregistrement des clics.
+        for t: BlockType in [.menuLetters, .stop, .comment, .repeatWhile, .waitUntil, .delay, .waitWindowClose,
+                             .selectInput, .feedbackCheck, .chooseFile, .trackMenu] {
             XCTAssertFalse(items.contains { $0.type == t }, "\(t)")
         }
+        // Armer la piste et allumer le REC : plus proposés non plus (l'enregistrement rapide sera refait).
+        let keys = items.compactMap { item -> String? in
+            if case .flAction(let key, _) = item.make() { return key }
+            return nil
+        }
+        XCTAssertFalse(keys.contains("armon") || keys.contains("recon"), "\(keys)")
+        // Mute et solo de la piste retirés le 29/10 (demande du propriétaire).
+        XCTAssertFalse(keys.contains("mute") || keys.contains("solo"), "\(keys)")
         XCTAssertFalse(items.contains { $0.type == .menuAX || $0.type == .setVariable || $0.type == .flActionValue })
         // Chaque entrée prête produit un bloc valide, sauf ce qui reste à choisir ou à montrer dans FL.
-        for item in items where !item.soon && item.id != "chooseFile" && item.id != "dropFile" && item.id != "clickLearned" {
+        let toChoose: Set<String> = ["chooseFile", "dropFile", "clickLearned", "drag", "openPage", "pageOption",
+                                     "menuBar"]
+        for item in items where !item.soon && !toChoose.contains(item.id) {
             let p = MacroProgram(blocks: [Block(item.make())], name: "x", source: .blocks(id: UUID(), revision: 0), context: ctx)
             XCTAssertNil(p.problem, item.id)
         }
-        // Le menu de la piste de la palette n'utilise pas la mémoire de l'Entrée du modèle livré.
-        guard case .trackMenu(_, _, _, let enter)? = items.first(where: { $0.id == "trackMenu" })?.make() else {
-            return XCTFail("menu de la piste")
-        }
-        XCTAssertEqual(enter, .ifNeeded)
     }
 
     func testPaletteSearchIgnoresCaseAndAccents() {
         let items = PaletteCatalog.items(layout: FakeLayout.qwerty)
         XCTAssertEqual(PaletteCatalog.search(items, "PAUSE").first?.id, "wait")
-        XCTAssertTrue(PaletteCatalog.search(items, "fenetre").contains { $0.id == "wait" })
-        XCTAssertEqual(PaletteCatalog.search(items, "armer").first?.id, "arm")
+        XCTAssertTrue(PaletteCatalog.search(items, "boite").contains { $0.id == "wait" })
+        XCTAssertEqual(PaletteCatalog.search(items, "MENU DE").first?.id, "menuBar")
         XCTAssertTrue(PaletteCatalog.search(items, "zzz introuvable").isEmpty)
         XCTAssertEqual(PaletteCatalog.search(items, "  ").count, items.count)
     }
@@ -210,6 +229,28 @@ final class MacroEditingTests: XCTestCase {
         XCTAssertNil(MacroOutline.learnedTarget(at: CGPoint(x: 10, y: 10), windows: [(-20, CGRect(x: 0, y: 0, width: 400, height: 300))]))
     }
 
+    func testPluginWindowIsLearnedWithItsTitleEvenOnTop() {
+        let serum = CGRect(x: 300, y: 50, width: 1012, height: 768)
+        let main = CGRect(x: 0, y: 0, width: 1600, height: 1000)
+        // Fenêtre de plugin restée devant (niveau des menus) : avec son titre, une fenêtre, pas un menu.
+        let windows: [(layer: Int, bounds: CGRect)] = [(101, serum), (0, main)]
+        XCTAssertEqual(MacroOutline.learnedTarget(at: CGPoint(x: 340, y: 90), windows: windows, title: "Serum"),
+                       .flWindow(corner: .topLeft, dx: 40, dy: 40, size: serum.size, title: "Serum"))
+        guard case .openMenu? = MacroOutline.learnedTarget(at: CGPoint(x: 340, y: 90), windows: windows) else {
+            return XCTFail("sans titre : un menu, comme avant")
+        }
+        // Le titre est gardé dans la macro, relu tel quel.
+        let target = ClickTarget.flWindow(corner: .bottomRight, dx: -20, dy: -10, size: serum.size, title: "Serum #2")
+        XCTAssertEqual(ClickTarget(json: target.json), target)
+        XCTAssertTrue(target.isFinite)
+        XCTAssertFalse(ClickTarget.flWindow(corner: .topLeft, dx: 1, dy: 1, size: serum.size, title: "").isFinite)
+        XCTAssertFalse(ClickTarget.flWindow(corner: .topLeft, dx: 1, dy: 1, size: nil, title: "Serum").isFinite)
+        // La fenêtre principale (nom du projet) n'est jamais retenue par son titre.
+        XCTAssertTrue(FLWindowAX.isPluginTitle("Serum"))
+        XCTAssertFalse(FLWindowAX.isPluginTitle("Mon morceau - FL Studio 2025"))
+        XCTAssertFalse(FLWindowAX.isPluginTitle(""))
+    }
+
     func testPaletteHasNameColor() {
         let items = PaletteCatalog.items(layout: FakeLayout.qwerty)
         let item = items.first { $0.id == "nameColor" }
@@ -239,4 +280,13 @@ final class MacroEditingTests: XCTestCase {
         XCTAssertEqual(RecentColors.list(defaults: defaults), [RGBColor(r: 0xE0, g: 0x45, b: 0x3A)])
     }
 
+    /// « Choisir… » du preset : la boîte s'ouvre directement dans Mixer presets de FL, sinon au plus proche.
+    func testPresetChooserOpensInMixerPresets() {
+        let home = URL(fileURLWithPath: "/Users/moi")
+        let all = PresetPanel.startFolder(home: home) { _ in true }
+        XCTAssertEqual(all?.path, "/Users/moi/Documents/Image-Line/FL Studio/Presets/Mixer presets")
+        let noMixer = PresetPanel.startFolder(home: home) { !$0.path.hasSuffix("Mixer presets") }
+        XCTAssertEqual(noMixer?.path, "/Users/moi/Documents/Image-Line/FL Studio/Presets")
+        XCTAssertNil(PresetPanel.startFolder(home: home) { _ in false })
+    }
 }

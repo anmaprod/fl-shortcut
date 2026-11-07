@@ -1,5 +1,5 @@
 #!/bin/bash
-# FL Shortcut — boucle de compilation pour Claude.
+# FL Shortcuts — boucle de compilation pour Claude.
 # Lance-la d'un double-clic : elle attend une demande (fichier .demande) et n'exécute
 # que 4 commandes fixes dans ce dossier : test, build, run, stop. Ferme la fenêtre pour arrêter.
 cd "$(dirname "$0")" || exit 1
@@ -8,7 +8,7 @@ XCODE=$(ls -d /Applications/Xcode*.app "$HOME"/Applications/Xcode*.app 2>/dev/nu
 if [ -n "$XCODE" ] && [ -d "$XCODE/Contents/Developer" ]; then
   export DEVELOPER_DIR="$XCODE/Contents/Developer"
 fi
-echo "FL Shortcut : compilation automatique pour Claude."
+echo "FL Shortcuts : compilation automatique pour Claude."
 echo "Laisse cette fenêtre ouverte. Ferme-la quand tu veux pour tout arrêter."
 { echo "== macOS"; sw_vers; uname -m; echo "== outils"; echo "DEVELOPER_DIR=$DEVELOPER_DIR"; xcodebuild -version; swift --version; } > .env.txt 2>&1
 cat .env.txt
@@ -20,7 +20,7 @@ while true; do
     case "$cmd" in
       test)  swift test ;;
       build) FLS_NATIVE=1 FLS_SKIP_TESTS=1 ./build.sh ;;
-      run)   pkill -x FLShortcut 2>/dev/null; sleep 1; open "dist/FL Shortcut.app" ;;
+      run)   pkill -x FLShortcut 2>/dev/null; sleep 1; open "dist/FL Shortcuts.app" ;;
       stop)  pkill -x FLShortcut ;;
       *)     echo "demande inconnue : $cmd" ;;
     esac > .journal.txt 2>&1
