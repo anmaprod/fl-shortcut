@@ -269,9 +269,7 @@ final class FLPProjectTests: XCTestCase {
     func testIconNumbersAreLearnedFromTheSavedCopy() throws {
         var file = FLPSample.sample()
         let firstChannel = try XCTUnwrap(file.events.firstIndex { $0.id == 21 })
-        var icon = FLPEvent(id: 155, bytes: [])
-        FLPBytes.put(UInt32(73), into: &icon.bytes, at: 0, size: 4)
-        file.events.insert(icon, at: firstChannel + 1)
+        file.events.insert(FLPEvent(id: 155, bytes: [73, 0, 0, 0]), at: firstChannel + 1)
         let project = try FLPProject(file)
         XCTAssertEqual(project.channels.first?.icon, 73)
         let placed = [(icon: try XCTUnwrap(FLIcon(code: "3-2")), place: 0), (icon: try XCTUnwrap(FLIcon(code: "4-4")), place: 1)]
