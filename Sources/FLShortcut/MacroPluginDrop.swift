@@ -115,13 +115,31 @@ enum PluginDrop {
     static func mixerSlotPoint(in items: [TextLook.Item]) -> CGPoint? {
         var best: (number: Int, point: CGPoint)?
         for item in items {
-            let words = item.text.lowercased().split(whereSeparator: { $0 == " " })
-            guard words.count == 2, words[0] == "slot" else { continue }
-            let digits = String(words[1]).map { c -> Character in c == "l" || c == "i" || c == "|" ? "1" : c == "o" ? "0" : c }
-            guard let number = Int(String(digits)), (1...10).contains(number) else { continue }
+            guard let number = slotNumber(item.text) else { continue }
             if best == nil || number < best!.number { best = (number, item.center) }
         }
         return best?.point
+    }
+
+    /// Pure (testée) : le numéro d'une case libre lue « Slot 3 », même avec la flèche devant (« ▶ Slot 3 », « > Slot
+    /// 3 ») ou mal lue (« Slot3 », « Slot l », « SIot 1 ») ; nil : autre chose.
+    static func slotNumber(_ text: String) -> Int? {
+        let lowered = text.lowercased()
+        guard let match = lowered.range(of: #"s[l1i|]ot\s*[0-9lio|]{1,2}\b"#, options: .regularExpression) else { return nil }
+        let digits = lowered[match].dropFirst(4).filter { !$0.isWhitespace }
+            .map { c -> Character in c == "l" || c == "i" || c == "|" ? "1" : c == "o" ? "0" : c }
+        guard let number = Int(String(digits)), (1...10).contains(number) else { return nil }
+        return number
+    }
+
+    /// Pure (testée) : la page est-elle à l'écran ? Son titre lu dans la fenêtre de FL (« Channel rack », ou « Mixer » /
+    /// « Mixer - Insert 3 »). Sert à ne jamais appuyer sur sa touche quand elle est déjà là : la touche la refermerait.
+    static func pageShown(effect: Bool, in items: [TextLook.Item]) -> Bool {
+        items.contains { item in
+            let t = TextLook.normalized(item.text)
+            return effect ? (t == TextLook.normalized("Mixer") || t.hasPrefix(TextLook.normalized("Mixer -")))
+                          : t == TextLook.normalized("Channel rack")
+        }
     }
 
     /// Un nom de son qu'on peut lire : 2 à 40 caractères, au moins une lettre.
@@ -188,19 +206,26 @@ enum PluginDrop {
 
 extension MacroEffectsMac {
     /// Point de dépôt lu dans la plus grande fenêtre de FL qui le montre : sous le dernier son du Channel rack, ou la
-    /// première case libre de la piste choisie du Mixer ; nil : la page n'est pas à l'écran.
-    private func readDropPoint(effect: Bool, ctx: Context) -> CGPoint? {
+    /// première case libre de la piste choisie du Mixer ; `shown` : le titre de la page a été lu (elle est à l'écran).
+    private func readDropPoint(effect: Bool, ctx: Context) -> (point: CGPoint?, shown: Bool) {
         let windows = WinSnapshot.take(pid: ctx.pid).fl
             .filter { $0.layer == 0 && $0.bounds.width >= 300 && $0.bounds.height >= 200 && $0.number > 0 }
             .sorted { $0.bounds.width * $0.bounds.height > $1.bounds.width * $1.bounds.height }
+        var shown = false
         for w in windows {
             guard let image = ScreenLook.captureImage(windowNumber: w.number, size: w.bounds.size, scale: 2) else { continue }
             let items = TextLook.read(image, size: w.bounds.size)
+            shown = shown || PluginDrop.pageShown(effect: effect, in: items)
             let p = effect ? PluginDrop.mixerSlotPoint(in: items)
                            : PluginDrop.channelRackPoint(in: items, bottom: w.bounds.height)
-            if let p { return CGPoint(x: w.bounds.minX + p.x, y: w.bounds.minY + p.y) }
+            if let p { return (CGPoint(x: w.bounds.minX + p.x, y: w.bounds.minY + p.y), true) }
         }
-        return nil
+        return (nil, shown)
+    }
+
+    /// Pourquoi le plugin ne s'ouvre pas par le dépôt, dit en une phrase courte (puis le menu Add, comme avant).
+    private func dropHint(_ text: String) {
+        DispatchQueue.main.async { HintPanel.shared.flash(text, seconds: 3) }
     }
 
     /// Le plugin ouvert en déposant son .fst (PluginDrop) ; nil : pas par là (le menu Add, comme avant). Jamais de nom
@@ -210,40 +235,41 @@ extension MacroEffectsMac {
         let roots = Array(Set([FLPluginDatabase.root(), FLPluginDatabase.root(script: nil)].map(\.standardizedFileURL)))
         guard let file = roots.lazy.compactMap({ PluginDrop.presetFile(named: name, effect: effect, root: $0) }).first else {
             MacroLog.shared.write("PLUGIN", "drop: no .fst in the Plugin database (\(roots.count) bases), Add menu used")
+            dropHint(String(localized: "Pas de fichier .fst pour ce plugin dans la base de FL : ouvert par le menu."))
+            return nil
+        }
+        guard Self.canRead else {
+            // Sans « Enregistrement de l'écran », ni le Channel rack ni le Mixer ne peuvent être lus : jamais de dépôt au
+            // hasard. Une version neuve de l'app perd souvent cette autorisation : la décocher puis la recocher.
+            MacroLog.shared.write("PLUGIN", "drop: screen recording not allowed, Add menu used")
+            dropHint(String(localized: "Autorise de nouveau « Enregistrement de l'écran » (décoche puis recoche) : les plugins s'ouvriront plus vite."))
             return nil
         }
         // 06/11 (« si la souris n'est pas sur la page Channel rack, ça ne fonctionne pas… que la souris y aille
-        // automatiquement, sélectionne la page ») : la page est lue ; pas trouvée, elle est ouverte (sa touche de FL)
-        // puis relue, avant de déposer. Instrument : sous le dernier son (au-dessus du premier si le Channel rack est
-        // coupé) ; effet : la première case libre de la piste choisie du Mixer.
+        // automatiquement, sélectionne la page ») : la page est lue ; absente, elle est ouverte (sa touche de FL, jamais
+        // quand son titre est lu : la touche la refermerait) puis relue, avant de déposer. Instrument : sous le dernier son
+        // (au-dessus du premier si le Channel rack est coupé) ; effet : la première case libre de la piste choisie du
+        // Mixer. 07/11 (vidéo : l'effet allait sur la piste sous la souris) : plus jamais la piste du dernier clic.
         var target: CGPoint?
-        if Self.canRead {
-            for attempt in 0..<3 {
-                if let stop = stopReason() { return .cancel(stop) }
-                target = readDropPoint(effect: effect, ctx: ctx)
-                if target != nil { break }
-                if attempt == 0 {
-                    let page: FLPage = effect ? .mixer : .channelRack
-                    guard let key = page.nativeKey(layout: SystemKeyboardLayout()) else { break }
-                    postKey(key, pid: ctx.pid)
-                    MacroLog.shared.write("PLUGIN", "drop: page \(page.rawValue) not read, opened")
-                }
-                usleep(450_000)
+        var opened = false
+        for _ in 0..<4 {
+            if let stop = stopReason() { return .cancel(stop) }
+            let read = readDropPoint(effect: effect, ctx: ctx)
+            target = read.point
+            if target != nil { break }
+            if !read.shown, !opened {
+                let page: FLPage = effect ? .mixer : .channelRack
+                guard let key = page.nativeKey(layout: SystemKeyboardLayout()) else { break }
+                postKey(key, pid: ctx.pid)
+                opened = true
+                MacroLog.shared.write("PLUGIN", "drop: page \(page.rawValue) not shown, opened")
             }
-        } else if !effect {
-            // Sans « Enregistrement de l'écran », le Channel rack ne peut pas être lu : dit (jamais la fenêtre de macOS
-            // au milieu d'une macro, elle passait derrière FL).
-            MacroLog.shared.write("PLUGIN", "drop: screen recording not allowed, Add menu used")
-            DispatchQueue.main.async {
-                HintPanel.shared.flash(String(localized: "Autorise « Enregistrement de l'écran » : les plugins s'ouvriront plus vite."),
-                                       seconds: 3)
-            }
-            return nil
+            usleep(400_000)
         }
-        // Effet sans case lue : la piste du dernier clic dans FL, comme avant.
-        if target == nil, effect, FLWindows.contains(ctx.track, pid: ctx.pid) { target = ctx.track }
         guard let at = target else {
-            MacroLog.shared.write("PLUGIN", effect ? "drop: no free slot read and aimed track outside FL, Add menu used" : "drop: Channel rack not read, Add menu used")
+            MacroLog.shared.write("PLUGIN", effect ? "drop: no free slot read, Add menu used" : "drop: Channel rack not read, Add menu used")
+            dropHint(effect ? String(localized: "Case libre du Mixer introuvable : effet ouvert par le menu.")
+                            : String(localized: "Channel rack illisible : instrument ouvert par le menu."))
             return nil
         }
         switch dropFile(file.path, at: at, ctx: ctx) {
@@ -254,6 +280,7 @@ extension MacroEffectsMac {
             return .cancel(why)
         default:
             MacroLog.shared.write("PLUGIN", "drop refused, Add menu used")
+            dropHint(String(localized: "FL n'a pas pris le plugin déposé : ouvert par le menu."))
             return nil
         }
     }

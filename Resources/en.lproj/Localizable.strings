@@ -328,6 +328,7 @@
 "Autorisation périmée : retire FL Shortcuts de la liste Accessibilité puis ajoute-le." = "Outdated permission: remove FL Shortcuts from the Accessibility list, then add it back.";
 "Autorisation périmée : retire FL Shortcuts de la liste Accessibilité, puis ajoute-le." = "Outdated permission: remove FL Shortcuts from the Accessibility list, then add it back.";
 "Autorise FL Shortcuts dans Réglages Système › Confidentialité et sécurité › Enregistrement de " = "Allow FL Shortcuts in System Settings › Privacy & Security › ";
+"Autorise de nouveau « Enregistrement de l'écran » (décoche puis recoche) : les plugins s'ouvriront plus vite." = "Allow “Screen Recording” again (uncheck, then check it): plugins will open faster.";
 "Autorise l'Accessibilité à FL Shortcuts pour parcourir les menus de FL." = "Allow Accessibility for FL Shortcuts to browse FL's menus.";
 "Autorise l'Accessibilité à FL Shortcuts pour voir la liste de tes plugins, " = "Allow Accessibility for FL Shortcuts to see your plugin list, ";
 "Autorise le son de FL" = "Allow FL's sound";
@@ -413,6 +414,7 @@
 "Carte choisie, pas branchée" = "Card chosen, not connected";
 "Carte son" = "Sound card";
 "Carte son branchée" = "Sound card connected";
+"Case libre du Mixer introuvable : effet ouvert par le menu." = "No free Mixer slot found: effect opened from the menu.";
 "Case vide" = "Empty slot";
 "Catégorie" = "Category";
 "Ce Mac" = "This Mac";
@@ -467,6 +469,7 @@
 "Channel Rack" = "Channel Rack";
 "Channel rack" = "Channel rack";
 "Channel rack : %lld sons regroupés et colorés, %lld renommés" = "Channel rack: %lld sounds grouped and colored, %lld renamed";
+"Channel rack illisible : instrument ouvert par le menu." = "Channel rack couldn't be read: instrument opened from the menu.";
 "Chaque macro devient un fichier .flsmacro. Les endroits appris (clics montrés dans FL) ne sont pas exportés." = "Each macro becomes a .flsmacro file. Learned spots (clicks shown in FL) aren't exported.";
 "Chaque raccourci que tu changes arrive ici, avec ceux que tu crées. Les macros ont leur page." = "Every shortcut you change shows up here, along with the ones you create. Macros have their own page.";
 "Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, 808… pour le changer : tout le projet suit (Channel rack, patterns, Mixer, Playlist)." = "Each sound is sorted by its name (“BEAM KICK”: Kick), otherwise by listening to it. Click Kick, 808… to change it: the whole project follows (Channel rack, patterns, Mixer, Playlist).";
@@ -949,6 +952,7 @@
 "FL n'a pas enregistré la copie rangée : enregistre-la dans FL (⌘S)." = "FL didn't save the organized copy: save it in FL (⌘S).";
 "FL n'a pas enregistré ton projet (ou il n'a jamais été enregistré). Enregistre-le dans FL (Fichier › Enregistrer), puis clique sur « Réessayer »." = "FL didn't save your project (or it was never saved). Save it in FL (File › Save), then click “Try again”.";
 "FL n'a pas ouvert la copie rangée à temps : elle est à côté de ton projet, ouvre-la dans FL, puis relance l'Organiser. Ton projet n'a pas bougé." = "FL didn't open the organized copy in time: it's next to your project, open it in FL, then run the Organizer again. Your project wasn't changed.";
+"FL n'a pas pris le plugin déposé : ouvert par le menu." = "FL didn't take the dropped plugin: opened from the menu.";
 "FL n'a pas pris le preset : clique d'abord au milieu de la tranche de ta piste" = "FL didn't take the preset: first click in the middle of your track's strip";
 "FL n'a pas pu ouvrir la copie rangée : elle est à côté de ton projet, ouvre-la dans FL. Ton projet n'a pas bougé." = "FL couldn't open the organized copy: it's next to your project, open it in FL. Your project wasn't changed.";
 "FL n'a pas pu rouvrir ton projet d'origine : il est toujours là, ouvre-le dans FL." = "FL couldn't reopen your original project: it's still there, open it in FL.";
@@ -1570,6 +1574,7 @@
 "Pas dans tes favoris : la macro le prend dans « More plugins… » de FL, retrouvé à son nom (autorisation « Enregistrement de l'écran »). Rien n'est ajouté à tes listes." = "Not in your favorites: the macro takes it from FL's “More plugins…”, found by its name (“Screen Recording” permission). Nothing is added to your lists.";
 "Pas de connexion : la sauvegarde partira dès que possible." = "No connection: your backup will go out as soon as possible.";
 "Pas de fenêtre ? Dans les réglages qui s'ouvrent, active l'interrupteur à côté de FL Shortcuts, dans la partie audio." = "No window? In the settings that open, turn on the switch next to FL Shortcuts, in the audio section.";
+"Pas de fichier .fst pour ce plugin dans la base de FL : ouvert par le menu." = "No .fst file for this plugin in FL's database: opened from the menu.";
 "Pas de mail ? Regarde dans les courriers indésirables, ou renvoie le code." = "No email? Check your spam folder, or resend the code.";
 "Pas de nom pour un dégradé" = "No name for a gradient";
 "Pas de réponse : %@." = "No response: %@.";

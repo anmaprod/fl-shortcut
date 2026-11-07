@@ -115,12 +115,21 @@ public sealed class PluginDropTests : IDisposable
     }
 
     [Fact]
-    public void TheEffectIsDroppedOnTheAimedMixerTrack()
+    public void TheEffectGoesToTheSelectedTrackNeverToTheLastClick()
     {
+        // 07/11 (vidéo : l'effet allait sur la piste sous la souris) : la première case libre de la piste choisie.
         var (fl, fx, state) = MacroEffectsWindowsTests.Start(f => f.LastAimedClick = new AimedClick(700, 500, FakeFl.Main, 1200, 800, f.Now));
         fl.Presets["Pro-Q 3"] = @"C:\db\Pro-Q 3.fst";
+        fl.Texts[FakeFl.Main] = new List<TextItem> { T("Mixer - Insert 3", 900, 40, 120), T("▶ Slot 2", 900, 120), T("▶ Slot 3", 900, 140) };
         Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.PageOption("mixer.addEffect", "Pro-Q 3"), state));
-        Assert.Equal((@"C:\db\Pro-Q 3.fst", 700, 500), Assert.Single(fl.Drops));
+        Assert.Equal((@"C:\db\Pro-Q 3.fst", 930, 126), Assert.Single(fl.Drops));
+
+        // Aucune case libre lue : jamais déposé sur la piste du dernier clic (le menu, comme avant).
+        (fl, fx, state) = MacroEffectsWindowsTests.Start(f => f.LastAimedClick = new AimedClick(700, 500, FakeFl.Main, 1200, 800, f.Now));
+        fl.Presets["Pro-Q 3"] = @"C:\db\Pro-Q 3.fst";
+        fx.Perform(new BlockBody.PageOption("mixer.addEffect", "Pro-Q 3"), state);
+        Assert.Empty(fl.Drops);
+        Assert.Contains(fl.Lines, l => l.Contains("no free slot read"));
     }
 
     /// Vidéo du 05/11 (FL 2025) : le titre « Channel rack » est à ~100 points à droite des noms, centrés dans leur
@@ -150,6 +159,12 @@ public sealed class PluginDropTests : IDisposable
         Assert.Equal(186, PluginDrop.MixerSlotPoint(mixer)!.Value.Y);
         Assert.Equal(146, PluginDrop.MixerSlotPoint(new[] { T("Slot l", 900, 140) })!.Value.Y);
         Assert.Null(PluginDrop.MixerSlotPoint(new[] { T("Slot machine", 900, 140), T("Insert 2", 300, 400) }));
+        Assert.Equal(3, PluginDrop.SlotNumber("▶ Slot 3"));
+        Assert.Equal(10, PluginDrop.SlotNumber("Slot10"));
+        Assert.Equal(1, PluginDrop.SlotNumber("SIot 1"));
+        Assert.Null(PluginDrop.SlotNumber("Auto-Tune Pro"));
+        Assert.True(PluginDrop.PageShown(true, new[] { T("Mixer - Insert 11", 900, 40, 120) }));
+        Assert.False(PluginDrop.PageShown(false, new[] { T("Playlist - Arrangement", 300, 100, 160) }));
     }
 
     /// 06/11 (comme le Mac) : le .fst trouvé partout dans la base (sous-dossiers, favoris de FL), même au nom un peu

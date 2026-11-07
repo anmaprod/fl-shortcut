@@ -657,24 +657,27 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
     {
         if (_fl.PluginPreset(name, effect) is not { } file) return null;
         (int X, int Y)? target = null;
-        for (var attempt = 0; attempt < 3; attempt++)
+        var opened = false;
+        for (var attempt = 0; attempt < 4; attempt++)
         {
             if (StopReason() is { } halted) return new StepResult.Cancel(halted);
-            target = ReadDropPoint(effect);
+            var (point, shown) = ReadDropPoint(effect);
+            target = point;
             if (target is not null) break;
-            if (attempt == 0)
+            // Absente, la page est ouverte (sa touche), jamais quand son titre est lu : la touche la refermerait.
+            if (!shown && !opened)
             {
                 var page = effect ? FlPage.Mixer : FlPage.ChannelRack;
                 if (page.NativeKey() is not { } key || MacKeys.ToWindows(key) is not { } combo || !_fl.Send(combo)) break;
-                _fl.Log("PLUGIN", $"drop: page {page.Raw()} not read, opened");
+                opened = true;
+                _fl.Log("PLUGIN", $"drop: page {page.Raw()} not shown, opened");
             }
-            _fl.Sleep(450);
+            _fl.Sleep(400);
         }
-        // Effet sans case libre lue : la piste du dernier clic dans FL, comme avant.
-        if (target is null && effect && TargetTrackIsInFl()) target = _track;
+        // 07/11 (comme le Mac) : plus jamais la piste du dernier clic : l'effet n'allait pas sur la piste choisie.
         if (target is not { } at)
         {
-            _fl.Log("PLUGIN", effect ? "drop: no free slot read and aimed track outside FL, Add menu used" : "drop: Channel rack not read, Add menu used");
+            _fl.Log("PLUGIN", effect ? "drop: no free slot read, Add menu used" : "drop: Channel rack not read, Add menu used");
             return null;
         }
         if (_fl.At(at.X, at.Y).Window is null) return null;
@@ -692,16 +695,18 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
 
     /// Point de dépôt lu dans la plus grande fenêtre de FL qui le montre : sous le dernier son du Channel rack, ou la
     /// première case libre de la piste choisie du Mixer ; null : la page n'est pas à l'écran.
-    private (int X, int Y)? ReadDropPoint(bool effect)
+    private ((int X, int Y)? Point, bool Shown) ReadDropPoint(bool effect)
     {
+        var shown = false;
         foreach (var window in _fl.Windows().Where(w => w.Role != FlWindowRole.Menu && w.Width >= 300 && w.Height >= 200)
                      .OrderByDescending(w => w.Width * w.Height))
         {
             if (_fl.ReadText(window.Id) is not { } items) continue;
+            shown = shown || PluginDrop.PageShown(effect, items);
             var point = effect ? PluginDrop.MixerSlotPoint(items) : PluginDrop.ChannelRackPoint(items, window.Y + window.Height);
-            if (point is not null) return point;
+            if (point is not null) return (point, true);
         }
-        return null;
+        return (null, shown);
     }
 
     /// Mute ou solo d'un canal : par le lien (tous les canaux), sinon la touche 1 à 0 de FL (canaux 1 à 10).

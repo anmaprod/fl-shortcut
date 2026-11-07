@@ -119,5 +119,14 @@ final class MacroPluginDropTests: XCTestCase {
         XCTAssertEqual(p.y, 186, accuracy: 0.5)
         XCTAssertEqual(try XCTUnwrap(PluginDrop.mixerSlotPoint(in: [item("Slot l", 900, 140)])).y, 146, accuracy: 0.5)
         XCTAssertNil(PluginDrop.mixerSlotPoint(in: [item("Slot machine", 900, 140), item("Insert 2", 300, 400)]))
+        // 07/11 (vidéo : l'effet allait sur une autre piste) : la flèche devant la case, ou les mots collés.
+        XCTAssertEqual(PluginDrop.slotNumber("▶ Slot 3"), 3)
+        XCTAssertEqual(PluginDrop.slotNumber("> Slot 2"), 2)
+        XCTAssertEqual(PluginDrop.slotNumber("Slot10"), 10)
+        XCTAssertEqual(PluginDrop.slotNumber("SIot 1"), 1)
+        XCTAssertNil(PluginDrop.slotNumber("Auto-Tune Pro"))
+        XCTAssertTrue(PluginDrop.pageShown(effect: true, in: [item("Mixer - Insert 11", 900, 40, w: 120)]))
+        XCTAssertTrue(PluginDrop.pageShown(effect: false, in: [item("Channel rack", 300, 100, w: 90)]))
+        XCTAssertFalse(PluginDrop.pageShown(effect: false, in: [item("Playlist - Arrangement", 300, 100, w: 160)]))
     }
 }

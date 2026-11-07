@@ -145,15 +145,35 @@ public static class PluginDrop
         (int Number, int X, int Y)? best = null;
         foreach (var item in items)
         {
-            var words = item.Text.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (words.Length != 2 || words[0] != "slot") continue;
-            var digits = new string(words[1].Select(c => c is 'l' or 'i' or '|' ? '1' : c == 'o' ? '0' : c).ToArray());
-            if (!int.TryParse(digits, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var number)
-                || number is < 1 or > 10) continue;
+            if (SlotNumber(item.Text) is not { } number) continue;
             if (best is null || number < best.Value.Number) best = (number, item.CenterX, item.CenterY);
         }
         return best is { } b ? (b.X, b.Y) : null;
     }
+
+    private static readonly System.Text.RegularExpressions.Regex SlotPattern =
+        new(@"s[l1i|]ot\s*[0-9lio|]{1,2}\b", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    /// Le numéro d'une case libre lue « Slot 3 », même avec la flèche devant (« ▶ Slot 3 ») ou mal lue (« Slot3 »,
+    /// « Slot l », « SIot 1 ») ; null : autre chose (07/11, comme le Mac).
+    public static int? SlotNumber(string text)
+    {
+        var match = SlotPattern.Match(text.ToLowerInvariant());
+        if (!match.Success) return null;
+        var digits = new string(match.Value[4..].Where(c => !char.IsWhiteSpace(c))
+            .Select(c => c is 'l' or 'i' or '|' ? '1' : c == 'o' ? '0' : c).ToArray());
+        return int.TryParse(digits, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var n)
+               && n is >= 1 and <= 10 ? n : null;
+    }
+
+    /// La page est-elle à l'écran ? Son titre lu (« Channel rack », ou « Mixer » / « Mixer - Insert 3 ») : jamais sa
+    /// touche quand elle est déjà là, la touche la refermerait.
+    public static bool PageShown(bool effect, IReadOnlyList<TextItem> items) => items.Any(item =>
+    {
+        var t = MenuText.Normalized(item.Text);
+        return effect ? t == MenuText.Normalized("Mixer") || t.StartsWith(MenuText.Normalized("Mixer -"), StringComparison.Ordinal)
+                      : t == MenuText.Normalized("Channel rack");
+    });
 
     /// Point où déposer dans le Channel rack, toujours dans l'espace entre deux lignes (jamais SUR un son : il le
     /// remplacerait) : juste sous le dernier son ; Channel rack coupé (dernier nom lu à moitié, ou dernier son au ras de

@@ -328,6 +328,7 @@
 "Autorisation périmée : retire FL Shortcuts de la liste Accessibilité puis ajoute-le." = "Autorisation périmée : retire FL Shortcuts de la liste Accessibilité puis ajoute-le.";
 "Autorisation périmée : retire FL Shortcuts de la liste Accessibilité, puis ajoute-le." = "Autorisation périmée : retire FL Shortcuts de la liste Accessibilité, puis ajoute-le.";
 "Autorise FL Shortcuts dans Réglages Système › Confidentialité et sécurité › Enregistrement de " = "Autorise FL Shortcuts dans Réglages Système › Confidentialité et sécurité › Enregistrement de ";
+"Autorise de nouveau « Enregistrement de l'écran » (décoche puis recoche) : les plugins s'ouvriront plus vite." = "Autorise de nouveau « Enregistrement de l'écran » (décoche puis recoche) : les plugins s'ouvriront plus vite.";
 "Autorise l'Accessibilité à FL Shortcuts pour parcourir les menus de FL." = "Autorise l'Accessibilité à FL Shortcuts pour parcourir les menus de FL.";
 "Autorise l'Accessibilité à FL Shortcuts pour voir la liste de tes plugins, " = "Autorise l'Accessibilité à FL Shortcuts pour voir la liste de tes plugins, ";
 "Autorise le son de FL" = "Autorise le son de FL";
@@ -413,6 +414,7 @@
 "Carte choisie, pas branchée" = "Carte choisie, pas branchée";
 "Carte son" = "Carte son";
 "Carte son branchée" = "Carte son branchée";
+"Case libre du Mixer introuvable : effet ouvert par le menu." = "Case libre du Mixer introuvable : effet ouvert par le menu.";
 "Case vide" = "Case vide";
 "Catégorie" = "Catégorie";
 "Ce Mac" = "Ce Mac";
@@ -467,6 +469,7 @@
 "Channel Rack" = "Channel Rack";
 "Channel rack" = "Channel rack";
 "Channel rack : %lld sons regroupés et colorés, %lld renommés" = "Channel rack : %lld sons regroupés et colorés, %lld renommés";
+"Channel rack illisible : instrument ouvert par le menu." = "Channel rack illisible : instrument ouvert par le menu.";
 "Chaque macro devient un fichier .flsmacro. Les endroits appris (clics montrés dans FL) ne sont pas exportés." = "Chaque macro devient un fichier .flsmacro. Les endroits appris (clics montrés dans FL) ne sont pas exportés.";
 "Chaque raccourci que tu changes arrive ici, avec ceux que tu crées. Les macros ont leur page." = "Chaque raccourci que tu changes arrive ici, avec ceux que tu crées. Les macros ont leur page.";
 "Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, 808… pour le changer : tout le projet suit (Channel rack, patterns, Mixer, Playlist)." = "Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, 808… pour le changer : tout le projet suit (Channel rack, patterns, Mixer, Playlist).";
@@ -949,6 +952,7 @@
 "FL n'a pas enregistré la copie rangée : enregistre-la dans FL (⌘S)." = "FL n'a pas enregistré la copie rangée : enregistre-la dans FL (⌘S).";
 "FL n'a pas enregistré ton projet (ou il n'a jamais été enregistré). Enregistre-le dans FL (Fichier › Enregistrer), puis clique sur « Réessayer »." = "FL n'a pas enregistré ton projet (ou il n'a jamais été enregistré). Enregistre-le dans FL (Fichier › Enregistrer), puis clique sur « Réessayer ».";
 "FL n'a pas ouvert la copie rangée à temps : elle est à côté de ton projet, ouvre-la dans FL, puis relance l'Organiser. Ton projet n'a pas bougé." = "FL n'a pas ouvert la copie rangée à temps : elle est à côté de ton projet, ouvre-la dans FL, puis relance l'Organiser. Ton projet n'a pas bougé.";
+"FL n'a pas pris le plugin déposé : ouvert par le menu." = "FL n'a pas pris le plugin déposé : ouvert par le menu.";
 "FL n'a pas pris le preset : clique d'abord au milieu de la tranche de ta piste" = "FL n'a pas pris le preset : clique d'abord au milieu de la tranche de ta piste";
 "FL n'a pas pu ouvrir la copie rangée : elle est à côté de ton projet, ouvre-la dans FL. Ton projet n'a pas bougé." = "FL n'a pas pu ouvrir la copie rangée : elle est à côté de ton projet, ouvre-la dans FL. Ton projet n'a pas bougé.";
 "FL n'a pas pu rouvrir ton projet d'origine : il est toujours là, ouvre-le dans FL." = "FL n'a pas pu rouvrir ton projet d'origine : il est toujours là, ouvre-le dans FL.";
@@ -1570,6 +1574,7 @@
 "Pas dans tes favoris : la macro le prend dans « More plugins… » de FL, retrouvé à son nom (autorisation « Enregistrement de l'écran »). Rien n'est ajouté à tes listes." = "Pas dans tes favoris : la macro le prend dans « More plugins… » de FL, retrouvé à son nom (autorisation « Enregistrement de l'écran »). Rien n'est ajouté à tes listes.";
 "Pas de connexion : la sauvegarde partira dès que possible." = "Pas de connexion : la sauvegarde partira dès que possible.";
 "Pas de fenêtre ? Dans les réglages qui s'ouvrent, active l'interrupteur à côté de FL Shortcuts, dans la partie audio." = "Pas de fenêtre ? Dans les réglages qui s'ouvrent, active l'interrupteur à côté de FL Shortcuts, dans la partie audio.";
+"Pas de fichier .fst pour ce plugin dans la base de FL : ouvert par le menu." = "Pas de fichier .fst pour ce plugin dans la base de FL : ouvert par le menu.";
 "Pas de mail ? Regarde dans les courriers indésirables, ou renvoie le code." = "Pas de mail ? Regarde dans les courriers indésirables, ou renvoie le code.";
 "Pas de nom pour un dégradé" = "Pas de nom pour un dégradé";
 "Pas de réponse : %@." = "Pas de réponse : %@.";
