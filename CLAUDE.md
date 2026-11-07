@@ -456,6 +456,15 @@
   appris dans la copie enregistrée (canal, événement 155, `learnIconIDs`, réglage `organizerIconIDs`) et écrit sur la
   piste de tête et les pistes groupées de chaque famille au rangement SUIVANT (`playlistIcons`,
   `FLPProject.rearranged(icons:)`) ; jamais deviné.
+  Puis (« quand je joue avec un bloc du milieu ça fait crash », « que ça prenne vraiment tout le bloc », « toujours le
+  bloc de trop quand je clique sur un bloc posé ») : créateur Mac, plus le rangement de la liste de macOS (`onMove`,
+  `onInsert`, écartement `.gap` : l'app tombait) → glisser à nous (`StepDragDrop` : `onDrag` avec l'image du bloc
+  entier `StepDragPreview`, `onDrop` par ligne, moitié haute = au-dessus, basse = dessous, trait rouge ; NE PAS remettre
+  onMove/onInsert/.gap) ; plus aucun fond DANS la ligne (le « bloc de trop ») ; Windows : trait au-dessus ou au-dessous
+  pareil. « Carte son branchée » enfin hors de la palette (listes `PaletteCatalog`/`CreatorPalette`, le réglage
+  `dansLaPalette` n'y était pas lu). « Nouveau pattern + Piano Roll » sans le lien : ⌘F4 puis le Piano roll (F7, comme
+  « Ouvrir une page de FL » ; Windows passe par le lien, rien à changer). Essais CI (`glisser-essai.txt`) : bloc du
+  milieu rangé 4 fois, clic sur une ligne posée (`créateur choisi`).
 - **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : plus de Liquid Glass depuis le 29/10 (plaques dessinées), sans lavis ni lueur ; fond de
   fenêtre plein (« sans le Liquid Glass derrière »), verre devant : cartes, touches, cartes de l'Organiser
   (`GlassPlate`, dessiné : pas de `glassEffect` par ligne) ; titre de

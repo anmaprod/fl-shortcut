@@ -871,3 +871,8 @@ entrée 1 ≈ 0,5 s.
 - 07/11 (5) : vidéo du bloc blanc (fond du glisser), lien MIDI « installé mais ça ne marche toujours pas » (bug : le
   lien n'était jamais ouvert pour une action sans repli au clavier), icônes absentes de la Playlist (numéro d'icône de
   FL appris dans la copie enregistrée, écrit au rangement suivant), thèmes cachés sans compte, recherche de l'Aide.
+- 07/11 (6) : l'app tombait en rangeant un bloc du milieu du créateur (rangement de la liste de macOS avec
+  l'écartement « gap » posé le matin) → glisser à nous, bloc entier qui suit la souris, trait rouge ; « bloc de trop »
+  sur la ligne choisie (fond ajouté dans la ligne le matin) retiré ; « Carte son branchée » encore dans la palette (la
+  liste de la palette ne lisait pas le réglage) ; « Nouveau pattern + Piano Roll » n'ouvrait pas le Piano roll sans le
+  lien (seulement ⌘F4).

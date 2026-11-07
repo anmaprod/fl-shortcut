@@ -155,6 +155,16 @@ order() {   # $1 : rapport gardé ; ordre des blocs du créateur (genres seuleme
   sed -n 's/^créateur : //p' "$OUT/$1-report.txt" 2>/dev/null | head -1
 }
 
+chosen() {   # $1 : rapport gardé ; numéro de la ligne choisie dans le créateur
+  sed -n 's/^créateur choisi : //p' "$OUT/$1-report.txt" 2>/dev/null | head -1
+}
+
+click_in() {   # $1 : rapport gardé (position de la fenêtre) ; $2 $3 : point du clic dans la fenêtre
+  local ox oy
+  read -r ox oy < <(origin "$1") || { echo "clic : position de la fenêtre inconnue" >&2; return; }
+  "$CLICK" $(( ox + $2 )) $(( oy + $3 ))
+}
+
 # Essai de la barre de recherche à vrais clics (retour du propriétaire : elle reste active après un clic ailleurs,
 # dans l'app comme dehors) : après chaque clic, qui a la main dans la fenêtre (rapport de l'app) et une photo.
 # Résultat : $OUT/recherche-essai.txt (+ recherche-<étape>.png).
@@ -419,9 +429,10 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   screencapture -x "$OUT/$label-createur.png" 2>/dev/null || true
   report "$label-createur-ouvert" >/dev/null
   fit+=" / $(fits "$label-createur-ouvert")"
-  # Vrai glisser-déposer à la souris : « Touche ou raccourci » de la palette (1er bloc de Clavier, sous les 10 blocs
-  # de FL Studio), lâché entre les blocs 4 et 5 de l'exemple ; la liste des blocs doit gagner une ligne.
-  drag "$label-createur-ouvert" 113 420 465 376; sleep 2
+  # Vrai glisser-déposer à la souris : « Touche ou raccourci » de la palette (1er bloc de Clavier, sous les 8 blocs
+  # de FL Studio ; 07/11 au soir : y 334, « Carte son branchée » retirée), lâché entre les blocs 4 et 5 de l'exemple ;
+  # la liste des blocs doit gagner une ligne.
+  drag "$label-createur-ouvert" 113 334 465 376; sleep 2
   report "$label-createur-glisse" >/dev/null
   screencapture -x "$OUT/$label-createur-glisse.png" 2>/dev/null || true
   drop="$(rows "$label-createur-ouvert") → $(rows "$label-createur-glisse")"
@@ -435,7 +446,7 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   else moved="NON"; fi
   # Les mêmes gestes faits vite, comme une vraie main (appui puis départ aussitôt) : la liste doit encore gagner une
   # ligne, puis l'ordre changer. Résultat dans glisser-essai.txt.
-  drag "$label-createur-ouvert" 113 420 465 424 vite; sleep 2
+  drag "$label-createur-ouvert" 113 334 465 424 vite; sleep 2
   report "$label-createur-glisse-vite" >/dev/null
   screencapture -x "$OUT/$label-createur-glisse-vite.png" 2>/dev/null || true
   drag "$label-createur-ouvert" 400 256 400 472 vite; sleep 2
@@ -447,6 +458,28 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
       echo "$label : bloc rangé vite : NON"
     fi
   } >> "$OUT/glisser-essai.txt"
+  # Un bloc du milieu rangé plusieurs fois de suite, vers le bas puis vers le haut (07/11 au soir : « quand je joue
+  # avec un bloc du milieu ça fait crash ») : l'app doit être encore là, l'ordre avoir changé.
+  drag "$label-createur-ouvert" 400 352 400 448 vite; sleep 1
+  drag "$label-createur-ouvert" 400 448 400 304 vite; sleep 1
+  drag "$label-createur-ouvert" 400 304 400 400; sleep 1
+  drag "$label-createur-ouvert" 400 400 400 260 vite; sleep 2
+  report "$label-createur-joue" >/dev/null
+  screencapture -x "$OUT/$label-createur-joue.png" 2>/dev/null || true
+  if kill -0 "$p" 2>/dev/null; then
+    local joue="INCHANGÉ"
+    [[ "$(order "$label-createur-deplace-vite")" != "$(order "$label-createur-joue")" ]] && joue="changé"
+    echo "$label : bloc du milieu rangé 4 fois : app toujours là, ordre $joue" >> "$OUT/glisser-essai.txt"
+  else
+    echo "$label : bloc du milieu rangé 4 fois : APP TOMBÉE" >> "$OUT/glisser-essai.txt"
+  fi
+  # Clic sur une ligne posée : elle doit être choisie (le glisser à nous ne doit pas prendre le clic).
+  click_in "$label-createur-ouvert" 420 449; sleep 1
+  report "$label-createur-clic6" >/dev/null
+  click_in "$label-createur-ouvert" 420 304; sleep 1
+  report "$label-createur-clic3" >/dev/null
+  screencapture -x "$OUT/$label-createur-clic.png" 2>/dev/null || true
+  echo "$label : clic sur une ligne posée : $(chosen "$label-createur-clic6") puis $(chosen "$label-createur-clic3") (attendu 6 puis 3)" >> "$OUT/glisser-essai.txt"
   rm -f "$HOME/Library/Caches/$DOMAIN/$label-createur-"*
   "$POST" app.flshortcut.debug.snapshot "$label-createur"; sleep 2
   cp "$HOME/Library/Caches/$DOMAIN/$label-createur-"*.png "$OUT/" 2>/dev/null || true

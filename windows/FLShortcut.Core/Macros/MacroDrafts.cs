@@ -28,7 +28,7 @@ public static class MacroDrafts
         var entries = new[]
         {
             Item(BlockType.MenuBar), Item(BlockType.OpenPage), Item(BlockType.PageOption), Item(BlockType.DropFile),
-            Item(BlockType.FlAction), Item(BlockType.NameColor), Item(BlockType.SoundCard), Item(BlockType.Organize),
+            Item(BlockType.FlAction), Item(BlockType.NameColor), Item(BlockType.Organize),
             Item(BlockType.Key), Item(BlockType.MenuKey),
             Item(BlockType.Click, Loc.T("Clic à un endroit appris"), Loc.T("Clic gauche ou droit à un endroit que tu montres une fois dans FL.")),
             Item(BlockType.Drag),

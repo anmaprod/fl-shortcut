@@ -169,7 +169,7 @@ final class MacroEditingTests: XCTestCase {
         // « Ouvrir un preset (boîte Open) » aussi : « Ouvrir un preset » (le fichier déposé) fait la même chose, plus
         // vite. « Menu de la piste » : outil technique, remplacé par « Cliquer sur… » et l'enregistrement des clics.
         for t: BlockType in [.menuLetters, .stop, .comment, .repeatWhile, .waitUntil, .delay, .waitWindowClose,
-                             .selectInput, .feedbackCheck, .chooseFile, .trackMenu] {
+                             .selectInput, .feedbackCheck, .chooseFile, .trackMenu, .soundCard] {
             XCTAssertFalse(items.contains { $0.type == t }, "\(t)")
         }
         // Armer la piste et allumer le REC : plus proposés non plus (l'enregistrement rapide sera refait).

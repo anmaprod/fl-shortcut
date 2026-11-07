@@ -132,8 +132,11 @@ enum DebugSnapshot {
         // « Réduire les animations » de macOS : les transitions deviennent de simples fondus courts.
         text += "animations réduites : \(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? "oui" : "non")\n"
         // Ordre des blocs du créateur ouvert (genres seulement, aucun texte) : un bloc déplacé à la souris le change.
-        if let draft = MacroEditorModel.newest?.draft {
+        if let model = MacroEditorModel.newest, let draft = model.draft {
             text += "créateur : " + draft.blocks.map { BlockRegistry.journal(of: $0.body) }.joined(separator: " > ") + "\n"
+            // Ligne choisie (essai à vrais clics de la CI : un clic sur une ligne posée la choisit).
+            let chosen = model.rows.firstIndex { $0.id == model.selection }.map { String($0 + 1) } ?? "aucune"
+            text += "créateur choisi : \(chosen)\n"
         }
         for (i, s) in NSScreen.screens.enumerated() {
             text += "écran \(i): frame \(rect(s.frame)) visible \(rect(s.visibleFrame)) échelle \(s.backingScaleFactor)\n"

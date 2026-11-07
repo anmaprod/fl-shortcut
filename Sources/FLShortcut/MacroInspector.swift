@@ -903,9 +903,12 @@ private struct BlockInspector: View {
             MuteSoloField(key: key, window: model.window) { model.refreshLearnedState() }
         case .none:
             VStack(alignment: .leading, spacing: 4) {
-                Text("Demande le lien avec FL.")
-                    .font(.system(size: 12))
-                    .fixedSize(horizontal: false, vertical: true)
+                // Lien installé : la note au-dessus le dit déjà (capture du 07/11 au soir : les deux à la suite).
+                if !(AppMode.light && MIDILink.shared.snapshot.hasKey) {
+                    Text("Demande le lien avec FL.")
+                        .font(.system(size: 12))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 Button("Ajouter une touche de secours") {
                     setBody(key: "fallback") { body in
                         guard case .flAction(let k, _) = body else { return }
@@ -913,6 +916,7 @@ private struct BlockInspector: View {
                     }
                 }
                 .secondaryButton()
+                .controlSize(.small)                 // en entier dans le panneau (il était coupé : « … DE SE… »)
             }
         }
     }

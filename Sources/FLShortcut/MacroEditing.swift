@@ -578,7 +578,7 @@ enum PaletteCatalog {
             // « Mute de la piste » et « Solo de la piste » retirés le 29/10 (demande du propriétaire) : toujours compris
             // dans les anciennes macros.
             item("nameColor", .nameColor) { .nameColor(name: nil, color: NameColorPayload.defaultColor) },
-            item("soundCard", .soundCard) { .soundCard },
+            // « Carte son branchée » retiré le 07/11 (demande du propriétaire) : toujours compris dans les anciennes macros.
             item("organize", .organize) { .organize },
             // Contrôle (Répéter, Si… sinon) retiré de la palette le 28/10 (« supprime l'option contrôle ») : toujours
             // compris dans les anciennes macros.

@@ -176,6 +176,18 @@ extension MacroEffectsMac {
                     Thread.sleep(forTimeInterval: 0.03)
                     postKey(ref.combo, pid: ctx.pid)
                     MacroLog.shared.write("KEY", rec ? "REC key" : "fallback key")
+                    // « Nouveau pattern + Piano Roll » (07/11 au soir : « ça crée un nouveau pattern mais ça n'ouvre pas le
+                    // piano roll ») : la touche de FL (⌘F4) ne fait que le pattern ; puis le Piano roll, comme le bloc
+                    // « Ouvrir une page de FL » (il montre le pattern choisi, donc le nouveau).
+                    if call.key == "newpat" {
+                        Thread.sleep(forTimeInterval: 0.25)
+                        let r = perform(.openPage(.pianoRoll), state: &state)
+                        switch r {
+                        case .cancel: return r
+                        case .fail(let w), .warn(let w): warnings.append(w)
+                        case .ok: break
+                        }
+                    }
                 }
             case .none where MuteSolo.handlesWithoutLink(call.key):
                 // Mute / solo de la piste cliquée, sans le script (MacroMuteSolo.swift).

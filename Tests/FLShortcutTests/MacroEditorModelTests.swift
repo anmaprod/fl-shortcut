@@ -69,6 +69,35 @@ final class MacroEditorModelTests: XCTestCase {
         model.close()
     }
 
+    /// Bloc de la liste glissé (07/11 au soir, notre glisser à la place de celui de macOS) : lâché « avant la ligne
+    /// n » ; vers le bas, vers le haut, sur sa propre place (rien), dans la zone du bas (tout en bas).
+    func testDraggedRowLandsBeforeTheChosenRow() {
+        let store = makeStore()
+        let doc = store.library.add(MacroDoc(name: "Ordre", blocks: [100, 200, 300, 400].map { Block(.delay(ms: $0)) }))
+        let model = MacroEditorModel(store: store)
+        model.load(doc.id)
+        func order() -> [Int] {
+            (model.draft?.blocks ?? []).compactMap { if case .delay(let ms) = $0.body { return ms }; return nil }
+        }
+        model.move(fromOffsets: IndexSet(integer: 0), toOffset: 2)          // 1er bloc lâché sous le 2e
+        XCTAssertEqual(order(), [200, 100, 300, 400])
+        model.move(fromOffsets: IndexSet(integer: 3), toOffset: 1)          // dernier lâché au-dessus du 2e
+        XCTAssertEqual(order(), [200, 400, 100, 300])
+        model.move(fromOffsets: IndexSet(integer: 1), toOffset: 2)          // juste sous lui-même : rien
+        model.move(fromOffsets: IndexSet(integer: 1), toOffset: 1)
+        XCTAssertEqual(order(), [200, 400, 100, 300])
+        model.move(fromOffsets: IndexSet(integer: 0), toOffset: model.rows.count)   // zone du bas
+        XCTAssertEqual(order(), [400, 100, 300, 200])
+        model.close()
+    }
+
+    /// Ce que porte un glisser : une ligne de la liste ou un bloc de la palette, rien pour un autre texte.
+    func testStepDragPayload() {
+        XCTAssertEqual(StepDrag.payload(StepDrag.prefix + "b:1234"), .step("b:1234"))
+        XCTAssertEqual(StepDrag.payload(PaletteDrag.prefix + "key"), .palette("key"))
+        XCTAssertNil(StepDrag.payload("un texte tapé"))
+    }
+
     /// Retour aux macros (← ou « Enregistrer ») sans question (03/11) : macro neuve vide retirée ; neuve avec des
     /// blocs gardée ; existante modifiée gardée avec ses modifications ; « Enregistrer » garde même une neuve vide.
     func testLeavingTheCreator() {

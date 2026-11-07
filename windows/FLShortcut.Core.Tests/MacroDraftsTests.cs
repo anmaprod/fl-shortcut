@@ -31,7 +31,10 @@ public class MacroDraftsTests
             palette.Select(p => p.Category));
         var fl = palette[0].Entries.Select(e => e.Type).ToList();
         Assert.Equal(BlockType.MenuBar, fl[0]);
-        Assert.DoesNotContain(BlockType.SoundCard, fl);                      // carte son : pas encore sur Windows
+        Assert.DoesNotContain(BlockType.SoundCard, fl);
+        // Carte son retirée de la palette le 07/11 (Mac et Windows), même quand Windows saurait la jouer.
+        Assert.DoesNotContain(MacroDrafts.CreatorPalette(null, _ => true).SelectMany(p => p.Entries),
+            e => e.Type == BlockType.SoundCard);
         var all = palette.SelectMany(p => p.Entries).ToList();
         Assert.DoesNotContain(all, e => e.Category == BlockCategory.Control);
         Assert.DoesNotContain(all, e => e.Type is BlockType.Delay or BlockType.WaitWindowClose or BlockType.TrackMenu);

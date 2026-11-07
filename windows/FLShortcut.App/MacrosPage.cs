@@ -1250,7 +1250,7 @@ internal sealed class MacrosPage
             e.Data.SetText(StepDrag + index.ToString(System.Globalization.CultureInfo.InvariantCulture));
             e.Data.RequestedOperation = DataPackageOperation.Copy;
         };
-        AcceptDrops(row, index, mark);
+        AcceptDrops(row, index, mark, split: true);
         AutomationProperties.SetName(row, $"{index + 1}. {BlockRegistry.Label(body)}");
 
         var cell = new Grid();
@@ -1385,14 +1385,22 @@ internal sealed class MacrosPage
         return zone;
     }
 
-    /// Dépôt d'un bloc de la palette ou d'une ligne glissée, à la place `before`.
-    private void AcceptDrops(UIElement target, int before, Rectangle? mark)
+    /// Dépôt d'un bloc de la palette ou d'une ligne glissée, à la place `before`. `split` (une ligne, comme le Mac
+    /// le 07/11) : moitié haute, au-dessus ; moitié basse, dessous ; le trait suit.
+    private void AcceptDrops(UIElement target, int before, Rectangle? mark, bool split = false)
     {
+        var place = before;
         target.DragOver += (_, e) =>
         {
             e.AcceptedOperation = e.DataView.Contains(StandardDataFormats.Text) ? DataPackageOperation.Copy : DataPackageOperation.None;
             e.DragUIOverride.IsCaptionVisible = false;
             e.DragUIOverride.IsGlyphVisible = false;
+            if (split && target is FrameworkElement area && area.ActualHeight > 0)
+            {
+                var lower = e.GetPosition(area).Y > area.ActualHeight / 2;
+                place = lower ? before + 1 : before;
+                if (mark is not null) mark.VerticalAlignment = lower ? VerticalAlignment.Bottom : VerticalAlignment.Top;
+            }
         };
         if (mark is not null)
         {
@@ -1403,12 +1411,13 @@ internal sealed class MacrosPage
         {
             if (mark is not null) mark.Visibility = Visibility.Collapsed;
             if (!e.DataView.Contains(StandardDataFormats.Text)) return;
+            var at = place;
             var deferral = e.GetDeferral();
             string text;
             try { text = await e.DataView.GetTextAsync(); }
             catch (Exception) { return; }
             finally { deferral.Complete(); }
-            Dropped(text, before);
+            Dropped(text, at);
         };
     }
 

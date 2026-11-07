@@ -432,7 +432,8 @@ final class MacroEditorModel: ObservableObject {
         selection = candidates.first(where: { $0.kind == .block })?.id
     }
 
-    /// Glisser-déposer dans la liste à plat (`onMove`) : le bloc part avec ce qu'il contient.
+    /// Glisser-déposer dans la liste à plat (`StepDragDrop`, `to` = avant cette ligne) : le bloc part avec ce qu'il
+    /// contient.
     func move(fromOffsets offsets: IndexSet, toOffset to: Int) {
         guard offsets.count == 1, let from = offsets.first, rows.indices.contains(from), rows[from].kind == .block,
               to != from, to != from + 1 else { return }

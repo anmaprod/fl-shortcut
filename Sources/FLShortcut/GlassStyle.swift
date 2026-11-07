@@ -412,8 +412,9 @@ struct NoSystemSelection: NSViewRepresentable {
             guard let table = view as? NSTableView else { return }
             if table.selectionHighlightStyle != .none { table.selectionHighlightStyle = .none }
             if table.focusRingType != .none { table.focusRingType = .none }
-            // 07/11 : plus le trait bleu de macOS là où le bloc tombera ; les blocs s'écartent pour lui faire la place.
-            if table.draggingDestinationFeedbackStyle != .gap { table.draggingDestinationFeedbackStyle = .gap }
+            // Aucun dessin de macOS pendant un glisser (07/11 au soir : l'écartement « gap » des lignes faisait tomber
+            // l'app quand on rangeait un bloc du milieu) ; le créateur dessine son propre trait (StepDragDrop).
+            if table.draggingDestinationFeedbackStyle != .none { table.draggingDestinationFeedbackStyle = .none }
         }
     }
 }
@@ -1150,12 +1151,9 @@ private struct CardRowModifier: ViewModifier {
             .padding(.horizontal, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .hoverFilled(lifted)
-            // 07/11 (vidéo : « quand je déplace un bloc… il n'y a que 2 trucs, on voit pas la case blanche derrière ») :
-            // la ligne pleine aussi DANS la ligne (le fond de la liste n'est pas dans l'image que macOS fait glisser) ;
-            // le bloc glissé part entier, aux couleurs du thème.
-            // Seulement la ligne choisie (07/11 au soir, vidéo : au survol, ce fond et celui de la liste ne s'animaient pas
-            // ensemble et un « bloc blanc » apparaissait) ; une ligne glissée est toujours la ligne choisie.
-            .background(Rectangle().fill(selected && stamp != nil ? (hover ?? Swiss.text) : Color.clear))
+            // Plus de fond DANS la ligne (07/11, pour l'image du glisser) : dessiné en plus de celui de la liste, décalé,
+            // il faisait un « bloc de trop » sur la ligne choisie (capture du 07/11 au soir). Le bloc glissé a désormais
+            // sa propre image (StepDragPreview, MacroEditorView.swift).
             .offset(x: lifted && stamp != nil ? -2 : 0, y: lifted && stamp != nil ? -2 : 0)
         return Group {
             if hover != nil {

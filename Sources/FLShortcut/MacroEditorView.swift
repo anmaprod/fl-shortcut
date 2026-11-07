@@ -154,6 +154,12 @@ private struct MacroStepsPane: View {
     let paletteItems: [PaletteItem]
     /// ← : retour aux raccourcis (avec la question « Enregistrer ou supprimer » si besoin).
     let onBack: () -> Void
+    /// Pendant un glisser (bloc de la liste ou de la palette) : la place où il tombera, dessinée en trait rouge.
+    @State private var dropLine: StepDropLine?
+    /// Largeur d'une ligne : l'image qui suit la souris a la taille du bloc entier.
+    @State private var rowWidth: CGFloat = 420
+    /// Bloc de la palette ou de la liste au-dessus de la zone en pointillés.
+    @State private var zoneTargeted = false
 
     var body: some View {
         Group {
@@ -211,20 +217,16 @@ private struct MacroStepsPane: View {
                     .tag(row.id)
                     // Pas de sélection bleue de macOS : la ligne choisie est blanche, sur son encoche (02/11).
                     .background(NoSystemSelection().frame(width: 0, height: 0))
-                    .moveDisabled(row.kind != .block)          // les lignes de fin suivent leur boucle
                     // Clic droit : Désactiver, Supprimer, sans le contour bleu de macOS (04/11).
                     .overlay(RightClickMenu(items: { menuItems(row) }))
-            }
-            .onMove { offsets, to in
-                withAnimation(Self.spring) { model.move(fromOffsets: offsets, toOffset: to) }
-            }
-            // Bloc glissé depuis la palette : lâché entre deux lignes, il prend cette place (3e, 4e…).
-            .onInsert(of: [.plainText]) { index, providers in
-                dropFromPalette(providers, beforeRow: index)
+                    // Glisser-déposer à nous (07/11 au soir, « quand je joue avec un bloc du milieu ça fait crash ») :
+                    // plus le rangement de la liste de macOS (onMove), qui faisait tomber l'app ; le bloc entier suit
+                    // la souris, un trait rouge montre où il tombera (moitié haute : au-dessus, moitié basse : dessous).
+                    .modifier(StepDragDrop(row: row, index: index, count: rows.count, width: rowWidth, line: $dropLine,
+                                           drop: { providers, before in drop(providers, before: before) }))
             }
             if !rows.isEmpty {
                 dropZone
-                    .moveDisabled(true)
                     .listRowInsets(EdgeInsets(top: 12, leading: CardRowBackground.inset, bottom: 8,
                                               trailing: CardRowBackground.inset))
                     .listRowSeparator(.hidden)
@@ -233,6 +235,12 @@ private struct MacroStepsPane: View {
         }
         .listStyle(.inset)
         .glassListBackground()
+        // Largeur d'une ligne (sans les marges de la carte) : celle de l'image du bloc glissé.
+        .background(GeometryReader { g in
+            Color.clear
+                .onAppear { rowWidth = max(200, g.size.width - 2 * CardRowBackground.inset - 16) }
+                .onChange(of: g.size.width) { w in rowWidth = max(200, w - 2 * CardRowBackground.inset - 16) }
+        })
         .onDeleteCommand { withAnimation(Self.spring) { model.deleteSelection() } }
         .overlay {
             if model.rows.isEmpty {
@@ -274,6 +282,22 @@ private struct MacroStepsPane: View {
         }
     }
 
+    /// Bloc lâché avant la ligne `before` : une ligne de la liste y est rangée (avec ce qu'elle contient), un bloc de
+    /// la palette y est ajouté.
+    private func drop(_ providers: [NSItemProvider], before: Int) {
+        let items = paletteItems
+        StepDrag.load(providers) { [model] payload in
+            switch payload {
+            case .step(let id):
+                guard let from = model.rows.firstIndex(where: { $0.id == id }) else { return }
+                withAnimation(Self.spring) { model.move(fromOffsets: IndexSet(integer: from), toOffset: before) }
+            case .palette(let id):
+                guard let item = items.first(where: { $0.id == id }) else { return }
+                withAnimation(Self.spring) { model.insert(item, beforeRow: before) }
+            }
+        }
+    }
+
     private func status(_ row: MacroStepRow) -> MacroRunMonitor.Status? {
         guard row.kind == .block else { return nil }
         return monitor.statuses[row.blockID]
@@ -295,7 +319,7 @@ private struct MacroStepsPane: View {
         ]
     }
 
-    /// Zone en pointillés sous les étapes (maquette) : un bloc de la palette lâché ici va à la fin.
+    /// Zone en pointillés sous les étapes (maquette) : un bloc de la palette, ou de la liste, lâché ici va à la fin.
     private var dropZone: some View {
         Text("Glisse un bloc ici, ou clique-le dans la liste à gauche")
             .font(.system(size: 13))
@@ -303,10 +327,11 @@ private struct MacroStepsPane: View {
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity, minHeight: 52)
             .overlay(Rectangle()
-                .strokeBorder(Swiss.keyLine, style: StrokeStyle(lineWidth: 1, dash: [5, 4])))
+                .strokeBorder(zoneTargeted ? Swiss.brandRed : Swiss.keyLine,
+                              style: StrokeStyle(lineWidth: zoneTargeted ? 2 : 1, dash: [5, 4])))
             .contentShape(Rectangle())
-            .onDrop(of: [.plainText], isTargeted: nil) { providers in
-                dropFromPalette(providers, beforeRow: model.rows.count)
+            .onDrop(of: [.plainText], isTargeted: $zoneTargeted) { providers in
+                drop(providers, before: model.rows.count)
                 return true
             }
     }
@@ -380,6 +405,131 @@ private struct RecordStartButton: View {
 }
 
 /// Une ligne : case « actif », numéro, icône de la catégorie, phrase avec sa valeur en pastille, badges, état.
+/// Glisser une ligne de la liste : un texte « flshortcut-step:<ligne> » (numéro de ligne interne, jamais un nom),
+/// que seule la liste du créateur comprend.
+enum StepDrag {
+    static let prefix = "flshortcut-step:"
+
+    enum Payload: Equatable {
+        case step(String)
+        case palette(String)
+    }
+
+    static func provider(_ row: MacroStepRow) -> NSItemProvider {
+        NSItemProvider(object: (prefix + row.id) as NSString)
+    }
+
+    /// Ce que porte un texte glissé : une ligne de la liste, un bloc de la palette, ou rien.
+    static func payload(_ text: String) -> Payload? {
+        if text.hasPrefix(prefix) { return .step(String(text.dropFirst(prefix.count))) }
+        if text.hasPrefix(PaletteDrag.prefix) { return .palette(String(text.dropFirst(PaletteDrag.prefix.count))) }
+        return nil
+    }
+
+    /// Lu sur le fil principal ; rien pour un autre texte.
+    static func load(_ providers: [NSItemProvider], _ done: @escaping (Payload) -> Void) {
+        guard let p = providers.first(where: { $0.canLoadObject(ofClass: NSString.self) }) else { return }
+        _ = p.loadObject(ofClass: NSString.self) { object, _ in
+            guard let text = object as? NSString, let payload = payload(text as String) else { return }
+            DispatchQueue.main.async { done(payload) }
+        }
+    }
+}
+
+/// Place d'un dépôt en cours : avant la ligne `before` ; `owner` = la ligne survolée (elle seule l'efface en sortant).
+struct StepDropLine: Equatable {
+    let before: Int
+    let owner: Int
+}
+
+/// Une ligne qui se glisse (bloc entier) et qui reçoit un dépôt (trait rouge au-dessus ou au-dessous).
+private struct StepDragDrop: ViewModifier {
+    let row: MacroStepRow
+    let index: Int
+    let count: Int
+    let width: CGFloat
+    @Binding var line: StepDropLine?
+    let drop: ([NSItemProvider], Int) -> Void
+    @State private var height: CGFloat = 40
+
+    func body(content: Content) -> some View {
+        dragged(content)
+            .background(GeometryReader { g in
+                Color.clear
+                    .onAppear { height = g.size.height }
+                    .onChange(of: g.size.height) { h in height = h }
+            })
+            .onDrop(of: [.plainText], delegate: StepDropDelegate(index: index, height: height, line: $line, drop: drop))
+            .overlay(alignment: .top) { if line?.before == index { mark } }
+            .overlay(alignment: .bottom) { if index == count - 1, line?.before == count { mark } }
+    }
+
+    @ViewBuilder private func dragged(_ content: Content) -> some View {
+        if row.kind == .block {
+            content.onDrag { StepDrag.provider(row) } preview: { StepDragPreview(row: row, width: width) }
+        } else {
+            content
+        }
+    }
+
+    /// Trait rouge (style suisse) là où le bloc tombera.
+    private var mark: some View {
+        Rectangle().fill(Swiss.brandRed).frame(height: 3).allowsHitTesting(false)
+    }
+}
+
+private struct StepDropDelegate: DropDelegate {
+    let index: Int
+    let height: CGFloat
+    @Binding var line: StepDropLine?
+    let drop: ([NSItemProvider], Int) -> Void
+
+    func validateDrop(info: DropInfo) -> Bool { info.hasItemsConforming(to: [.plainText]) }
+    func dropEntered(info: DropInfo) { update(info) }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        update(info)
+        return DropProposal(operation: .move)          // jamais le « + » vert de macOS
+    }
+
+    func dropExited(info: DropInfo) {
+        if line?.owner == index { line = nil }
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        let before = place(info)
+        line = nil
+        drop(info.itemProviders(for: [.plainText]), before)
+        return true
+    }
+
+    /// Moitié haute de la ligne : au-dessus ; moitié basse : dessous.
+    private func place(_ info: DropInfo) -> Int { info.location.y > height / 2 ? index + 1 : index }
+
+    private func update(_ info: DropInfo) {
+        let next = StepDropLine(before: place(info), owner: index)
+        if line != next { line = next }
+    }
+}
+
+/// Ce qui suit la souris : le bloc entier, comme la ligne choisie (blanche sur son encoche rouge), à sa vraie largeur.
+private struct StepDragPreview: View {
+    let row: MacroStepRow
+    let width: CGFloat
+
+    var body: some View {
+        MacroStepRowView(row: row, status: nil, current: false, selected: true, onToggle: { _ in })
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .frame(width: width, alignment: .leading)
+            .hoverFilled(true)
+            .background(Rectangle().fill(Swiss.text))
+            .background(Rectangle().fill(Swiss.brandRed).offset(x: 4, y: 4))
+            .shadow(color: .black.opacity(0.28), radius: 14, y: 8)
+            .padding(24)                          // place pour l'encoche et l'ombre
+    }
+}
+
 private struct MacroStepRowView: View, Equatable {
     let row: MacroStepRow
     let status: MacroRunMonitor.Status?
