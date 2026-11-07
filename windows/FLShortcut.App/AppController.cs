@@ -185,7 +185,7 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     public bool TestAction(int id) => _midi.SendAction(id);
 
     public ActionAvailability Availability(int id) => Light
-        ? LightMode.Availability(id)
+        ? LightMode.Availability(id, _midi.HasKey)
         : AvailabilityResolver.Resolve(id, _midi.Hello?.Capabilities, _flVersion);
 
     public IReadOnlyList<ShortcutIssue> IssuesFor(Shortcut draft)

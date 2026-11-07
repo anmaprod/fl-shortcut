@@ -741,7 +741,7 @@ final class MIDILink: ObservableObject {
     private var unavailable: String {
         core.snapshot.hasKey
             ? String(localized: "ports MIDI « FL Shortcuts Link » indisponibles : relance FL Shortcuts")
-            : String(localized: "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL")
+            : String(localized: "lien avec FL non installé : Organiser › Installer le lien")
     }
 
     /// Macro : commande avec données (Nom et couleur…), même réveil bref que `runBriefly`.

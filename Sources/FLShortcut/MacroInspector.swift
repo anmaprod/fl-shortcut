@@ -854,7 +854,14 @@ private struct BlockInspector: View {
                 Text(info.detail).font(.system(size: 11)).foregroundStyle(.secondary)
             }
             if case .unavailable(let reason)? = availability, !MuteSolo.handlesWithoutLink(key) {
-                Text(reason).font(.system(size: 11)).foregroundStyle(.orange)
+                // 07/11 (« ça ne repère pas que j'ai installé le lien ») : lien installé, la macro l'ouvre le temps du
+                // bloc : une note grise, plus l'avertissement orange.
+                if AppMode.light, MIDILink.shared.snapshot.hasKey {
+                    Text("Par le lien avec FL, ouvert le temps de ce bloc (quelques secondes la première fois).")
+                        .font(.system(size: 11)).foregroundStyle(Swiss.gray)
+                } else {
+                    Text(reason).font(.system(size: 11)).foregroundStyle(.orange)
+                }
             }
         }
     }

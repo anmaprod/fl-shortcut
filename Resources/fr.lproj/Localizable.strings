@@ -1551,6 +1551,7 @@
 "Papier" = "Papier";
 "Par le lien avec FL ; sans lien : menu de la piste › Arm selected track(s)." = "Par le lien avec FL ; sans lien : menu de la piste › Arm selected track(s).";
 "Par le lien avec FL ; sans lien : sa touche de FL, si elle existe." = "Par le lien avec FL ; sans lien : sa touche de FL, si elle existe.";
+"Par le lien avec FL, ouvert le temps de ce bloc (quelques secondes la première fois)." = "Par le lien avec FL, ouvert le temps de ce bloc (quelques secondes la première fois).";
 "Par le menu Add › %@ de FL (barre des menus de macOS), sans clic : choisis le plugin ci-dessous." = "Par le menu Add › %@ de FL (barre des menus de macOS), sans clic : choisis le plugin ci-dessous.";
 "Parcourir et charger des sons" = "Parcourir et charger des sons";
 "Parcourir les propriétés de note" = "Parcourir les propriétés de note";
@@ -1914,6 +1915,7 @@
 "Sert à l'Organiser : il écoute chaque son de FL pour le ranger. Rien n'est enregistré ni envoyé." = "Sert à l'Organiser : il écoute chaque son de FL pour le ranger. Rien n'est enregistré ni envoyé.";
 "Serum, FLEX, Sytrus…" = "Serum, FLEX, Sytrus…";
 "Session expirée : reconnecte-toi." = "Session expirée : reconnecte-toi.";
+"Seulement dans une macro : le lien avec FL s'y ouvre le temps du bloc." = "Seulement dans une macro : le lien avec FL s'y ouvre le temps du bloc.";
 "Seulement si rien ne se passe : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts », même numéro de Port en entrée et en sortie." = "Seulement si rien ne se passe : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts », même numéro de Port en entrée et en sortie.";
 "Shaker" = "Shaker";
 "Si" = "Si";
@@ -2397,6 +2399,7 @@
 "lien avec FL fermé (Organiser fini)" = "lien avec FL fermé (Organiser fini)";
 "lien avec FL fermé (ouvert seulement pendant l'Organiser)" = "lien avec FL fermé (ouvert seulement pendant l'Organiser)";
 "lien avec FL non installé" = "lien avec FL non installé";
+"lien avec FL non installé : Organiser › Installer le lien" = "lien avec FL non installé : Organiser › Installer le lien";
 "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL" = "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL";
 "liste de la Playlist illisible" = "liste de la Playlist illisible";
 "liste des canaux illisible" = "liste des canaux illisible";

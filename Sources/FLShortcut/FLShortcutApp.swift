@@ -506,7 +506,9 @@ final class AppStatus: ObservableObject {
         if AppMode.light {
             return AppMode.nativeEquivalent(of: id, layout: Store.shared.layout) != nil
                 ? .available
-                : .unavailable(reason: String(localized: "Demande le lien avec FL (Organiser › Installer le lien)."))
+                : .unavailable(reason: MIDILink.shared.snapshot.hasKey
+                    ? String(localized: "Seulement dans une macro : le lien avec FL s'y ouvre le temps du bloc.")
+                    : String(localized: "Demande le lien avec FL (Organiser › Installer le lien)."))
         }
         return AvailabilityResolver.availability(of: id, caps: capabilities, flVersion: flVersion)
     }

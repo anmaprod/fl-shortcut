@@ -44,8 +44,12 @@ public static class LightMode
     }
 
     /// Disponibilité d'une action en mode léger : seulement celles qui ont une touche d'origine.
-    public static ActionAvailability Availability(int id) =>
+    /// `linkInstalled` (07/11, comme le Mac) : lien installé, l'action marche dans une macro (le lien s'y ouvre le temps
+    /// du bloc), pas sur un raccourci.
+    public static ActionAvailability Availability(int id, bool linkInstalled = false) =>
         !FlActions.IsKnown(id) ? new ActionAvailability.Unavailable(Loc.T("Action inconnue"))
         : NativeEquivalent(id) is not null ? new ActionAvailability.Available()
-        : new ActionAvailability.Unavailable(Loc.T("Demande le lien avec FL (Organiser › Installer le lien)."));
+        : new ActionAvailability.Unavailable(linkInstalled
+            ? Loc.T("Seulement dans une macro : le lien avec FL s'y ouvre le temps du bloc.")
+            : Loc.T("Demande le lien avec FL (Organiser › Installer le lien)."));
 }
