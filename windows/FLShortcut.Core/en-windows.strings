@@ -365,3 +365,11 @@
 "À installer" = "To install";
 "marqueur posé sans son nom : %@" = "marker added without its name: %@";
 "Relance FL Studio, puis FL Shortcuts." = "Restart FL Studio, then FL Shortcuts.";
+"Mon antivirus bloque FL Shortcuts" = "My antivirus blocks FL Shortcuts";
+"Il n'y a aucun virus. Autorise FL Shortcuts dans ton antivirus : Avast › Menu › Paramètres › Exceptions." = "There is no virus. Allow FL Shortcuts in your antivirus: Avast › Menu › Settings › Exceptions.";
+"Prêts : l'app crée les ports elle-même." = "Ready: the app creates the ports itself.";
+"Installe loopMIDI. L'app crée ensuite les ports elle-même." = "Install loopMIDI. The app then creates the ports itself.";
+"Installe d'abord loopMIDI" = "Install loopMIDI first";
+"Gratuit. L'app crée ensuite les ports elle-même." = "Free. The app then creates the ports itself.";
+"loopMIDI installé : l'app crée « FL Shortcuts » et « FL Shortcuts Retour » elle-même." = "With loopMIDI installed, the app creates “FL Shortcuts” and “FL Shortcuts Retour” itself.";
+"Installe loopMIDI : l'app crée ensuite elle-même les ports qui la relient à FL, pour l'Organiser et les actions de FL." = "Install loopMIDI: the app then creates the ports that link it to FL, for Organize and FL actions.";

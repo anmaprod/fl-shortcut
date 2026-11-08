@@ -30,7 +30,7 @@ internal static class MidiServicesPorts
 
     /// Windows sait créer les ports lui-même (25H2 à jour) : rien à installer, ils apparaissent quand le lien sert
     /// (08/11 : jamais en permanence, FL ramait). Faux tant que `CheckAvailable` n'a pas répondu.
-    public static bool Available => _available == true;
+    public static bool Available => _available == true || VirtualMidiPorts.DriverInstalled;
 
     /// Le service MIDI de Windows et ses ports « boucle » sont-ils là ? Bloquant (jusqu'à ~3 s) : en tâche de fond, au
     /// lancement. Rien n'est créé.
@@ -56,7 +56,7 @@ internal static class MidiServicesPorts
     /// Les ports ont été créés par Windows (pas par loopMIDI) pendant ce lancement.
     public static bool CreatedByWindows
     {
-        get { lock (Gate) return Created.Count > 0; }
+        get { lock (Gate) return Created.Count > 0 || VirtualMidiPorts.Created; }
     }
 
     /// Les deux ports manquent : Windows les crée s'il sait le faire. Vrai si les ports sont là ensuite. Bloquant
@@ -68,20 +68,35 @@ internal static class MidiServicesPorts
         lock (Gate)
         {
             if (MidiLink.PortsExist()) return true;
-            if (_available == false || DateTime.UtcNow - _lastFailure < TimeSpan.FromSeconds(60)) return false;
+            if (DateTime.UtcNow - _lastFailure < TimeSpan.FromSeconds(60)) return false;
             var ok = false;
 #if MIDI_SERVICES
-            try
+            if (_available != false)
             {
-                ok = CreateBoth();
-            }
-            catch (Exception e)
-            {
-                // Classe absente de ce Windows (pas encore 25H2 à jour), service arrêté… : loopMIDI.
-                AppLog.Write("MIDI", "Windows MIDI Services indisponible (" + e.GetType().Name + ")");
-                _available = false;
+                try
+                {
+                    ok = CreateBoth();
+                }
+                catch (Exception e)
+                {
+                    // Classe absente de ce Windows (pas encore 25H2 à jour), service arrêté… : le pilote de loopMIDI.
+                    AppLog.Write("MIDI", "Windows MIDI Services indisponible (" + e.GetType().Name + ")");
+                    _available = false;
+                }
             }
 #endif
+            // Sinon, le pilote installé avec loopMIDI (08/11) : l'appli crée elle-même les deux ports, rien à faire
+            // dans loopMIDI.
+            if (!ok && VirtualMidiPorts.CreateBoth(MidiLink.ToFlPortName, MidiLink.FromFlPortName))
+            {
+                for (var i = 0; i < 15 && !MidiLink.PortsExist(); i++) Thread.Sleep(200);
+                ok = MidiLink.PortsExist();
+                if (!ok)
+                {
+                    AppLog.Write("MIDI", "ports du pilote de loopMIDI pas visibles");
+                    VirtualMidiPorts.CloseAll();
+                }
+            }
             if (!ok) _lastFailure = DateTime.UtcNow;
             return ok;
         }
@@ -107,6 +122,7 @@ internal static class MidiServicesPorts
             }
 #endif
             Created.Clear();
+            VirtualMidiPorts.CloseAll();
         }
     }
 

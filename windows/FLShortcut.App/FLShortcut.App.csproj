@@ -25,6 +25,10 @@
     <Product>FL Shortcuts</Product>
     <Company>FL Shortcuts</Company>
     <Description>Raccourcis personnalisés pour FL Studio — outil indépendant, non affilié à Image-Line.</Description>
+    <!-- Infos du programme complètes (08/11, antivirus) : un programme sans nom ni éditeur paraît plus suspect. -->
+    <AssemblyTitle>FL Shortcuts</AssemblyTitle>
+    <Authors>FL Shortcuts</Authors>
+    <Copyright>© 2026 FL Shortcuts</Copyright>
     <ApplicationIcon Condition="Exists('Assets\FLShortcut.ico')">Assets\FLShortcut.ico</ApplicationIcon>
   </PropertyGroup>
 

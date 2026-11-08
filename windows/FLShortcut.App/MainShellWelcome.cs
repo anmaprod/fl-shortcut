@@ -183,7 +183,8 @@ internal sealed partial class MainShell
     {
         _onLinkStep = false;
         var exist = MidiLink.PortsExist();
-        var ok = exist || MidiServicesPorts.Available;   // Windows 25H2 : créés quand le lien sert
+        // Windows 25H2, ou loopMIDI installé (son pilote) : l'appli crée les ports quand le lien sert.
+        var ok = exist || MidiServicesPorts.Available;
         var light = _app.Light;
         _shownPortsOk = ok;
         _welcomeContent.Children.Clear();
@@ -195,9 +196,9 @@ internal sealed partial class MainShell
         var text = new StackPanel { Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
         text.Children.Add(Label(Loc.T("Ports MIDI « FL Shortcuts »"), 18, Text, bold: true));
         text.Children.Add(Paragraph(ok
-            ? (!exist || MidiServicesPorts.CreatedByWindows ? Loc.T("Prêts : créés par Windows.")
-                                                  : Loc.T("Prêts : « FL Shortcuts » et « FL Shortcuts Retour »."))
-            : Loc.T("Installe loopMIDI, puis crée « FL Shortcuts » et « FL Shortcuts Retour »."), 12));
+            ? (exist && !MidiServicesPorts.CreatedByWindows ? Loc.T("Prêts : « FL Shortcuts » et « FL Shortcuts Retour ».")
+                                                             : Loc.T("Prêts : l'app crée les ports elle-même."))
+            : Loc.T("Installe loopMIDI. L'app crée ensuite les ports elle-même."), 12));
         if (!ok)
         {
             // Un vrai bouton (08/11) : la page de téléchargement de loopMIDI dans le navigateur.

@@ -400,8 +400,8 @@ internal sealed class OrganizerWindow : Window
             Padding = new Thickness(0),
         };
         _content.Children.Add(Card(Row(Badge("exclamationmark", Orange), Stack(4,
-            Label(Loc.T("Crée d'abord les deux ports MIDI"), 14, Text, semibold: true),
-            Paragraph(Loc.T("Dans loopMIDI : crée « FL Shortcuts » et « FL Shortcuts Retour ». Laisse-le ouvert."), 12),
+            Label(Loc.T("Installe d'abord loopMIDI"), 14, Text, semibold: true),
+            Paragraph(Loc.T("Gratuit. L'app crée ensuite les ports elle-même."), 12),
             link), 14), Orange));
     }
 
@@ -468,7 +468,7 @@ internal sealed class OrganizerWindow : Window
     /// Les réglages à vérifier, étape par étape, et où est le script.
     private void LinkHelp()
     {
-        _content.Children.Add(Step(1, Loc.T("Dans loopMIDI : « FL Shortcuts » et « FL Shortcuts Retour ». Laisse-le ouvert.")));
+        _content.Children.Add(Step(1, Loc.T("loopMIDI installé : l'app crée « FL Shortcuts » et « FL Shortcuts Retour » elle-même.")));
         _content.Children.Add(Step(2, Loc.T("Input : ligne « FL Shortcuts », Controller type « FL Shortcuts », Enable, un Port.")));
         _content.Children.Add(Step(3, Loc.T("Output : « FL Shortcuts Retour » seul sur le même Port. Puis relance FL.")));
         _content.Children.Add(Step(4, Loc.T("« FL Shortcuts » absent : choisis le dossier Hardware de FL.")));

@@ -82,13 +82,36 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
           # Plus de .zip (02/11 : « je mettrai juste le .exe ») : l'installeur seul est téléchargé.
+      - name: Signature de l'app (seulement si un certificat est fourni)
+        # 08/11 (« que les antivirus comprennent qu'il n'y a pas de virus ») : un programme signé n'est presque plus
+        # jamais pris pour un virus. Sans les secrets WIN_CERT_PFX_BASE64 et WIN_CERT_PASSWORD, rien n'est signé.
+        shell: pwsh
+        env:
+          WIN_CERT_PFX_BASE64: ${{ secrets.WIN_CERT_PFX_BASE64 }}
+          WIN_CERT_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
+        run: |
+          if (-not $env:WIN_CERT_PFX_BASE64 -or -not $env:WIN_CERT_PASSWORD) { "Pas de certificat : app non signée."; exit 0 }
+          $pfx = Join-Path $env:RUNNER_TEMP 'fls-cert.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WIN_CERT_PFX_BASE64))
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signtool) { "signtool introuvable"; exit 1 }
+          $files = Get-ChildItem dist/win-x64, dist/win-arm64 -Recurse -Include 'FLShortcut*.exe', 'FLShortcut*.dll'
+          foreach ($f in $files) {
+            & $signtool.FullName sign /f $pfx /p $env:WIN_CERT_PASSWORD /fd sha256 /tr http://timestamp.digicert.com /td sha256 $f.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          "SIGNTOOL=$($signtool.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "FLS_PFX=$pfx" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Installeur (un seul fichier, x64 + ARM64, sans droits administrateur)
         shell: pwsh
         env:
           REF_NAME: ${{ github.ref_name }}
           REF_TYPE: ${{ github.ref_type }}
+          WIN_CERT_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
         run: |
-          $version = if ($env:REF_TYPE -eq 'tag' -and $env:REF_NAME -match '^v(\d+\.\d+\.\d+)') { $Matches[1] } else { '0.0.0' }
+          # Hors version publiée, la version du projet (plus « 0.0.0 », qui faisait un installeur sans version).
+          $projectVersion = ([xml](Get-Content windows/FLShortcut.App/FLShortcut.App.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          $version = if ($env:REF_TYPE -eq 'tag' -and $env:REF_NAME -match '^v(\d+\.\d+\.\d+)') { $Matches[1] } elseif ($projectVersion) { $projectVersion } else { '0.0.0' }
           $iscc = Get-Command iscc -ErrorAction SilentlyContinue
           if (-not $iscc) {
             $candidate = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
@@ -98,7 +121,12 @@ jobs:
             }
             $iscc = $candidate
           } else { $iscc = $iscc.Source }
-          & $iscc "/DAppVersion=$version" "/DDistDir=$PWD\dist" windows/installer/FLShortcut.iss
+          if ($env:SIGNTOOL -and $env:FLS_PFX) {
+            $sign = "`"$env:SIGNTOOL`" sign /f `"$env:FLS_PFX`" /p $env:WIN_CERT_PASSWORD /fd sha256 /tr http://timestamp.digicert.com /td sha256 `$f"
+            & $iscc "/DAppVersion=$version" "/DDistDir=$PWD\dist" "/DUseSign" "/Sfls=$sign" windows/installer/FLShortcut.iss
+          } else {
+            & $iscc "/DAppVersion=$version" "/DDistDir=$PWD\dist" windows/installer/FLShortcut.iss
+          }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-FileHash dist/FLShortcuts-Windows-Setup.exe -Algorithm SHA256 | ForEach-Object { "SHA-256 : $($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" }
       - name: Photos de l'Organiser (mode photos, sons d'exemple, rien n'est envoyé à FL)

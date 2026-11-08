@@ -24,6 +24,20 @@ AppVersion={#AppVersion}
 AppVerName=FL Shortcuts {#AppVersion}
 AppPublisher=FL Shortcuts
 AppComments=Raccourcis personnalisés pour FL Studio. Outil indépendant, non affilié à Image-Line.
+AppCopyright=© 2026 FL Shortcuts
+; Infos de l'installeur complètes (08/11, antivirus) : éditeur, produit, description et version visibles.
+VersionInfoVersion={#AppVersion}
+VersionInfoCompany=FL Shortcuts
+VersionInfoProductName=FL Shortcuts
+VersionInfoProductVersion={#AppVersion}
+VersionInfoDescription=Installation de FL Shortcuts
+VersionInfoCopyright=© 2026 FL Shortcuts
+#ifdef UseSign
+; Signé quand la CI a un certificat de signature (secrets WIN_CERT_PFX_BASE64 et WIN_CERT_PASSWORD) : l'installeur et
+; le désinstalleur portent la signature, ce que les antivirus et SmartScreen regardent d'abord.
+SignTool=fls
+SignedUninstaller=yes
+#endif
 DefaultDirName={autopf}\FL Shortcuts
 DefaultGroupName=FL Shortcuts
 DisableDirPage=yes
