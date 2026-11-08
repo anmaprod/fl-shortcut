@@ -1181,7 +1181,7 @@ internal sealed class MacrosPage
         var page = new StackPanel { Spacing = 12, Padding = new Thickness(22, 4, 22, 24) };
         if (_recording == doc.Id) page.Children.Add(RecordingBanner());
         // Comme le Mac (08/11, « même le bouton enregistrer n'est pas là ») : en haut, une barre bordée de rouge.
-        else if (!_demo || doc.Blocks.Count == 0) page.Children.Add(RecordBar());
+        else page.Children.Add(RecordBar());
         if (doc.Blocks.Count > 0)
         {
             var list = new StackPanel();
@@ -1588,12 +1588,12 @@ internal sealed class MacrosPage
             foreach (var editor in Editors(doc, body, index, Set)) settings.Children.Add(editor);
             if (settings.Children.Count > 0)
             {
-                var title = Label(Loc.T("Réglages"), 11, Secondary, semibold: true);
-                title.Margin = new Thickness(4, 4, 0, -6);
+                // Comme le Mac : « RÉGLAGES » en petites capitales sur un trait fin, les réglages dessous sans cadre.
+                var title = SwissLabel(Loc.T("Réglages"), 10.5, Secondary);
+                title.Margin = new Thickness(0, 4, 0, 0);
                 stack.Children.Add(title);
-                var plate = Plate(settings, 12);
-                plate.Padding = new Thickness(12);
-                stack.Children.Add(plate);
+                stack.Children.Add(Rule(LineColor));
+                stack.Children.Add(settings);
             }
         }
         else if (body is not BlockBody.Organize)
