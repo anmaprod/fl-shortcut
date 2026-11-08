@@ -104,12 +104,8 @@ internal sealed class WindowsFlDriver : IFlDriver
     /// « Plugin database » de FL : à côté du script installé (dossier de données choisi dans FL), sinon dans Documents.
     public string? PluginPreset(string name, bool effect)
     {
-        var roots = new List<string>();
-        if (_settings.ScriptPath is { Length: > 0 } script
-            && Directory.GetParent(script)?.Parent?.Parent?.Parent is { } flStudio)          // …\Settings\Hardware\FL Shortcuts\script
-            roots.Add(Path.Combine(flStudio.FullName, "Presets", "Plugin database"));
-        roots.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Image-Line", "FL Studio", "Presets", "Plugin database"));
-        return roots.Distinct(StringComparer.OrdinalIgnoreCase).Select(r => PluginDrop.PresetFile(r, name, effect)).FirstOrDefault(f => f is not null);
+        var roots = PluginDatabase.Roots(_settings.ScriptPath, Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
+        return roots.Select(r => PluginDrop.PresetFile(r, name, effect)).FirstOrDefault(f => f is not null);
     }
 
     public WindowsFlDriver(uint pid, MidiLink midi, AppSettings settings, Func<bool> light, Func<int> escapes,

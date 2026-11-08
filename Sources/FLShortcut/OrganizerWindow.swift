@@ -162,19 +162,28 @@ struct OrganizerEnvironment {
             loadIconIDs: { OrganizerEnvironment.storedIconIDs() },
             saveIconIDs: { OrganizerEnvironment.storeIconIDs($0) },
             restartFL: {
-                guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: "com.image-line.flstudio")
+                // Une relance à la fois (09/11, sur Windows : « plusieurs clics = autant de FL ») : les clics suivants
+                // ne font rien tant que FL n'est pas reparti puis rouvert.
+                guard !OrganizerEnvironment.restartingFL,
+                      let app = NSRunningApplication.runningApplications(withBundleIdentifier: "com.image-line.flstudio")
                     .first(where: { !$0.isTerminated }),
                       let url = app.bundleURL ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.image-line.flstudio")
                 else { return }
+                OrganizerEnvironment.restartingFL = true
                 app.terminate()
                 // Relancé dès qu'il est parti (2 minutes au plus : le temps de répondre à « Enregistrer ? » dans FL).
                 DispatchQueue.global(qos: .userInitiated).async {
                     let deadline = Date().addingTimeInterval(120)
                     while !app.isTerminated && Date() < deadline { Thread.sleep(forTimeInterval: 0.3) }
-                    guard app.isTerminated else { return }
+                    guard app.isTerminated else {
+                        DispatchQueue.main.async { OrganizerEnvironment.restartingFL = false }
+                        return
+                    }
                     Thread.sleep(forTimeInterval: 1)
                     DispatchQueue.main.async {
-                        NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+                        NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration()) { _, _ in
+                            DispatchQueue.main.async { OrganizerEnvironment.restartingFL = false }
+                        }
                     }
                 }
             },
@@ -461,6 +470,9 @@ struct OrganizerEnvironment {
     static var screenNeeded: String {
         String(localized: "autorise « Enregistrement de l'écran » pour FL Shortcuts (Réglages Système › Confidentialité et sécurité ; déjà coché : décoche puis recoche)")
     }
+
+    /// « Quitter et rouvrir FL » en cours (fil principal) : un seul FL relancé, même après plusieurs clics.
+    static var restartingFL = false
 
     /// FL au premier plan d'abord, sinon le premier FL ouvert.
     static func flPID() -> Int32? {

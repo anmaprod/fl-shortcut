@@ -78,10 +78,13 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         // Les deux ports du lien créés dès le lancement (Windows MIDI Services, sinon le pilote de loopMIDI) et gardés
         // jusqu'à la sortie : sous Windows, FL ne voit un port MIDI que s'il existait à son ouverture (08/11 au soir,
         // « ports oui · lien muet »). Le lien, lui, ne s'ouvre que quand il sert (mode léger, MidiLink.Use).
-        Task.Run(() =>
+        Task.Run(async () =>
         {
             MidiServicesPorts.CheckAvailable();
-            MidiServicesPorts.EnsureIfNeeded();
+            // Lancée avec Windows, l'appli peut passer avant le pilote de loopMIDI : nouvel essai, 3 min au plus (un
+            // essai raté n'est refait qu'après 60 s), tant que l'appli sait créer le port.
+            for (var i = 0; i < 18 && MidiServicesPorts.Available && !MidiServicesPorts.EnsureIfNeeded(); i++)
+                await Task.Delay(TimeSpan.FromSeconds(10));
         });
         if (!Light) _midi.Start();          // mode léger : aucun port MIDI ouvert, rien dans FL
         _hook.Start();
@@ -309,6 +312,10 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         return MacroRecorder.Start(fl.Pid, OnUi, (inputs, why) => done(ClickSequenceCompiler.Compile(inputs), why))
             ? null : Loc.T("Un enregistrement est déjà en cours.");
     }
+
+    /// Bases de plugins de FL (Plugin database) : à côté du script installé, puis Documents › Image-Line.
+    public IReadOnlyList<string> PluginRoots =>
+        PluginDatabase.Roots(_settings.ScriptPath, Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
 
     /// Premier raccourci qui lance cette macro.
     public Shortcut? MacroShortcut(Guid macro) => MacroDrafts.ShortcutsOf(macro, _shortcuts).FirstOrDefault();

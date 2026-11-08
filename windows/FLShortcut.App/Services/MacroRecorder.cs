@@ -5,7 +5,8 @@
 //   ferme au clic y est encore). 120 s et 80 clics ou touches au plus.
 // - Bouton qui porte un nom (comme le Mac) : la zone autour du clic, dans la seule fenêtre de FL (pas un menu), est
 //   copiée au moment du clic, lue à la fin de l'enregistrement, puis oubliée : le clic est retenu par ce nom.
-// - Fin : retour dans FL Shortcuts (le bouton « Terminer » du créateur, ou sa fenêtre remise devant), ou une limite.
+// - Fin : « Terminer » de la barre d'enregistrement (RecordingBar, comme le Mac) ou du créateur, retour dans FL
+//   Shortcuts, ou une limite ; « Annuler » : rien n'est ajouté.
 // - Clics et touches restent en mémoire : jamais journalisés (le journal dit seulement combien).
 using FLShortcut.App.Native;
 using FLShortcut.Core;
@@ -20,6 +21,19 @@ internal static class MacroRecorder
     private const int LeftButton = 0x01, RightButton = 0x02;
     private static int _busy;
     private static volatile bool _stop;
+    private static volatile bool _cancel;
+    private static int _count, _keys;
+
+    /// Clics et touches relevés jusqu'ici (la barre d'enregistrement les compte), dont les touches.
+    public static int Count => Volatile.Read(ref _count);
+    public static int KeyCount => Volatile.Read(ref _keys);
+
+    /// « Annuler » : l'enregistrement s'arrête et rien n'est ajouté.
+    public static void Cancel()
+    {
+        _cancel = true;
+        _stop = true;
+    }
 
     public static bool Busy => Volatile.Read(ref _busy) == 1;
 
@@ -35,6 +49,9 @@ internal static class MacroRecorder
     {
         if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0) return false;
         _stop = false;
+        _cancel = false;
+        Volatile.Write(ref _count, 0);
+        Volatile.Write(ref _keys, 0);
         var us = (uint)Environment.ProcessId;
         isFl ??= root => Owner(root) == pid;
         isUs ??= root => Owner(root) == us;
@@ -50,6 +67,11 @@ internal static class MacroRecorder
                 why = Loc.T("erreur interne");
             }
             finally { Volatile.Write(ref _busy, 0); }
+            if (_cancel)
+            {
+                inputs.Clear();
+                why = Loc.T("Enregistrement annulé.");
+            }
             onUi(() => done(inputs, why));
         }) { IsBackground = true, Name = "FL Shortcuts – enregistrer une macro" }.Start();
         return true;
@@ -129,6 +151,7 @@ internal static class MacroRecorder
                 var release = Math.Abs(p.X - down.X) + Math.Abs(p.Y - down.Y) > ClickSequenceCompiler.DragDistance
                     ? new RecordedRelease(p.X, p.Y, readWindows()) : null;
                 inputs.Add(new RecordedInput.Click(down.X, down.Y, false, down.Windows, release));
+                Interlocked.Increment(ref _count);
                 if (pressedShot is { } shot) shots.Add((inputs.Count - 1, shot, down.X, down.Y));
                 pressed = null;
                 pressedShot = null;
@@ -142,6 +165,7 @@ internal static class MacroRecorder
                 {
                     var shot = ShotAt(p.X, p.Y, windows);
                     inputs.Add(new RecordedInput.Click(p.X, p.Y, true, windows));
+                    Interlocked.Increment(ref _count);
                     if (shot is not null) shots.Add((inputs.Count - 1, shot, p.X, p.Y));
                 }
                 else if (!isUs(RootAt(p))) ignored++;
@@ -158,6 +182,8 @@ internal static class MacroRecorder
                     var combo = new KeyCombo((ushort)vk, Ctrl: Down(0x11), Alt: Down(0x12), Shift: Down(0x10),
                                              Win: Down(0x5B) || Down(0x5C));
                     inputs.Add(new RecordedInput.Key(combo, windows.Any(w => w.Role == FlWindowRole.Menu)));
+                    Interlocked.Increment(ref _count);
+                    Interlocked.Increment(ref _keys);
                 }
                 held[vk] = down;
             }

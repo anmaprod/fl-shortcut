@@ -108,6 +108,13 @@ internal static class Photos
                 Note("menu-icone : photo");
             }
             menu.Close();
+            // La barre d'enregistrement des macros (comme le panneau du Mac, 09/11).
+            var bar = RecordingBar.Demo();
+            bar.Activate();
+            await Task.Delay(800);
+            await Save(bar.Content, Path.Combine(folder, "enregistrement-barre.png"));
+            Note("enregistrement-barre : photo");
+            bar.Dismiss();
             foreach (var screen in Screens)
             {
                 Note($"{screen} : création");

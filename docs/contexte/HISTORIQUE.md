@@ -940,5 +940,8 @@ entrée 1 ≈ 0,5 s.
   (« FL Shortcuts », dans les deux sens), l'appli lit les deux entrées et garde celle qui apporte le HELLO ; l'entrée
   « Retour » en generic controller pouvait aussi passer les CC du script (120 à 126 = messages de mode) au son
   choisi. Compteurs dans le diagnostic. Puis demandes : enregistrement des macros, pages de l'Organiser, listes de
-  plugins de « Cliquer sur… » et tous les blocs comme sur Mac.
+  plugins de « Cliquer sur… » et tous les blocs comme sur Mac. Faits ensuite : barre d'enregistrement flottante comme le Mac,
+  liste des plugins installés dans « Cliquer sur… », relance de FL une seule fois même après plusieurs clics, nouvel
+  essai de création du port au démarrage de Windows. Restent (demandés le même soir) : pages de l'Organiser identiques,
+  messages « Écrire à l'équipe » reçus par mail, frappe dans FL avec une touche changée (Windows).
 

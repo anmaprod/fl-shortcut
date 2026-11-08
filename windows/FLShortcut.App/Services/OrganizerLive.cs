@@ -15,27 +15,43 @@ internal static class OrganizerLive
     /// .flp a été montré) ; `installElsewhere` : « Autre dossier de FL… ».
     /// « Quitter et rouvrir FL » : sa fenêtre principale fermée comme par la croix (FL demande d'enregistrer s'il le
     /// faut), puis FL relancé depuis le même fichier dès qu'il est parti (2 minutes au plus).
+    /// Une relance à la fois (09/11, « quand on clique plusieurs fois… ça ouvre le nombre de FL que de clics ») : les
+    /// clics suivants ne font rien tant que FL n'est pas reparti puis rouvert (2 min 30 au plus).
+    private static int _restarting;
+
     private static void RestartFl()
     {
-        if (FlPresence.RunningInstance() is not { } fl) return;
+        if (Interlocked.CompareExchange(ref _restarting, 1, 0) != 0) return;
+        if (FlPresence.RunningInstance() is not { } fl)
+        {
+            Volatile.Write(ref _restarting, 0);
+            return;
+        }
         System.Diagnostics.Process process;
         try { process = System.Diagnostics.Process.GetProcessById((int)fl.Pid); }
-        catch (ArgumentException) { return; }
+        catch (ArgumentException) { Volatile.Write(ref _restarting, 0); return; }
         var path = fl.Path;
         try { process.CloseMainWindow(); }
-        catch (InvalidOperationException) { return; }
+        catch (InvalidOperationException) { Volatile.Write(ref _restarting, 0); return; }
         _ = Task.Run(() =>
         {
-            using (process)
+            try
             {
-                try
+                using (process)
                 {
-                    if (!process.WaitForExit(TimeSpan.FromMinutes(2))) return;
+                    try
+                    {
+                        if (!process.WaitForExit(TimeSpan.FromMinutes(2))) return;
+                    }
+                    catch (InvalidOperationException) { }
                 }
-                catch (InvalidOperationException) { }
+                Thread.Sleep(1000);
+                // Un FL déjà rouvert (à la main) : on n'en lance pas un second.
+                if (FlPresence.RunningInstance() is null) Start(path, "");
+                // Le temps que le nouveau FL apparaisse : un clic de plus ne relance rien.
+                for (var i = 0; i < 30 && FlPresence.RunningInstance() is null; i++) Thread.Sleep(1000);
             }
-            Thread.Sleep(1000);
-            Start(path, "");
+            finally { Volatile.Write(ref _restarting, 0); }
         });
     }
 

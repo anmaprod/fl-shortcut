@@ -202,3 +202,53 @@ public sealed class PluginDropTests : IDisposable
         }
     }
 }
+
+/// « Cliquer sur… » : la liste de tous les plugins installés, comme le Mac (09/11, FLPluginDatabaseTests).
+public sealed class PluginDatabaseTests
+{
+    [Fact]
+    public void ListsInstalledPluginsByFormatAndName()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "fls-plugins-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            void Touch(string relative)
+            {
+                var path = Path.Combine(root, relative);
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllText(path, "");
+            }
+            Touch(@"Installed/Generators/VST3/Serum 2.fst");
+            Touch(@"Installed/Generators/VST3/Serum 2.nfo");
+            Touch(@"Installed/Generators/VST3/Serum 10.fst");
+            Touch(@"Installed/Generators/VST/Analog Lab V.fst");
+            Touch(@"Installed/Generators/VST/notes.txt");
+            Touch(@"Installed/Effects/VST3/Pro-Q 3.fst");
+            var generators = PluginDatabase.Installed(root, effect: false);
+            Assert.Equal(new[] { ("VST", "Analog Lab V"), ("VST3", "Serum 2"), ("VST3", "Serum 10") },
+                generators.Select(p => (p.Format, p.Name)));
+            Assert.Equal(new[] { "Pro-Q 3" }, PluginDatabase.Installed(root, effect: true).Select(p => p.Name));
+            var groups = PluginDatabase.ByFormat(generators);
+            Assert.Equal(new[] { "VST", "VST3" }, groups.Select(g => g.Format));
+            Assert.Equal(2, groups[1].Names.Count);
+            // Base absente : liste vide, jamais d'exception ; la première base qui en a gagne.
+            Assert.Empty(PluginDatabase.Installed(Path.Combine(root, "absente"), effect: false));
+            Assert.Equal(3, PluginDatabase.Installed(new[] { Path.Combine(root, "absente"), root }, effect: false).Count);
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
+    }
+
+    [Fact]
+    public void RootsBesideTheScriptThenDocuments()
+    {
+        var script = Path.Combine("C:", "Data", "FL Studio", "Settings", "Hardware", "FL Shortcuts", "device_FLShortcut.py");
+        var roots = PluginDatabase.Roots(script, Path.Combine("C:", "Docs"));
+        Assert.Equal(2, roots.Count);
+        Assert.EndsWith(Path.Combine("FL Studio", "Presets", "Plugin database"), roots[0]);
+        Assert.Equal(Path.Combine("C:", "Docs", "Image-Line", "FL Studio", "Presets", "Plugin database"), roots[1]);
+        Assert.Single(PluginDatabase.Roots(null, Path.Combine("C:", "Docs")));
+    }
+}

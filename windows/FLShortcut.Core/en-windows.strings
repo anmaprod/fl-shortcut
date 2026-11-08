@@ -386,3 +386,5 @@
 "FL ne répond pas au lien" = "FL doesn't answer the link";
 "Quitte et rouvre FL : il voit le lien seulement à son ouverture. Puis MIDI Settings : Controller type « FL Shortcuts », même Port pour la sortie « FL Shortcuts »." = "Quit and reopen FL: it only sees the link when it opens. Then MIDI Settings: Controller type “FL Shortcuts”, same Port for the “FL Shortcuts” output.";
 "Puis Options › MIDI Settings : Controller type « FL Shortcuts », même Port pour la sortie « FL Shortcuts »." = "Then Options › MIDI Settings: Controller type “FL Shortcuts”, same Port for the “FL Shortcuts” output.";
+"Enregistrement annulé." = "Recording cancelled.";
+"Relire la liste" = "Read the list again";

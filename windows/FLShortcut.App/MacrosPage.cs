@@ -387,6 +387,7 @@ internal sealed class MacrosPage
         var problem = _app.RecordMacro((result, why) =>
         {
             _recording = null;
+            RecordingBar.Hide();
             if (_store.Doc(id) is { } doc && result.Blocks.Count > 0)
                 Change(doc, d => d.Blocks.AddRange(result.Blocks.Select(b => new Block(b))));
             var count = result.Blocks.Count == 0 ? Loc.T("Rien d'enregistré dans FL.") : Loc.F("Étapes ajoutées : %lld.", result.Blocks.Count);
@@ -395,7 +396,11 @@ internal sealed class MacrosPage
             RenderSoon();
         });
         _notice = problem;
-        if (problem is null) _recording = id;
+        if (problem is null)
+        {
+            _recording = id;
+            RecordingBar.Show();                     // devant FL, comme le panneau du Mac
+        }
         RenderSoon();
     }
 
@@ -1652,6 +1657,55 @@ internal sealed class MacrosPage
         return box;
     }
 
+    /// « Écrire le nom moi-même » choisi pour le plugin (sinon la liste).
+    private bool _typingPlugin;
+    /// Plugins installés lus dans la Plugin database de FL (instruments, effets), relus avec « Relire la liste ».
+    private readonly Dictionary<bool, IReadOnlyList<PluginDatabase.Plugin>> _pluginLists = new();
+
+    private IReadOnlyList<PluginDatabase.Plugin> InstalledPlugins(bool effect)
+    {
+        if (_demo) return Array.Empty<PluginDatabase.Plugin>();
+        if (!_pluginLists.TryGetValue(effect, out var list))
+            _pluginLists[effect] = list = PluginDatabase.Installed(_app.PluginRoots, effect);
+        return list;
+    }
+
+    /// Liste des plugins comme celle du Mac : « À choisir », puis une rubrique par format (« Tous les plugins · VST3 »).
+    private static ComboBox PluginChoice(IReadOnlyList<PluginDatabase.Plugin> installed, string value, Action<string> choose)
+    {
+        var box = MacLook.SwissCombo(new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, MaxDropDownHeight = 420 });
+        var current = PageOptions.PluginPath(value).LastOrDefault(p => p.Length > 0 && p != PageOptions.MorePlugins) ?? "";
+        var names = new List<string?>();
+        void Add(object content, string? name, bool enabled = true)
+        {
+            box.Items.Add(new ComboBoxItem { Content = content, IsEnabled = enabled });
+            names.Add(name);
+        }
+        if (current.Length == 0) Add(Loc.T("À choisir"), null, enabled: false);
+        else if (!installed.Any(p => p.Name == current)) Add(current, current);
+        foreach (var (format, list) in PluginDatabase.ByFormat(installed))
+        {
+            Add(SwissLabel(Loc.F("Tous les plugins · %@", format), 10, Secondary), null, enabled: false);
+            foreach (var name in list) Add(name, name);
+        }
+        var selected = current.Length == 0 ? 0 : names.IndexOf(current);
+        box.SelectedIndex = selected;
+        box.SelectionChanged += (_, _) =>
+        {
+            if (box.SelectedIndex < 0 || box.SelectedIndex == selected || names[box.SelectedIndex] is not { } name) return;
+            choose(name);
+        };
+        return box;
+    }
+
+    /// Petit lien souligné sous un réglage (comme les SwissLinkButtonStyle du Mac).
+    private static HyperlinkButton SmallLink(string text, Action click)
+    {
+        var link = new HyperlinkButton { Content = Label(text, 11, Text), Padding = new Thickness(0) };
+        link.Click += (_, _) => click();
+        return link;
+    }
+
     private static ComboBox Choice(IReadOnlyList<string> items, int selected, Action<int> set)
     {
         var box = MacLook.SwissCombo(new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch });
@@ -1844,6 +1898,19 @@ internal sealed class MacrosPage
                 {
                     if (field == PageField.Plugin)
                     {
+                        // Comme le Mac (09/11) : la liste de tous les plugins installés (Plugin database de FL), par
+                        // format ; un plugin choisi est pris par la macro (son .fst déposé, sinon « More plugins… » de
+                        // FL), rien n'est ajouté aux listes de FL. « Écrire le nom moi-même » garde le champ d'avant.
+                        var effect = PageOptions.Option(id)?.Kind is PageOption.OptionKind.AddMenu { Item: "Effect" };
+                        var installed = InstalledPlugins(effect);
+                        if (installed.Count > 0 && !_typingPlugin)
+                        {
+                            yield return Param(Loc.T("Plugin"), PluginChoice(installed, po.Name, name =>
+                                set(po with { Name = PageOptions.MorePlugins + PageOptions.PathSeparator + name })));
+                            yield return SmallLink(Loc.T("Écrire le nom moi-même"), () => { _typingPlugin = true; RenderSoon(); });
+                            yield return SmallLink(Loc.T("Relire la liste"), () => { _pluginLists.Clear(); RenderSoon(); });
+                            break;
+                        }
                         // Un plugin hors des favoris : pris dans « More plugins… » de FL, rien n'est ajouté à ses listes.
                         var outside = PageOptions.FromPluginList(po.Name);
                         yield return Param(Loc.T("Plugin"), Field(outside ?? po.Name, PageOptions.MaxName, typed =>
@@ -1856,6 +1923,10 @@ internal sealed class MacrosPage
                             set(po with { Name = more.IsChecked == true && name.Length > 0 ? PageOptions.MorePlugins + PageOptions.PathSeparator + name : name });
                         };
                         yield return more;
+                        if (installed.Count > 0)
+                            yield return SmallLink(Loc.T("Choisir dans la liste de FL"), () => { _typingPlugin = false; RenderSoon(); });
+                        else
+                            yield return Paragraph(Loc.T("Liste introuvable dans FL : écris le nom."), 11, Secondary);
                         break;
                     }
                     yield return Param(field == PageField.Channel ? Loc.T("Canal") : Loc.T("Nom"),

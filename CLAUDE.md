@@ -387,7 +387,16 @@
   deux sens comme sur Mac ; l'appli lit l'entrée « FL Shortcuts » ET « FL Shortcuts Retour » s'il existe (loopMIDI
   ouvert à la main), garde la 1re qui apporte un HELLO (`LinkInputs`, testé) ; sur la boucle chacun ignore ses
   propres CC (`FlProtocol.SentByFl`). Consignes : sortie « FL Shortcuts » sur le même Port. Diagnostic :
-  `envoyés=… reçus=retour+boucle entrée=… ouverture=…` (erreurs de midiIn/OutOpen, journal MIDI).
+  `envoyés=… reçus=retour+boucle entrée=… ouverture=…` (erreurs de midiIn/OutOpen, journal MIDI). Lancée avec
+  Windows avant le pilote de loopMIDI : nouvel essai de création pendant 3 min (`AppController.Start`). « Quitter et
+  rouvrir FL » : une relance à la fois, même après plusieurs clics (`OrganizerLive.RestartFl` `_restarting` ; Mac
+  `OrganizerEnvironment.restartingFL`). Puis (« pas la barre d'enregistrement… pareil que sur mac ») : barre
+  « ● Enregistrement des clics et des touches » en haut à droite pendant l'enregistrement, devant FL sans lui prendre
+  le premier plan (`RecordingBar.cs`, WS_EX_NOACTIVATE, compteur « 2 clics · 1 touche enregistrés », Annuler/Terminer,
+  `MacroRecorder.Count/KeyCount/Cancel`, photo CI `enregistrement-barre.png`) ; « Cliquer sur… » › Ajouter un
+  instrument / un effet = liste de TOUS les plugins installés par format comme le Mac (`PluginDatabase.Installed`,
+  Plugin database lue seulement ; choix → « More plugins... › nom », la macro dépose son .fst d'abord), « Écrire le nom
+  moi-même », « Relire la liste ».
   Pas encore vu sur un PC.
 - **Avertissements au style suisse** (08/11, « pas avec un logo, un emoji d'attention… un point orange ») : un carré
   plein #FF3B1F (blanc sous Orange) devant le texte, le texte à l'encre ; plus aucun triangle, cercle « ! » ni octogone
