@@ -421,4 +421,41 @@ final class OrganizerLinkTests: XCTestCase {
         refused.allChannels = true
         XCTAssertThrowsError(try refused.listChannels()) { XCTAssertEqual($0 as? OrganizerError, .refused(4)) }
     }
+
+    // MARK: Surveillant du lien (08/11 : « FL rame… le lien ne doit pas rester activé »)
+
+    func testWatchdogDropsAHoldNobodyUses() {
+        // Macro finie depuis longtemps, aucun bloc en cours : le lien est rendu.
+        var v = LinkWatch.verdict(holders: [.macro], activeBorrows: 0, sinceLastBorrow: 10,
+                                  organizerHolds: false, organizerGoneFor: nil)
+        XCTAssertEqual(v.release, [.macro])
+        // Un bloc en cours (attente du script) : on n'y touche jamais.
+        v = LinkWatch.verdict(holders: [.macro], activeBorrows: 1, sinceLastBorrow: 60,
+                              organizerHolds: false, organizerGoneFor: nil)
+        XCTAssertEqual(v.release, [])
+        // Juste fini : les 3 s entre deux blocs de la même macro sont laissées.
+        v = LinkWatch.verdict(holders: [.macro], activeBorrows: 0, sinceLastBorrow: 2,
+                              organizerHolds: false, organizerGoneFor: nil)
+        XCTAssertEqual(v.release, [])
+        // Personne ne le tient mais les ports sont là : retirés tout de suite.
+        v = LinkWatch.verdict(holders: [], activeBorrows: 0, sinceLastBorrow: 0, organizerHolds: false,
+                              organizerGoneFor: nil)
+        XCTAssertTrue(v.closeNow)
+    }
+
+    func testWatchdogLeavesTheOrganizerTimeToPutFLBack() {
+        // Organiser ouvert et en cours : gardé.
+        var v = LinkWatch.verdict(holders: [.organizer], activeBorrows: 0, sinceLastBorrow: 99,
+                                  organizerHolds: true, organizerGoneFor: nil)
+        XCTAssertEqual(v, LinkWatch.Verdict())
+        // Fermé : 4 s pour remettre FL comme avant, puis rendu.
+        v = LinkWatch.verdict(holders: [.organizer], activeBorrows: 0, sinceLastBorrow: 99,
+                              organizerHolds: false, organizerGoneFor: nil)
+        XCTAssertTrue(v.organizerGone)
+        XCTAssertEqual(v.release, [])
+        v = LinkWatch.verdict(holders: [.organizer], activeBorrows: 0, sinceLastBorrow: 99,
+                              organizerHolds: false, organizerGoneFor: MIDILink.organizerGrace)
+        XCTAssertEqual(v.release, [.organizer])
+        XCTAssertFalse(v.closeNow)                         // le retrait du dernier tenant ferme lui-même les ports
+    }
 }

@@ -43,7 +43,7 @@ internal sealed partial class MainShell
         if (_welcome.Visibility != Visibility.Visible) return;
         if (!_onLinkStep)
         {
-            if (_shownPortsOk != MidiLink.PortsExist()) ShowWelcomePorts();
+            if (_shownPortsOk != MidiLink.PortsUsable()) ShowWelcomePorts();
         }
         else if (_linkStep == LinkStep.Waiting && _app.Linked)
         {
@@ -182,7 +182,8 @@ internal sealed partial class MainShell
     private void ShowWelcomePorts()
     {
         _onLinkStep = false;
-        var ok = MidiLink.PortsExist();
+        var exist = MidiLink.PortsExist();
+        var ok = exist || MidiServicesPorts.Available;   // Windows 25H2 : créés quand le lien sert
         var light = _app.Light;
         _shownPortsOk = ok;
         _welcomeContent.Children.Clear();
@@ -194,7 +195,7 @@ internal sealed partial class MainShell
         var text = new StackPanel { Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
         text.Children.Add(Label(Loc.T("Ports MIDI « FL Shortcuts »"), 18, Text, bold: true));
         text.Children.Add(Paragraph(ok
-            ? (MidiServicesPorts.CreatedByWindows ? Loc.T("Prêts : créés par Windows.")
+            ? (!exist || MidiServicesPorts.CreatedByWindows ? Loc.T("Prêts : créés par Windows.")
                                                   : Loc.T("Prêts : « FL Shortcuts » et « FL Shortcuts Retour »."))
             : Loc.T("Installe loopMIDI, puis crée « FL Shortcuts » et « FL Shortcuts Retour »."), 12));
         if (!ok)
@@ -226,7 +227,7 @@ internal sealed partial class MainShell
                 ShowScreen();
                 return;
             }
-            if (!MidiLink.PortsExist()) return;
+            if (!MidiLink.PortsUsable()) return;
             _linkStep = _app.Linked ? LinkStep.Linked : LinkStep.Idle;
             ShowWelcomeLink(null);
         });

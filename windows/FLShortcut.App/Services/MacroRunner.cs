@@ -61,7 +61,12 @@ internal sealed class MacroRunner
                 AppLog.Write("MACRO", "crash " + e.GetType().Name);
                 outcome = new MacroOutcome.Cancelled(Loc.T("erreur interne"));
             }
-            finally { Volatile.Write(ref _busy, 0); }
+            finally
+            {
+                Volatile.Write(ref _busy, 0);
+                // Fin de la macro, réussie ou non : le lien qu'elle a ouvert est fermé tout de suite (08/11).
+                _midi.MacroEnded();
+            }
             var ok = outcome is MacroOutcome.Done or MacroOutcome.Stopped;
             _onUi(() => Finished?.Invoke(ok, outcome.Text));
         }) { IsBackground = true, Name = "FL Shortcuts – macro" };
@@ -332,7 +337,7 @@ internal sealed class WindowsFlDriver : IFlDriver
 
     public RequestReply RunRequest(byte[] bytes) => _midi.RunRequest(bytes, brief: _light());
 
-    public bool LinkInstalled => _midi.HasKey && (_midi.PortsPresent || MidiLink.PortsExist());
+    public bool LinkInstalled => _midi.HasKey && (_midi.PortsPresent || MidiLink.PortsUsable());
 
     /// Diagnostic du départ : classe, rôle et taille de chaque fenêtre de FL (jamais le titre).
     public void LogWindows()

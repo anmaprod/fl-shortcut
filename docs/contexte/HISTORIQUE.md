@@ -882,3 +882,12 @@ entrée 1 ≈ 0,5 s.
 - 08/11 (2) : LISEZMOI selon ses retours ligne par ligne + anglais écrit à part ; Windows MIDI Services : les deux
   ports du lien créés par Windows 11 25H2 à jour (Basic Loopback transitoires), loopMIDI sinon. Correction : c'est
   25H2, pas 24H2 (24H2 n'aura pas l'API, d'après les notes de Microsoft).
+- 08/11 (3) : « FL rame… pourtant j'ai bien fermé Organiser… dès qu'une touche qui a besoin du MIDI est appuyée, ça
+  s'ouvre, et ça se ferme dès que l'action est terminée ou a échoué ». Mac : le code fermait déjà le lien 3 s après un
+  bloc, mais rien ne le vérifiait ; ajouté : fermeture dès la fin de la macro (`MIDILink.macroEnded`) et un surveillant
+  (chaque seconde tant que les ports existent : bloc en cours ou juste fini, Organiser ouvert ? sinon ports retirés,
+  ligne MIDI « watchdog » ; durée d'ouverture dans « link ports removed after N s »). Windows : VRAI BUG, une macro ou
+  l'Organiser ouvrait le lien et il restait jusqu'à la fermeture de l'appli (PING toutes les 6 à 60 s, le script de FL
+  réveillé sans cesse) → même règle que le Mac (`MidiLink.Use/Release/MacroEnded`, `LinkWatch` du cœur), ports de
+  Windows MIDI Services créés seulement quand le lien sert puis retirés (pas encore vu sur un vrai PC 25H2 : FL
+  revoit-il l'appareil revenir ?). La vraie cause chez lui n'est pas prouvée : le journal (lignes MIDI) le dira.

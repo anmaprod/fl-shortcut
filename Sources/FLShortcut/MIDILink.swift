@@ -658,6 +658,12 @@ final class MIDILink: ObservableObject {
     /// la même macro ne les recréent pas).
     private let macroGeneration = Locked(0)
     static let macroLinger: TimeInterval = 3
+    /// Blocs de macro en train de se servir du lien (le surveillant n'y touche jamais pendant un bloc), et la fin du
+    /// dernier.
+    private let activeBorrows = Locked(0)
+    private let lastBorrowEnd = Locked(Date.distantPast)
+    /// Ouverture des ports (journal : combien de temps FL a vu l'appareil).
+    private let openedAt = Locked<Date?>(nil)
 
     /// Ports voulus en ce moment : mode MIDI complet (toujours), sinon quelqu'un s'en sert.
     private var portsWanted: Bool { !AppMode.light || !users.value.isEmpty }
@@ -677,13 +683,80 @@ final class MIDILink: ObservableObject {
             return s.isEmpty
         }
         guard AppMode.light, nobody else { return }
+        closeLink(why: "nobody uses them")
+    }
+
+    /// Ports retirés tout de suite (mode léger) : FL ne voit plus « FL Shortcuts Link » et décharge le script.
+    private func closeLink(why: String) {
         portLock.lock()
-        let had = transport.isReady
+        let had = transport.isReady || transport.verify()
         transport.closePorts()
         portLock.unlock()
         core.forgetScript()
-        if had { MacroLog.shared.write("MIDI", "link ports removed (nobody uses them)") }
-        DispatchQueue.main.async { [weak self] in self?.refresh() }
+        let since = openedAt.withLock { d -> Date? in
+            defer { d = nil }
+            return d
+        }
+        if had {
+            let seconds = since.map { String(format: " after %.1f s", Date().timeIntervalSince($0)) } ?? ""
+            MacroLog.shared.write("MIDI", "link ports removed\(seconds) (\(why))")
+        }
+        DispatchQueue.main.async { [weak self] in
+            self?.stopWatch()
+            self?.refresh()
+        }
+    }
+
+    /// Fin d'une macro (réussie, ratée ou arrêtée ; file de la macro). Retour du 08/11 (« FL rame… dès que l'action est
+    /// terminée, ou si elle a échoué, ça se ferme ») : le lien qu'elle a ouvert est retiré tout de suite, sans attendre
+    /// les 3 s laissées entre deux blocs.
+    func macroEnded() {
+        guard AppMode.light, activeBorrows.value == 0, users.value.contains(.macro) else { return }
+        macroGeneration.withLock { $0 += 1 }            // le retrait prévu 3 s après le dernier bloc n'a plus lieu
+        release(.macro)
+    }
+
+    // MARK: Surveillant (mode léger)
+
+    /// Retour du 08/11 (« il faudrait un capteur… dès que le MIDI est activé, qu'il regarde si c'est vraiment
+    /// valable ») : tant que les ports existent en mode léger, chaque seconde, le surveillant vérifie que quelqu'un
+    /// s'en sert vraiment (un bloc de macro en cours ou juste fini, l'Organiser ouvert entre « Démarrer » et la fin du
+    /// rangement). Sinon il les retire et le note dans le journal (ligne MIDI « watchdog »).
+    private var watchTimer: Timer?
+    /// L'Organiser tient-il encore le lien ? (thread principal : sa fenêtre ouverte et son rangement pas fini).
+    var organizerHoldsLink: () -> Bool = { OrganizerWindow.controller?.holdsLink ?? false }
+    private var organizerGoneSince: Date?
+    /// Grâce laissée à l'Organiser fermé pour remettre FL comme avant par le lien (`OrganizerController.releaseDeadline`).
+    static let organizerGrace: TimeInterval = 4
+
+    private func startWatch() {
+        guard AppMode.light, watchTimer == nil else { return }
+        let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in self?.watch() }
+        t.tolerance = 0.3
+        RunLoop.main.add(t, forMode: .common)
+        watchTimer = t
+    }
+
+    private func stopWatch() {
+        watchTimer?.invalidate()
+        watchTimer = nil
+        organizerGoneSince = nil
+    }
+
+    private func watch() {
+        guard AppMode.light else { stopWatch(); return }
+        guard transport.isReady || transport.verify() else { stopWatch(); return }
+        let verdict = LinkWatch.verdict(holders: users.value, activeBorrows: activeBorrows.value,
+                                        sinceLastBorrow: Date().timeIntervalSince(lastBorrowEnd.value),
+                                        organizerHolds: organizerHoldsLink(),
+                                        organizerGoneFor: organizerGoneSince.map { Date().timeIntervalSince($0) })
+        organizerGoneSince = verdict.organizerGone ? (organizerGoneSince ?? Date()) : nil
+        for user in verdict.release {
+            MacroLog.shared.write("MIDI", "watchdog: \(user == .macro ? "macro" : "organizer") hold dropped")
+            if user == .macro { macroGeneration.withLock { $0 += 1 } }
+            release(user)
+        }
+        if verdict.closeNow { closeLink(why: "watchdog: nobody uses them") }
     }
 
     /// Ports créés s'ils manquent (lien installé, mode léger). Vrai s'ils viennent d'être créés.
@@ -695,10 +768,14 @@ final class MIDILink: ObservableObject {
         guard !users.value.isEmpty, !transport.verify() else { return false }
         let made = transport.connect()
         let conflict = transport.hadUniqueIDConflict
+        if made { openedAt.withLock { $0 = Date() } }
         MacroLog.shared.write("MIDI", made ? "link ports created" : "link ports could not be created")
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            if made { self.lastReconnect = Date() }
+            if made {
+                self.lastReconnect = Date()
+                self.startWatch()
+            }
             if conflict != self.uniqueIDConflict { self.uniqueIDConflict = conflict }
             self.refresh()
         }
@@ -713,7 +790,10 @@ final class MIDILink: ObservableObject {
             g += 1
             return g
         }
+        activeBorrows.withLock { $0 += 1 }
         defer {
+            activeBorrows.withLock { $0 -= 1 }
+            lastBorrowEnd.withLock { $0 = Date() }
             DispatchQueue.main.asyncAfter(deadline: .now() + Self.macroLinger) { [weak self] in
                 guard let self, self.macroGeneration.value == generation else { return }
                 self.release(.macro)
@@ -925,5 +1005,32 @@ final class MIDILink: ObservableObject {
         if snap != snapshot { snapshot = snap }
         let s = LinkStatus.resolve(flRunning: flRunning, alive: core.routingView().linked)
         if s != status { status = s }
+    }
+}
+
+/// Décision du surveillant du lien (pure, essayée) : qui ne tient plus vraiment le lien, et faut-il retirer les ports.
+enum LinkWatch {
+    struct Verdict: Equatable {
+        var release: [MIDILink.User] = []
+        var closeNow = false
+        /// L'Organiser ne tient plus le lien (sa grâce court).
+        var organizerGone = false
+    }
+
+    /// - macro : aucun bloc en cours et le dernier fini depuis plus de `macroLinger` + 2 s ;
+    /// - Organiser : fenêtre fermée ou rangement fini depuis `organizerGrace` s (le temps de remettre FL comme avant) ;
+    /// - personne : ports retirés tout de suite.
+    static func verdict(holders: Set<MIDILink.User>, activeBorrows: Int, sinceLastBorrow: TimeInterval,
+                        organizerHolds: Bool, organizerGoneFor: TimeInterval?) -> Verdict {
+        var v = Verdict()
+        if holders.contains(.macro), activeBorrows == 0, sinceLastBorrow > MIDILink.macroLinger + 2 {
+            v.release.append(.macro)
+        }
+        if holders.contains(.organizer), !organizerHolds {
+            v.organizerGone = true
+            if let gone = organizerGoneFor, gone >= MIDILink.organizerGrace { v.release.append(.organizer) }
+        }
+        v.closeNow = holders.isEmpty && activeBorrows == 0
+        return v
     }
 }

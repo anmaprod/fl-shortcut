@@ -45,6 +45,8 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         _shortcuts = ProfileStore.Load(out var warning) ?? ProfilePreset.Recommended.Shortcuts();
         LoadWarning = warning;
         _midi.SetKey(SecretStore.Load());
+        _midi.Light = () => Light;
+        _midi.OrganizerHoldsLink = () => OrganizerWindow.HoldsLink;
         _midi.Changed += () => OnUi(RefreshAll);
         // La sauvegarde du compte suit chaque changement d'ici (pas un remplacement par la sauvegarde elle-même).
         _macros.Changed += () =>
@@ -73,9 +75,13 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
 
     public void Start()
     {
-        // Windows 11 25H2 à jour : les deux ports du lien créés par Windows (sans loopMIDI), en arrière-plan, pour que
-        // FL les voie comme ceux de loopMIDI. Ailleurs : rien (loopMIDI).
-        Task.Run(MidiServicesPorts.EnsureIfNeeded);
+        // Windows 11 25H2 à jour : les deux ports du lien créés par Windows (sans loopMIDI). Mode léger (08/11, « FL
+        // rame ») : seulement quand le lien sert (MidiLink.Use), ici on regarde juste si Windows sait les créer.
+        Task.Run(() =>
+        {
+            MidiServicesPorts.CheckAvailable();
+            if (!Light) MidiServicesPorts.EnsureIfNeeded();
+        });
         if (!Light) _midi.Start();          // mode léger : aucun port MIDI ouvert, rien dans FL
         _hook.Start();
         RefreshAll();
@@ -94,7 +100,7 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     public bool Light => !(_settings.MidiActions ?? _settings.ScriptPath is not null);
     /// Mode léger : une page d'accueil au premier lancement, pour installer loopMIDI (08/11) ; sautée si les deux
     /// ports sont déjà là (loopMIDI prêt, ou créés par Windows). Avec le lien : ports puis MIDI Settings, comme avant.
-    public bool Onboarded => _photoPages || (Light ? _settings.LoopMidiAsked || MidiLink.PortsExist() : _settings.Onboarded);
+    public bool Onboarded => _photoPages || (Light ? _settings.LoopMidiAsked || MidiLink.PortsUsable() : _settings.Onboarded);
     private bool _photoPages;
 
     /// « Continuer » de la page loopMIDI : elle ne revient plus.

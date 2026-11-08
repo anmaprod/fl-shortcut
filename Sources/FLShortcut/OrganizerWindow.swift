@@ -656,6 +656,7 @@ final class OrganizerController: ObservableObject {
             phase = .setup
             return
         case .restored:
+            linkDropped = false                               // ports présents pendant que FL est relancé
             wait(.restartFL)
             return
         case .ready(let delay):
@@ -1249,6 +1250,8 @@ final class OrganizerController: ObservableObject {
     /// valide Organiser ça rame toujours ») : FL saccade tant qu'il voit « FL Shortcuts Link » ; l'écran de fin n'en a
     /// plus besoin, les ports sont retirés tout de suite, sans attendre qu'on ferme la fenêtre.
     private var linkDropped = false
+    /// Le lien est encore à l'Organiser (fenêtre ouverte, rangement pas fini) : lu par le surveillant du lien.
+    var holdsLink: Bool { !closed && !linkDropped }
 
     private func dropLink() {
         guard !linkDropped, !closed else { return }

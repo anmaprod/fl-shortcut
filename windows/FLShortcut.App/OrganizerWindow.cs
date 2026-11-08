@@ -35,6 +35,9 @@ internal sealed class OrganizerWindow : Window
     /// L'Organiser est ouvert (la question de validation attend sa fermeture).
     public static bool IsOpen => _open is not null;
 
+    /// L'Organiser tient encore le lien avec FL (lu par le surveillant du lien, n'importe quel fil).
+    public static bool HoldsLink => _open?._controller is { HoldsLink: true };
+
     /// Appelé une fois l'Organiser fermé (la question de validation de la version organisée).
     public static event Action? OrganizerClosed;
 
@@ -389,7 +392,7 @@ internal sealed class OrganizerWindow : Window
     /// Les deux ports MIDI de loopMIDI manquent (Windows seulement) : rien ne peut passer entre FL Shortcuts et FL.
     private void PortsCard()
     {
-        if (MidiLink.PortsExist()) return;
+        if (MidiLink.PortsUsable()) return;
         var link = new HyperlinkButton
         {
             Content = Label(Loc.T("Télécharger loopMIDI"), 12, Link),

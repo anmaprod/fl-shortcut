@@ -78,6 +78,8 @@ internal static class OrganizerLive
             },
             PlaceIcon = _ => OrganizerError.Failed(Loc.T("Les icônes de FL ne sont pas encore posées sur Windows. Les couleurs sont posées.")),
             PrepareLink = () => PrepareLink(app),
+            ReleaseLink = () => app.Midi.Release(LinkUser.Organizer),
+            UseLinkAgain = () => app.Midi.Use(LinkUser.Organizer),
             InstallLink = () => app.InstallScript() is null,
             RestartFl = RestartFl,
             InstallLinkElsewhere = installElsewhere,
@@ -128,14 +130,14 @@ internal static class OrganizerLive
         };
     }
 
-    /// Lien installé : script remis dans FL s'il en a disparu (FL le relira à son prochain lancement), ports ouverts à
-    /// la demande (le temps que FL voie le script : 2 secondes la première fois).
+    /// Lien installé : script remis dans FL s'il en a disparu (FL le relira à son prochain lancement), lien tenu par
+    /// l'Organiser jusqu'à la fin du rangement ou sa fermeture (le temps que FL voie le script : 2 secondes la première
+    /// fois).
     private static OrganizerLinkState PrepareLink(AppController app)
     {
         if (!app.Midi.HasKey) return new OrganizerLinkState.NotInstalled();
         if (app.RepairScriptIfMissing()) return new OrganizerLinkState.Restored();
-        var fresh = !app.Midi.Started;
-        app.Midi.Start();
+        var fresh = app.Midi.Use(LinkUser.Organizer);
         return new OrganizerLinkState.Ready(fresh ? 2 : 0);
     }
 

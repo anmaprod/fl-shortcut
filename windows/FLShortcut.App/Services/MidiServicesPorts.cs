@@ -3,9 +3,9 @@
 // « FL Shortcuts Retour », comme loopMIDI les créait : des ports « boucle » de MIDI 1.0 (Basic Loopback) que FL voit
 // dans MIDI Settings. Rien d'autre à installer. MidiLink les ouvre par WinMM, comme ceux de loopMIDI.
 //
-// Ports « transitoires » : ils vivent tant que le service MIDI de Windows tourne ; l'appli les retire en quittant. Si
-// elle est tuée avant, ils restent jusqu'au redémarrage du service : au lancement suivant, la création est refusée
-// (même identifiant) mais les ports sont là, et c'est tout ce qui compte.
+// Ports « transitoires », créés seulement quand le lien sert (Organiser, bloc de macro : MidiLink.Use) et retirés dès
+// qu'il ne sert plus (08/11, « FL rame ») ; l'appli les retire aussi en quittant. Si elle est tuée avant, ils restent
+// jusqu'au redémarrage du service : la création suivante est refusée (même identifiant) mais les ports sont là.
 //
 // Windows plus ancien, service absent, loopMIDI déjà là : rien n'est créé, l'appli garde loopMIDI (écran « Télécharger
 // loopMIDI » de l'Organiser). Jamais d'exception vers l'appelant. Journal : MIDI (mots fixes, codes d'erreur).
@@ -25,7 +25,33 @@ internal static class MidiServicesPorts
 
     private static readonly object Gate = new();
     private static readonly List<Guid> Created = new();
-    private static DateTime _lastTry = DateTime.MinValue;
+    private static DateTime _lastFailure = DateTime.MinValue;
+    private static bool? _available;
+
+    /// Windows sait créer les ports lui-même (25H2 à jour) : rien à installer, ils apparaissent quand le lien sert
+    /// (08/11 : jamais en permanence, FL ramait). Faux tant que `CheckAvailable` n'a pas répondu.
+    public static bool Available => _available == true;
+
+    /// Le service MIDI de Windows et ses ports « boucle » sont-ils là ? Bloquant (jusqu'à ~3 s) : en tâche de fond, au
+    /// lancement. Rien n'est créé.
+    public static bool CheckAvailable()
+    {
+        if (_available is { } known) return known;
+#if MIDI_SERVICES
+        try
+        {
+            _available = MidiApi.EnsureServiceAvailable() && MidiBasicLoopbackManager.IsTransportAvailable;
+        }
+        catch (Exception e)
+        {
+            AppLog.Write("MIDI", "Windows MIDI Services indisponible (" + e.GetType().Name + ")");
+            _available = false;
+        }
+#else
+        _available = false;
+#endif
+        return _available.Value;
+    }
 
     /// Les ports ont été créés par Windows (pas par loopMIDI) pendant ce lancement.
     public static bool CreatedByWindows
@@ -34,29 +60,30 @@ internal static class MidiServicesPorts
     }
 
     /// Les deux ports manquent : Windows les crée s'il sait le faire. Vrai si les ports sont là ensuite. Bloquant
-    /// (jusqu'à ~3 s la première fois) : jamais sur le fil de l'interface. Un essai raté n'est refait qu'après 60 s.
+    /// (jusqu'à ~3 s la première fois) : jamais sur le fil de l'interface. Un essai RATÉ n'est refait qu'après 60 s
+    /// (créés puis retirés après une macro : recréés tout de suite à la suivante).
     public static bool EnsureIfNeeded()
     {
         if (MidiLink.PortsExist()) return true;
         lock (Gate)
         {
             if (MidiLink.PortsExist()) return true;
-            if (DateTime.UtcNow - _lastTry < TimeSpan.FromSeconds(60)) return false;
-            _lastTry = DateTime.UtcNow;
+            if (_available == false || DateTime.UtcNow - _lastFailure < TimeSpan.FromSeconds(60)) return false;
+            var ok = false;
 #if MIDI_SERVICES
             try
             {
-                return CreateBoth();
+                ok = CreateBoth();
             }
             catch (Exception e)
             {
                 // Classe absente de ce Windows (pas encore 25H2 à jour), service arrêté… : loopMIDI.
                 AppLog.Write("MIDI", "Windows MIDI Services indisponible (" + e.GetType().Name + ")");
-                return false;
+                _available = false;
             }
-#else
-            return false;
 #endif
+            if (!ok) _lastFailure = DateTime.UtcNow;
+            return ok;
         }
     }
 

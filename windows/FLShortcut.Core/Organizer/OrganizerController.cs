@@ -59,6 +59,11 @@ public sealed class OrganizerEnvironment
     public Func<FlIcon, OrganizerError?> PlaceIcon { get; init; } = _ => null;
     /// Avant chaque analyse : lien installé ? Ports MIDI prêts ?
     public Func<OrganizerLinkState> PrepareLink { get; init; } = () => new OrganizerLinkState.Ready(0);
+    /// Le lien avec FL n'est plus tenu par l'Organiser (fin du rangement, « Revenir comme avant » fini, fermeture) :
+    /// en mode léger, il est fermé (08/11, « FL rame »). Miroir de `releaseLink` du Mac.
+    public Action ReleaseLink { get; init; } = () => { };
+    /// « Revenir comme avant » après la fin : le lien repris le temps de remettre FL. Vrai s'il vient d'être rouvert.
+    public Func<bool> UseLinkAgain { get; init; } = () => false;
     /// « Installer le lien » : vrai s'il est installé ; « Autre dossier de FL… ».
     public Func<bool> InstallLink { get; init; } = () => true;
     /// « Quitter et rouvrir FL » (07/11, comme le Mac) : FL fermé (il demande d'enregistrer s'il le faut), puis relancé.
@@ -111,6 +116,11 @@ public sealed class OrganizerController
     private OrganizerSession? _session;
     private OrganizerSnapshot? _snapshot;
     private bool _closed;
+    private bool _linkDropped;
+    private bool _linkReleased;
+
+    /// Le lien est encore à l'Organiser (ouvert, rangement pas fini) : lu par le surveillant du lien.
+    public bool HoldsLink => !_closed && !_linkDropped;
     private int _runToken;
     private int _waitSerial;
 
@@ -203,10 +213,13 @@ public sealed class OrganizerController
                 SetPhase(new OrganizerPhase.Setup());
                 return;
             case OrganizerLinkState.Restored:
+                _linkDropped = false;                    // ports présents pendant que FL est relancé
                 Wait(OrganizerWait.RestartFl);
                 return;
             case OrganizerLinkState.Ready r:
                 warmUp = r.WarmUp;
+                _linkDropped = false;
+                _linkReleased = false;
                 break;
             default:
                 return;
@@ -675,8 +688,18 @@ public sealed class OrganizerController
                 LastApply = outcome;
                 SetPhase(new OrganizerPhase.Applied(outcome.Error));
                 if (MadeCopy(outcome) is { } made) _env.CopyMade(made.Original, made.Copy);
+                DropLink();
             });
         });
+    }
+
+    /// Tout est rangé (ou remis comme avant) : l'écran de fin n'a plus besoin du lien, il est rendu tout de suite.
+    private void DropLink()
+    {
+        if (_linkDropped || _closed) return;
+        _linkDropped = true;
+        _linkReleased = true;
+        _env.ReleaseLink();
     }
 
     /// La copie rangée faite et ouverte dans FL, avec son original (même si la suite s'est arrêtée en route).
@@ -732,16 +755,23 @@ public sealed class OrganizerController
         if (!CanUndo || _snapshot is not { } snapshot || _link is not { } link) return;
         _env.FocusFl();
         SetPhase(new OrganizerPhase.Undoing());
+        // Lien rendu à la fin du rangement : repris le temps de remettre FL comme avant, puis rendu de nouveau.
+        var fresh = _linkDropped && _env.UseLinkAgain();
+        _linkDropped = false;
+        _linkReleased = false;
         var applier = new OrganizerApplier(link, _env.MoveUp(link), _env.MoveLeft(link), wait: _env.Sleep,
             listen: _env.Timing.TrackListen, files: _env.ProjectFiles());
+        var sleep = _env.Sleep;
         _env.Background(() =>
         {
+            if (fresh) sleep(2);                         // FL voit l'appareil revenir et réveille son script
             var outcome = applier.Undo(snapshot);
             _env.Post(() =>
             {
                 _snapshot = outcome.Snapshot;
                 SetPhase(new OrganizerPhase.Undone(outcome.Error));
                 if (outcome.Error is null && snapshot.Original is not null && LastApply?.Copy is { } copy) _env.CopyUndone(copy);
+                DropLink();
             });
         });
     }
@@ -803,6 +833,19 @@ public sealed class OrganizerController
         _closed = true;
         _session?.Cancel();
         _session = null;
+        // Plus de lien avec FL une fois le travail en cours fini (FL remis comme avant par le lien), et au plus tard 3 s
+        // après (comme le Mac, `releaseDeadline`). Une seule fois.
+        if (!_linkReleased)
+        {
+            _linkReleased = true;
+            var released = 0;
+            void Release()
+            {
+                if (Interlocked.Exchange(ref released, 1) == 0) _env.ReleaseLink();
+            }
+            _env.Background(() => _env.Post(Release));
+            _env.After(3, Release);
+        }
         var done = OnClose;
         OnClose = null;
         done?.Invoke();

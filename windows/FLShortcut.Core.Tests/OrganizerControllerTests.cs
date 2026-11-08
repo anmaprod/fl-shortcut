@@ -42,8 +42,14 @@ public sealed class OrganizerControllerTests
     private static OrganizerEnvironment Env(FakeOrganizerLink link, FakeDisk disk, Later later, Func<OrganizerLinkState>? prepare = null,
         Func<bool>? install = null, FakeAudio? audio = null, Func<CorrectionsIA?>? corrections = null, Action<string>? share = null,
         Action<string, string>? team = null, Func<IReadOnlyList<SoundFamily>>? order = null, Action<IReadOnlyList<SoundFamily>>? saveOrder = null,
-        Action<string>? copy = null, List<(string, string)>? made = null) => new()
+        Action<string>? copy = null, List<(string, string)>? made = null, List<string>? linkLog = null) => new()
     {
+        ReleaseLink = () => linkLog?.Add("rendu"),
+        UseLinkAgain = () =>
+        {
+            linkLog?.Add("repris");
+            return true;
+        },
         Link = () => link,
         Audio = () => (audio ?? new FakeAudio(link), null),
         Classify = () => (samples, _) => samples.Length == 0 ? (SoundFamily.Unsure, 0, "silence") : (SoundFamily.Drums, 0.9, "faux"),
@@ -98,6 +104,37 @@ public sealed class OrganizerControllerTests
         controller.Close();
         controller.Close();
         Assert.Equal(1, closings);
+    }
+
+    [Fact]
+    public void LinkIsGivenBackAsSoonAsTheWorkIsDone()
+    {
+        // 08/11 (« FL rame… le MIDI ne doit pas rester activé ») : lien rendu à la fin du rangement, repris pour
+        // « Revenir comme avant », rendu de nouveau ; la fermeture ne le rend pas une 3e fois.
+        var (link, disk) = Project();
+        var log = new List<string>();
+        var later = new Later();
+        var controller = new OrganizerController(Env(link, disk, later, linkLog: log));
+        controller.Start();
+        Assert.True(controller.HoldsLink);
+        controller.Apply();
+        Assert.Equal(new[] { "rendu" }, log);
+        Assert.False(controller.HoldsLink);
+        controller.Undo();
+        Assert.Equal(new[] { "rendu", "repris", "rendu" }, log);
+        controller.Close();
+        later.Run();
+        Assert.Equal(new[] { "rendu", "repris", "rendu" }, log);
+
+        // Fermé en plein travail : rendu une seule fois (tout de suite ou au plus tard 3 s après).
+        log.Clear();
+        var (link2, disk2) = Project();
+        var second = new OrganizerController(Env(link2, disk2, later, linkLog: log));
+        second.Start();
+        second.Close();
+        later.Run();
+        Assert.Equal(new[] { "rendu" }, log);
+        Assert.False(second.HoldsLink);
     }
 
     [Fact]

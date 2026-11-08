@@ -419,3 +419,34 @@ public sealed class LinkCoreTests
         Assert.Empty(OrganizerPayload.SetNames(ItemKind.Channels, new[] { (5, "") }));
     }
 }
+
+/// Surveillant du lien (08/11) : miroir de OrganizerLinkTests.testWatchdog… du Mac.
+public sealed class LinkWatchTests
+{
+    [Fact]
+    public void DropsAHoldNobodyUses()
+    {
+        var v = LinkWatch.Decide(new[] { LinkUser.Macro }, 0, 10, false, null);
+        Assert.Equal(new[] { LinkUser.Macro }, v.Release);
+        // Un bloc en cours : jamais touché.
+        Assert.Empty(LinkWatch.Decide(new[] { LinkUser.Macro }, 1, 60, false, null).Release);
+        // Juste fini : les 3 s entre deux blocs sont laissées.
+        Assert.Empty(LinkWatch.Decide(new[] { LinkUser.Macro }, 0, 2, false, null).Release);
+        // Personne mais des ports ouverts : fermés.
+        Assert.True(LinkWatch.Decide(Array.Empty<LinkUser>(), 0, 0, false, null).CloseNow);
+    }
+
+    [Fact]
+    public void LeavesTheOrganizerTimeToPutFlBack()
+    {
+        var v = LinkWatch.Decide(new[] { LinkUser.Organizer }, 0, 99, true, null);
+        Assert.Empty(v.Release);
+        Assert.False(v.OrganizerGone);
+        v = LinkWatch.Decide(new[] { LinkUser.Organizer }, 0, 99, false, null);
+        Assert.True(v.OrganizerGone);
+        Assert.Empty(v.Release);
+        v = LinkWatch.Decide(new[] { LinkUser.Organizer }, 0, 99, false, LinkWatch.OrganizerGrace);
+        Assert.Equal(new[] { LinkUser.Organizer }, v.Release);
+        Assert.False(v.CloseNow);
+    }
+}

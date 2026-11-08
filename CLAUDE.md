@@ -572,6 +572,13 @@
   `OrganizerController.dropLink`), sans attendre la fermeture ; « Revenir comme avant » le reprend le temps de remettre
   FL comme avant (`useLinkAgain`) ; les demandes de l'Organiser ne recréent jamais l'appareil une fois le lien rendu
   (`MIDILink.runOrganizerRequest`, pas d'emprunt comme un bloc de macro). Pas encore vu chez lui (journal `MIDI`).
+  08/11 (« FL rame… ça s'ouvre quand une touche en a besoin et ça se ferme dès que l'action est finie ou a échoué ») :
+  lien fermé dès la fin de la macro (`macroEnded`, Mac et Windows) et SURVEILLANT chaque seconde tant que les ports
+  sont ouverts (`LinkWatch` : bloc en cours ou fini depuis < 5 s, Organiser qui le tient — `holdsLink`, 4 s de grâce
+  après sa fermeture ; sinon ports retirés, journal « watchdog », durée « after N s »). Windows avait le vrai bug : le
+  lien restait ouvert jusqu'à la fermeture de l'appli après la 1re macro ou l'Organiser (PING sans fin) → même règle
+  (`MidiLink.Use/Release`), ports de Windows MIDI Services créés au besoin puis retirés (`MidiServicesPorts.Available`
+  au lancement, rien créé).
 - Organiser, « Installer le lien » (31/10, « ça se ferme ») : FL remis devant (⌘Q quittait FL Shortcuts, activé par
   l'installation), la fenêtre attend que FL soit quitté puis rouvert (« Ouvrir FL Studio » s'il est fermé), puis
   l'image MIDI Settings des 4 cases (`.midiSettings`, image du README) tant que FL ne répond pas ; « Copier le

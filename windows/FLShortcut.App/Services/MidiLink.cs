@@ -61,7 +61,7 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
     /// Ports ouverts et surveillés, PING quand FL tourne (mode avec actions MIDI, ou à la demande : Organiser).
     public void Start()
     {
-        _timer ??= new Timer(_ => Tick(), null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+        lock (_gate) _timer ??= new Timer(_ => Tick(), null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
     }
 
     /// Vue pour le hook clavier (copie immuable).
@@ -70,42 +70,200 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
     /// Envoie une action signée. Faux si le lien, la clé ou le port manquent (la touche sera rendue à FL).
     public bool SendAction(int id) => Core.SendAction(id) == LinkCore.SendResult.Sent;
 
-    /// Macro (bloquant, jamais sur le fil de l'interface) : ports ouverts à la demande, script réveillé brièvement
-    /// (`brief` : mode léger, il se rendort ensuite), actions dans l'ordre. null si FL les a faites, sinon la raison.
+    /// Macro (bloquant, jamais sur le fil de l'interface) : lien ouvert le temps du bloc (mode léger), script réveillé
+    /// brièvement (`brief` : il se rendort ensuite), actions dans l'ordre. null si FL les a faites, sinon la raison.
     public string? RunBriefly(IReadOnlyList<int> ids, bool brief)
     {
-        if (!HasKey || !(PortsPresent || PortsReady())) return Loc.T("lien avec FL non installé");
-        Start();
-        lock (_gate)
+        if (!HasKey) return Loc.T("lien avec FL non installé");
+        return Borrow(() =>
         {
-            if (_out == IntPtr.Zero || _in == IntPtr.Zero) OpenUnlocked();
-        }
-        return Core.RunBriefly(ids, brief);
+            if (!(PortsPresent || PortsReady())) return Loc.T("lien avec FL non installé");
+            OpenNow();
+            return Core.RunBriefly(ids, brief);
+        });
     }
 
-    /// Commande avec données (PROTOCOL.md §7 : Nom et couleur d'une macro), bloquante : ports ouverts à la demande,
+    /// Commande avec données (PROTOCOL.md §7 : Nom et couleur d'une macro), bloquante : lien ouvert le temps du bloc,
     /// script réveillé si besoin (`brief` : il se rendort ensuite).
     public DataReply RunData(IReadOnlyList<byte> units, bool brief)
     {
-        if (!HasKey || !(PortsPresent || PortsReady())) return new DataReply.Failed(Loc.T("lien avec FL non installé"));
-        Start();
-        lock (_gate)
+        if (!HasKey) return new DataReply.Failed(Loc.T("lien avec FL non installé"));
+        return Borrow<DataReply>(() =>
         {
-            if (_out == IntPtr.Zero || _in == IntPtr.Zero) OpenUnlocked();
-        }
-        return Core.RunData(units, brief);
+            if (!(PortsPresent || PortsReady())) return new DataReply.Failed(Loc.T("lien avec FL non installé"));
+            OpenNow();
+            return Core.RunData(units, brief);
+        });
     }
 
-    /// Opération de l'Organiser (PROTOCOL.md §8), bloquante : ports ouverts à la demande, script réveillé si besoin.
+    /// Opération de l'Organiser (PROTOCOL.md §8), bloquante, seulement tant que l'Organiser tient le lien (mode léger ;
+    /// comme le Mac : une demande arrivée après la fin du rangement ne le rouvre jamais).
     public RequestReply RunRequest(byte[] bytes, bool brief)
     {
+        if (Light() && !Holds(LinkUser.Organizer)) return new RequestReply.Failed(Loc.T("lien avec FL fermé (Organiser fini)"));
         PortsReady();
+        OpenNow();
+        return Core.RunRequest(bytes, brief, TimeSpan.FromSeconds(1.5));
+    }
+
+    private void OpenNow()
+    {
         Start();
         lock (_gate)
         {
             if (_out == IntPtr.Zero || _in == IntPtr.Zero) OpenUnlocked();
         }
-        return Core.RunRequest(bytes, brief, TimeSpan.FromSeconds(1.5));
+    }
+
+    // ---------- Lien seulement quand on s'en sert (mode léger), miroir de MIDILink.swift ----------
+    //
+    // Retour du 08/11 (« FL rame… dès qu'une touche qui a besoin du MIDI est appuyée, ça s'ouvre, et ça se ferme dès que
+    // l'action est terminée, ou si elle a échoué ») : avant, une macro ou l'Organiser ouvrait le lien et il restait
+    // ouvert jusqu'à la fermeture de l'appli (PING toutes les 6 à 60 s : le script de FL se réveillait sans cesse).
+    // Maintenant : ouvert par l'Organiser (de « Démarrer » à la fin du rangement) ou le temps d'un bloc de macro,
+    // fermé à la fin de la macro (ou 3 s après son dernier bloc), et le surveillant ferme ce que personne ne tient.
+    // Ports créés par Windows MIDI Services : retirés aussi (FL ne voit plus l'appareil, comme le Mac) ; ceux de
+    // loopMIDI sont à loopMIDI, l'appli ne leur parle plus.
+
+    private readonly HashSet<LinkUser> _users = new();
+    private int _macroGeneration;
+    private int _activeBorrows;
+    private long _lastBorrowEnd = DateTime.MinValue.Ticks;
+    private DateTime? _openedAt;
+    private DateTime? _organizerGoneSince;
+    /// FL relie le script à un appareil qui vient d'apparaître : PING jusqu'à son HELLO, ce temps au plus.
+    public const double WarmUpLimit = 8;
+
+    /// Mode léger (lu à chaque fois).
+    public Func<bool> Light { get; set; } = () => true;
+    /// L'Organiser tient-il encore le lien ? (fenêtre ouverte, rangement pas fini).
+    public Func<bool> OrganizerHoldsLink { get; set; } = () => false;
+
+    public bool Holds(LinkUser user)
+    {
+        lock (_users) return _users.Contains(user);
+    }
+
+    /// `user` a besoin du lien : ports créés par Windows s'il le faut, ouverts et surveillés. Vrai si le lien vient
+    /// d'être ouvert (FL met un moment à voir l'appareil et à réveiller son script).
+    public bool Use(LinkUser user) => Use(user, out _);
+
+    private bool Use(LinkUser user, out bool portsNew)
+    {
+        lock (_users) _users.Add(user);
+        var existed = PortsExist();
+        portsNew = !existed && MidiServicesPorts.EnsureIfNeeded();
+        var wasStarted = Started;
+        Start();
+        if (!wasStarted)
+        {
+            _openedAt = DateTime.UtcNow;
+            AppLog.Write("MIDI", portsNew ? "link opened (ports created by Windows)" : "link opened");
+        }
+        return portsNew || !wasStarted;
+    }
+
+    /// `user` n'en a plus besoin ; plus personne (mode léger) : lien fermé tout de suite.
+    public void Release(LinkUser user)
+    {
+        bool nobody;
+        lock (_users)
+        {
+            _users.Remove(user);
+            nobody = _users.Count == 0;
+        }
+        if (Light() && nobody) Close("nobody uses it");
+    }
+
+    /// Fin d'une macro (réussie, ratée ou arrêtée) : le lien qu'elle a ouvert est fermé tout de suite.
+    public void MacroEnded()
+    {
+        if (!Light() || Volatile.Read(ref _activeBorrows) > 0 || !Holds(LinkUser.Macro)) return;
+        Interlocked.Increment(ref _macroGeneration);       // la fermeture prévue 3 s après le dernier bloc n'a plus lieu
+        Release(LinkUser.Macro);
+    }
+
+    private T Borrow<T>(Func<T> body)
+    {
+        if (!Light() || Holds(LinkUser.Organizer)) return body();
+        var generation = Interlocked.Increment(ref _macroGeneration);
+        Interlocked.Increment(ref _activeBorrows);
+        try
+        {
+            Use(LinkUser.Macro, out var portsNew);
+            if (portsNew) WarmUp();
+            return body();
+        }
+        finally
+        {
+            Interlocked.Decrement(ref _activeBorrows);
+            Interlocked.Exchange(ref _lastBorrowEnd, DateTime.UtcNow.Ticks);
+            _ = Task.Delay(TimeSpan.FromSeconds(LinkWatch.MacroLinger)).ContinueWith(_ =>
+            {
+                if (Volatile.Read(ref _macroGeneration) == generation) Release(LinkUser.Macro);
+            }, TaskScheduler.Default);
+        }
+    }
+
+    /// Ports tout juste créés par Windows : FL les voit et relie son script ; PING jusqu'à son HELLO.
+    private void WarmUp()
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(WarmUpLimit);
+        Thread.Sleep(500);
+        OpenNow();
+        while (DateTime.UtcNow < deadline)
+        {
+            if (Core.RunBriefly(Array.Empty<int>(), brief: true, TimeSpan.FromSeconds(0.7)) is null)
+            {
+                AppLog.Write("MIDI", "script ready after the ports appeared");
+                return;
+            }
+        }
+        AppLog.Write("MIDI", "no answer from FL after the ports appeared");
+    }
+
+    /// Lien fermé : plus de battement ni de PING, ports WinMM fermés, ports de Windows retirés.
+    private void Close(string why)
+    {
+        var timer = Interlocked.Exchange(ref _timer, null);
+        timer?.Dispose();
+        bool had;
+        lock (_gate)
+        {
+            had = _out != IntPtr.Zero || _in != IntPtr.Zero || timer is not null;
+            CloseUnlocked();
+        }
+        Core.Reset();
+        _organizerGoneSince = null;
+        var since = _openedAt;
+        _openedAt = null;
+        MidiServicesPorts.RemoveCreated();
+        if (had)
+        {
+            var seconds = since is { } d ? $" after {(DateTime.UtcNow - d).TotalSeconds:0.0} s" : "";
+            AppLog.Write("MIDI", $"link closed{seconds} ({why})");
+        }
+        Changed?.Invoke();
+    }
+
+    /// Surveillant (mode léger, chaque seconde) : vrai s'il vient de fermer le lien.
+    private bool Watch()
+    {
+        LinkUser[] holders;
+        lock (_users) holders = _users.ToArray();
+        var now = DateTime.UtcNow;
+        var since = (now - new DateTime(Interlocked.Read(ref _lastBorrowEnd), DateTimeKind.Utc)).TotalSeconds;
+        double? gone = _organizerGoneSince is { } g ? (now - g).TotalSeconds : null;
+        var v = LinkWatch.Decide(holders, Volatile.Read(ref _activeBorrows), since, OrganizerHoldsLink(), gone);
+        _organizerGoneSince = v.OrganizerGone ? (_organizerGoneSince ?? now) : null;
+        foreach (var user in v.Release)
+        {
+            AppLog.Write("MIDI", $"watchdog: {(user == LinkUser.Macro ? "macro" : "organizer")} hold dropped");
+            if (user == LinkUser.Macro) Interlocked.Increment(ref _macroGeneration);
+            Release(user);
+        }
+        if (v.CloseNow) Close("watchdog: nobody uses it");
+        return _timer is null;
     }
 
     // ---------- IMidiTransport ----------
@@ -121,7 +279,8 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
         var failed = false;
         lock (_gate)
         {
-            if (_out == IntPtr.Zero) OpenUnlocked();
+            // Mode léger, lien fermé (personne ne s'en sert) : rien ne le rouvre en douce.
+            if (_out == IntPtr.Zero && _timer is not null) OpenUnlocked();
             if (_out == IntPtr.Zero) return false;
             foreach (var m in messages)
             {
@@ -137,9 +296,12 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
 
     private void Tick()
     {
+        if (_timer is null) return;
+        if (Light() && Watch()) return;                  // lien fermé par le surveillant
         var changed = false;
         lock (_gate)
         {
+            if (_timer is null) return;                  // fermé entre-temps : on ne rouvre rien
             if (_out == IntPtr.Zero || _in == IntPtr.Zero) changed |= OpenUnlocked();
         }
         Core.Tick(FlPresence.IsRunning());
@@ -255,6 +417,9 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
 
     /// Les deux ports sont là, ou Windows vient de les créer (Windows MIDI Services, sans loopMIDI).
     public static bool PortsReady() => PortsExist() || MidiServicesPorts.EnsureIfNeeded();
+
+    /// Les ports sont là, ou Windows les créera quand le lien servira (rien à installer).
+    public static bool PortsUsable() => PortsExist() || MidiServicesPorts.Available;
 
     /// Les deux ports existent-ils ? (pour l'écran « Préparer la connexion »)
     public static bool PortsExist() => (FindOut(ToFlPortName) ?? FindOut(OldToFlPortName)) is not null

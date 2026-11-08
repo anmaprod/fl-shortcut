@@ -118,6 +118,8 @@ final class MacroRunner {
         // Effets neufs à chaque passage : rien de l'état d'un passage ne survit au suivant.
         let outcome = MacroInterpreter(effects: MacroEffectsMac(pid: pid), observer: observer).run(program)
         MacroLog.shared.endRun(outcome.text)
+        // Fin de la macro, réussie ou non : le lien qu'elle a ouvert est retiré tout de suite (08/11).
+        MIDILink.shared.macroEnded()
         return outcome
     }
 
