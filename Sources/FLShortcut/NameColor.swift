@@ -97,6 +97,13 @@ extension Block {
         guard case .flAction("marker", _) = body else { return nil }
         return MarkerPayload(name: note).name
     }
+
+    /// Action de FL jamais regroupée avec les autres (un seul réveil du lien pour celles-là) : marqueur nommé, action
+    /// faite dans la fenêtre de FL (« Consolider la piste dans la Playlist »).
+    var flActionRunsAlone: Bool {
+        guard case .flAction(let key, _) = body else { return false }
+        return markerName != nil || LocalFLAction.named(key) != nil
+    }
 }
 
 /// Données de l'opération 1 : `[1, drapeaux (bit 0 nom, bit 1 couleur), R, G, B, n, nom UTF-8 (n octets)]`.

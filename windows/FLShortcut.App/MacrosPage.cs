@@ -1636,13 +1636,17 @@ internal sealed class MacrosPage
                 break;
             case BlockBody.FlAction a:
                 // Les actions retirées des listes (08/11) restent montrées pour un bloc qui en a déjà une.
-                var actions = FlActions.All.Where(x => !FlActions.Retired.Contains(x.Key) || x.Key == a.ActionKey).ToList();
-                var at = actions.ToList().FindIndex(x => x.Key == a.ActionKey);
-                yield return Param(Loc.T("Action"), Choice(actions.Select(x => Loc.T(x.Label)).ToList(), at, i =>
+                // Puis les actions faites dans la fenêtre de FL, sans le script (« Consolider la piste dans la Playlist »).
+                var actions = FlActions.All.Where(x => !FlActions.Retired.Contains(x.Key) || x.Key == a.ActionKey)
+                    .Select(x => (x.Key, Label: Loc.T(x.Label), Detail: Loc.T(x.Detail()), Id: (int?)x.Id))
+                    .Concat(LocalFlAction.All.Select(x => (x.Key, Label: Loc.T(x.Label), Detail: Loc.T(x.Detail), Id: (int?)null)))
+                    .ToList();
+                var at = actions.FindIndex(x => x.Key == a.ActionKey);
+                yield return Param(Loc.T("Action"), Choice(actions.Select(x => x.Label).ToList(), at, i =>
                 {
                     var info = actions[i];
                     // Sans lien, la touche d'origine de FL quand elle existe (comme les pages).
-                    var fallback = LightMode.NativeEquivalent(info.Id) is { } native && MacKeys.FromWindows(native) is { } key
+                    var fallback = info.Id is { } id && LightMode.NativeEquivalent(id) is { } native && MacKeys.FromWindows(native) is { } key
                         ? ActionFallback.Key(key) : ActionFallback.None;
                     Change(doc, d =>
                     {
@@ -1655,7 +1659,7 @@ internal sealed class MacrosPage
                 // est choisi tout seul et plus montré (08/11 : « tous ces petits détails-là, tu les enlèves »).
                 if (at >= 0)
                 {
-                    var detail = Paragraph(Loc.T(actions[at].Detail()), 11);
+                    var detail = Paragraph(actions[at].Detail, 11);
                     detail.Margin = new Thickness(0, -6, 0, 0);
                     yield return detail;
                 }

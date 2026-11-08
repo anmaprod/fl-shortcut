@@ -449,6 +449,66 @@ public class MacroEffectsWindowsTests
         MuteDotsTests.Near(220, fl.Clicks.Single().Y);
     }
 
+    /// « Consolider la piste dans la Playlist » (08/11) : clic droit sur l'en-tête de la piste cliquée (son rond mute à
+    /// droite du clic), puis « Consolidate… » dans le menu ; Mixer, clip ou menu sans lui : rien de cliqué dedans.
+    [Fact]
+    public void ConsolidateRightClicksTheClickedPlaylistHeaderThenItsMenuItem()
+    {
+        var consolidate = new[] { new FlActionCall("consolidate", ActionFallback.None) };
+        (FakeFl, MacroEffectsWindows, RunState) Playlist(int x, int y, bool withItem)
+        {
+            var started = Start(f =>
+            {
+                f.Open[0] = new FlWin(FakeFl.Main, FlWindowRole.Main, 0, 0, 1300, 800);
+                f.ColorImage = MuteDotsTests.Playlist();
+                f.LastAimedClick = new AimedClick(x, y, FakeFl.Main, 1300, 800, f.Now);
+            });
+            var fl = started.Fl;
+            fl.OnClick = (_, _, right) => { if (right) fl.After(50, () => fl.Show(10, FlWindowRole.Menu, 120, 160, 240, 320)); };
+            fl.MenuTexts[10] = new List<TextItem> { new("Rename, color and icon...", 130, 170, 180, 16) };
+            if (withItem) fl.MenuTexts[10].Add(new TextItem("Consolidate this track", 130, 400, 160, 16));
+            return started;
+        }
+
+        var (fl, fx, state) = Playlist(110, 150, withItem: true);
+        Assert.IsType<StepResult.Ok>(fx.FlActions(consolidate, state));
+        Assert.Equal(new[] { (110, 150, true), (210, 408, false) }, fl.Clicks);
+        Assert.Empty(fl.Actions);                                                  // jamais le lien
+
+        (fl, fx, state) = Playlist(110, 150, withItem: false);                    // menu sans « Consolidate »
+        Assert.Equal(MacroEffectsWindows.ConsolidateWhere, Assert.IsType<StepResult.Fail>(fx.FlActions(consolidate, state)).Why);
+        Assert.Equal(new[] { (110, 150, true) }, fl.Clicks);
+
+        (fl, fx, state) = Playlist(900, 150, withItem: true);                     // sur un clip : jamais de clic droit
+        Assert.Equal(MacroEffectsWindows.ConsolidateWhere, Assert.IsType<StepResult.Fail>(fx.FlActions(consolidate, state)).Why);
+        Assert.Empty(fl.Clicks);
+
+        (fl, fx, state) = Start(f =>                                               // Mixer : seulement la Playlist
+        {
+            f.Open[0] = new FlWin(FakeFl.Main, FlWindowRole.Main, 0, 0, 1400, 900);
+            f.ColorImage = MuteDotsTests.Mixer();
+            f.LastAimedClick = new AimedClick(274, 360, FakeFl.Main, 1400, 900, f.Now);
+        });
+        Assert.Equal(MacroEffectsWindows.ConsolidateWhere, Assert.IsType<StepResult.Fail>(fx.FlActions(consolidate, state)).Why);
+        Assert.Empty(fl.Clicks);
+    }
+
+    [Fact]
+    public void ConsolidateIsFoundByTheStartOfItsName()
+    {
+        var items = new List<TextItem>
+        {
+            new("Rename, color and icon...", 10, 10, 150, 14), new("Consolidate this track (from first clip)", 10, 300, 200, 14),
+            new("CONSOLIDATE THIS TRACK", 10, 280, 200, 14),
+        };
+        Assert.Equal(280, MenuText.StartingWith("Consolidate", items)!.Value.Y);
+        Assert.Null(MenuText.StartingWith("Consolidate", new List<TextItem> { new("Arm disk recording", 10, 10, 150, 14) }));
+        var block = new Block(new BlockBody.FlAction("consolidate", ActionFallback.None));
+        Assert.True(FlActionCall.RunsAlone(block));
+        Assert.Null(FlActions.IdForKey("consolidate"));
+        Assert.False(BlockRegistry.Spec(BlockType.FlAction).Needs(block.Body).HasFlag(BlockNeeds.MidiLink));
+    }
+
     [Fact]
     public void PagesComeForwardByTheirKeyOrTheLink()
     {

@@ -152,7 +152,7 @@ public sealed class MuteDotsTests
         Assert.True(muted.Value.Inferred);
     }
 
-    private static RgbImage Playlist()
+    internal static RgbImage Playlist()
     {
         var c = new Canvas(1300, 800, (40, 42, 46));
         for (var track = 0; track < 7; track++)

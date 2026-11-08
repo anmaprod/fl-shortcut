@@ -52,7 +52,13 @@ public readonly record struct ConditionAnswer(bool Value, StepResult? Failure = 
 
 /// Une action de FL d'un groupe (blocs `FlAction` consécutifs).
 /// `Name` : « Poser un marqueur » avec un nom choisi (08/11), jamais regroupé avec une autre action.
-public sealed record FlActionCall(string Key, ActionFallback Fallback, string? Name = null);
+public sealed record FlActionCall(string Key, ActionFallback Fallback, string? Name = null)
+{
+    /// Action de FL jamais regroupée avec les autres (un seul réveil du lien pour celles-là) : marqueur nommé, action
+    /// faite dans la fenêtre de FL (« Consolider la piste dans la Playlist »).
+    public static bool RunsAlone(Block block) =>
+        block.Body is BlockBody.FlAction a && (MarkerPayload.Of(block) is not null || LocalFlAction.Named(a.ActionKey) is not null);
+}
 
 /// État d'un passage partagé entre les blocs (variables, dernier échec, compteurs). L'état propre à Windows (boîte de
 /// dialogue suivie, piste visée, pointeur à remettre…) vit dans l'objet d'effets, neuf à chaque passage.
@@ -198,14 +204,13 @@ public sealed class MacroInterpreter
 
             // Actions de FL consécutives (blocs inactifs sautés) : un seul réveil du lien.
             var group = new List<Block> { block };
-            if (block.Body is BlockBody.FlAction && MarkerPayload.Of(block) is null)
+            if (block.Body is BlockBody.FlAction && !FlActionCall.RunsAlone(block))
             {
                 while (index < blocks.Count)
                 {
                     var next = blocks[index];
                     if (!next.Enabled) { index++; continue; }
-                    if (next.Body is not BlockBody.FlAction || next.OnFailure != block.OnFailure
-                        || MarkerPayload.Of(next) is not null) break;
+                    if (next.Body is not BlockBody.FlAction || next.OnFailure != block.OnFailure || FlActionCall.RunsAlone(next)) break;
                     group.Add(next);
                     index++;
                 }

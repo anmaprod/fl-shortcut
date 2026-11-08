@@ -227,7 +227,8 @@ internal static class Specs
     public static bool MuteSoloWithoutLink(string key) => key is "mute" or "solo";
 
     private static string ActionLabel(string key) =>
-        FlActions.IdForKey(key) is { } id && FlActions.Info(id) is { } info ? Loc.T(info.Label) : DisplayText.Safe(key, 20);
+        FlActions.IdForKey(key) is { } id && FlActions.Info(id) is { } info ? Loc.T(info.Label)
+        : LocalFlAction.Named(key) is { } local ? Loc.T(local.Label) : DisplayText.Safe(key, 20);
 
     /// Chemin d'un preset (choisi dans la boîte « Open » ou déposé sur la piste) : mêmes règles pour les deux blocs.
     private static string? PresetFileProblem(string p, ValidationContext ctx)
@@ -446,6 +447,8 @@ internal static class Specs
             Params = new[] { new ParamSpec("action", Loc.T("Action"), new ParamKind.FlAction()), new ParamSpec("fallback", Loc.T("Sans lien"), new ParamKind.Key()) },
             Needs = b =>
             {
+                // Consolider la piste dans la Playlist : clic droit sur la piste cliquée juste avant, jamais le lien.
+                if (b is BlockBody.FlAction l && LocalFlAction.Named(l.ActionKey) is not null) return Base | BlockNeeds.Clicks | BlockNeeds.AimedTrack;
                 var n = Base | BlockNeeds.MidiLink;
                 if (b is BlockBody.FlAction { Fallback.Kind: "trackMenuArm" }) n |= BlockNeeds.Clicks | BlockNeeds.AimedTrack;
                 // Mute / solo sans le script : bouton mute de la piste cliquée juste avant.
@@ -458,12 +461,14 @@ internal static class Specs
             {
                 "armon" => "armTrack",
                 "recon" => "recordOn",
-                _ => FlActions.IdForKey(a.ActionKey) is not null ? $"flAction {a.ActionKey}" : "flAction ?",
+                _ => FlActions.IdForKey(a.ActionKey) is not null || LocalFlAction.Named(a.ActionKey) is not null ? $"flAction {a.ActionKey}" : "flAction ?",
             },
             EstimateMs = _ => 3_000,
             Validate = (b, ctx) =>
             {
                 if (b is not BlockBody.FlAction a) return null;
+                if (LocalFlAction.Named(a.ActionKey) is not null)
+                    return a.Fallback.Kind == "none" ? null : ctx.Fail(Loc.T("action de FL inconnue."));
                 if (FlActions.IdForKey(a.ActionKey) is null) return ctx.Fail(Loc.T("action de FL inconnue."));
                 return a.Fallback.Kind switch
                 {

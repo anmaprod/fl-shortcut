@@ -642,6 +642,7 @@
 "Connecté en tant que @%@" = "Signed in as @%@";
 "Connexion" = "Sign in";
 "Connexion impossible : %@" = "Couldn't connect: %@";
+"Consolider la piste dans la Playlist" = "Consolidate the track in the Playlist";
 "Consolider les clips (depuis le début)" = "Consolidate clips (from start)";
 "Consolider les clips (depuis le premier)" = "Consolidate clips (from first clip)";
 "Contenu offensant" = "Offensive content";
@@ -1783,6 +1784,7 @@
 "Remplace un raccourci natif — %@." = "Replaces a built-in shortcut — %@.";
 "Remplacer" = "Replace";
 "Remplacer le canal par l'élément choisi" = "Replace channel with selected item";
+"Rend la piste cliquée de la Playlist en un seul clip audio" = "Renders the clicked Playlist track into a single audio clip";
 "Rendu des pistes armées en .wav" = "Render armed tracks to .wav";
 "Renommer" = "Rename";
 "Renommer la macro" = "Rename macro";
@@ -2261,6 +2263,7 @@
 "aucune touche" = "no key";
 "autorise FL Shortcuts dans Réglages Système › Confidentialité et sécurité › Accessibilité" = "allow FL Shortcuts in System Settings › Privacy & Security › Accessibility";
 "autorise « Enregistrement de l'écran » : le bouton mute de la piste est retrouvé dans la fenêtre de FL" = "allow “Screen Recording”: the track's mute button is found in the FL window";
+"autorise « Enregistrement de l'écran » : « Consolidate » est retrouvé dans le menu de FL" = "allow “Screen Recording”: “Consolidate” is found in FL's menu";
 "autorise « Enregistrement de l'écran » pour FL Shortcuts (Réglages Système › Confidentialité et sécurité ; déjà coché : décoche puis recoche)" = "allow “Screen Recording” for FL Shortcuts (System Settings › Privacy & Security; already on: turn it off, then on again)";
 "bientôt" = "soon";
 "bloc caché (ancien format)" = "hidden block (old format)";
@@ -2521,6 +2524,7 @@
 "risque de larsen : change d'entrée ou de sortie (casque, carte son)" = "feedback risk: change the input or output (headphones, sound card)";
 "réponse de FL illisible" = "FL reply unreadable";
 "s" = "s";
+"seulement dans la Playlist : clique sur le nom d'une piste de la Playlist, puis relance" = "Playlist only: click the name of a Playlist track, then run it again";
 "sortie et entrée du Mac" = "Mac output and input";
 "sous-menu « Select » non ouvert" = "“Select” submenu not opened";
 "sur la piste visée" = "on the targeted track";

@@ -41,6 +41,13 @@ extension MacroEffectsMac {
     /// Le rond de la piste cliquée juste avant la macro (point global), ou la raison de l'échec.
     private func muteDot(ctx: Context) -> Result<CGPoint, MenuStop> {
         MuteSolo.forgetOldSpot()
+        return trackDot(ctx: ctx, notFound: String(localized: "bouton mute introuvable : clique sur ta piste (Mixer, Channel rack ou Playlist), puis relance"))
+            .map { $0.point }
+    }
+
+    /// Le rond de la piste cliquée juste avant la macro (point global) et la page où il est (Mixer, Channel rack,
+    /// Playlist) : aussi ce qui dit si le clic était sur l'en-tête d'une piste de la Playlist (« Consolider »).
+    func trackDot(ctx: Context, notFound: String) -> Result<(point: CGPoint, page: MuteDots.Page), MenuStop> {
         guard targetTrackIsInFL(),
               let window = WinSnapshot.take(pid: ctx.pid).fl.first(where: { $0.layer == 0 && $0.bounds.contains(ctx.track) })
         else {
@@ -58,10 +65,11 @@ extension MacroEffectsMac {
         guard let dot = MuteDots.target(in: image, click: click) else {
             // Nombres seulement : ce qui a été vu, pour comprendre un échec chez quelqu'un.
             MacroLog.shared.write("MUTE", "no dot near the clicked track · \(MuteDots.summary(of: image))")
-            return .failure(.fail(String(localized: "bouton mute introuvable : clique sur ta piste (Mixer, Channel rack ou Playlist), puis relance")))
+            return .failure(.fail(notFound))
         }
         MacroLog.shared.write("MUTE", "dot found (\(dot.page.rawValue)\(dot.inferred ? ", unlit" : ""))")
-        return .success(CGPoint(x: window.bounds.minX + CGFloat(dot.x / sx), y: window.bounds.minY + CGFloat(dot.y / sy)))
+        return .success((CGPoint(x: window.bounds.minX + CGFloat(dot.x / sx), y: window.bounds.minY + CGFloat(dot.y / sy)),
+                         dot.page))
     }
 
     /// Sans le lien : clic gauche sur le rond de la piste cliquée (inverse le mute).

@@ -68,6 +68,16 @@ public static class MenuText
         return close.Count > 0 ? close[0].Item : null;
     }
 
+    /// Pur (testé) : l'élément dont le texte commence par `start` (« Consolidate this track… »), le plus haut. null :
+    /// absent. Miroir de TrackMenuPick.item du Mac.
+    public static TextItem? StartingWith(string start, IReadOnlyList<TextItem> items)
+    {
+        var wanted = Normalized(start);
+        if (wanted.Length == 0) return null;
+        return items.Where(i => Normalized(i.Text).StartsWith(wanted, StringComparison.Ordinal))
+            .OrderBy(i => i.Y).ThenBy(i => i.X).Cast<TextItem?>().FirstOrDefault();
+    }
+
     private static readonly HashSet<string> KeyNames = new() { "del", "delete", "lns", "lnsert", "enter", "esc", "space", "tab", "backspace" };
 
     /// Reste d'une ligne de menu qui ressemble à un raccourci (« ctrl+s », « f5 », « del ») — dans la forme de

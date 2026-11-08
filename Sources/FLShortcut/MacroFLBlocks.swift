@@ -143,6 +143,7 @@ extension MacroEffectsMac {
     /// - mute / solo : le bouton mute de la piste cliquée (MacroMuteSolo.swift), qui inverse l'état.
     /// Actions consécutives d'une macro : un seul réveil du lien (généralisation de l'ancien armement + REC).
     func flActions(_ group: [FLActionCall], state: inout RunState) -> StepResult {
+        if group.count == 1, group[0].key == LocalFLAction.consolidate.key { return consolidateTrack(ctx: ctx) }
         let ids = group.compactMap { FLActions.id(forKey: $0.key) }
         guard ids.count == group.count, !ids.isEmpty else { return .fail(String(localized: "action de FL inconnue")) }
         if group.count == 1, group[0].name != nil { return namedMarker(group[0]) }

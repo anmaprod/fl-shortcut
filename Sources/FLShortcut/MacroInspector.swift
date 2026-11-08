@@ -840,18 +840,21 @@ private struct BlockInspector: View {
 
     private func actionPicker(_ key: String) -> some View {
         let info = FLActions.id(forKey: key).flatMap(FLActions.info)
+        let local = LocalFLAction.named(key)
         let availability = info.map { AppStatus.shared.availability($0.id) }
         return VStack(alignment: .leading, spacing: 4) {
             SwissPicker(String(localized: "Action"), selection: Binding(get: { key }, set: { setAction($0) }),
-                        current: info?.label ?? key,
+                        current: info?.label ?? local?.label ?? key,
                         entries: FLActionInfo.Category.allCases.flatMap { category -> [SwissPickerEntry<String>] in
                             let actions = FLActions.offered.filter { $0.category == category }
+                                .map { SwissPickerEntry<String>.option($0.key, $0.label) }
+                                + LocalFLAction.all.filter { $0.category == category }
+                                .map { SwissPickerEntry<String>.option($0.key, $0.label) }
                             guard !actions.isEmpty else { return [] }
-                            return [SwissPickerEntry<String>.header(category.label)]
-                                + actions.map { SwissPickerEntry<String>.option($0.key, $0.label) }
+                            return [SwissPickerEntry<String>.header(category.label)] + actions
                         })
-            if let info {
-                Text(info.detail).font(.system(size: 11)).foregroundStyle(.secondary)
+            if let detail = info?.detail ?? local?.detail {
+                Text(detail).font(.system(size: 11)).foregroundStyle(.secondary)
             }
             if case .unavailable(let reason)? = availability, !MuteSolo.handlesWithoutLink(key) {
                 // 07/11 (« ça ne repère pas que j'ai installé le lien ») : lien installé, la macro l'ouvre le temps du

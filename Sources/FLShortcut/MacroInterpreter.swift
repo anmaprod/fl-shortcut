@@ -189,11 +189,11 @@ final class MacroInterpreter {
 
             // Actions de FL consécutives (blocs inactifs sautés) : un seul réveil du lien.
             var group = [block]
-            if case .flAction = block.body, block.markerName == nil {
+            if case .flAction = block.body, !block.flActionRunsAlone {
                 while index < blocks.count {
                     let next = blocks[index]
                     if !next.enabled { index += 1; continue }
-                    guard case .flAction = next.body, next.onFailure == block.onFailure, next.markerName == nil else { break }
+                    guard case .flAction = next.body, next.onFailure == block.onFailure, !next.flActionRunsAlone else { break }
                     group.append(next)
                     index += 1
                 }

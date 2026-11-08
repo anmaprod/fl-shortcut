@@ -30,6 +30,24 @@ struct FLActionInfo: Identifiable, Hashable {
     let minFL: String
 }
 
+/// Action du bloc « Action de FL » faite dans la fenêtre de FL, sans le script : pas d'id du protocole, jamais dans
+/// les raccourcis. « Consolider la piste dans la Playlist » (08/11 : ce que faisait par hasard « armer la piste si
+/// éteinte » dans la Playlist ; « utilisable que dans playlist »).
+struct LocalFLAction: Hashable {
+    let key: String
+    let label: String
+    let detail: String
+    let category: FLActionInfo.Category
+
+    static let consolidate = LocalFLAction(
+        key: "consolidate", label: String(localized: "Consolider la piste dans la Playlist"),
+        detail: String(localized: "Rend la piste cliquée de la Playlist en un seul clip audio"), category: .composition)
+
+    static let all: [LocalFLAction] = [consolidate]
+
+    static func named(_ key: String) -> LocalFLAction? { all.first { $0.key == key } }
+}
+
 enum FLActions {
     /// Version minimale de FL pour le scripting Python (audit 04 §0).
     static let pythonMinFL = "20.7"

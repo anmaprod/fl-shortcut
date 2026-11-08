@@ -15,6 +15,18 @@ public sealed record FlActionInfo(int Id, string Key, string Label, ActionCatego
     };
 }
 
+/// Action du bloc « Action de FL » faite dans la fenêtre de FL, sans le script : pas d'id du protocole, jamais dans les
+/// raccourcis. « Consolider la piste dans la Playlist » (08/11, miroir de LocalFLAction du Mac).
+public sealed record LocalFlAction(string Key, string Label, string Detail, ActionCategory Category)
+{
+    public static readonly LocalFlAction Consolidate = new("consolidate", "Consolider la piste dans la Playlist",
+        "Rend la piste cliquée de la Playlist en un seul clip audio", ActionCategory.Composition);
+
+    public static readonly IReadOnlyList<LocalFlAction> All = new[] { Consolidate };
+
+    public static LocalFlAction? Named(string key) => All.FirstOrDefault(a => a.Key == key);
+}
+
 public static class FlActions
 {
     /// Version minimale de FL pour le scripting Python (audit 04).

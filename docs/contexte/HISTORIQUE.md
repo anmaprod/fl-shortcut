@@ -911,3 +911,11 @@ entrée 1 ≈ 0,5 s.
   séries allumées d'abord) et vérifié sur ses images. Actions retirées des listes, renommées ; mono à droite.
 - 08/11 (8) : couleurs récentes gardées avec le compte (dans le profil de la sauvegarde, pas de nouvelle colonne à
   coller dans Supabase) ; Windows a maintenant aussi sa rangée « Récentes » dans les choix de couleur de l'Organiser.
+- 08/11 (9) : vidéo 12.54 (« poser un marqueur… mettre un bouton en dessous, nommer le marqueur » ; « armer la piste si
+  éteinte… dans playlist ça render, ça consolide… renomme-la en consolider une track dans playlist… utilisable que
+  dans playlist » ; animation du glisser ; carrés orange ; couleurs récentes au compte). Marqueur : champ « Nom du
+  marqueur », envoyé au script (opération 27) ; sans nom, rien ne change. Consolider : action faite dans la fenêtre de
+  FL (pas de fonction du script pour ça) ; la piste cliquée doit être un en-tête de la Playlist (rond mute à droite du
+  clic), sinon rien n'est cliqué ; « Consolidate… » lu dans le menu au moment du clic. Ni l'un ni l'autre vus sur le
+  vrai FL.
+

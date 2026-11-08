@@ -247,6 +247,7 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
 
     public StepResult FlActions(IReadOnlyList<FlActionCall> group, RunState state)
     {
+        if (group.Count == 1 && group[0].Key == LocalFlAction.Consolidate.Key) return ConsolidateTrack();
         var ids = group.Select(c => Core.FlActions.IdForKey(c.Key)).ToList();
         if (ids.Count == 0 || ids.Any(id => id is null)) return new StepResult.Fail(Loc.T("action de FL inconnue"));
         if (group.Count == 1 && group[0].Name is not null) return NamedMarker(group[0]);

@@ -642,6 +642,7 @@
 "Connecté en tant que @%@" = "Connecté en tant que @%@";
 "Connexion" = "Connexion";
 "Connexion impossible : %@" = "Connexion impossible : %@";
+"Consolider la piste dans la Playlist" = "Consolider la piste dans la Playlist";
 "Consolider les clips (depuis le début)" = "Consolider les clips (depuis le début)";
 "Consolider les clips (depuis le premier)" = "Consolider les clips (depuis le premier)";
 "Contenu offensant" = "Contenu offensant";
@@ -1783,6 +1784,7 @@
 "Remplace un raccourci natif — %@." = "Remplace un raccourci natif — %@.";
 "Remplacer" = "Remplacer";
 "Remplacer le canal par l'élément choisi" = "Remplacer le canal par l'élément choisi";
+"Rend la piste cliquée de la Playlist en un seul clip audio" = "Rend la piste cliquée de la Playlist en un seul clip audio";
 "Rendu des pistes armées en .wav" = "Rendu des pistes armées en .wav";
 "Renommer" = "Renommer";
 "Renommer la macro" = "Renommer la macro";
@@ -2261,6 +2263,7 @@
 "aucune touche" = "aucune touche";
 "autorise FL Shortcuts dans Réglages Système › Confidentialité et sécurité › Accessibilité" = "autorise FL Shortcuts dans Réglages Système › Confidentialité et sécurité › Accessibilité";
 "autorise « Enregistrement de l'écran » : le bouton mute de la piste est retrouvé dans la fenêtre de FL" = "autorise « Enregistrement de l'écran » : le bouton mute de la piste est retrouvé dans la fenêtre de FL";
+"autorise « Enregistrement de l'écran » : « Consolidate » est retrouvé dans le menu de FL" = "autorise « Enregistrement de l'écran » : « Consolidate » est retrouvé dans le menu de FL";
 "autorise « Enregistrement de l'écran » pour FL Shortcuts (Réglages Système › Confidentialité et sécurité ; déjà coché : décoche puis recoche)" = "autorise « Enregistrement de l'écran » pour FL Shortcuts (Réglages Système › Confidentialité et sécurité ; déjà coché : décoche puis recoche)";
 "bientôt" = "bientôt";
 "bloc caché (ancien format)" = "bloc caché (ancien format)";
@@ -2521,6 +2524,7 @@
 "risque de larsen : change d'entrée ou de sortie (casque, carte son)" = "risque de larsen : change d'entrée ou de sortie (casque, carte son)";
 "réponse de FL illisible" = "réponse de FL illisible";
 "s" = "s";
+"seulement dans la Playlist : clique sur le nom d'une piste de la Playlist, puis relance" = "seulement dans la Playlist : clique sur le nom d'une piste de la Playlist, puis relance";
 "sortie et entrée du Mac" = "sortie et entrée du Mac";
 "sous-menu « Select » non ouvert" = "sous-menu « Select » non ouvert";
 "sur la piste visée" = "sur la piste visée";

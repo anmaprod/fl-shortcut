@@ -462,6 +462,15 @@
   que les gens comprennent ») : les deux lignes voisines s'écartent en douceur (seul le dessin bouge, jamais la zone de
   dépôt : pas d'aller-retour), trait orange + carré qui se déroule (Mac `StepDragDrop.gap`/`mark` ; Windows
   `AcceptDrops(moving:)`, `TranslationTransition`, trait orange de 3).
+  « Poser un marqueur » (08/11, « nommer le marqueur ») : champ « Nom du marqueur » sous l'action ; vide = comme avant ;
+  nom gardé dans la NOTE du bloc (`Block.markerName`, Windows `MarkerPayload.Of` ; format des macros inchangé),
+  posé par le script (opération 27 `OP_MARKER`, `addAutoTimeMarker`, mode Song seulement) ; sans le lien : la touche
+  de FL sans le nom, avertissement. « Consolider la piste dans la Playlist » (08/11, ce que faisait par hasard « armer
+  si éteinte » dans la Playlist) : action LOCALE du bloc (`LocalFLAction`/`LocalFlAction`, pas d'id du protocole,
+  jamais dans les raccourcis ni le lien) : piste = dernier clic, vérifiée dans la Playlist par son rond mute à DROITE
+  du clic (`trackDot`, jamais de clic droit sur un clip : FL l'effacerait), clic droit sur l'en-tête, « Consolidate… »
+  retrouvé au début de son nom dans le menu (Mac `TrackMenuPick`, Windows `MenuText.StartingWith`), sinon Échap et
+  « seulement dans la Playlist ». Jamais vu sur le vrai FL (nom exact de l'élément ?).
 - Organiser, écran « Démarrer » (08/11, réponse « carré orange ») : un carré plein #FF3B1F devant « Ne touche pas à FL
   jusqu'à la fin. », à la place de l'ancienne baguette ; Windows (pas d'écran Démarrer) : devant « Préparation… ».
 - **Retours du 06/11** (long message + maquette HTML papier/orange) : effet Gumroad SEULEMENT au survol, dans les 3

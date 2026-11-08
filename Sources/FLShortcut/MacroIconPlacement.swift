@@ -25,6 +25,8 @@ protocol IconPlacementDriver {
     func wait(_ seconds: TimeInterval) -> Bool
     /// L'élément de menu `label` lu dans la fenêtre `menu`.
     func readItem(_ label: String, in menu: WinInfo) -> IconPlacement.MenuRead
+    /// L'élément de menu dont le texte commence par `prefix` (« Consolidate this track… »).
+    func readItem(startingWith prefix: String, in menu: WinInfo) -> IconPlacement.MenuRead
     /// Clic de l'utilisateur dans `window`, guidé par une bulle ; nil s'il ne vient pas.
     func learnClick(in window: WinInfo, hint: String) -> CGPoint?
     /// Journal de diagnostic (fenêtres vues, points cliqués) ; jamais un nom de piste.
@@ -34,6 +36,7 @@ protocol IconPlacementDriver {
 extension IconPlacementDriver {
     func note(_ text: String) {}
     func readItem(_ label: String, in menu: WinInfo) -> IconPlacement.MenuRead { .unreadable }
+    func readItem(startingWith prefix: String, in menu: WinInfo) -> IconPlacement.MenuRead { .unreadable }
 }
 
 enum IconPlacement {
@@ -265,8 +268,16 @@ final class FLIconDriver: IconPlacementDriver {
     func wait(_ seconds: TimeInterval) -> Bool { fx.pause(Int(seconds * 1000), pid: fx.pid) == .ok }
     func note(_ text: String) { MacroLog.shared.write("ICON", text) }
 
-    /// Lecture de la seule fenêtre du menu, une fois FL fini de le dessiner (deux essais).
     func readItem(_ label: String, in menu: WinInfo) -> IconPlacement.MenuRead {
+        read(menu) { IconPlacement.menuItem(label, in: $0) }
+    }
+
+    func readItem(startingWith prefix: String, in menu: WinInfo) -> IconPlacement.MenuRead {
+        read(menu) { TrackMenuPick.item(startingWith: prefix, in: $0) }
+    }
+
+    /// Lecture de la seule fenêtre du menu, une fois FL fini de le dessiner (deux essais).
+    private func read(_ menu: WinInfo, _ find: ([TextLook.Item]) -> TextLook.Item?) -> IconPlacement.MenuRead {
         guard ScreenLook.allowed else { return .unreadable }
         var read = false
         for attempt in 0..<2 {
@@ -275,7 +286,7 @@ final class FLIconDriver: IconPlacementDriver {
             else { continue }
             let items = TextLook.read(image, size: menu.bounds.size)
             read = read || !items.isEmpty
-            if let item = IconPlacement.menuItem(label, in: items) {
+            if let item = find(items) {
                 return .found(CGPoint(x: menu.bounds.minX + item.center.x, y: menu.bounds.minY + item.center.y))
             }
         }

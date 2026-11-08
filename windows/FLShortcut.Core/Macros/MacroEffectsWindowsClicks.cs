@@ -72,6 +72,58 @@ public sealed partial class MacroEffectsWindows
         return new StepResult.Fail(Loc.T("bouton mute introuvable : clique sur ta piste (Mixer, Channel rack ou Playlist), puis relance"));
     }
 
+    // ---------- Consolider la piste dans la Playlist ----------
+
+    public static string ConsolidateWhere => Loc.T("seulement dans la Playlist : clique sur le nom d'une piste de la Playlist, puis relance");
+
+    /// « Consolider la piste dans la Playlist » (08/11, miroir de MacroConsolidate.swift) : la piste cliquée juste avant
+    /// dans la Playlist (son rond mute à droite du clic le prouve : jamais un clic droit sur un clip, que FL effacerait,
+    /// ni dans le Mixer ou le Channel rack), clic droit sur son en-tête, puis « Consolidate… » retrouvé à son nom dans
+    /// le menu (lu par Windows, sinon dans l'image du seul menu de FL) ; un menu sans lui est refermé.
+    private StepResult ConsolidateTrack()
+    {
+        var window = _fl.Windows().Where(w => w.Role != FlWindowRole.Menu && Contains(w, _track)).Cast<FlWin?>().FirstOrDefault();
+        if (window is not { } w) return new StepResult.Fail(ConsolidateWhere);
+        if (_fl.WindowColorImage(w.Id) is not { } image) return new StepResult.Fail(Loc.T("fenêtre de FL illisible"));
+        MuteDots.Target? dot = null;
+        foreach (var factor in new[] { 1, 2 })
+        {
+            var shown = image.Scaled(factor);
+            double sx = (double)shown.Width / w.Width, sy = (double)shown.Height / w.Height;
+            if (MuteDots.Find(shown, (_track.X - w.X) * sx, (_track.Y - w.Y) * sy) is { } found) { dot = found; break; }
+        }
+        if (dot is not { } d || d.Page != MuteDots.Page.Playlist)
+        {
+            _fl.Log("CONSOLIDATE", dot is { } other ? $"clicked track is in the {other.Page}" : "no track header under the click");
+            return new StepResult.Fail(ConsolidateWhere);
+        }
+        if (StopReason() is { } stop) return new StepResult.Cancel(stop);
+        var before = Ids();
+        _beforeLastClick = before;
+        _cursorBefore ??= _fl.Cursor();
+        var opening = ClickAt(_track, true, 60);
+        if (opening is not StepResult.Ok) return opening;
+        var (opened, menu) = NewWindow(before, FlWindowRole.Menu, MenuAppearMs);
+        if (opened is StepResult.Cancel) return Abandon(opened);
+        if (menu is not { } m || Settled(m.Id) is not { } current)
+            return Abandon(new StepResult.Fail(Loc.T("le menu de la piste ne s'est pas ouvert")));
+        var items = _fl.MenuItems(current.Id);
+        if (items is null)
+        {
+            _fl.Log("CONSOLIDATE", "menu unreadable");
+            return Abandon(new StepResult.Fail(Loc.T("menu de FL illisible : mets FL devant")));
+        }
+        if (MenuText.StartingWith("Consolidate", items) is not { } item || item.Greyed == true)
+        {
+            _fl.Log("CONSOLIDATE", $"not among {items.Count} item(s)");
+            return Abandon(new StepResult.Fail(ConsolidateWhere));
+        }
+        var clicked = ClickInside((item.X + item.Width / 2, item.Y + item.Height / 2), current, 80);
+        if (clicked is not StepResult.Ok) return Abandon(clicked);
+        _fl.Log("CONSOLIDATE", "Consolidate clicked");
+        return new StepResult.Ok();
+    }
+
     private static bool Contains(FlWin w, (int X, int Y) p) => p.X >= w.X && p.X < w.X + w.Width && p.Y >= w.Y && p.Y < w.Y + w.Height;
 
     private static bool SameSize(FlWin w, Size2 size) => Math.Abs(w.Width - size.Width) <= 2 && Math.Abs(w.Height - size.Height) <= 2;

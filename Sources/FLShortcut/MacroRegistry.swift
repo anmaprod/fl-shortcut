@@ -586,6 +586,8 @@ private enum Specs {
         params: [ParamSpec("action", String(localized: "Action"), .actionFL), ParamSpec("fallback", String(localized: "Sans lien"), .touche)],
         conteneur: .aucun, dansLaPalette: true,
         needs: { body in
+            // Consolider la piste dans la Playlist : clic droit sur la piste cliquée juste avant, jamais le lien.
+            if case .flAction(let key, _) = body, LocalFLAction.named(key) != nil { return base.union([.cliqueHID, .pisteVisee]) }
             var n: BlockNeeds = base.union(.lienMIDI)
             if case .flAction(_, .trackMenuArm) = body { n.formUnion([.cliqueHID, .pisteVisee]) }
             // Mute / solo sans le script : bouton mute de la piste cliquée juste avant (MacroMuteSolo.swift).
@@ -595,19 +597,24 @@ private enum Specs {
         parDefaut: { .flAction(key: "armon", fallback: .trackMenuArm) },
         resume: { body, _ in
             guard case .flAction(let key, _) = body else { return "" }
-            return FLActions.id(forKey: key).flatMap { FLActions.info($0)?.label } ?? key.displaySafe(max: 20)
+            return FLActions.id(forKey: key).flatMap { FLActions.info($0)?.label } ?? LocalFLAction.named(key)?.label
+                ?? key.displaySafe(max: 20)
         },
         journal: { body in
             guard case .flAction(let key, _) = body else { return "flAction" }
             switch key {
             case "armon": return "armTrack"
             case "recon": return "recordOn"
-            default: return FLActions.id(forKey: key) != nil ? "flAction \(key)" : "flAction ?"
+            default: return FLActions.id(forKey: key) != nil || LocalFLAction.named(key) != nil ? "flAction \(key)" : "flAction ?"
             }
         },
         estimationMs: { _ in 3_000 },
         valider: { body, ctx in
             guard case .flAction(let key, let fallback) = body else { return nil }
+            if LocalFLAction.named(key) != nil {
+                if case .none = fallback { return nil }
+                return ctx.fail(String(localized: "action de FL inconnue."))
+            }
             guard FLActions.id(forKey: key) != nil else { return ctx.fail(String(localized: "action de FL inconnue.")) }
             switch fallback {
             case .none: return nil

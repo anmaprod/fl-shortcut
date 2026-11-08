@@ -339,7 +339,8 @@ enum MacroOutline {
     private static func letters(_ l: [Character]) -> String { l.map { String($0).uppercased() }.joined(separator: " › ") }
 
     static func actionLabel(_ key: String) -> String {
-        FLActions.id(forKey: key).flatMap { FLActions.info($0)?.label } ?? key.displaySafe(max: 20)
+        FLActions.id(forKey: key).flatMap { FLActions.info($0)?.label } ?? LocalFLAction.named(key)?.label
+            ?? key.displaySafe(max: 20)
     }
 
     static func targetText(_ t: ClickTarget) -> String {
@@ -446,6 +447,7 @@ enum MacroOutline {
         func walk(_ list: [Block]) {
             for b in list where b.enabled {
                 switch b.body {
+                case .flAction(let key, _) where LocalFLAction.named(key) != nil: break    // dans la fenêtre de FL
                 case .flAction, .flActionValue, .nameColor, .openPage: link = true
                 case .pageOption(let id?, _) where PageOptions.usesLink(id): link = true
                 case .click(.toLearn, _), .drag(.toLearn, _), .drag(_, .toLearn): learn = true
