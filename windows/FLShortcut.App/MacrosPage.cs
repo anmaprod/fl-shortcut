@@ -1636,8 +1636,14 @@ internal sealed class MacrosPage
                         ? ActionFallback.Key(key) : ActionFallback.None;
                     set(new BlockBody.FlAction(info.Key, fallback));
                 }));
-                yield return Param(Loc.T("Sans lien"), Label(a.Fallback.KeyRef is { } fk && MacKeys.ToWindows(fk) is { } fc
-                    ? fc.ToString() : Loc.T("rien, le bloc échoue"), 12, Text));
+                // Sa phrase courte dessous, comme le Mac (« Bascule entre la Playlist et le Mixer ») ; le repli sans lien
+                // est choisi tout seul et plus montré (08/11 : « tous ces petits détails-là, tu les enlèves »).
+                if (at >= 0)
+                {
+                    var detail = Paragraph(Loc.T(actions[at].Detail()), 11);
+                    detail.Margin = new Thickness(0, -6, 0, 0);
+                    yield return detail;
+                }
                 break;
             case BlockBody.OpenPage p:
                 var pages = Enum.GetValues<FlPage>();

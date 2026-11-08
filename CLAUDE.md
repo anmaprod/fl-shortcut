@@ -423,6 +423,10 @@
   réglage `LoopMidiAsked` ; sautée si les ports sont déjà là) ; photo CI `accueil-loopmidi.png` (`ShowPage("accueil")`,
   le mode photos sinon toujours sur les pages : `_photoPages`). LISEZMOI Windows : loopMIDI dans « installe », étape 02
   « Ouvre loopMIDI ». Mac : rien (pas de loopMIDI).
+- Bloc « Action de FL » (08/11, « tous ces petits détails-là, tu les enlèves ») : seulement la liste et sa phrase
+  courte (Mac et Windows) ; plus « Sans lien, cette touche de FL », « Ajouter une touche de secours », « Par le lien
+  avec FL, ouvert le temps de ce bloc… » ; le repli sans lien reste choisi tout seul (`setAction`) ; reste l'orange
+  « Demande le lien avec FL » si le lien manque, et le réglage du mute/solo sans lien.
 - Organiser, écran « Démarrer » (08/11, réponse « carré orange ») : un carré plein #FF3B1F devant « Ne touche pas à FL
   jusqu'à la fin. », à la place de l'ancienne baguette ; Windows (pas d'écran Démarrer) : devant « Préparation… ».
 - **Retours du 06/11** (long message + maquette HTML papier/orange) : effet Gumroad SEULEMENT au survol, dans les 3

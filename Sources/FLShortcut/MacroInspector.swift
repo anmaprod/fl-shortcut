@@ -852,11 +852,8 @@ private struct BlockInspector: View {
             }
             if case .unavailable(let reason)? = availability, !MuteSolo.handlesWithoutLink(key) {
                 // 07/11 (« ça ne repère pas que j'ai installé le lien ») : lien installé, la macro l'ouvre le temps du
-                // bloc : une note grise, plus l'avertissement orange.
-                if AppMode.light, MIDILink.shared.snapshot.hasKey {
-                    Text("Par le lien avec FL, ouvert le temps de ce bloc (quelques secondes la première fois).")
-                        .font(.system(size: 11)).foregroundStyle(Swiss.gray)
-                } else {
+                // bloc : rien à dire (08/11, « tous ces petits détails-là, tu les enlèves »). Sans le lien : la raison.
+                if !(AppMode.light && MIDILink.shared.snapshot.hasKey) {
                     Text(reason).font(.system(size: 11)).foregroundStyle(.orange)
                 }
             }
@@ -878,43 +875,12 @@ private struct BlockInspector: View {
         setBody(key: "action") { $0 = .flAction(key: key, fallback: fallback) }
     }
 
+    /// Repli sans le lien (touche d'origine de FL, menu de la piste) : choisi tout seul (`setAction`), plus montré
+    /// (08/11, « Sans lien, cette touche de FL… Ajouter une touche de secours… tu les enlèves »). Reste le seul réglage
+    /// utile : où cliquer pour le mute / solo d'une piste sans le lien.
     @ViewBuilder private func fallbackField(_ key: String, _ fallback: ActionFallback) -> some View {
-        switch fallback {
-        case .trackMenuArm:
-            LabeledContent("Sans lien") {
-                Text("Menu de la piste › Arm selected track(s)").font(.system(size: 12))
-            }
-        case .key(let ref):
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Sans lien, cette touche de FL :").font(.system(size: 12))
-                CaptureField(id: "macro-fallback-\(block.id)", role: .target, combo: Binding(get: { ref.combo }, set: { new in
-                    var replacement = ActionFallback.none
-                    if let new { replacement = .key(KeyRef(new)) }
-                    setBody(key: "fallback") { body in
-                        guard case .flAction(let k, _) = body else { return }
-                        body = .flAction(key: k, fallback: replacement)
-                    }
-                }))
-            }
-        case .none where MuteSolo.handlesWithoutLink(key):
+        if case .none = fallback, MuteSolo.handlesWithoutLink(key) {
             MuteSoloField(key: key, window: model.window) { model.refreshLearnedState() }
-        case .none:
-            VStack(alignment: .leading, spacing: 4) {
-                // Lien installé : la note au-dessus le dit déjà (capture du 07/11 au soir : les deux à la suite).
-                if !(AppMode.light && MIDILink.shared.snapshot.hasKey) {
-                    Text("Demande le lien avec FL.")
-                        .font(.system(size: 12))
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Button("Ajouter une touche de secours") {
-                    setBody(key: "fallback") { body in
-                        guard case .flAction(let k, _) = body else { return }
-                        body = .flAction(key: k, fallback: .key(KeyRef(KeyCombo(keyCode: 49))))
-                    }
-                }
-                .secondaryButton()
-                .controlSize(.small)                 // en entier dans le panneau (il était coupé : « … DE SE… »)
-            }
         }
     }
 
