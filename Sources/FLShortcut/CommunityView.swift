@@ -1047,10 +1047,9 @@ private struct CommunityPublishSheet: View {
                     } else {
                         SwissPicker(selection: $macroID,
                                     current: library.macros.first { $0.id == macroID }?.name.displaySafe(max: 50)
-                                        ?? String(localized: "Choisir…")) {
-                            Text("Choisir…").tag(UUID?.none)
-                            ForEach(library.macros) { doc in Text(doc.name.displaySafe(max: 50)).tag(UUID?.some(doc.id)) }
-                        }
+                                        ?? String(localized: "Choisir…"),
+                                    entries: [SwissPickerEntry<UUID?>.option(nil, String(localized: "Choisir…"))]
+                                        + library.macros.map { SwissPickerEntry<UUID?>.option($0.id, $0.name.displaySafe(max: 50)) })
                         .labelsHidden()
                     }
                 }

@@ -706,14 +706,11 @@ internal sealed class CommunityPage
         }
         else
         {
-            var picker = new ComboBox
+            var picker = MacLook.SwissCombo(new ComboBox
             {
                 PlaceholderText = Loc.T("Choisir…"),
                 MinWidth = 320,
-                CornerRadius = new CornerRadius(0),
-                Background = Brush(MacLook.WindowColor),
-                BorderBrush = Brush(LineColor),
-            };
+            });
             foreach (var m in macros) picker.Items.Add(DisplayText.Safe(m.Name, 60));
             var index = macros.ToList().FindIndex(m => m.Id == _composeMacro);
             if (index >= 0) picker.SelectedIndex = index;

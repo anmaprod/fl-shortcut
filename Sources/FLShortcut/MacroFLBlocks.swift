@@ -149,7 +149,10 @@ extension MacroEffectsMac {
         // Une action sans repli au clavier ne peut passer que par le lien : il est ouvert le temps du bloc.
         let needsLink = group.contains { call in
             if case .none = call.fallback { return !MuteSolo.handlesWithoutLink(call.key) }
-            return false
+            // « Nouveau pattern + Piano Roll » (08/11, capture : « quand on est déjà dans un piano roll ça nous sort ») :
+            // sa touche de FL ne fait que le pattern, et F7 referme un Piano roll déjà devant. Lien installé : le
+            // script de FL fait exactement les deux (il montre le Piano roll sans jamais le fermer).
+            return Self.prefersLink(call.key, linkInstalled: MIDILink.shared.snapshot.hasKey)
         }
         guard let why = MIDILink.shared.runBriefly(ids, borrowing: needsLink) else {
             MacroLog.shared.write("MIDI", "\(names.joined(separator: " + ")) acknowledged")
@@ -198,6 +201,12 @@ extension MacroEffectsMac {
             }
         }
         return warnings.isEmpty ? .ok : .warn(warnings.joined(separator: " ; "))
+    }
+
+    /// Action qui passe par le lien quand il est installé, même avec une touche de FL en secours : la touche n'en
+    /// fait qu'une partie (« Nouveau pattern + Piano Roll »).
+    static func prefersLink(_ key: String, linkInstalled: Bool) -> Bool {
+        linkInstalled && key == "newpat"
     }
 
     /// Menu de la piste au clavier : « S » (Select, lettre soulignée) ouvre son sous-menu, ← le referme en laissant

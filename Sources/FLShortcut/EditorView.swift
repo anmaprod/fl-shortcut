@@ -1728,9 +1728,8 @@ struct EditSheet: View {
                 }
             }
         }
-        SwissPicker(String(localized: "Où"), selection: $draft.context, current: draft.context.label) {
-            ForEach(ShortcutContext.allCases) { Text($0.label).tag($0) }
-        }
+        SwissPicker(String(localized: "Où"), selection: $draft.context, current: draft.context.label,
+                    entries: ShortcutContext.allCases.map { SwissPickerEntry.option($0, $0.label) })
     }
 
     private var actions: [FLActionInfo] {

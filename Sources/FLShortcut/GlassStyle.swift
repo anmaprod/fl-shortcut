@@ -444,6 +444,8 @@ struct RightClickMenu: NSViewRepresentable {
         /// Choix à cocher (menu « Options » de l'Organiser) : coché ou non ; nil : un simple bouton.
         var checked: Bool? = nil
         var enabled = true
+        /// Titre de rubrique d'une liste déroulante (« Composition »…) : en petites capitales, pas cliquable.
+        var header = false
         let action: () -> Void
     }
 
@@ -502,6 +504,49 @@ extension View {
 
     func show(_ items: [RightClickMenu.Item?], at point: NSPoint) {
         close()
+        let host = NSHostingView(rootView: SwissMenuList(items: items) { [weak self] item in
+            self?.close()
+            DispatchQueue.main.async { item.action() }
+        })
+        let size = host.fittingSize
+        var origin = NSPoint(x: point.x, y: point.y - size.height)
+        if let screen = NSScreen.screens.first(where: { $0.frame.contains(point) }) ?? NSScreen.main {
+            let area = screen.visibleFrame
+            origin.x = min(max(area.minX, origin.x), area.maxX - size.width)
+            origin.y = min(max(area.minY, origin.y), area.maxY - size.height)
+        }
+        present(host, frame: NSRect(origin: origin, size: size))
+    }
+
+    /// Liste déroulante suisse (07/11 au soir, capture : « ces listes, mets-les dans le même style que le logiciel ») :
+    /// sous sa case (au-dessus s'il n'y a pas la place), au moins aussi large qu'elle, le choix en cours coché ; une
+    /// longue liste (actions de FL, plugins) défile, ouverte sur le choix en cours.
+    func showList(_ items: [RightClickMenu.Item?], below anchor: NSRect) {
+        close()
+        let maxWidth: CGFloat = 460
+        let natural = NSHostingView(rootView: SwissMenuList(items: items, minWidth: anchor.width) { _ in }).fittingSize
+        let width = min(max(natural.width, anchor.width), max(maxWidth, anchor.width))
+        let screen = NSScreen.screens.first(where: { $0.frame.intersects(anchor) }) ?? NSScreen.main
+        let area = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let below = anchor.minY - area.minY - 8
+        let above = area.maxY - anchor.maxY - 8
+        let downward = below >= min(natural.height, 260) || below >= above
+        let room = max(120, downward ? below : above)
+        let height = min(natural.height, room)
+        let scrolls = natural.height > height + 0.5
+        let host = NSHostingView(rootView: SwissMenuList(items: items, minWidth: width, width: width,
+                                                          height: scrolls ? height : nil) { [weak self] item in
+            self?.close()
+            DispatchQueue.main.async { item.action() }
+        })
+        let size = NSSize(width: width, height: scrolls ? height : host.fittingSize.height)
+        var origin = NSPoint(x: anchor.minX, y: downward ? anchor.minY - 2 - size.height : anchor.maxY + 2)
+        origin.x = min(max(area.minX, origin.x), area.maxX - size.width)
+        origin.y = min(max(area.minY, origin.y), area.maxY - size.height)
+        present(host, frame: NSRect(origin: origin, size: size))
+    }
+
+    private func present(_ host: NSView, frame: NSRect) {
         let panel = Panel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isFloatingPanel = true
         panel.level = .popUpMenu
@@ -511,20 +556,9 @@ extension View {
         panel.animationBehavior = .none
         panel.appearance = NSAppearance(named: AppTheme.current.floatingAppearanceName)
         panel.onCancel = { [weak self] in self?.close() }
-        let host = NSHostingView(rootView: SwissMenuList(items: items) { [weak self] item in
-            self?.close()
-            DispatchQueue.main.async { item.action() }
-        })
-        let size = host.fittingSize
-        host.frame = NSRect(origin: .zero, size: size)
+        host.frame = NSRect(origin: .zero, size: frame.size)
         panel.contentView = host
-        var origin = NSPoint(x: point.x, y: point.y - size.height)
-        if let screen = NSScreen.screens.first(where: { $0.frame.contains(point) }) ?? NSScreen.main {
-            let area = screen.visibleFrame
-            origin.x = min(max(area.minX, origin.x), area.maxX - size.width)
-            origin.y = min(max(area.minY, origin.y), area.maxY - size.height)
-        }
-        panel.setFrame(NSRect(origin: origin, size: size), display: true)
+        panel.setFrame(frame, display: true)
         panel.makeKeyAndOrderFront(nil)
         self.panel = panel
         // Un clic ailleurs (dans l'app ou une autre) ferme le menu sans rien faire d'autre.
@@ -550,24 +584,65 @@ extension View {
 
 private struct SwissMenuList: View {
     let items: [RightClickMenu.Item?]
+    var minWidth: CGFloat = 180
+    /// Largeur imposée (liste déroulante) ; nil : celle du plus long élément.
+    var width: CGFloat? = nil
+    /// Hauteur imposée : la liste défile (ouverte sur l'élément coché).
+    var height: CGFloat? = nil
     let pick: (RightClickMenu.Item) -> Void
 
     var body: some View {
+        Group {
+            if let height {
+                ScrollViewReader { proxy in
+                    ScrollView(.vertical) {
+                        LazyVStack(alignment: .leading, spacing: 0) { rows }
+                            .padding(4)
+                    }
+                    .frame(width: width, height: height)
+                    .onAppear {
+                        guard let checked = items.firstIndex(where: { $0?.checked == true }) else { return }
+                        DispatchQueue.main.async { proxy.scrollTo(checked, anchor: .center) }
+                    }
+                }
+            } else if let width {
+                VStack(alignment: .leading, spacing: 0) { rows }
+                    .padding(4)
+                    .frame(width: width, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                VStack(alignment: .leading, spacing: 0) { rows }
+                    .padding(4)
+                    .frame(minWidth: minWidth, alignment: .leading)
+                    .fixedSize()
+            }
+        }
+        .background(Rectangle().fill(Swiss.background))
+        .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
+    }
+
+    @ViewBuilder private var rows: some View {
         let checks = items.contains { $0?.checked != nil }
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(items.indices, id: \.self) { i in
+        ForEach(items.indices, id: \.self) { i in
+            Group {
                 if let item = items[i] {
-                    SwissMenuRow(item: item, checkColumn: checks) { pick(item) }
+                    if item.header {
+                        Text(item.title)
+                            .swissLabel()
+                            .lineLimit(1)
+                            .padding(.horizontal, 12)
+                            .padding(.top, i == 0 ? 6 : 10)
+                            .padding(.bottom, 4)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        SwissMenuRow(item: item, checkColumn: checks) { pick(item) }
+                    }
                 } else {
                     Rectangle().fill(Swiss.line).frame(height: 1).padding(.vertical, 4)
                 }
             }
+            .id(i)
         }
-        .padding(4)
-        .frame(minWidth: 180, alignment: .leading)
-        .fixedSize()
-        .background(Rectangle().fill(Swiss.background))
-        .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
     }
 }
 
@@ -592,6 +667,7 @@ private struct SwissMenuRow: View {
                 Text(item.title)
                     .font(Swiss.font(13))
                     .lineLimit(1)
+                    .truncationMode(.middle)
             }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 12)
@@ -1578,18 +1654,24 @@ private struct SwissChoiceBody<Label: View>: View {
 /// dans un rectangle bordé, ⌄ à droite, blanc plein au survol ; la liste s'ouvre au clic, le choix en cours coché.
 /// `current` : le texte du choix en cours ; `content` : les choix, comme dans un Picker (Text(…).tag(…), Section,
 /// Divider). `title` : libellé à gauche.
-struct SwissPicker<Value: Hashable, Content: View>: View {
+/// Ligne d'une liste déroulante suisse : un choix (sa valeur, son texte), un titre de rubrique ou un trait.
+enum SwissPickerEntry<Value: Hashable> {
+    case option(Value, String)
+    case header(String)
+    case divider
+}
+
+struct SwissPicker<Value: Hashable>: View {
     let title: String?
     @Binding var selection: Value
     let current: String
-    let content: () -> Content
+    let entries: [SwissPickerEntry<Value>]
 
-    init(_ title: String? = nil, selection: Binding<Value>, current: String,
-         @ViewBuilder content: @escaping () -> Content) {
+    init(_ title: String? = nil, selection: Binding<Value>, current: String, entries: [SwissPickerEntry<Value>]) {
         self.title = title
         _selection = selection
         self.current = current
-        self.content = content
+        self.entries = entries
     }
 
     var body: some View {
@@ -1600,21 +1682,66 @@ struct SwissPicker<Value: Hashable, Content: View>: View {
         }
     }
 
+    /// Plus le menu de macOS (verre arrondi, choix surligné en bleu) : la liste suisse de `SwissContextMenu`.
     private var menu: some View {
-        Menu {
-            Picker(selection: $selection, content: content) { EmptyView() }
-                .pickerStyle(.inline)
-                .labelsHidden()
-        } label: {
-            SwissPickerLabel(text: current)
+        let binding = $selection
+        let entries = entries
+        return SwissPickerButton(text: current) { frame in
+            let items: [RightClickMenu.Item?] = entries.map { entry in
+                switch entry {
+                case .option(let value, let text):
+                    return RightClickMenu.Item(title: text, checked: value == binding.wrappedValue) {
+                        binding.wrappedValue = value
+                    }
+                case .header(let text):
+                    return RightClickMenu.Item(title: text, enabled: false, header: true) {}
+                case .divider:
+                    return nil
+                }
+            }
+            SwissContextMenu.shared.showList(items, below: frame)
         }
-        .menuStyle(.button)
-        .buttonStyle(.plain)
-        .menuIndicator(.hidden)
         // Jamais plus large que la place (03/11 : le panneau des réglages dépassait à droite avec « Ajouter un
         // instrument (VST, plugin…) » et « Analog Lab V ») : le nom se coupe au milieu.
         .fixedSize(horizontal: false, vertical: true)
         .accessibilityValue(current)
+    }
+}
+
+/// Case d'une liste déroulante : son texte et une flèche ; un clic ouvre la liste sous elle.
+private struct SwissPickerButton: View {
+    let text: String
+    let open: (NSRect) -> Void
+    @StateObject private var anchor = ScreenAnchor()
+
+    var body: some View {
+        Button {
+            if let frame = anchor.screenFrame { open(frame) }
+        } label: {
+            SwissPickerLabel(text: text)
+        }
+        .buttonStyle(.plain)
+        .background(ScreenAnchor.Reader(anchor: anchor))
+    }
+}
+
+/// Où est une vue sur l'écran (pour poser une liste juste dessous).
+final class ScreenAnchor: ObservableObject {
+    weak var view: NSView?
+
+    var screenFrame: NSRect? {
+        guard let view, let window = view.window else { return nil }
+        return window.convertToScreen(view.convert(view.bounds, to: nil))
+    }
+
+    struct Reader: NSViewRepresentable {
+        let anchor: ScreenAnchor
+        func makeNSView(context: Context) -> NSView {
+            let view = NSView()
+            anchor.view = view
+            return view
+        }
+        func updateNSView(_ nsView: NSView, context: Context) { anchor.view = nsView }
     }
 }
 

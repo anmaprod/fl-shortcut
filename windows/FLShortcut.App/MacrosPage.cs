@@ -1552,7 +1552,7 @@ internal sealed class MacrosPage
 
     private static ComboBox Choice(IReadOnlyList<string> items, int selected, Action<int> set)
     {
-        var box = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
+        var box = MacLook.SwissCombo(new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch });
         foreach (var item in items) box.Items.Add(item);
         box.SelectedIndex = selected;
         box.SelectionChanged += (_, _) =>

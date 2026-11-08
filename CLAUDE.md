@@ -466,6 +466,11 @@
   `dansLaPalette` n'y était pas lu). « Nouveau pattern + Piano Roll » sans le lien : ⌘F4 puis le Piano roll (F7, comme
   « Ouvrir une page de FL » ; Windows passe par le lien, rien à changer). Essais CI (`glisser-essai.txt`) : bloc du
   milieu rangé 4 fois, clic sur une ligne posée (`créateur choisi`).
+  08/11 (capture : « ces listes, mets-les dans le même style que le logiciel ») : TOUTES les listes déroulantes Mac =
+  liste suisse (`SwissPicker(entries:)` + `SwissPickerEntry` option/header/divider → `SwissContextMenu.showList` : sous
+  la case, coche, rubriques en petites capitales, défile ouverte sur le choix ; plus de Menu/Picker de macOS) ; Windows
+  `MacLook.SwissCombo` (ComboBox carrée, survol à l'encre, choix marqué de rouge). « Nouveau pattern + Piano Roll »
+  déjà dans le Piano roll (F7 le refermait) : lien installé → le script fait les deux (`prefersLink`), sinon la touche.
 - **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : plus de Liquid Glass depuis le 29/10 (plaques dessinées), sans lavis ni lueur ; fond de
   fenêtre plein (« sans le Liquid Glass derrière »), verre devant : cartes, touches, cartes de l'Organiser
   (`GlassPlate`, dessiné : pas de `glassEffect` par ligne) ; titre de

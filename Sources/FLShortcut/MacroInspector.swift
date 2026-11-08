@@ -330,11 +330,8 @@ private struct BlockInspector: View {
                 if case .menuKey(_, let n) = body { body = .menuKey(key, times: n) }
             }
         })
-        return SwissPicker(label, selection: binding, current: current.symbol) {
-            ForEach(MenuKey.allCases, id: \.self) { key in
-                Text(key.symbol).tag(key)
-            }
-        }
+        return SwissPicker(label, selection: binding, current: current.symbol,
+                           entries: MenuKey.allCases.map { SwissPickerEntry.option($0, $0.symbol) })
     }
 
     private func buttonPicker(_ label: String, _ current: MouseButton) -> some View {
@@ -385,14 +382,14 @@ private struct BlockInspector: View {
         case .menuClose: currentText = String(localized: "que le menu se ferme")
         case .fixed: currentText = String(localized: "un temps fixe")
         }
-        return SwissPicker(String(localized: "Attendre"), selection: binding, current: currentText) {
-            Text("qu'une boîte de FL s'ouvre").tag(WaitChoice.dialogOpen)
-            Text("que la boîte se ferme").tag(WaitChoice.dialogClose)
-            Text("qu'un menu de FL s'ouvre").tag(WaitChoice.menuOpen)
-            Text("que le menu se ferme").tag(WaitChoice.menuClose)
-            Divider()
-            Text("un temps fixe").tag(WaitChoice.fixed)
-        }
+        return SwissPicker(String(localized: "Attendre"), selection: binding, current: currentText, entries: [
+            .option(WaitChoice.dialogOpen, String(localized: "qu'une boîte de FL s'ouvre")),
+            .option(WaitChoice.dialogClose, String(localized: "que la boîte se ferme")),
+            .option(WaitChoice.menuOpen, String(localized: "qu'un menu de FL s'ouvre")),
+            .option(WaitChoice.menuClose, String(localized: "que le menu se ferme")),
+            .divider,
+            .option(WaitChoice.fixed, String(localized: "un temps fixe")),
+        ])
     }
 
     private func textBinding(_ value: String, max: Int, _ set: @escaping (String) -> Void) -> Binding<String> {
@@ -527,11 +524,9 @@ private struct BlockInspector: View {
                     }
                 }
             }), current: MacroTemplates.trackMenuChoice(letters)?.name
-                        ?? String(localized: "Autre (lettres soulignées)…")) {
-                ForEach(MacroTemplates.trackMenuChoices) { Text($0.name).tag($0.id) }
-                Divider()
-                Text("Autre (lettres soulignées)…").tag(other)
-            }
+                        ?? String(localized: "Autre (lettres soulignées)…"),
+               entries: MacroTemplates.trackMenuChoices.map { SwissPickerEntry<String>.option($0.id, $0.name) }
+                   + [SwissPickerEntry<String>.divider, .option(other, String(localized: "Autre (lettres soulignées)…"))])
             if current == other {
                 lettersField(String(localized: "Lettres"), letters, max: 3,
                              hint: String(localized: "Lettres soulignées (F de File, puis O de Open…)."))
@@ -574,6 +569,15 @@ private struct BlockInspector: View {
         }
     }
 
+    private func enterEntries(_ current: EnterPolicy, allowNever: Bool) -> [SwissPickerEntry<String>] {
+        var entries: [SwissPickerEntry<String>] = []
+        if allowNever { entries.append(.option("never", String(localized: "Jamais"))) }
+        entries.append(.option("ifNeeded", String(localized: "Si le menu reste ouvert")))
+        entries.append(.option("always", String(localized: "Toujours")))
+        if case .learned = current { entries.append(.option("learned", String(localized: "Apprise au premier passage"))) }
+        return entries
+    }
+
     private func enterPicker(_ label: String, _ current: EnterPolicy, allowNever: Bool) -> some View {
         SwissPicker(label, selection: Binding(get: { enterTag(current) }, set: { tag in
             let policy: EnterPolicy
@@ -590,12 +594,7 @@ private struct BlockInspector: View {
                 default: break
                 }
             }
-        }), current: enterText(current)) {
-            if allowNever { Text("Jamais").tag("never") }
-            Text("Si le menu reste ouvert").tag("ifNeeded")
-            Text("Toujours").tag("always")
-            if case .learned = current { Text("Apprise au premier passage").tag("learned") }
-        }
+        }), current: enterText(current), entries: enterEntries(current, allowNever: allowNever))
     }
 
     // MARK: Clic
@@ -629,12 +628,12 @@ private struct BlockInspector: View {
             default: target = .toLearn
             }
             setBody(key: "target") { if case .click(_, let b) = $0 { $0 = .click(target, button: b) } }
-        }), current: targetText(t)) {
-            Text("Endroit montré dans FL").tag("learned")
-            Text("Sur la piste visée").tag("track")
-            Text("Près du clic précédent").tag("lastClick")
-            Text("Près du curseur au départ").tag("startCursor")
-        }
+        }), current: targetText(t), entries: [
+            .option("learned", String(localized: "Endroit montré dans FL")),
+            .option("track", String(localized: "Sur la piste visée")),
+            .option("lastClick", String(localized: "Près du clic précédent")),
+            .option("startCursor", String(localized: "Près du curseur au départ")),
+        ])
         switch t {
         case .flWindow, .openMenu, .button, .named, .cursorXWindowY, .toLearn:
             learnedSpot(t)
@@ -841,15 +840,13 @@ private struct BlockInspector: View {
         let availability = info.map { AppStatus.shared.availability($0.id) }
         return VStack(alignment: .leading, spacing: 4) {
             SwissPicker(String(localized: "Action"), selection: Binding(get: { key }, set: { setAction($0) }),
-                        current: info?.label ?? key) {
-                ForEach(FLActionInfo.Category.allCases, id: \.self) { category in
-                    Section(category.label) {
-                        ForEach(FLActions.all.filter { $0.category == category }) { a in
-                            Text(a.label).tag(a.key)
-                        }
-                    }
-                }
-            }
+                        current: info?.label ?? key,
+                        entries: FLActionInfo.Category.allCases.flatMap { category -> [SwissPickerEntry<String>] in
+                            let actions = FLActions.all.filter { $0.category == category }
+                            guard !actions.isEmpty else { return [] }
+                            return [SwissPickerEntry<String>.header(category.label)]
+                                + actions.map { SwissPickerEntry<String>.option($0.key, $0.label) }
+                        })
             if let info {
                 Text(info.detail).font(.system(size: 11)).foregroundStyle(.secondary)
             }
@@ -923,16 +920,19 @@ private struct BlockInspector: View {
 
     // MARK: Pages de FL
 
+    private func pageEntries(_ page: FLPage?) -> [SwissPickerEntry<FLPage?>] {
+        var entries: [SwissPickerEntry<FLPage?>] = []
+        if page == nil { entries.append(.option(nil, String(localized: "À choisir"))) }
+        entries += FLPage.allCases.map { SwissPickerEntry<FLPage?>.option($0, $0.title) }
+        return entries
+    }
+
     private func pagePicker(_ page: FLPage?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             SwissPicker(String(localized: "Page"), selection: Binding<FLPage?>(get: { page }, set: { new in
                 setBody(key: "page") { $0 = .openPage(new) }
-            }), current: page?.title ?? String(localized: "À choisir")) {
-                if page == nil { Text("À choisir").tag(FLPage?.none) }
-                ForEach(FLPage.allCases) { p in
-                    Text(p.title).tag(FLPage?.some(p))
-                }
-            }
+            }), current: page?.title ?? String(localized: "À choisir"),
+               entries: pageEntries(page))
             if page == nil {
                 Label("Choisis la page de FL à ouvrir.",
                       systemImage: "exclamationmark.triangle.fill")
@@ -941,6 +941,21 @@ private struct BlockInspector: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+
+    private func pageOptionEntries(page: FLPage, current: PageOption?, inPage: [PageOption],
+                                   keys: [PageOption]) -> [SwissPickerEntry<String?>] {
+        var entries: [SwissPickerEntry<String?>] = []
+        if current == nil { entries.append(.option(nil, String(localized: "À choisir"))) }
+        if !inPage.isEmpty {
+            entries.append(.header(page.title))
+            entries += inPage.map { SwissPickerEntry.option(String?.some($0.id), $0.label) }
+        }
+        if !keys.isEmpty {
+            entries.append(.header(String(localized: "Raccourcis de FL dans \(page.title)")))
+            entries += keys.map { SwissPickerEntry.option(String?.some($0.id), $0.label) }
+        }
+        return entries
     }
 
     /// Seulement les options de la page ouverte au-dessus (et l'option déjà choisie, même remplacée depuis).
@@ -966,19 +981,8 @@ private struct BlockInspector: View {
                             body = .pageOption(id: new, name: sameField ? name : "")
                         }
                     }
-                }), current: current?.label ?? String(localized: "À choisir")) {
-                    if current == nil { Text("À choisir").tag(String?.none) }
-                    if !inPage.isEmpty {
-                        Section(page.title) {
-                            ForEach(inPage) { o in Text(o.label).tag(String?.some(o.id)) }
-                        }
-                    }
-                    if !keys.isEmpty {
-                        Section("Raccourcis de FL dans \(page.title)") {
-                            ForEach(keys) { o in Text(o.label).tag(String?.some(o.id)) }
-                        }
-                    }
-                }
+                }), current: current?.label ?? String(localized: "À choisir"),
+                   entries: pageOptionEntries(page: page, current: current, inPage: inPage, keys: keys))
                 if let current, case .action(let key) = current.kind, MuteSolo.handlesWithoutLink(key) {
                     MuteSoloField(key: key, window: model.window) { model.refreshLearnedState() }
                 } else if let current {
@@ -1054,6 +1058,20 @@ private struct SoundCardField: View {
         SoundCard.choose(devices, preferredUID: UserDefaults.standard.string(forKey: SoundCard.preferredKey))
     }
 
+    private var cardEntries: [SwissPickerEntry<String>] {
+        var entries: [SwissPickerEntry<String>] = [
+            .option("", auto.map { String(localized: "Automatique (\($0.name.displaySafe(max: 30)))") }
+                        ?? String(localized: "Automatique (aucune carte branchée)")),
+        ]
+        entries += SoundCard.selectable(devices).map { d in
+            SwissPickerEntry.option(d.uid, d.name.displaySafe(max: 40) + (d.isExternal ? "" : String(localized: " (du Mac)")))
+        }
+        if !chosen.isEmpty, !devices.contains(where: { $0.uid == chosen }) {
+            entries.append(.option(chosen, String(localized: "Carte choisie, pas branchée")))
+        }
+        return entries
+    }
+
     private var chosenText: String {
         if chosen.isEmpty {
             return auto.map { String(localized: "Automatique (\($0.name.displaySafe(max: 30)))") }
@@ -1074,16 +1092,7 @@ private struct SoundCardField: View {
                     UserDefaults.standard.set(uid, forKey: SoundCard.chosenKey)
                 }
                 result = nil
-            }), current: chosenText) {
-                Text(auto.map { String(localized: "Automatique (\($0.name.displaySafe(max: 30)))") }
-                     ?? String(localized: "Automatique (aucune carte branchée)")).tag("")
-                ForEach(SoundCard.selectable(devices)) { d in
-                    Text(d.name.displaySafe(max: 40) + (d.isExternal ? "" : String(localized: " (du Mac)"))).tag(d.uid)
-                }
-                if !chosen.isEmpty, !devices.contains(where: { $0.uid == chosen }) {
-                    Text("Carte choisie, pas branchée").tag(chosen)
-                }
-            }
+            }), current: chosenText, entries: cardEntries)
             Text(String(localized: "Sortie du Mac en ce moment : ")
                  + (devices.first { $0.id == current }?.name.displaySafe(max: 40) ?? String(localized: "inconnue")))
                 .font(.system(size: 11))
@@ -1152,6 +1161,28 @@ private struct PluginField: View {
         _list = ObservedObject(wrappedValue: FLPluginList.forItem(item))
     }
 
+    /// Favoris du menu Add d'abord (par catégorie), puis tous les plugins installés (par format).
+    private func pluginEntries(_ names: [String]) -> [SwissPickerEntry<String>] {
+        var entries: [SwissPickerEntry<String>] = []
+        if value.isEmpty { entries.append(.option("", String(localized: "À choisir"))) }
+        if !value.isEmpty, !names.contains(value) {
+            entries.append(.option(value, FLPluginDatabase.fromPluginList(PageOptions.pluginPath(value)) ?? value))
+        }
+        for group in FLPluginList.groups(names) {
+            entries.append(.header(group.title.map { String(localized: "Favoris · \($0)") }
+                                   ?? String(localized: "Favoris du menu Add")))
+            entries += group.names.map { name in
+                SwissPickerEntry.option(name, group.title == nil ? name
+                              : PageOptions.pluginPath(name).dropFirst().joined(separator: PageOptions.pathSeparator))
+            }
+        }
+        for format in FLPluginList.formats(list.installed) {
+            entries.append(.header(String(localized: "Tous les plugins · \(format.format)")))
+            entries += format.items.map { SwissPickerEntry.option(Self.installedTag + String($0.index), $0.name) }
+        }
+        return entries
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             if list.state == nil || list.state == .loading, !typing {
@@ -1164,28 +1195,8 @@ private struct PluginField: View {
                 HStack(spacing: 6) {
                     SwissPicker(String(localized: "Plugin"), selection: Binding(get: { value }, set: { choose($0, names: names) }),
                                 current: value.isEmpty ? String(localized: "À choisir")
-                                    : (PageOptions.pluginPath(value).last.map { String($0) } ?? value)) {
-                        if value.isEmpty { Text("À choisir").tag("") }
-                        if !value.isEmpty, !names.contains(value) {
-                            Text(FLPluginDatabase.fromPluginList(PageOptions.pluginPath(value)) ?? value).tag(value)
-                        }
-                        ForEach(Array(FLPluginList.groups(names).enumerated()), id: \.offset) { _, group in
-                            Section(group.title.map { String(localized: "Favoris · \($0)") } ?? String(localized: "Favoris du menu Add")) {
-                                ForEach(group.names, id: \.self) { name in
-                                    Text(group.title == nil ? name
-                                         : PageOptions.pluginPath(name).dropFirst().joined(separator: PageOptions.pathSeparator))
-                                        .tag(name)
-                                }
-                            }
-                        }
-                        ForEach(FLPluginList.formats(list.installed), id: \.format) { format in
-                            Section("Tous les plugins · \(format.format)") {
-                                ForEach(format.items, id: \.index) { entry in
-                                    Text(entry.name).tag(Self.installedTag + String(entry.index))
-                                }
-                            }
-                        }
-                    }
+                                    : (PageOptions.pluginPath(value).last.map { String($0) } ?? value),
+                                entries: pluginEntries(names))
                     reloadButton
                 }
                 Button("Écrire le nom moi-même") { withAnimation(Motion.quickMorph) { typing = true } }

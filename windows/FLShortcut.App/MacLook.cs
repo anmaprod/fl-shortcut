@@ -570,6 +570,55 @@ internal static class MacLook
         return menu;
     }
 
+    /// Liste déroulante au style suisse (08/11, comme le Mac : « ces listes, mets-les dans le même style que le
+    /// logiciel ») : case carrée bordée d'un trait fin ; liste au fond plein, bordée d'encre, coins carrés, ligne
+    /// pleine d'encre au survol, le choix en cours marqué d'un trait rouge (plus de bleu ni d'arrondi de Windows).
+    public static ComboBox SwissCombo(ComboBox box)
+    {
+        box.CornerRadius = new CornerRadius(0);
+        box.FontFamily = SwissFont;
+        box.FontSize = 12.5;
+        box.Background = Brush(WindowColor);
+        box.Foreground = Brush(Text);
+        box.BorderBrush = Brush(Tertiary);
+        box.BorderThickness = new Thickness(1);
+        var r = box.Resources;
+        r["OverlayCornerRadius"] = new CornerRadius(0);
+        r["ControlCornerRadius"] = new CornerRadius(0);
+        r["ComboBoxBackground"] = Brush(WindowColor);
+        r["ComboBoxBackgroundPointerOver"] = Brush(Text);
+        r["ComboBoxBackgroundPressed"] = Brush(Text);
+        r["ComboBoxBackgroundFocused"] = Brush(WindowColor);
+        r["ComboBoxForeground"] = Brush(Text);
+        r["ComboBoxForegroundPointerOver"] = Brush(WindowColor);
+        r["ComboBoxForegroundPressed"] = Brush(WindowColor);
+        r["ComboBoxForegroundFocused"] = Brush(Text);
+        r["ComboBoxBorderBrush"] = Brush(Tertiary);
+        r["ComboBoxBorderBrushPointerOver"] = Brush(Text);
+        r["ComboBoxBorderBrushPressed"] = Brush(Text);
+        r["ComboBoxBorderBrushFocused"] = Brush(Text);
+        r["ComboBoxDropDownGlyphForeground"] = Brush(Text);
+        r["ComboBoxDropDownGlyphForegroundFocused"] = Brush(Text);
+        r["ComboBoxDropDownBackground"] = Brush(WindowColor);
+        r["ComboBoxDropDownBorderBrush"] = Brush(Text);
+        r["ComboBoxDropdownBorderThickness"] = new Thickness(1);
+        r["ComboBoxItemForeground"] = Brush(Text);
+        r["ComboBoxItemBackgroundPointerOver"] = Brush(Text);
+        r["ComboBoxItemForegroundPointerOver"] = Brush(WindowColor);
+        r["ComboBoxItemBackgroundPressed"] = Brush(Text);
+        r["ComboBoxItemForegroundPressed"] = Brush(WindowColor);
+        r["ComboBoxItemBackgroundSelected"] = Brush(Colors.Transparent);
+        r["ComboBoxItemForegroundSelected"] = Brush(Text);
+        r["ComboBoxItemBackgroundSelectedPointerOver"] = Brush(Text);
+        r["ComboBoxItemForegroundSelectedPointerOver"] = Brush(WindowColor);
+        r["ComboBoxItemBackgroundSelectedPressed"] = Brush(Text);
+        r["ComboBoxItemForegroundSelectedPressed"] = Brush(WindowColor);
+        r["ComboBoxItemPillFillBrush"] = Brush(BrandRed);
+        r["ComboBoxItemCornerRadius"] = new CornerRadius(0);
+        r["ComboBoxItemPillCornerRadius"] = new CornerRadius(0);
+        return box;
+    }
+
     /// Curseur et sélection de TOUS les champs comme la recherche (07/11, comme le Mac : « la barre qui clignote
     /// identique à la barre de recherche, en rapport avec le thème ») : texte et curseur à l'encre du thème, sélection
     /// grise, jamais de bleu quand le champ a la main. Posé une fois dans les ressources de l'app, avant les fenêtres.

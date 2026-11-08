@@ -338,13 +338,13 @@ internal sealed partial class MainShell
         var warning = new StackPanel { Spacing = 2 };
         var kinds = new RadioButtons { MaxColumns = 3 };
         var actionPanel = new StackPanel();
-        var cats = new ComboBox();
+        var cats = MacLook.SwissCombo(new ComboBox());
         var actions = new ListView();
-        var wheres = new ComboBox();
+        var wheres = MacLook.SwissCombo(new ComboBox());
         var keyPanel = new StackPanel { Spacing = 6 };
         var targetButton = CaptureButton();
         var macroPanel = new StackPanel();
-        var macroPicker = new ComboBox();
+        var macroPicker = MacLook.SwissCombo(new ComboBox());
         var kindLabel = draft.Kind switch
         {
             ShortcutKind.FlAction => Loc.T("Action dans FL"),

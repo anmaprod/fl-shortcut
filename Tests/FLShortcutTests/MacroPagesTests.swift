@@ -333,4 +333,12 @@ final class MacroPagesTests: XCTestCase {
         XCTAssertFalse(journal.contains("Serum"))
         XCTAssertEqual(BlockRegistry.journal(of: .openPage(.mixer)), "openPage mixer")
     }
+
+    /// « Nouveau pattern + Piano Roll » passe par le lien quand il est installé (08/11 : sa touche de FL ne fait que le
+    /// pattern et F7 refermait un Piano roll déjà devant) ; les autres actions à touche restent au clavier.
+    func testNewPatternPrefersTheLinkWhenInstalled() {
+        XCTAssertTrue(MacroEffectsMac.prefersLink("newpat", linkInstalled: true))
+        XCTAssertFalse(MacroEffectsMac.prefersLink("newpat", linkInstalled: false))
+        XCTAssertFalse(MacroEffectsMac.prefersLink("mx", linkInstalled: true))
+    }
 }
