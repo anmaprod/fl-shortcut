@@ -59,7 +59,7 @@ internal static class Photos
             Note("principale : fenêtre ouverte");
             await Task.Delay(2000);
             // Les pages comme le Mac (29/10) : Général, Playlist, Mes raccourcis, une recherche, Macros et son créateur.
-            foreach (var (page, name) in new[] { ("general", "principale"), ("playlist", "principale-playlist"),
+            foreach (var (page, name) in new[] { ("accueil", "accueil-loopmidi"), ("general", "principale"), ("playlist", "principale-playlist"),
                                                  ("custom", "principale-mes-raccourcis"), ("recherche", "principale-recherche"),
                                                  ("macros", "macros-liste"), ("macros-createur", "macros-createur"),
                                                  ("aide", "aide"), ("compte", "compte"),

@@ -361,3 +361,6 @@
 "bouton retrouvé par son nom « %@ »" = "button found by its name “%@”";
 "Choisir une autre couleur" = "Choose another color";
 "Elle arrive sans raccourci : relis-la dans le créateur, puis choisis-lui un raccourci." = "It comes without a shortcut: check it in the editor, then give it a shortcut.";
+"Installe loopMIDI, puis crée « FL Shortcuts » et « FL Shortcuts Retour »." = "Install loopMIDI, then create “FL Shortcuts” and “FL Shortcuts Retour”.";
+"Prêts : créés par Windows." = "Ready: created by Windows.";
+"À installer" = "To install";

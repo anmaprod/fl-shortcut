@@ -394,17 +394,19 @@ mac = {
 win = {
     "fr": {
         "installe": "<li>Lance <b>FLShortcuts-Windows-Setup.exe</b>.</li>"
-                    "<li>Bloqué ? Informations complémentaires › <b>Exécuter quand même</b>.</li>",
+                    "<li>Bloqué ? Informations complémentaires › <b>Exécuter quand même</b>.</li>"
+                    "<li>Installe aussi <b>loopMIDI</b> : l'app te donne le lien.</li>",
         "debut_titre": "deux ports midi",
-        "debut": "<li>Installe <b>loopMIDI</b>.</li><li>Crée « FL Shortcuts » et « FL Shortcuts Retour ».</li>",
+        "debut": "<li>Ouvre <b>loopMIDI</b>.</li><li>Crée « FL Shortcuts » et « FL Shortcuts Retour ».</li>",
         "debut_panel": accueil("loopMIDI", [("FL Shortcuts", OK.format("Prêt")), ("FL Shortcuts Retour", OK.format("Prêt"))]),
         "espace": "Espace", "ctrl": "Ctrl", "alt": "Alt", "shift": "Maj", "meta": "Win",
     },
     "en": {
         "installe": "<li>Run <b>FLShortcuts-Windows-Setup.exe</b>.</li>"
-                    "<li>Blocked? More info › <b>Run anyway</b>.</li>",
+                    "<li>Blocked? More info › <b>Run anyway</b>.</li>"
+                    "<li>Also install <b>loopMIDI</b>: the app gives you the link.</li>",
         "debut_titre": "two midi ports",
-        "debut": "<li>Install <b>loopMIDI</b>.</li><li>Create “FL Shortcuts” and “FL Shortcuts Retour”.</li>",
+        "debut": "<li>Open <b>loopMIDI</b>.</li><li>Create “FL Shortcuts” and “FL Shortcuts Retour”.</li>",
         "debut_panel": accueil("loopMIDI", [("FL Shortcuts", OK.format("Ready")), ("FL Shortcuts Retour", OK.format("Ready"))]),
         "espace": "Space", "ctrl": "Ctrl", "alt": "Alt", "shift": "Shift", "meta": "Win",
     },

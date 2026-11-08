@@ -66,6 +66,7 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     /// Mode photos de la CI : les pages de raccourcis seulement (ni hook clavier, ni port MIDI).
     public void PreparePages()
     {
+        _photoPages = true;                 // les pages, jamais l'accueil (sauf demandé : « accueil »)
         _issues = ShortcutAnalyzer.Analyze(_shortcuts, NewAnalysisContext());
         RebuildRows();
     }
@@ -91,8 +92,18 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     internal MacroLibraryStore Macros => _macros;
     /// Mode léger (défaut) : FL Shortcuts n'envoie que des touches d'origine de FL, sans script ni MIDI.
     public bool Light => !(_settings.MidiActions ?? _settings.ScriptPath is not null);
-    /// En mode léger, rien à configurer : pas d'accueil (ni loopMIDI, ni MIDI Settings).
-    public bool Onboarded => _settings.Onboarded || Light;
+    /// Mode léger : une page d'accueil au premier lancement, pour installer loopMIDI (08/11) ; sautée si les deux
+    /// ports sont déjà là (loopMIDI prêt, ou créés par Windows). Avec le lien : ports puis MIDI Settings, comme avant.
+    public bool Onboarded => _photoPages || (Light ? _settings.LoopMidiAsked || MidiLink.PortsExist() : _settings.Onboarded);
+    private bool _photoPages;
+
+    /// « Continuer » de la page loopMIDI : elle ne revient plus.
+    public void LoopMidiSeen()
+    {
+        _settings.LoopMidiAsked = true;
+        _settings.Save();
+        Raise(nameof(Onboarded));
+    }
     public bool Enabled => _settings.Enabled;
     public ProfilePreset CurrentPreset => Enum.TryParse<ProfilePreset>(_settings.Profile, out var p) ? p : ProfilePreset.Recommended;
     public IReadOnlyList<Shortcut> Shortcuts => _shortcuts;

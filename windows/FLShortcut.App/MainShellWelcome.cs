@@ -1,6 +1,8 @@
 // Accueil Windows au même aspect que le Mac (cartes claires sur fond noir, étapes d'une ligne, bouton bleu) : 1. les
-// deux ports MIDI virtuels (loopMIDI), 2. relier FL Studio (lien installé, MIDI Settings). Seulement avec le lien :
-// en mode léger, rien à configurer. « Réparer » (bandeau de la fenêtre) y ramène, avec « Retour aux raccourcis ».
+// deux ports MIDI virtuels (loopMIDI), 2. relier FL Studio (lien installé, MIDI Settings). Mode léger (08/11, « quand
+// tu ouvres FL Shortcuts… en plus ça demande d'installer loopMIDI avec un bouton ») : la page 1 seule, au premier
+// lancement, avec « Télécharger loopMIDI » et « Continuer » toujours possible. « Réparer » (bandeau de la fenêtre) y
+// ramène, avec « Retour aux raccourcis ».
 using FLShortcut.App.Services;
 using FLShortcut.Core;
 using Microsoft.UI;
@@ -174,10 +176,14 @@ internal sealed partial class MainShell
 
     // ---------- 1. Ports MIDI ----------
 
+    /// Page de téléchargement de loopMIDI (gratuit, Tobias Erichsen).
+    private const string LoopMidiPage = "https://www.tobias-erichsen.de/software/loopmidi.html";
+
     private void ShowWelcomePorts()
     {
         _onLinkStep = false;
         var ok = MidiLink.PortsExist();
+        var light = _app.Light;
         _shownPortsOk = ok;
         _welcomeContent.Children.Clear();
         _welcomeContent.Children.Add(WelcomeHead());
@@ -185,37 +191,47 @@ internal sealed partial class MainShell
         var row = new Grid { ColumnSpacing = 12, MinHeight = 64 };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var text = new StackPanel { Spacing = 3, VerticalAlignment = VerticalAlignment.Center };
+        var text = new StackPanel { Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
         text.Children.Add(Label(Loc.T("Ports MIDI « FL Shortcuts »"), 18, Text, bold: true));
         text.Children.Add(Paragraph(ok
-            ? Loc.T("Prêts : « FL Shortcuts » et « FL Shortcuts Retour ».")
-            : Loc.T("Dans loopMIDI : crée « FL Shortcuts » et « FL Shortcuts Retour »."), 12));
+            ? (MidiServicesPorts.CreatedByWindows ? Loc.T("Prêts : créés par Windows.")
+                                                  : Loc.T("Prêts : « FL Shortcuts » et « FL Shortcuts Retour »."))
+            : Loc.T("Installe loopMIDI, puis crée « FL Shortcuts » et « FL Shortcuts Retour »."), 12));
         if (!ok)
         {
-            var link = new HyperlinkButton
+            // Un vrai bouton (08/11) : la page de téléchargement de loopMIDI dans le navigateur.
+            var download = Soft(Loc.T("Télécharger loopMIDI"), () =>
             {
-                Content = Label(Loc.T("Télécharger loopMIDI"), 12, Link),
-                NavigateUri = new Uri("https://www.tobias-erichsen.de/software/loopmidi.html"),
-                Padding = new Thickness(0),
-            };
-            text.Children.Add(link);
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(LoopMidiPage) { UseShellExecute = true }); }
+                catch (Exception e) { AppLog.Write("STATUS", "page loopMIDI non ouverte (" + e.GetType().Name + ")"); }
+            });
+            download.HorizontalAlignment = HorizontalAlignment.Left;
+            download.Margin = new Thickness(0, 4, 0, 0);
+            text.Children.Add(download);
         }
         row.Children.Add(text);
-        var state = State(ok ? Loc.T("Prêts") : Loc.T("En attente…"), ok ? Green : Orange);
+        var state = State(ok ? Loc.T("Prêts") : light ? Loc.T("À installer") : Loc.T("En attente…"), ok ? Green : Orange);
         Grid.SetColumn(state, 1);
         row.Children.Add(state);
         _welcomeContent.Children.Add(WelcomeCard(row));
 
         _welcomeContent.Children.Add(Paragraph(Loc.T("Tes touches ne sont lues que dans FL. Rien n'est gardé."), 12));
 
-        var next = Primary(ok ? Loc.T("Continuer") : Loc.T("Crée d'abord les deux ports MIDI"), () =>
+        // Mode léger : loopMIDI ne sert qu'à l'Organiser et aux actions de FL ; on peut continuer sans lui.
+        var next = Primary(ok || light ? Loc.T("Continuer") : Loc.T("Crée d'abord les deux ports MIDI"), () =>
         {
+            if (light)
+            {
+                _app.LoopMidiSeen();
+                ShowScreen();
+                return;
+            }
             if (!MidiLink.PortsExist()) return;
             _linkStep = _app.Linked ? LinkStep.Linked : LinkStep.Idle;
             ShowWelcomeLink(null);
         });
-        next.IsEnabled = ok;
-        next.Opacity = ok ? 1 : 0.45;
+        next.IsEnabled = ok || light;
+        next.Opacity = ok || light ? 1 : 0.45;
         next.HorizontalAlignment = HorizontalAlignment.Right;
         _welcomeContent.Children.Add(next);
         AddBackLink();
@@ -326,7 +342,7 @@ internal sealed partial class MainShell
 
     private void AddBackLink()
     {
-        if (!_app.Onboarded) return;
+        if (!_app.Onboarded || _photos) return;
         var back = Soft(Loc.T("Retour aux raccourcis"), BackToMain);
         back.HorizontalAlignment = HorizontalAlignment.Center;
         _welcomeContent.Children.Add(back);

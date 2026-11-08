@@ -417,6 +417,12 @@
   `windows/ThirdParty/WindowsMidiServices`, projection CsWinRT générée sous Windows seulement (`MIDI_SERVICES`).
   Essai CI `--midi-ports-check <fichier.txt>` (la CI n'a pas MIDI Services : il doit dire « indisponible » sans
   tomber). Jamais vu sur un vrai PC 25H2.
+  Puis (08/11, « mets loopMIDI dans l'installation… quand tu ouvres FL Shortcuts… ça demande d'installer loopMIDI avec
+  un bouton ») : mode léger Windows, une page d'accueil au 1er lancement (`ShowWelcomePorts` : carte « Ports MIDI »,
+  état « À installer »/« Prêts », bouton « Télécharger loopMIDI » qui ouvre sa page, « Continuer » toujours possible ;
+  réglage `LoopMidiAsked` ; sautée si les ports sont déjà là) ; photo CI `accueil-loopmidi.png` (`ShowPage("accueil")`,
+  le mode photos sinon toujours sur les pages : `_photoPages`). LISEZMOI Windows : loopMIDI dans « installe », étape 02
+  « Ouvre loopMIDI ». Mac : rien (pas de loopMIDI).
 - **Retours du 06/11** (long message + maquette HTML papier/orange) : effet Gumroad SEULEMENT au survol, dans les 3
   thèmes (`gumroadLift` : soulevé en haut à gauche sur son ombre nette `Swiss.primaryLift`, rouge, noire sous Orange) :
   boutons principaux pleins au repos sans ombre (Partager…), « Enregistrer » du créateur, bouton de l'Organiser, 3

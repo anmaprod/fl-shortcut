@@ -395,6 +395,16 @@ internal sealed partial class MainShell
     /// Mode photos de la CI : une page donnée (« general », « playlist », « custom », « recherche »…).
     public void ShowPage(string page)
     {
+        // « accueil » : la page d'accueil (loopMIDI à installer, 08/11) ; les autres pages la cachent.
+        if (page == "accueil")
+        {
+            _main.Visibility = Visibility.Collapsed;
+            _welcome.Visibility = Visibility.Visible;
+            ShowWelcomePorts();
+            return;
+        }
+        _welcome.Visibility = Visibility.Collapsed;
+        _main.Visibility = Visibility.Visible;
         _query = "";
         _keySearch = null;
         _search.Text = "";
