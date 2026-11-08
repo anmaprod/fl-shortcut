@@ -174,52 +174,64 @@ internal sealed class CommunityPage
     {
         var page = new StackPanel { Spacing = 18, Padding = new Thickness(26, 4, 26, 24) };
 
-        var top = new Grid { ColumnSpacing = 14 };
-        top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        // Comme le Mac (08/11, « la page communauté n'est pas la même ») : sur une seule ligne, la recherche avec sa
+        // loupe, les cases Tout / Macros / Raccourcis / Les miens, puis « Actualiser » ; « Partager » est dans l'en-tête.
+        var top = new Grid { ColumnSpacing = 10 };
+        top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 420 });
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        // Maquette du 05/11 (comme le Mac) : recherche bordée de 2 points, pleine du fond, texte d'aide à l'encre.
+        top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         var search = new TextBox
         {
             Text = _search,
             PlaceholderText = Loc.T("Chercher une macro, des raccourcis"),
-            PlaceholderForeground = Brush(WithOpacity(Text, 0.75)),
+            PlaceholderForeground = Brush(WithOpacity(Text, 0.6)),
             FontFamily = SwissFont,
-            FontSize = 14,
-            MinHeight = 44,
+            FontSize = 13,
+            MinHeight = 36,
             Background = Brush(MacLook.WindowColor),
             BorderBrush = Brush(Text),
             BorderThickness = new Thickness(2),
             CornerRadius = new CornerRadius(0),
-            Padding = new Thickness(12, 10, 12, 10),
+            Padding = new Thickness(34, 8, 10, 8),
+            VerticalAlignment = VerticalAlignment.Center,
         };
+        var loupe = Icon("search", 14, Text);
+        loupe.HorizontalAlignment = HorizontalAlignment.Left;
+        loupe.VerticalAlignment = VerticalAlignment.Center;
+        loupe.Margin = new Thickness(12, 0, 0, 0);
         AutomationProperties.SetName(search, Loc.T("Rechercher"));
         search.TextChanged += (_, _) => _search = search.Text;
         search.KeyDown += (_, e) =>
         {
             if (e.Key == Windows.System.VirtualKey.Enter) Choose(_filter);
         };
-        top.Children.Add(search);
-        var share = Primary(Loc.T("Partager"), StartComposing);
-        ToolTipService.SetToolTip(share, Loc.T("Partager une macro…"));
-        Grid.SetColumn(share, 1);
-        top.Children.Add(share);
-        page.Children.Add(top);
+        top.Children.Add(new Grid { Children = { search, loupe } });
 
-        var filters = new StackPanel { Orientation = Orientation.Horizontal };
+        var filters = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         foreach (var (filter, label) in new[] { (Filter.All, Loc.T("Tout")), (Filter.Macros, Loc.T("Macros")),
                                                 (Filter.Profiles, Loc.T("Raccourcis")), (Filter.Mine, Loc.T("Les miens")) })
         {
             // Cases collées (maquette), la choisie pleine d'encre ; les autres pleines du fond.
             var f = filter;
             var on = _filter == f && _author is null;
-            var chip = Option(SwissLabel(label, 11.5, on ? MacLook.WindowColor : Text), Tint, 0, () => Choose(f), on,
-                              minHeight: 44, padding: new Thickness(14, 0, 14, 0));
+            var chip = Option(SwissLabel(label, 11, on ? MacLook.WindowColor : Text), Tint, 0, () => Choose(f), on,
+                              minHeight: 36, padding: new Thickness(12, 0, 12, 0));
             if (!on) chip.Background = Brush(MacLook.WindowColor);
             chip.BorderBrush = Brush(MacLook.Text);
             chip.BorderThickness = new Thickness(2);
             chip.Margin = new Thickness(filters.Children.Count > 0 ? -2 : 0, 0, 0, 0);
             filters.Children.Add(chip);
         }
+        Grid.SetColumn(filters, 1);
+        top.Children.Add(filters);
+        var refresh = new Button { Style = PlainButton, Content = Icon("arrow.clockwise", 14, Secondary), Padding = new Thickness(6), VerticalAlignment = VerticalAlignment.Center };
+        ToolTipService.SetToolTip(refresh, Loc.T("Actualiser"));
+        AutomationProperties.SetName(refresh, Loc.T("Actualiser"));
+        refresh.Click += (_, _) => Choose(_filter);
+        Grid.SetColumn(refresh, 2);
+        top.Children.Add(refresh);
+        var head = new StackPanel { Spacing = 12, Children = { top } };
         if (_author is { } author)
         {
             var everyone = Soft(Loc.F("Tous les partages de @%@", DisplayText.Safe(author.Name, 24)) + "  ✕", () =>
@@ -227,11 +239,11 @@ internal sealed class CommunityPage
                 _author = null;
                 Choose(_filter);
             });
-            everyone.Margin = new Thickness(14, 0, 0, 0);
             ToolTipService.SetToolTip(everyone, Loc.T("Voir tout le monde"));
-            filters.Children.Add(everyone);
+            head.Children.Add(everyone);
         }
-        page.Children.Add(filters);
+        head.Children.Add(Rule(LineColor));
+        page.Children.Add(head);
         if (_notice is not null) page.Children.Add(Paragraph(_notice, 12.5, Text));
 
         if (_loading && _shares is null)
@@ -291,7 +303,7 @@ internal sealed class CommunityPage
                 _filter == Filter.Macros ? Loc.T("Personne n'a encore partagé de macro.") : Loc.T("Personne n'a encore partagé de raccourcis."),
                 Loc.T("Tout afficher"), () => Choose(Filter.All));
         return Message(Loc.T("Encore aucun partage"),
-            Loc.T("Partage la première macro."),
+            Loc.T("Sois le premier : partage une macro qui te fait gagner du temps, avec une petite explication pour les autres."),
             Loc.T("Partager une macro…"), StartComposing);
     }
 
@@ -868,15 +880,35 @@ internal sealed class CommunityPage
         return button;
     }
 
+    /// Page vide, au milieu comme le Mac (08/11) : le titre en gras, une phrase grise centrée, le bouton dessous.
     private static FrameworkElement Message(string title, string text, string? button, Action? action)
     {
-        var panel = new StackPanel { Spacing = 10, Padding = new Thickness(0, 20, 0, 0), MaxWidth = 520, HorizontalAlignment = HorizontalAlignment.Left };
+        var panel = new StackPanel { Spacing = 10, Padding = new Thickness(0, 22, 0, 0), MaxWidth = 460, HorizontalAlignment = HorizontalAlignment.Center };
         var t = Label(title, 20, Text, bold: true);
         t.FontFamily = SwissFont;
         t.TextWrapping = TextWrapping.Wrap;
+        t.HorizontalAlignment = HorizontalAlignment.Center;
+        t.TextAlignment = TextAlignment.Center;
         panel.Children.Add(t);
-        panel.Children.Add(Paragraph(text, 13));
-        if (button is not null && action is not null) panel.Children.Add(Soft(button, action));
+        var body = Paragraph(text, 12, Secondary);
+        body.TextAlignment = TextAlignment.Center;
+        panel.Children.Add(body);
+        if (button is not null && action is not null)
+        {
+            var b = Soft(button, action);
+            b.HorizontalAlignment = HorizontalAlignment.Center;
+            b.Margin = new Thickness(0, 4, 0, 0);
+            panel.Children.Add(b);
+        }
         return panel;
+    }
+
+    /// « Partager » dans l'en-tête de la page, à gauche du compte, comme le Mac ; seulement sur la liste.
+    public Button? HeaderShare()
+    {
+        if (_composing || _opened is not null || (_account.Session is null && !_demo) || (HelpPage.Server is null && !_demo)) return null;
+        var share = Primary(Loc.T("Partager"), StartComposing);
+        ToolTipService.SetToolTip(share, Loc.T("Partager une macro ou tes raccourcis"));
+        return share;
     }
 }

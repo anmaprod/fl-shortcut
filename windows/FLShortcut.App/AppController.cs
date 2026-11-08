@@ -491,7 +491,7 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
                 "Relance FL Studio normalement : Windows empêche FL Shortcuts d'agir sur une appli administrateur.");
         else if (!flRunning && FlPresence.NamedButUnrecognized())
             Set(StatusKind.Unrecognized, "FL Studio n'est pas reconnu",
-                "Sa signature d'Image-Line est introuvable : réinstalle FL Studio depuis le site d'Image-Line.");
+                "Relance FL Studio, puis FL Shortcuts.");
         else if (Light)
         {
             if (flRunning) Set(StatusKind.Linked, "Actif dans FL Studio", "Tes raccourcis marchent quand FL Studio est au premier plan.");

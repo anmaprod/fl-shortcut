@@ -217,9 +217,11 @@ internal sealed class MacrosPage
         heading.Children.Add(SwissLabel(_store.Macros.Count.ToString(System.Globalization.CultureInfo.CurrentCulture)));
         // Importer / Exporter (06/11, comme le Mac) : Documents › FL Shortcuts › Macros › Importer et › Exporter.
         var exchange = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(18, 0, 0, 0) };
-        var import = Soft(Loc.T("Importer"), ImportMacros);
+        // Petits boutons en texte comme le Mac (« IMPORTER », « EXPORTER » : petites capitales grises, encre pleine au
+        // survol), plus des boutons bordés.
+        var import = SmallTextButton(Loc.T("Importer"), ImportMacros);
         ToolTipService.SetToolTip(import, Loc.T("Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcuts › Macros › Importer"));
-        var export = Soft(Loc.T("Exporter"), () => ExportMacros(_store.Macros.ToList()));
+        var export = SmallTextButton(Loc.T("Exporter"), () => ExportMacros(_store.Macros.ToList()));
         ToolTipService.SetToolTip(export, Loc.T("Toutes les macros, un fichier chacune, pour les partager, dans Documents › FL Shortcuts › Macros › Exporter"));
         exchange.Children.Add(import);
         exchange.Children.Add(export);
@@ -242,6 +244,17 @@ internal sealed class MacrosPage
         }
         page.Children.Add(grid);
         return page;
+    }
+
+    /// Petit bouton en texte, comme `smallButton` du Mac : petites capitales grises, encre pleine et texte du fond au
+    /// survol.
+    private static Button SmallTextButton(string title, Action click)
+    {
+        var label = SwissLabel(title, 10.5, Secondary);
+        var button = Option(label, Text, 0, click, minHeight: 22, padding: new Thickness(6, 0, 6, 0));
+        button.PointerEntered += (_, _) => label.Foreground = Brush(WindowColor);
+        button.PointerExited += (_, _) => label.Foreground = Brush(Secondary);
+        return button;
     }
 
     /// Une façon de commencer (maquette du 05/11, comme le Mac) : son numéro en haut, le titre en grand (minuscules)
@@ -304,20 +317,32 @@ internal sealed class MacrosPage
         return button;
     }
 
+    /// Page vide, comme le Mac (08/11, « même le bouton enregistrer n'est pas là ») : « Aucune macro » en grand,
+    /// « Enregistrer une macro » (principal, avec son rond), « Macro vide » et « Partir d'un modèle… », puis « Importer
+    /// un fichier .flsmacro… » ; plus de carré de couleur.
     private FrameworkElement EmptyList()
     {
-        var stack = new StackPanel { Spacing = 12, HorizontalAlignment = HorizontalAlignment.Center, Padding = new Thickness(24, 90, 24, 24) };
-        var tile = Tile("macros", Purple, 52);
-        tile.HorizontalAlignment = HorizontalAlignment.Center;
-        stack.Children.Add(tile);
-        var title = Label(Loc.T("Aucune macro"), 20, Text, bold: true);
+        var stack = new StackPanel { Spacing = 12, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        var title = Label(Loc.T("Aucune macro"), 34, Text, bold: true);
+        title.CharacterSpacing = -40;
         title.HorizontalAlignment = HorizontalAlignment.Center;
         stack.Children.Add(title);
+        var record = Primary(Loc.T("Enregistrer une macro"), "record.circle", RecordNew);
+        record.MinWidth = 240;
+        record.MinHeight = 38;
+        record.HorizontalAlignment = HorizontalAlignment.Center;
+        ToolTipService.SetToolTip(record, Loc.T("Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite, puis « Terminer »"));
+        stack.Children.Add(record);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) };
-        buttons.Children.Add(Primary(Loc.T("Macro vide"), NewMacro));
+        buttons.Children.Add(Soft(Loc.T("Macro vide"), NewMacro));
         buttons.Children.Add(Soft(Loc.T("Partir d'un modèle…"), ShowTemplates));
         stack.Children.Add(buttons);
-        return stack;
+        var import = SwissLabel(Loc.T("Importer un fichier .flsmacro…"), 10.5, Secondary);
+        import.TextDecorations = Windows.UI.Text.TextDecorations.Underline;
+        var importButton = new Button { Style = PlainButton, Content = import, HorizontalAlignment = HorizontalAlignment.Center, Padding = new Thickness(4) };
+        importButton.Click += (_, _) => ImportMacros();
+        stack.Children.Add(importButton);
+        return new Grid { MinHeight = 460, Padding = new Thickness(24), Children = { stack } };
     }
 
     private void NewMacro() => Open(_store.Add(MacroDrafts.Empty(_store)).Id);

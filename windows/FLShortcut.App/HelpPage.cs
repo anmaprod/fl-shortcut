@@ -371,9 +371,21 @@ internal sealed class HelpPage
         _render();
         try
         {
-            using var request = ServerRequests.Support(server, _message, AppVersion, token: Token());
-            using var response = await Http.SendAsync(request);
-            if (!response.IsSuccessStatusCode) throw new HttpRequestException("status");
+            // Avec le compte s'il y en a un ; jeton refusé (session expirée ou révoquée) : sans, comme le Mac
+            // (08/11, « Écrire à l'équipe ne fonctionne pas »).
+            var token = Token();
+            var (status, body) = await Post(server, token);
+            if (token is not null && status is 401 or 403)
+            {
+                AppLog.Write("SUPPORT", $"token refused ({status}), sent without the account");
+                (status, body) = await Post(server, null);
+            }
+            if (status is < 200 or >= 300)
+            {
+                AppLog.Write("SUPPORT", $"send failed ({status})");
+                Fallback(AccountRequests.ServerMessage(body, status));
+                return;
+            }
             AppLog.Write("SUPPORT", "sent");
             _sent = _message;
             _message = new SupportMessage();
@@ -381,7 +393,13 @@ internal sealed class HelpPage
         }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
         {
-            AppLog.Write("SUPPORT", "send failed");
+            AppLog.Write("SUPPORT", "send failed (no answer)");
+            Fallback(Loc.T("le serveur n'a pas répondu."));
+        }
+        catch (Exception e)
+        {
+            // Jamais une chute de l'appli pour un message (async void) : la raison au journal, le message copié.
+            AppLog.Write("SUPPORT", "send failed (" + e.GetType().Name + ")");
             Fallback(Loc.T("le serveur n'a pas répondu."));
         }
         finally
@@ -391,12 +409,23 @@ internal sealed class HelpPage
         }
     }
 
+    private async Task<(int Status, string Body)> Post(ServerConfig server, string? token)
+    {
+        using var request = ServerRequests.Support(server, _message, AppVersion, token: token);
+        using var response = await Http.SendAsync(request);
+        return ((int)response.StatusCode, await response.Content.ReadAsStringAsync());
+    }
+
     /// Sans serveur (ou s'il échoue) : le message copié et le ticket GitHub ouvert (sans le mail : la page est publique).
     private void Fallback(string why)
     {
-        var package = new DataPackage();
-        package.SetText(SupportRules.PlainText(_message, AppVersion));
-        Clipboard.SetContent(package);
+        try
+        {
+            var package = new DataPackage();
+            package.SetText(SupportRules.PlainText(_message, AppVersion));
+            Clipboard.SetContent(package);
+        }
+        catch (Exception e) { AppLog.Write("SUPPORT", "clipboard refused (" + e.GetType().Name + ")"); }
         try { Process.Start(new ProcessStartInfo(SupportRules.IssueUri(_message, AppVersion).AbsoluteUri) { UseShellExecute = true }); }
         catch { /* pas de navigateur : le message reste copié */ }
         _toast(Loc.F("Envoi impossible : %@ Tu peux le copier ou ouvrir un ticket.", why), null);

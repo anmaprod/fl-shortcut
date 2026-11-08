@@ -467,6 +467,31 @@ public class LightModeTests
 }
 
 /// FL reconnu à son signataire (WIN-04) : le certificat de FL64.exe dit « Image Line », sa version « Image-Line ».
+/// 08/11 (« ça ne repère pas FL Studio… même avec un crack ») : FL reconnu à son programme, signature ou pas.
+public class FlRecognitionTests
+{
+    [Theory]
+    [InlineData("FL64.exe")]
+    [InlineData("fl64.EXE")]
+    [InlineData("FL.exe")]
+    [InlineData("FL64 (scaled).exe")]
+    public void TheProgramNameIsEnough(string file) => Assert.True(FlRecognition.Accepts(file));
+
+    [Fact]
+    public void ARenamedCopyIsRecognizedByItsVersionInfo()
+    {
+        Assert.True(FlRecognition.Accepts("FL Studio 2024.exe", "FL Studio", null));
+        Assert.True(FlRecognition.Accepts("FLStudio.exe", null, "FL Studio 2025"));
+        Assert.False(FlRecognition.Accepts("FL Studio 2024.exe", null, null));
+        Assert.False(FlRecognition.Accepts("FL Studio Mobile.exe", "FL Studio Mobile", null));
+        Assert.False(FlRecognition.Accepts("FLRemote.exe", "FL Studio Remote", null));
+        Assert.False(FlRecognition.Accepts("chrome.exe", "FL Studio", null));
+        Assert.False(FlRecognition.Accepts(null));
+        Assert.True(FlRecognition.MaybeFl("FL64"));
+        Assert.False(FlRecognition.MaybeFl("explorer"));
+    }
+}
+
 public class FlSignerTests
 {
     [Theory]

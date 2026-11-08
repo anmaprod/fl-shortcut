@@ -252,6 +252,9 @@ internal static class MacLook
                             new Part(Sparkle(5.2, 3.3, 1.55)), new Part(Sparkle(12.8, 10.2, 1.55)) },
         "custom" => new[] { new Part("M8,1.6 L9.95,5.6 L14.35,6.2 L11.15,9.3 L11.95,13.7 L8,11.6 L4.05,13.7 L4.85,9.3 " +
                                      "L1.65,6.2 L6.05,5.6 Z") },
+        // Étoile creuse (« star » du Mac) : la page vide de « Mes raccourcis ».
+        "star" => new[] { new Part("M8,1.6 L9.95,5.6 L14.35,6.2 L11.15,9.3 L11.95,13.7 L8,11.6 L4.05,13.7 L4.85,9.3 " +
+                                   "L1.65,6.2 L6.05,5.6 Z", false, 0.9) },
         "community" => new[] { new Part(Circle(5.6, 5, 2.4)), new Part(Circle(11, 5.6, 2)),
                                new Part("M1.2,13.2 C1.2,10.6 3.2,9 5.6,9 C8,9 10,10.6 10,13.2 Z"),
                                new Part("M10.6,13.2 C10.6,11.7 10.1,10.5 9.2,9.6 C9.7,9.4 10.3,9.3 11,9.3 C13.1,9.3 14.8,10.7 14.8,13.2 Z") },
@@ -525,6 +528,8 @@ internal static class MacLook
     /// Bouton principal (Valider, Organiser…) au style suisse : rectangle blanc plein, texte noir en capitales ; au
     /// survol, noir bordé de blanc (SwissButtonBody du Mac).
     public static Button Primary(string text, Action click) => SwissButton(text, click, primary: true);
+    /// Principal avec une icône devant (« ⊙ ENREGISTRER UNE MACRO », comme le Mac).
+    public static Button Primary(string text, string icon, Action click) => SwissButton(text, click, primary: true, icon: icon);
 
     /// Bouton secondaire (Annuler, Réparer…) : rectangle bordé de blanc, capitales ; au survol, blanc plein.
     public static Button Soft(string text, Action click) => SwissButton(text, click, primary: false);
@@ -668,7 +673,7 @@ internal static class MacLook
         Visibility = color is null ? Visibility.Collapsed : Visibility.Visible,
     };
 
-    private static Button SwissButton(string text, Action click, bool primary)
+    private static Button SwissButton(string text, Action click, bool primary, string? icon = null)
     {
         // Maquettes du 05/11 (comme le Mac) : le principal est plein. 06/11 : sans ombre au repos ; au survol, il garde
         // ses couleurs et se soulève sur son ombre nette (effet Gumroad). Le bordé (trait de 2 points, plein du fond :
@@ -677,6 +682,17 @@ internal static class MacLook
         var label = Label(text.ToUpper(CultureInfo.CurrentCulture), 12, primary ? onFill : ink, bold: true);
         label.CharacterSpacing = 80;
         label.HorizontalAlignment = HorizontalAlignment.Center;
+        UIElement content = label;
+        if (icon is not null)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center };
+            var mark = Icon(icon, 13, primary ? onFill : ink);
+            mark.VerticalAlignment = VerticalAlignment.Center;
+            row.Children.Add(mark);
+            label.VerticalAlignment = VerticalAlignment.Center;
+            row.Children.Add(label);
+            content = row;
+        }
         var face = new Border
         {
             Background = Brush(primary ? fill : paper),
@@ -684,7 +700,7 @@ internal static class MacLook
             BorderThickness = new Thickness(2),
             Padding = new Thickness(16, 0, 16, 0),
             MinHeight = 32,
-            Child = label,
+            Child = content,
         };
         var shadow = LiftShadow();
         var button = new Button

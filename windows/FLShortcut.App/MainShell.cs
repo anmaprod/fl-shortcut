@@ -59,6 +59,8 @@ internal sealed partial class MainShell
     private readonly TextBlock _title = SwissTitle();
     private readonly StackPanel _capsule = new() { Orientation = Orientation.Horizontal, Spacing = 2 };
     private readonly Border _capsuleBorder;
+    /// Bouton de la page dans l'en-tête, à gauche du compte (« Partager » de la Communauté, comme le Mac).
+    private readonly ContentControl _headerAction = new() { VerticalAlignment = VerticalAlignment.Center, IsTabStop = false };
     private readonly StackPanel _notices = new() { Spacing = 8, Margin = new Thickness(26, 0, 26, 0) };
     private readonly ScrollViewer _scroll = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
     private readonly MacrosPage _macros;
@@ -542,7 +544,7 @@ internal sealed partial class MainShell
             Spacing = 10,
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center,
-            Children = { _capsuleBorder, _accountSlot },
+            Children = { _headerAction, _capsuleBorder, _accountSlot },
         };
         header.Children.Add(right);
         var titleRule = Rule(Text);
@@ -859,6 +861,7 @@ internal sealed partial class MainShell
         var q = _query.Trim();
         _capsule.Children.Clear();
         _capsuleBorder.Visibility = Visibility.Collapsed;
+        _headerAction.Content = null;
         List<PageCard> cards;
         Color tint;
         if (q.Length > 0)
@@ -885,6 +888,7 @@ internal sealed partial class MainShell
         {
             SetTitle(Loc.T("Communauté"));
             _scroll.Content = _community.Content(_columns);
+            _headerAction.Content = _community.HeaderShare();
             return;
         }
         else if (_kind == PageKind.Account)
@@ -911,11 +915,12 @@ internal sealed partial class MainShell
             var created = MyShortcuts.Created(others, _app.Starters);
             if (changed.Count == 0 && created.Count == 0)
             {
-                ShowEmpty("custom", Loc.T("Aucun raccourci changé"),
-                    Loc.T("Tes raccourcis changés et créés."));
+                ShowEmpty("star", Loc.T("Aucun raccourci changé"),
+                    Loc.T("Chaque raccourci que tu changes arrive ici, avec ceux que tu crées. Les macros ont leur page."));
                 return;
             }
-            var list = new StackPanel { Spacing = 0, MaxWidth = 760, HorizontalAlignment = HorizontalAlignment.Left };
+            // Toute la largeur de la page, comme le Mac (la touche et ↺ au bout de la ligne).
+            var list = new StackPanel { Spacing = 0 };
             foreach (var r in changed)
                 list.Children.Add(MineRow(r.Entry.Title, r.Entry.Section.Title(), r.Current, () => EditKey(r),
                     RoundIcon("reset", Loc.T("Revenir à : ") + (r.Entry.DefaultTrigger?.ToString() ?? Loc.T("aucune touche")), () => Reset(r), 28)));
@@ -980,19 +985,22 @@ internal sealed partial class MainShell
         _scroll.Content = grid;
     }
 
+    /// Page vide, comme celle du Mac (08/11, « la page quand tu n'as pas de raccourci n'est pas la même ») : au milieu de
+    /// la page, l'icône creuse en gris, le titre en gras gris, une phrase grise dessous ; plus de carré de couleur.
     private void ShowEmpty(string icon, string title, string text)
     {
-        var stack = new StackPanel { Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center, Padding = new Thickness(24, 80, 24, 24), MaxWidth = 420 };
-        var tile = Tile(icon, icon == "custom" ? Pink : Gray, 44);
-        tile.HorizontalAlignment = HorizontalAlignment.Center;
-        stack.Children.Add(tile);
-        var heading = Label(title, 17, Text, bold: true);
+        var stack = new StackPanel { Spacing = 10, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 440 };
+        var mark = Icon(icon, 34, Tertiary);
+        mark.HorizontalAlignment = HorizontalAlignment.Center;
+        stack.Children.Add(mark);
+        var heading = Label(title, 22, Secondary, bold: true);
         heading.HorizontalAlignment = HorizontalAlignment.Center;
+        heading.Margin = new Thickness(0, 6, 0, 0);
         stack.Children.Add(heading);
-        var body = Paragraph(text, 13);
+        var body = Paragraph(text, 12.5, Secondary);
         body.TextAlignment = TextAlignment.Center;
         stack.Children.Add(body);
-        _scroll.Content = stack;
+        _scroll.Content = new Grid { MinHeight = 420, Padding = new Thickness(24), Children = { stack } };
     }
 
     /// Carte de raccourcis : son titre gris au-dessus, ses lignes dans une plaque claire, un trait fin entre deux.
