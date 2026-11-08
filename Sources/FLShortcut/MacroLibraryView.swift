@@ -18,9 +18,8 @@ struct MacroLibraryProblemLabel: View {
 
     var body: some View {
         if let problem = library.problem {
-            Label(problem, systemImage: "exclamationmark.triangle.fill")
+            SwissWarning(problem)
                 .font(.system(size: 12))
-                .symbolRenderingMode(.multicolor)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

@@ -83,14 +83,19 @@ enum MenuBarIcon {
         guard state != .normal else { return }
         // Pastille d'état en haut à droite, détachée du reste par un anneau vide.
         let center = NSPoint(x: 13.8, y: 4.2)
+        if state == .warning {
+            // Avertissement suisse (08/11 : « pas un emoji d'attention… un point orange ») : un carré plein, sans « ! ».
+            erase(NSBezierPath(rect: NSRect(x: center.x - 4.6, y: center.y - 4.6, width: 9.2, height: 9.2)), in: context)
+            NSColor.black.setFill()
+            NSBezierPath(rect: NSRect(x: center.x - 3.4, y: center.y - 3.4, width: 6.8, height: 6.8)).fill()
+            return
+        }
         erase(circle(center, radius: 5.1), in: context)
         NSColor.black.setFill()
         circle(center, radius: 3.9).fill()
         switch state {
         case .warning:
-            erase(NSBezierPath(roundedRect: NSRect(x: center.x - 0.65, y: center.y - 2.5, width: 1.3, height: 3.1),
-                               xRadius: 0.65, yRadius: 0.65), in: context)
-            erase(circle(NSPoint(x: center.x, y: center.y + 1.9), radius: 0.75), in: context)
+            break
         case .paused:
             for dx: CGFloat in [-1.15, 1.15] {
                 erase(NSBezierPath(roundedRect: NSRect(x: center.x + dx - 0.6, y: center.y - 1.7, width: 1.2, height: 3.4),

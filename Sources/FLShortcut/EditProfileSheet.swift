@@ -62,9 +62,8 @@ struct EditProfileSheet: View {
                     .help(String(localized: "Retirer ta photo : ton initiale de couleur la remplace"))
                 }
                 if let photoProblem {
-                    Label(photoProblem, systemImage: "exclamationmark.triangle.fill")
+                    SwissWarning(photoProblem)
                         .font(.system(size: 12))
-                        .foregroundStyle(.orange)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -76,9 +75,8 @@ struct EditProfileSheet: View {
             if case .invalid(let why) = check {
                 Text(why).font(.system(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
             } else if tried, let error = community.error {
-                Label(error, systemImage: "exclamationmark.triangle.fill")
+                SwissWarning(error)
                     .font(.system(size: 12))
-                    .foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
             }
             HStack(spacing: 8) {

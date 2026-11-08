@@ -266,7 +266,8 @@ internal static class MacLook
         "plus" => new[] { new Part("M8,3 V13 M3,8 H13", false, 1.8) },
         "back" => new[] { new Part("M10,3 L5,8 L10,13", false, 2) },
         "reset" => new[] { new Part("M4,4.6 A5,5 0 1 1 3,9.2", false, 1.6), new Part("M4.6,1.8 L4,4.6 L6.8,5.2", false, 1.6) },
-        "warning" => new[] { new Part("M8,1.6 L15,14 H1 Z"), new Part("M8,6 V9.6", false, 1.6, true), new Part(Circle(8, 11.8, 0.9), Hole: true) },
+        // Avertissement suisse (08/11 : « pas un logo, un emoji d'attention… un point orange ») : un carré plein.
+        "warning" => new[] { new Part(Rect(4.5, 4.5, 7, 7, 0)) },
         "trash" => new[] { new Part("M2.5,4.2 H13.5 M6,4.2 V2.6 H10 V4.2", false, 1.3),
                            new Part("M3.8,4.2 L4.6,14 H11.4 L12.2,4.2", false, 1.3) },
         "check" => new[] { new Part("M3,8.4 L6.6,12 L13,4.4", false, 2) },
@@ -332,7 +333,7 @@ internal static class MacLook
         "ellipsis" => new[] { new Part(Circle(3.4, 8, 1.4)), new Part(Circle(8, 8, 1.4)), new Part(Circle(12.6, 8, 1.4)) },
         // Organiser (symboles du Mac : pastilles, poignée, flèches).
         "waveform" => new[] { new Part("M2,6.5 V9.5 M4.8,4 V12 M7.6,2 V14 M10.4,4.5 V11.5 M13.2,6 V10", false, 1.6) },
-        "exclamationmark" => new[] { new Part("M8,2.6 V9.6", false, 2.2), new Part(Circle(8, 13, 1.25)) },
+        "exclamationmark" => new[] { new Part(Rect(4.5, 4.5, 7, 7, 0)) },
         "antenna.radiowaves.left.and.right" => new[] { new Part(Circle(8, 8, 1.6)),
             new Part("M5.2,5.2 C3.7,6.7 3.7,9.3 5.2,10.8 M10.8,5.2 C12.3,6.7 12.3,9.3 10.8,10.8 " +
                      "M3,3 C0.4,5.6 0.4,10.4 3,13 M13,3 C15.6,5.6 15.6,10.4 13,13", false, 1.4) },
@@ -349,6 +350,8 @@ internal static class MacLook
     /// Une icône dessinée à la taille voulue ; `hole` : la couleur des parties « percées » (celle de la tuile).
     public static FrameworkElement Icon(string name, double size, Color color, Color? hole = null)
     {
+        // L'avertissement suisse porte toujours le rouge-orange du thème (#FF3B1F, blanc sous Orange), comme le Mac.
+        if (name is "warning" or "exclamationmark") color = Red;
         var canvas = new Canvas { Width = 16, Height = 16 };
         foreach (var p in Parts(name))
         {

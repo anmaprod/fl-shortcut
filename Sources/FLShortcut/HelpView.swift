@@ -190,9 +190,8 @@ struct HelpPage: View {
             if let error = message.error {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Label("Le problème signalé", systemImage: "exclamationmark.triangle.fill")
+                        SwissWarning(String(localized: "Le problème signalé"))
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.orange)
                         Spacer()
                         Button("Retirer") { message.error = nil }
                             .buttonStyle(SwissLinkButtonStyle())
@@ -267,9 +266,8 @@ struct HelpPage: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             if let failure {
-                Label(failure, systemImage: "exclamationmark.triangle.fill")
+                SwissWarning(failure)
                     .font(.system(size: 12))
-                    .foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
             }
             buttons

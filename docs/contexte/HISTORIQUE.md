@@ -894,3 +894,6 @@ entrée 1 ≈ 0,5 s.
 - 08/11 (4) : « dans le lisez-moi et README, le changement de thème ne fonctionne pas » → les thèmes passaient par un
   script, que l'aperçu du Finder (barre d'espace) n'exécute pas ; maintenant trois cases radio cachées et `:has()` en
   CSS : vérifié avec JavaScript coupé sur les quatre pages (Noir → Orange → Papier).
+- 08/11 (5) : « un avertissement dans le style suisse… pas avec un logo, un emoji d'attention, peut-être un point
+  orange » → carré plein orange devant le texte partout (Mac : 30 endroits, barre des menus comprise ; Windows : le
+  dessin « warning » de MacLook).

@@ -265,7 +265,7 @@ struct UsernameStatus: View {
         case .taken:
             Label(String(localized: "Déjà pris"), systemImage: "xmark").foregroundStyle(.red).modifier(StatusFont())
         case .invalid:
-            Image(systemName: "exclamationmark.circle").foregroundStyle(.orange).font(.system(size: 13, weight: .semibold))
+            SwissWarningMark(size: 8)
         }
     }
 

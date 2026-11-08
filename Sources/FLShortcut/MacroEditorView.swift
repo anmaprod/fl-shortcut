@@ -629,7 +629,7 @@ private struct MacroStepRowView: View, Equatable {
             case .done?:
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(.green).help("Fait")
             case .warned?:
-                Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.orange).help("Fait, avec un avertissement")
+                SwissWarningMark(size: 8).help("Fait, avec un avertissement")
             case .failed?:
                 Image(systemName: "xmark.circle.fill").foregroundStyle(.red).help("Échec")
             case .cancelled?:
@@ -679,8 +679,10 @@ private struct BadgeCapsule: View {
     let badge: MacroBadge
 
     var body: some View {
-        Label(badge.title, systemImage: badge.symbol)
-            .labelStyle(.titleAndIcon)
+        HStack(spacing: 4) {
+            StatusSymbol(name: badge.symbol, size: 10, tint: badge.tint)
+            Text(badge.title)
+        }
             .font(.system(size: 10, weight: .medium))
             .foregroundStyle(badge.tint)
             .padding(.horizontal, 6)
@@ -1029,9 +1031,7 @@ private struct MacroResultBanner: View {
     private func banner(symbol: String, tint: Color?, text: String, action: (String, () -> Void)? = nil,
                         report: (() -> Void)? = nil, close: (() -> Void)? = nil) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: symbol)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(tint ?? .secondary)
+            StatusSymbol(name: symbol, size: 14, tint: tint ?? .secondary)
             Text(text)
                 .font(.system(size: 12))
                 .fixedSize(horizontal: false, vertical: true)

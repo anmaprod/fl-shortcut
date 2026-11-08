@@ -787,8 +787,8 @@ struct MenuContent: View {
             }
 
             ForEach(alerts, id: \.self) { text in
-                HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                HStack(alignment: .firstTextBaseline, spacing: 7) {
+                    SwissWarningMark(size: 7).alignmentGuide(.firstTextBaseline) { d in d[.bottom] }
                     Text(text).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
                 .font(.system(size: 11))

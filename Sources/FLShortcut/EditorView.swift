@@ -1054,9 +1054,7 @@ private struct NoticeStack: View {
                 VStack(spacing: 6) {
                     ForEach(items) { item in
                         HStack(spacing: 10) {
-                            Image(systemName: item.symbol)
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(item.tint)
+                            StatusSymbol(name: item.symbol, size: 14, tint: item.tint)
                             Text(item.text).fixedSize(horizontal: false, vertical: true)
                             Spacer(minLength: 8)
                             if let title = item.button, let action = item.action {
@@ -1099,9 +1097,7 @@ private struct StatusBar: View {
     private func pill(_ text: String) -> some View {
         HStack(spacing: 0) {
             HStack(spacing: 8) {
-                Image(systemName: symbol)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(color)
+                StatusSymbol(name: symbol, size: 13, tint: color)
                     .accessibilityHidden(true)
                 Text(text).lineLimit(1)
                 if let action {
@@ -1174,9 +1170,7 @@ private struct IssueIcon: View {
     var body: some View {
         let blocking = issues.contains(where: \.isBlocking)
         let text = issues.map(\.message).joined(separator: "\n")
-        Image(systemName: blocking ? "xmark.octagon.fill" : "exclamationmark.triangle.fill")
-            .font(.system(size: 12))
-            .foregroundStyle(blocking ? Color.red : Color.orange)
+        SwissWarningMark(size: blocking ? 9 : 7)
             .help(text)
             .accessibilityLabel(String(localized: "Attention : ") + text)
     }
@@ -1241,9 +1235,7 @@ private struct CatalogRowView: View {
                 .layoutPriority(-1)                      // fenêtre étroite : le titre se raccourcit, pas la touche
             Spacer(minLength: 12)
             if let takenBy = row.takenBy {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.orange)
+                SwissWarningMark(size: 7)
                     .help("Touche aussi utilisée par « \(takenBy) ». Clique sur la touche pour en choisir une autre.")
                     .accessibilityLabel("Touche utilisée par \(takenBy)")
             }
@@ -1852,9 +1844,8 @@ struct IssuesView: View {
 
     var body: some View {
         let blocking = issues.contains(where: \.isBlocking)
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Image(systemName: blocking ? "xmark.octagon.fill" : "exclamationmark.triangle.fill")
-                .foregroundStyle(blocking ? Color.red : Color.orange)
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            SwissWarningMark(size: blocking ? 8 : 7).alignmentGuide(.firstTextBaseline) { d in d[.bottom] }
             Text(issues.map(\.message).joined(separator: " "))
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -2208,10 +2199,8 @@ struct CatalogEditSheet: View {
                         title: row.entry.title, subtitle: row.entry.section.title)
 
             if let notice {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                    Text(notice).fixedSize(horizontal: false, vertical: true)
-                }
+                SwissWarning(notice)
+                    .fixedSize(horizontal: false, vertical: true)
                 .font(.system(size: 12))
             }
 
@@ -2287,10 +2276,7 @@ struct CatalogEditSheet: View {
     /// Liste courte sous le champ : qui utilise déjà cette touche.
     private var clashList: some View {
         VStack(alignment: .leading, spacing: 2) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                Text("Déjà utilisée par :")
-            }
+            SwissWarning(String(localized: "Déjà utilisée par :"))
             ForEach(clashes.prefix(4)) { c in
                 Text(c.line).foregroundStyle(.secondary)
             }

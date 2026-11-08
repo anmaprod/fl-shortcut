@@ -352,6 +352,10 @@
   Windows (dans l'app depuis le 04/11) ; « pour regarder, non » était faux : compte nécessaire pour regarder aussi.
   MIDISettings.png renumérotée (les deux Port en 1 et 2, Enable 3, Controller type 4 ; `MIDISettingsCrops` suit) ;
   tuto 4 de l'Organiser : « l'ancienne version part à la Corbeille » (plus « ton projet ne bouge pas »).
+- **Avertissements au style suisse** (08/11, « pas avec un logo, un emoji d'attention… un point orange ») : un carré
+  plein #FF3B1F (blanc sous Orange) devant le texte, le texte à l'encre ; plus aucun triangle, cercle « ! » ni octogone
+  (Mac : `SwissWarning`, `SwissWarningMark`, `StatusSymbol` dans GlassStyle.swift, pastille carrée dans la barre des
+  menus ; Windows : icônes « warning »/« exclamationmark » de `MacLook.Icon` = ce carré, toujours en `Red`).
 - **Thèmes** (05/11, « dans mon compte la possibilité de changer de thèmes ») : Noir (d'origine), Papier (blanc,
   encre noire, grille fine derrière la page), Orange (fond #FF3B1F, encre noire, barre de gauche et cartes noires),
   maquettes validées (artefact privé `1EFC8zLVn5ATRWAnQMBZrB`). Carte « Thème » dans Mon compte. 07/11 (« les

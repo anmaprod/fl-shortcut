@@ -376,7 +376,7 @@ struct UninstallView: View {
                     .foregroundStyle(.secondary)
                     .padding(.top, 4)
             } else {
-                SectionIcon(symbol: "exclamationmark.triangle", tint: .orange, size: 68)
+                SwissWarningMark(size: 20)                // avertissement suisse (08/11) : plus de triangle
                 Text("Encore une étape")
                     .font(Swiss.title(18)).tracking(Swiss.titleTracking(18))
                     .padding(.top, 14)

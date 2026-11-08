@@ -723,9 +723,8 @@ private struct CommunityShareDetail: View {
                 Text("Lecture du partage…").font(.system(size: 12)).foregroundStyle(.secondary)
             }
         case .failed(let why):
-            Label("Ce partage ne peut pas être ajouté : \(why)", systemImage: "exclamationmark.triangle.fill")
+            SwissWarning(String(localized: "Ce partage ne peut pas être ajouté : \(why)"))
                 .font(.system(size: 12))
-                .foregroundStyle(.orange)
                 .fixedSize(horizontal: false, vertical: true)
         case .macro(let preview):
             listed(preview.lines)
@@ -1089,8 +1088,7 @@ private struct CommunityPublishSheet: View {
             .font(.system(size: 11))
             .foregroundStyle(.secondary)
             if let problem = problem ?? limitProblem {
-                Label(problem, systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
+                SwissWarning(problem)
                     .font(.system(size: 12))
             }
             HStack {

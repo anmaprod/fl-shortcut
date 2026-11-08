@@ -285,6 +285,62 @@ enum Swiss {
     static func titleTracking(_ size: CGFloat) -> CGFloat { -size * 0.039 }
 }
 
+// MARK: - Avertissement suisse
+
+/// Avertissement au style suisse (08/11 : « pas avec un logo, un emoji d'attention… peut-être avec un point orange ;
+/// il faut qu'il y ait toujours l'ergonomie du style ») : un carré plein orange (#FF3B1F, blanc sous Orange) devant le
+/// texte, posé sur sa première ligne, comme le point carré des titres. Plus aucun triangle, cercle « ! » ni octogone.
+struct SwissWarningMark: View {
+    var size: CGFloat = 8
+
+    var body: some View {
+        Rectangle().fill(Swiss.red)
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
+    }
+}
+
+/// Le texte d'un avertissement avec son carré (à la place de `Label(…, systemImage: "exclamationmark.triangle.fill")`).
+/// Le texte reste à l'encre : seul le carré porte la couleur.
+struct SwissWarning: View {
+    let text: String
+    var size: CGFloat = 8
+
+    init(_ text: String, size: CGFloat = 8) {
+        self.text = text
+        self.size = size
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            SwissWarningMark(size: size).alignmentGuide(.firstTextBaseline) { d in d[.bottom] }
+            Text(text).foregroundStyle(Swiss.text)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(String(localized: "Attention : ") + text)
+    }
+}
+
+/// Symbole d'état d'une ligne ou d'un bandeau : les symboles d'attention de macOS (« exclamationmark… »,
+/// « xmark.octagon… ») deviennent le carré de l'avertissement suisse ; les autres restent des symboles.
+struct StatusSymbol: View {
+    let name: String
+    var size: CGFloat = 14
+    var tint: Color = .secondary
+
+    static func isWarning(_ name: String) -> Bool {
+        name.hasPrefix("exclamationmark") || name.hasPrefix("xmark.octagon")
+    }
+
+    var body: some View {
+        if Self.isWarning(name) {
+            SwissWarningMark(size: (size * 0.6).rounded())
+        } else {
+            Image(systemName: name).font(.system(size: size, weight: .semibold)).foregroundStyle(tint)
+        }
+    }
+}
+
 /// Grand titre d'une page ou d'une fenêtre (maquette du 05/11, « les points… c'est ultra important ») : en minuscules,
 /// suivi de son point carré, rouge (blanc sous Orange).
 struct SwissPageTitle: View {

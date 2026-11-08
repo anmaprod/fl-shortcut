@@ -196,8 +196,12 @@ struct MacroFields: View {
     @ViewBuilder
     private func learnRow(title: String, done: Bool, optional: Bool, phase: MacroLearner.Phase) -> some View {
         HStack(spacing: 8) {
-            Image(systemName: done ? "checkmark.circle.fill" : (optional ? "circle.dashed" : "exclamationmark.circle"))
-                .foregroundStyle(done ? Color.green : Color.secondary)
+            if done || optional {
+                Image(systemName: done ? "checkmark.circle.fill" : "circle.dashed")
+                    .foregroundStyle(done ? Color.green : Color.secondary)
+            } else {
+                SwissWarningMark(size: 8).frame(width: 16)    // à faire : le carré de l'avertissement suisse
+            }
             Text(title)
             Spacer()
             if learner.isActive {

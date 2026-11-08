@@ -900,10 +900,8 @@ private struct BlockInspector: View {
             }), current: page?.title ?? String(localized: "À choisir"),
                entries: pageEntries(page))
             if page == nil {
-                Label("Choisis la page de FL à ouvrir.",
-                      systemImage: "exclamationmark.triangle.fill")
+                SwissWarning(String(localized: "Choisis la page de FL à ouvrir."))
                     .font(.system(size: 11))
-                    .foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -959,17 +957,14 @@ private struct BlockInspector: View {
                             .foregroundStyle(.secondary)
                     }
                 } else {
-                    Label(id == nil ? String(localized: "Choisis l'option à cliquer dans \(page.title).")
-                                    : String(localized: "Cette option n'est pas dans \(page.title)."),
-                          systemImage: "exclamationmark.triangle.fill")
+                    SwissWarning(id == nil ? String(localized: "Choisis l'option à cliquer dans \(page.title).")
+                                           : String(localized: "Cette option n'est pas dans \(page.title)."))
                         .font(.system(size: 11))
-                        .foregroundStyle(.orange)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             } else {
-                Label(String(localized: "Choisis d'abord la page au-dessus."), systemImage: "exclamationmark.triangle.fill")
+                SwissWarning(String(localized: "Choisis d'abord la page au-dessus."))
                     .font(.system(size: 12))
-                    .foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -1002,9 +997,8 @@ private struct BlockInspector: View {
                 }), prompt: Text("Arrangement 2"))
             }
             if let problem {
-                Label(problem.prefix(1).uppercased() + problem.dropFirst(), systemImage: "exclamationmark.triangle.fill")
+                SwissWarning(problem.prefix(1).uppercased() + problem.dropFirst())
                     .font(.system(size: 11))
-                    .foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -1072,10 +1066,15 @@ private struct SoundCardField: View {
                     .help("Relire les cartes branchées")
             }
             if let result {
-                Label(result.text, systemImage: result.ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                    .font(.system(size: 11))
-                    .foregroundStyle(result.ok ? Color.green : Color.orange)
-                    .fixedSize(horizontal: false, vertical: true)
+                Group {
+                    if result.ok {
+                        Label(result.text, systemImage: "checkmark.circle.fill").foregroundStyle(Color.green)
+                    } else {
+                        SwissWarning(result.text)
+                    }
+                }
+                .font(.system(size: 11))
+                .fixedSize(horizontal: false, vertical: true)
             }
         }
         .onAppear(perform: reload)

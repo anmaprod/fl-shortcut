@@ -123,9 +123,8 @@ struct AccountPage: View {
                     .help("Efface ton compte, ta sauvegarde en ligne et tes partages. Tes raccourcis et tes macros restent sur ce Mac.")
                 }
                 if let deleteError {
-                    Label(deleteError, systemImage: "exclamationmark.triangle.fill")
+                    SwissWarning(deleteError)
                         .font(.system(size: 12))
-                        .foregroundStyle(Swiss.red)
                 }
             }
             .padding(.horizontal, 26)
