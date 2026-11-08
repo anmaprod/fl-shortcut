@@ -432,7 +432,15 @@
 - Bloc « Action de FL » (08/11, « tous ces petits détails-là, tu les enlèves ») : seulement la liste et sa phrase
   courte (Mac et Windows) ; plus « Sans lien, cette touche de FL », « Ajouter une touche de secours », « Par le lien
   avec FL, ouvert le temps de ce bloc… » ; le repli sans lien reste choisi tout seul (`setAction`) ; reste l'orange
-  « Demande le lien avec FL » si le lien manque, et le réglage du mute/solo sans lien.
+  « Demande le lien avec FL » si le lien manque.
+- **Mute / solo sans le lien** (08/11, « ce sera la piste sélectionnée… pas besoin de montrer ») : plus de « Montrer le
+  bouton mute » ; la piste = dernier clic dans FL ; son petit rond (rose chez lui, couleur variable) retrouvé tout seul
+  dans l'image de sa fenêtre de FL (`MuteDots.swift`, `Macros/MuteDots.cs`, mêmes règles) : Mixer = RANGÉE de ronds sous
+  les noms, Channel rack = COLONNE à gauche du clic (rond au milieu de la ligne), Playlist = COLONNE à droite du clic
+  (rond en bas à droite de l'en-tête) ; rond éteint (piste coupée) déduit de ses voisins puis vérifié ; jamais la
+  colonne des voyants des effets à droite du Mixer. Mute = clic gauche, solo = ⌘ + clic (Windows : Ctrl + clic) ; la
+  touche S (solo du Mixer seulement) n'est plus utilisée. Écran Windows à 100 % : image agrandie deux fois. Vérifié sur
+  sa capture du Mixer (17 ronds, Master compris) et sur des fenêtres dessinées ; pas encore sur le vrai FL.
 - Organiser, écran « Démarrer » (08/11, réponse « carré orange ») : un carré plein #FF3B1F devant « Ne touche pas à FL
   jusqu'à la fin. », à la place de l'ancienne baguette ; Windows (pas d'écran Démarrer) : devant « Préparation… ».
 - **Retours du 06/11** (long message + maquette HTML papier/orange) : effet Gumroad SEULEMENT au survol, dans les 3

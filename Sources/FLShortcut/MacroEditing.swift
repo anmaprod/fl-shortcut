@@ -313,11 +313,8 @@ enum MacroOutline {
         }
         switch b.body {
         case .delay: out.append(.pauseFixe)
-        case .flAction("mute", .none), .pageOption("mixer.mute"?, _):
-            // Sans le script : le bouton mute de la piste, montré une fois sur ce Mac.
-            if !MuteSwitch.isLearned { out.append(.aApprendre(MuteSwitch.toLearn)) }
-        case .flAction("solo", .none):
-            break                                   // sans le script : bouton mute (clic droit) ou touche S
+        case .flAction("mute", .none), .flAction("solo", .none), .pageOption("mixer.mute"?, _):
+            break                                   // sans le script : le rond de la piste, retrouvé tout seul (08/11)
         // « Lien FL » retiré avec l'utilisateur : sans le lien, l'échec du bloc le dit au moment voulu.
         case .selectInput where !learnedInput:
             out.append(.aApprendre(String(localized: "Entrée « 1 » à montrer une fois.")))

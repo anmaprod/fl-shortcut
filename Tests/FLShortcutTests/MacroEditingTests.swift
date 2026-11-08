@@ -63,11 +63,10 @@ final class MacroEditingTests: XCTestCase {
         XCTAssertTrue(r[4].badges.contains(.continueSiEchec))
         // Entrée déjà apprise : plus de badge.
         XCTAssertTrue(rows(blocks, learned: true)[1].badges.isEmpty)
-        // Mute et solo marchent sans le script : jamais « lien FL » ; le mute attend son bouton, montré une fois.
-        MuteSwitch.forget()
+        // Mute et solo marchent sans le script : jamais « lien FL », plus rien à montrer (le rond est retrouvé tout seul).
         let mixer = rows([Block(.flAction(key: "mute", fallback: .none)), Block(.flAction(key: "solo", fallback: .none))],
                          learned: true)
-        XCTAssertEqual(mixer[0].badges, [.aApprendre(MuteSwitch.toLearn)])
+        XCTAssertTrue(mixer[0].badges.isEmpty)
         XCTAssertTrue(mixer[1].badges.isEmpty)
     }
 

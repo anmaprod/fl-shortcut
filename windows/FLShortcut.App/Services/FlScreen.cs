@@ -142,6 +142,15 @@ internal static class FlScreen
 
     /// Toute une fenêtre de FL telle qu'affichée maintenant, en niveaux de gris (bouton retrouvé à son image). Jamais
     /// gardée.
+    /// Image en couleurs de cette fenêtre (rond de la piste pour le mute / solo), jamais gardée.
+    public static RgbImage? ColorWindow(IntPtr window)
+    {
+        if (window == IntPtr.Zero || !Win32.GetWindowRect(window, out var r)) return null;
+        int width = r.Right - r.Left, height = r.Bottom - r.Top;
+        if (width < 8 || height < 8 || width > 16_000 || height > 16_000) return null;
+        return Capture(r.Left, r.Top, width, height) is { } pixels ? RgbImage.FromBgra(pixels, width, height) : null;
+    }
+
     public static GrayImage? GrayWindow(IntPtr window)
     {
         if (window == IntPtr.Zero || !Win32.GetWindowRect(window, out var r)) return null;

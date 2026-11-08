@@ -42,6 +42,17 @@ internal sealed class FakeFl : IFlDriver
     public Dictionary<long, List<TextItem>> Texts { get; } = new();
     public int MenusCancelled { get; private set; }
     public AimedClick? LastAimedClick { get; set; }
+    /// Image en couleurs de toutes les fenêtres (null : illisible) et Ctrl + clics reçus (solo d'une piste).
+    public RgbImage? ColorImage { get; set; }
+    public RgbImage? WindowColorImage(long window) => ColorImage;
+    public List<(int X, int Y)> ControlClicks { get; } = new();
+
+    public bool ControlClick(int x, int y)
+    {
+        if (!Front) return false;
+        ControlClicks.Add((x, y));
+        return true;
+    }
     public List<byte[]> Data { get; } = new();
     public List<byte[]> Requests { get; } = new();
     /// Réponse du lien aux commandes avec données (null : faites).
@@ -358,11 +369,42 @@ public class MacroEffectsWindowsTests
         Assert.Equal(new KeyCombo(Vk.Letter('R')), Assert.Single(fl.Sent));     // touche REC de FL
 
         Assert.Equal("ce bloc a besoin du lien avec FL : lien endormi",
-            Assert.IsType<StepResult.Fail>(fx.FlActions(new[] { group[0] }, state)).Why);
+            Assert.IsType<StepResult.Fail>(fx.FlActions(new[] { new FlActionCall("bypass", ActionFallback.None) }, state)).Why);
+        // Mute sans le lien : le rond de la piste cherché dans la fenêtre de FL (ici illisible).
+        Assert.Equal("fenêtre de FL illisible", Assert.IsType<StepResult.Fail>(fx.FlActions(new[] { group[0] }, state)).Why);
         Assert.StartsWith("armement non fait",
             Assert.IsType<StepResult.Warn>(fx.FlActions(new[] { new FlActionCall("armon", ActionFallback.TrackMenuArm) }, state)).Why);
         Assert.Equal("action de FL inconnue",
             Assert.IsType<StepResult.Fail>(fx.FlActions(new[] { new FlActionCall("teleport", ActionFallback.None) }, state)).Why);
+    }
+
+    [Fact]
+    public void MuteAndSoloClickTheDotOfTheClickedTrackWithoutTheLink()
+    {
+        // Mixer du faux FL : 12 pistes de 58 pixels, rond rose sous le nom ; dernier clic sur le nom de la 4e piste.
+        var image = MuteDotsTests.Mixer();
+        var (fl, fx, state) = Start(f =>
+        {
+            f.Open[0] = new FlWin(FakeFl.Main, FlWindowRole.Main, 0, 0, 1400, 900);
+            f.ColorImage = image;
+            f.LastAimedClick = new AimedClick(274, 360, FakeFl.Main, 1400, 900, f.Now);
+        });
+        Assert.IsType<StepResult.Ok>(fx.FlActions(new[] { new FlActionCall("mute", ActionFallback.None) }, state));
+        var (x, y, right) = Assert.Single(fl.Clicks);
+        Assert.Equal((274, 440, false), (x, y, right));
+        Assert.IsType<StepResult.Ok>(fx.FlActions(new[] { new FlActionCall("solo", ActionFallback.None) }, state));
+        Assert.Equal((274, 440), Assert.Single(fl.ControlClicks));            // solo : Ctrl + clic, le même rond
+
+        // Écran à 100 % : l'image deux fois plus petite (ronds de 5 pixels), retrouvée une fois agrandie.
+        (fl, fx, state) = Start(f =>
+        {
+            f.Open[0] = new FlWin(FakeFl.Main, FlWindowRole.Main, 0, 0, 1400, 900);
+            f.ColorImage = MuteDotsTests.Mixer(half: true);
+            f.LastAimedClick = new AimedClick(137, 180, FakeFl.Main, 1400, 900, f.Now);
+        });
+        Assert.IsType<StepResult.Ok>(fx.FlActions(new[] { new FlActionCall("mute", ActionFallback.None) }, state));
+        MuteDotsTests.Near(137, fl.Clicks.Single().X);
+        MuteDotsTests.Near(220, fl.Clicks.Single().Y);
     }
 
     [Fact]

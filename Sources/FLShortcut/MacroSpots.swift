@@ -60,6 +60,7 @@ enum MacroSpots {
         for k in PathKind.allCases { defaults.removeObject(forKey: k.rawValue) }
         IconPlacement.forgetSpot(defaults: defaults)
         MacroRunner.forgetTrackMenuMemo(defaults: defaults)
+        MuteSolo.forgetOldSpot(defaults)
     }
 
     static var anyLearned: Bool {

@@ -311,6 +311,24 @@ internal sealed class WindowsFlDriver : IFlDriver
 
     public GrayImage? WindowImage(long window) => Owned(window) ? FlScreen.GrayWindow((IntPtr)window) : null;
 
+    public RgbImage? WindowColorImage(long window) => Owned(window) ? FlScreen.ColorWindow((IntPtr)window) : null;
+
+    /// Solo d'une piste sans le lien : Ctrl tenu pendant un clic gauche (toujours relâché).
+    public bool ControlClick(int x, int y)
+    {
+        if (!InFront()) return false;
+        Injector.Control(true);
+        try
+        {
+            Thread.Sleep(20);
+            return Click(x, y, false, 30);
+        }
+        finally
+        {
+            Injector.Control(false);
+        }
+    }
+
     /// Fenêtre de FL (jamais celle d'un autre programme), visible.
     private bool Owned(long window)
     {

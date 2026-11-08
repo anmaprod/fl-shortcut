@@ -897,3 +897,10 @@ entrée 1 ≈ 0,5 s.
 - 08/11 (5) : « un avertissement dans le style suisse… pas avec un logo, un emoji d'attention, peut-être un point
   orange » → carré plein orange devant le texte partout (Mac : 30 endroits, barre des menus comprise ; Windows : le
   dessin « warning » de MacLook).
+- 08/11 (6) : mute / solo sans le lien. Ses explications (captures du Mixer, de la Playlist et du Channel rack) : le
+  rond rose sous « Insert 2 », à gauche des boutons et du numéro d'un son, en bas à droite de « Track 1 » ; clic gauche
+  = mute, ⌘ + clic = solo ; S ne fait le solo que dans le Mixer ; « ce sera la piste sélectionnée, pas besoin de
+  montrer ». → `MuteDots` (Mac et Windows) : taches de couleur franche, petites et rondes, alignées à pas réguliers ;
+  la série dont la piste contient le dernier clic ; rond éteint déduit des voisins. Essayé sur sa capture du Mixer :
+  chaque clic (nom, fader, Master) tombe sur le bon rond, jamais sur les voyants « Slot » à droite. Ancien
+  apprentissage (MuteSwitch, « Montrer le bouton mute ») retiré, réglage effacé.

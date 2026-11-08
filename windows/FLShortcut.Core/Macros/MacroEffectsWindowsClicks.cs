@@ -45,6 +45,33 @@ public sealed partial class MacroEffectsWindows
         else _fl.Log("TRACK", "no remembered click → cursor");
     }
 
+    /// Mute / solo sans le lien (08/11, « ce sera la piste sélectionnée, il n'y a pas besoin de montrer ») : le rond de
+    /// la piste cliquée juste avant, retrouvé dans l'image de sa fenêtre de FL (MuteDots) ; clic gauche = mute, Ctrl +
+    /// clic gauche = solo, dans le Mixer, le Channel rack et la Playlist.
+    private StepResult MuteSoloWithoutLink(bool solo)
+    {
+        var window = _fl.Windows().Where(w => w.Role != FlWindowRole.Menu && Contains(w, _track)).Cast<FlWin?>().FirstOrDefault();
+        if (window is not { } w) return new StepResult.Fail(Loc.T("clique d'abord sur ta piste dans FL, puis lance la macro"));
+        if (_fl.WindowColorImage(w.Id) is not { } image) return new StepResult.Fail(Loc.T("fenêtre de FL illisible"));
+        // Écran à 100 % : des ronds de 5 pixels, trop petits pour être sûrs ; l'image est alors agrandie deux fois.
+        foreach (var factor in new[] { 1, 2 })
+        {
+            var shown = image.Scaled(factor);
+            double sx = (double)shown.Width / w.Width, sy = (double)shown.Height / w.Height;
+            if (MuteDots.Find(shown, (_track.X - w.X) * sx, (_track.Y - w.Y) * sy) is not { } dot) continue;
+            int x = w.X + (int)Math.Round(dot.X / sx), y = w.Y + (int)Math.Round(dot.Y / sy);
+            if (StopReason() is { } stop) return new StepResult.Cancel(stop);
+            _cursorBefore ??= _fl.Cursor();
+            if (!(solo ? _fl.ControlClick(x, y) : _fl.Click(x, y, false, 30)))
+                return new StepResult.Cancel(Loc.T("FL n'est plus au premier plan"));
+            _lastClick = (x, y);
+            _fl.Log("MUTE", $"dot found ({dot.Page}{(dot.Inferred ? ", unlit" : "")}), {(solo ? "solo" : "mute")}");
+            return new StepResult.Ok();
+        }
+        _fl.Log("MUTE", "no dot near the clicked track");
+        return new StepResult.Fail(Loc.T("bouton mute introuvable : clique sur ta piste (Mixer, Channel rack ou Playlist), puis relance"));
+    }
+
     private static bool Contains(FlWin w, (int X, int Y) p) => p.X >= w.X && p.X < w.X + w.Width && p.Y >= w.Y && p.Y < w.Y + w.Height;
 
     private static bool SameSize(FlWin w, Size2 size) => Math.Abs(w.Width - size.Width) <= 2 && Math.Abs(w.Height - size.Height) <= 2;

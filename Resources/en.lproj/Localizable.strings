@@ -2254,6 +2254,7 @@
 "aucune carte son branchée (USB, Thunderbolt…) : branche-la, puis relance la macro" = "no sound card connected (USB, Thunderbolt…): connect it, then run the macro again";
 "aucune touche" = "no key";
 "autorise FL Shortcuts dans Réglages Système › Confidentialité et sécurité › Accessibilité" = "allow FL Shortcuts in System Settings › Privacy & Security › Accessibility";
+"autorise « Enregistrement de l'écran » : le bouton mute de la piste est retrouvé dans la fenêtre de FL" = "allow “Screen Recording”: the track's mute button is found in the FL window";
 "autorise « Enregistrement de l'écran » pour FL Shortcuts (Réglages Système › Confidentialité et sécurité ; déjà coché : décoche puis recoche)" = "allow “Screen Recording” for FL Shortcuts (System Settings › Privacy & Security; already on: turn it off, then on again)";
 "bientôt" = "soon";
 "bloc caché (ancien format)" = "hidden block (old format)";
@@ -2265,6 +2266,7 @@
 "bouton d'armement" = "arm button";
 "bouton introuvable dans la fenêtre de FL (caché, ou d'une autre apparence : montre-le de nouveau)" = "button not found in the FL window (hidden, or it looks different: show it again)";
 "bouton mute hors de la fenêtre de FL : montre-le de nouveau" = "mute button outside the FL window: show it again";
+"bouton mute introuvable : clique sur ta piste (Mixer, Channel rack ou Playlist), puis relance" = "mute button not found: click your track (Mixer, Channel rack or Playlist), then try again";
 "bouton mute pas encore montré : choisis le bloc, puis « Montrer le bouton mute dans FL… »" = "mute button not shown yet: select the block, then “Show the mute button in FL…”";
 "bouton mute, ou la touche S de FL tant qu'il n'est pas montré." = "mute button, or FL's S key until it's been shown.";
 "bouton retrouvé à son image" = "button found by its image";
@@ -2295,6 +2297,7 @@
 "clic. Demande l'autorisation « Enregistrement de l'écran »." = "click. Needs the “Screen Recording” permission.";
 "clics non montrés (60 s)" = "clicks not shown (60 s)";
 "clics non reconnus : refais le raccourci pour recommencer" = "clicks not recognized: press the shortcut again to start over";
+"clique d'abord sur ta piste dans FL, puis lance la macro" = "click your track in FL first, then run the macro";
 "clique d'abord sur ta piste dans le Mixer de FL, puis refais le raccourci" = "click your track in FL's Mixer first, then use the shortcut again";
 "clique d'abord sur ta piste dans le Mixer, puis lance la macro" = "click your track in the Mixer first, then run the macro";
 "cliqué (montré une fois ci-dessous)." = "clicked (shown once below).";
@@ -2331,6 +2334,7 @@
 "fait" = "done";
 "fenêtre de FL" = "FL window";
 "fenêtre de FL de %lld × %lld introuvable (pas ouverte, ou changée de taille : montre de nouveau le clic)" = "%lld × %lld FL window not found (not open, or resized: show the click again)";
+"fenêtre de FL illisible" = "FL window can't be read";
 "fenêtre de FL introuvable" = "FL window not found";
 "fenêtre du plugin introuvable (ouvre ce plugin, ou montre de nouveau le clic)" = "plugin window not found (open this plugin, or show the click again)";
 "fenêtres. Si l'une change de taille ou de place dans FL, montre-le de nouveau." = "windows. If one changes size or position in FL, show it again.";

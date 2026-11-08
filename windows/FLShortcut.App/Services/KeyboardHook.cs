@@ -361,6 +361,13 @@ internal static class Injector
         },
     };
 
+    /// Ctrl appuyé (vrai) ou relâché (faux), marqué comme envoyé par l'appli (solo d'une piste : Ctrl + clic).
+    public static void Control(bool down)
+    {
+        var arr = new[] { Input(Vk.LControl, up: !down) };
+        Win32.SendInput((uint)arr.Length, arr, Marshal.SizeOf<Win32.INPUT>());
+    }
+
     public static void SendMask()
     {
         var arr = new[] { Input(MaskVk, up: false), Input(MaskVk, up: true) };

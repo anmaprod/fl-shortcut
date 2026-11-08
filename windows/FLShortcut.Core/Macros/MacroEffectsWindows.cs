@@ -67,6 +67,10 @@ public interface IFlDriver
     /// Image de cette fenêtre de FL telle qu'affichée maintenant, en niveaux de gris (bouton retrouvé à son image) ; null :
     /// illisible. Jamais gardée.
     GrayImage? WindowImage(long window);
+    /// La même image en couleurs (rond de la piste retrouvé pour le mute / solo sans le lien) ; null : illisible.
+    RgbImage? WindowColorImage(long window) => null;
+    /// Ctrl + clic gauche en ce point (solo d'une piste) ; faux si FL n'est plus devant.
+    bool ControlClick(int x, int y) => false;
     /// Menus de FL refermés sans touche (fin d'un Menu de FL raté : plus rien de surligné en haut de FL).
     void CancelMenus();
     /// Dernier clic de l'utilisateur dans une fenêtre normale de FL, s'il est récent (la piste visée).
@@ -274,6 +278,13 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
                 case "trackMenuArm":
                     warnings.Add(Loc.F("armement non fait : %@", Loc.T("pas encore sur Windows")));
                     break;
+                case "none" when Specs.MuteSoloWithoutLink(call.Key):
+                {
+                    // Mute / solo de la piste cliquée, sans le script : son rond retrouvé tout seul (08/11).
+                    var r = MuteSoloWithoutLink(call.Key == "solo");
+                    if (r is not StepResult.Ok) return r;
+                    break;
+                }
                 default:
                     return new StepResult.Fail(Loc.F("ce bloc a besoin du lien avec FL : %@", why));
             }

@@ -2254,6 +2254,7 @@
 "aucune carte son branchée (USB, Thunderbolt…) : branche-la, puis relance la macro" = "aucune carte son branchée (USB, Thunderbolt…) : branche-la, puis relance la macro";
 "aucune touche" = "aucune touche";
 "autorise FL Shortcuts dans Réglages Système › Confidentialité et sécurité › Accessibilité" = "autorise FL Shortcuts dans Réglages Système › Confidentialité et sécurité › Accessibilité";
+"autorise « Enregistrement de l'écran » : le bouton mute de la piste est retrouvé dans la fenêtre de FL" = "autorise « Enregistrement de l'écran » : le bouton mute de la piste est retrouvé dans la fenêtre de FL";
 "autorise « Enregistrement de l'écran » pour FL Shortcuts (Réglages Système › Confidentialité et sécurité ; déjà coché : décoche puis recoche)" = "autorise « Enregistrement de l'écran » pour FL Shortcuts (Réglages Système › Confidentialité et sécurité ; déjà coché : décoche puis recoche)";
 "bientôt" = "bientôt";
 "bloc caché (ancien format)" = "bloc caché (ancien format)";
@@ -2265,6 +2266,7 @@
 "bouton d'armement" = "bouton d'armement";
 "bouton introuvable dans la fenêtre de FL (caché, ou d'une autre apparence : montre-le de nouveau)" = "bouton introuvable dans la fenêtre de FL (caché, ou d'une autre apparence : montre-le de nouveau)";
 "bouton mute hors de la fenêtre de FL : montre-le de nouveau" = "bouton mute hors de la fenêtre de FL : montre-le de nouveau";
+"bouton mute introuvable : clique sur ta piste (Mixer, Channel rack ou Playlist), puis relance" = "bouton mute introuvable : clique sur ta piste (Mixer, Channel rack ou Playlist), puis relance";
 "bouton mute pas encore montré : choisis le bloc, puis « Montrer le bouton mute dans FL… »" = "bouton mute pas encore montré : choisis le bloc, puis « Montrer le bouton mute dans FL… »";
 "bouton mute, ou la touche S de FL tant qu'il n'est pas montré." = "bouton mute, ou la touche S de FL tant qu'il n'est pas montré.";
 "bouton retrouvé à son image" = "bouton retrouvé à son image";
@@ -2295,6 +2297,7 @@
 "clic. Demande l'autorisation « Enregistrement de l'écran »." = "clic. Demande l'autorisation « Enregistrement de l'écran ».";
 "clics non montrés (60 s)" = "clics non montrés (60 s)";
 "clics non reconnus : refais le raccourci pour recommencer" = "clics non reconnus : refais le raccourci pour recommencer";
+"clique d'abord sur ta piste dans FL, puis lance la macro" = "clique d'abord sur ta piste dans FL, puis lance la macro";
 "clique d'abord sur ta piste dans le Mixer de FL, puis refais le raccourci" = "clique d'abord sur ta piste dans le Mixer de FL, puis refais le raccourci";
 "clique d'abord sur ta piste dans le Mixer, puis lance la macro" = "clique d'abord sur ta piste dans le Mixer, puis lance la macro";
 "cliqué (montré une fois ci-dessous)." = "cliqué (montré une fois ci-dessous).";
@@ -2331,6 +2334,7 @@
 "fait" = "fait";
 "fenêtre de FL" = "fenêtre de FL";
 "fenêtre de FL de %lld × %lld introuvable (pas ouverte, ou changée de taille : montre de nouveau le clic)" = "fenêtre de FL de %lld × %lld introuvable (pas ouverte, ou changée de taille : montre de nouveau le clic)";
+"fenêtre de FL illisible" = "fenêtre de FL illisible";
 "fenêtre de FL introuvable" = "fenêtre de FL introuvable";
 "fenêtre du plugin introuvable (ouvre ce plugin, ou montre de nouveau le clic)" = "fenêtre du plugin introuvable (ouvre ce plugin, ou montre de nouveau le clic)";
 "fenêtres. Si l'une change de taille ou de place dans FL, montre-le de nouveau." = "fenêtres. Si l'une change de taille ou de place dans FL, montre-le de nouveau.";
