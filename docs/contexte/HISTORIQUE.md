@@ -891,3 +891,6 @@ entrée 1 ≈ 0,5 s.
   réveillé sans cesse) → même règle que le Mac (`MidiLink.Use/Release/MacroEnded`, `LinkWatch` du cœur), ports de
   Windows MIDI Services créés seulement quand le lien sert puis retirés (pas encore vu sur un vrai PC 25H2 : FL
   revoit-il l'appareil revenir ?). La vraie cause chez lui n'est pas prouvée : le journal (lignes MIDI) le dira.
+- 08/11 (4) : « dans le lisez-moi et README, le changement de thème ne fonctionne pas » → les thèmes passaient par un
+  script, que l'aperçu du Finder (barre d'espace) n'exécute pas ; maintenant trois cases radio cachées et `:has()` en
+  CSS : vérifié avec JavaScript coupé sur les quatre pages (Noir → Orange → Papier).

@@ -404,7 +404,9 @@
   « rond blanc… tout est là », 2 lignes au jeu des touches (sans Dessin), plus « Essaie », macros = « Clique sur
   Macros. » + 3 cartes NOIRES (pleines et soulevées sur ombre rouge au survol), range ton projet = 5 lignes (3 « Suis
   les consignes. », 4 MIDI Settings) + les 4 cases à droite, plus le jeu « Ton projet » ; « à ton goût » revenu (06) :
-  3 aperçus qui changent TOUTE la page (sans « cette page change aussi ») ; « ton compte » (07) sans « Gratuit » ; plus
+  3 aperçus qui changent TOUTE la page (sans « cette page change aussi » ; 08/11, « le changement de thème ne
+  fonctionne pas » : SANS JavaScript, cases radio cachées + `:root:has(#t-papier:checked)`, l'aperçu du Finder n'exécute
+  aucun script ; ne pas remettre le script des thèmes) ; « ton compte » (07) sans « Gratuit » ; plus
   de pied de page (bon son, Écrire à l'équipe). Anglais écrit dans `lisezmoi_modeles.py` (FR/EN), modèles
   `modele-*-en.html` pris tels quels par lisezmoi.py (plus de traduction morceau par morceau, qui laissait du
   français). Windows : loopMIDI à l'étape 02 (proposé de le mettre dans « range ton projet », réponse attendue).

@@ -3,16 +3,18 @@
 <style>
 /* Mode d'emploi du téléchargement, au style suisse de l'app : fond plein, encre, traits fins, coins carrés, gros
    titres en minuscules et leur point carré, rouge #FF3B1F pour ce qui compte. Les trois thèmes de l'app (Noir,
-   Papier, Orange) se choisissent dans la section « à ton goût » et changent toute la page. */
-:root, :root[data-theme="noir"] {
+   Papier, Orange) se choisissent dans la section « à ton goût » et changent toute la page, SANS JavaScript (08/11 :
+   « le changement de thème ne fonctionne pas » : l'aperçu du Finder, barre d'espace, n'exécute aucun script) : trois
+   cases radio cachées et `:root:has(#t-papier:checked)`. */
+:root {
   --bg: #000000; --ink: #FFFFFF; --gray: #8A8A8A; --line: #333333; --faint: #222222; --dot: #FF3B1F;
   --card: #000000; --cardInk: #FFFFFF; --btnBg: #FFFFFF; --btnInk: #000000; --btnShadow: none; --lift: #FF3B1F;
 }
-:root[data-theme="papier"] {
+:root:has(#t-papier:checked) {
   --bg: #FFFFFF; --ink: #000000; --gray: #6E6E6E; --line: #CFCFCF; --faint: #E6E6E6; --dot: #FF3B1F;
   --card: #FFFFFF; --cardInk: #000000; --btnBg: #000000; --btnInk: #FFFFFF; --btnShadow: 6px 6px 0 #FF3B1F; --lift: #FF3B1F;
 }
-:root[data-theme="orange"] {
+:root:has(#t-orange:checked) {
   --bg: #FF3B1F; --ink: #000000; --gray: #3A0B03; --line: #A62614; --faint: #D5341B; --dot: #FFFFFF;
   --card: #000000; --cardInk: #FFFFFF; --btnBg: #FFFFFF; --btnInk: #000000; --btnShadow: 6px 6px 0 #000000; --lift: #000000;
 }
@@ -64,7 +66,7 @@ ol.do li {
 ol.do li::before { content: counter(n); position: absolute; left: 0; font-weight: 700; }
 .panel { background: var(--card); color: var(--cardInk); border: 1px solid var(--line); padding: 20px; }
 .panel .label { color: var(--gray); }
-:root[data-theme="orange"] .panel .label { color: #B4B4B4; }
+:root:has(#t-orange:checked) .panel .label { color: #B4B4B4; }
 
 /* Jeu : changer une touche. */
 .row {
@@ -106,14 +108,22 @@ details.full { margin-top: 12px; }
 details.full summary { cursor: pointer; font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 700; }
 details.full img { width: 100%; margin-top: 10px; border: 1px solid #333; }
 
-/* Thèmes : trois aperçus ; un clic change toute la page. */
+/* Thèmes : trois aperçus (des étiquettes de cases radio) ; un clic change toute la page. */
+.theme-pick { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; opacity: 0; overflow: hidden; clip: rect(0 0 0 0); }
 .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.tiles button {
-  border: 1px solid var(--line); background: var(--bg); color: var(--ink); padding: 6px; cursor: pointer; text-align: left;
+.tiles label {
+  display: block; border: 1px solid var(--line); background: var(--bg); color: var(--ink); padding: 6px; cursor: pointer;
   font: 700 14px "Helvetica Neue", Helvetica, Arial, sans-serif; transition: transform .12s, box-shadow .12s;
 }
-.tiles button:hover { transform: translate(-2px, -2px); }
-.tiles button[aria-pressed="true"] { border: 2px solid var(--ink); transform: translate(-3px, -3px); box-shadow: 4px 4px 0 var(--lift); }
+.tiles label:hover { transform: translate(-2px, -2px); }
+:root:has(#t-noir:checked) label[for="t-noir"],
+:root:has(#t-papier:checked) label[for="t-papier"],
+:root:has(#t-orange:checked) label[for="t-orange"] {
+  border: 2px solid var(--ink); transform: translate(-3px, -3px); box-shadow: 4px 4px 0 var(--lift);
+}
+:root:has(#t-noir:focus-visible) label[for="t-noir"],
+:root:has(#t-papier:focus-visible) label[for="t-papier"],
+:root:has(#t-orange:focus-visible) label[for="t-orange"] { outline: 3px solid var(--dot); outline-offset: 3px; }
 .tiles .mini { height: 72px; display: flex; border: 1px solid #333; margin-bottom: 8px; }
 .tiles .mini span:first-child { width: 32%; }
 .tiles .mini span:last-child { flex: 1; position: relative; }
@@ -211,10 +221,13 @@ details.full img { width: 100%; margin-top: 10px; border: 1px solid #333; }
       <h2>your way<span class="dot"></span></h2>
       <p class="say">Three themes: Black, Paper, Orange. In My account.</p>
     </div>
-    <div class="tiles" role="group" aria-label="Theme">
-      <button type="button" data-set="noir" aria-pressed="true"><span class="mini" style="background:#000"><span style="background:#000; border-right:1px solid #333"></span><span></span></span>Black</button>
-      <button type="button" data-set="papier" aria-pressed="false"><span class="mini" style="background:#FFF"><span style="background:#FFF; border-right:1px solid #CFCFCF"></span><span></span></span>Paper</button>
-      <button type="button" data-set="orange" aria-pressed="false"><span class="mini" style="background:#FF3B1F"><span style="background:#000"></span><span></span></span>Orange</button>
+    <div class="tiles" role="radiogroup" aria-label="Theme">
+      <input class="theme-pick" type="radio" name="theme" id="t-noir" checked>
+      <input class="theme-pick" type="radio" name="theme" id="t-papier">
+      <input class="theme-pick" type="radio" name="theme" id="t-orange">
+      <label for="t-noir"><span class="mini" style="background:#000"><span style="background:#000; border-right:1px solid #333"></span><span></span></span>Black</label>
+      <label for="t-papier"><span class="mini" style="background:#FFF"><span style="background:#FFF; border-right:1px solid #CFCFCF"></span><span></span></span>Paper</label>
+      <label for="t-orange"><span class="mini" style="background:#FF3B1F"><span style="background:#000"></span><span></span></span>Orange</label>
     </div>
   </section>
 
@@ -234,17 +247,7 @@ details.full img { width: 100%; margin-top: 10px; border: 1px solid #333; }
 
 <script>
 (function () {
-  // Thèmes de l'app : un aperçu de la section « à ton goût » change toute la page.
-  document.querySelectorAll("[data-set]").forEach(function (b) {
-    b.addEventListener("click", function () {
-      var name = b.getAttribute("data-set");
-      document.documentElement.setAttribute("data-theme", name);
-      document.querySelectorAll("[data-set]").forEach(function (o) {
-        o.setAttribute("aria-pressed", o.getAttribute("data-set") === name ? "true" : "false");
-      });
-    });
-  });
-
+  // Les thèmes n'ont pas besoin de script (cases radio et :has, plus haut) : l'aperçu du Finder les change aussi.
   // Jeu : un clic sur une ligne, puis une touche ; ↺ la remet. Échap annule.
   var listening = null;
   function names(e) {
