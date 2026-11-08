@@ -429,6 +429,11 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   screencapture -x "$OUT/$label-createur.png" 2>/dev/null || true
   report "$label-createur-ouvert" >/dev/null
   fit+=" / $(fits "$label-createur-ouvert")"
+  # Liste déroulante suisse (08/11) : « Entrée à la fin » du bloc 4 choisi, ouverte à vrais clics, photographiée, puis
+  # refermée d'un clic dans le vide du panneau de droite.
+  click_in "$label-createur-ouvert" 918 238; sleep 1.5
+  screencapture -x "$OUT/$label-createur-liste.png" 2>/dev/null || true
+  click_in "$label-createur-ouvert" 860 560; sleep 1
   # Vrai glisser-déposer à la souris : « Touche ou raccourci » de la palette (1er bloc de Clavier, sous les 8 blocs
   # de FL Studio ; 07/11 au soir : y 334, « Carte son branchée » retirée), lâché entre les blocs 4 et 5 de l'exemple ;
   # la liste des blocs doit gagner une ligne.
