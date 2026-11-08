@@ -275,8 +275,9 @@ enum MacroOutline {
         }
         return MacroStepRow(id: MacroStepRow.blockRowID(b.id), blockID: b.id, kind: .block, number: number, depth: depth,
                        type: b.body.type, category: spec?.category, symbol: spec?.symbol ?? "questionmark.square.dashed",
-                       verb: phrase.verb, value: phrase.value,
-                       note: b.note.flatMap { $0.isEmpty ? nil : $0.displaySafe(max: 120) },
+                       verb: phrase.verb,
+                       value: b.markerName.map { "\(phrase.value ?? "") · \($0.displaySafe(max: 40))" } ?? phrase.value,
+                       note: b.markerName != nil ? nil : b.note.flatMap { $0.isEmpty ? nil : $0.displaySafe(max: 120) },
                        enabled: enabled, ownEnabled: b.enabled,
                        badges: badges(b, problem: problem.map(stripPath), learnedInput: learnedInput),
                        isContainer: !b.body.children.isEmpty)

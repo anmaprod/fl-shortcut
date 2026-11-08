@@ -51,7 +51,8 @@ public readonly record struct ConditionAnswer(bool Value, StepResult? Failure = 
 }
 
 /// Une action de FL d'un groupe (blocs `FlAction` consécutifs).
-public sealed record FlActionCall(string Key, ActionFallback Fallback);
+/// `Name` : « Poser un marqueur » avec un nom choisi (08/11), jamais regroupé avec une autre action.
+public sealed record FlActionCall(string Key, ActionFallback Fallback, string? Name = null);
 
 /// État d'un passage partagé entre les blocs (variables, dernier échec, compteurs). L'état propre à Windows (boîte de
 /// dialogue suivie, piste visée, pointeur à remettre…) vit dans l'objet d'effets, neuf à chaque passage.
@@ -197,13 +198,14 @@ public sealed class MacroInterpreter
 
             // Actions de FL consécutives (blocs inactifs sautés) : un seul réveil du lien.
             var group = new List<Block> { block };
-            if (block.Body is BlockBody.FlAction)
+            if (block.Body is BlockBody.FlAction && MarkerPayload.Of(block) is null)
             {
                 while (index < blocks.Count)
                 {
                     var next = blocks[index];
                     if (!next.Enabled) { index++; continue; }
-                    if (next.Body is not BlockBody.FlAction || next.OnFailure != block.OnFailure) break;
+                    if (next.Body is not BlockBody.FlAction || next.OnFailure != block.OnFailure
+                        || MarkerPayload.Of(next) is not null) break;
                     group.Add(next);
                     index++;
                 }
@@ -220,8 +222,9 @@ public sealed class MacroInterpreter
             switch (block.Body)
             {
                 case BlockBody.FlAction:
-                    result = _effects.FlActions(group.Select(b => b.Body).OfType<BlockBody.FlAction>()
-                        .Select(a => new FlActionCall(a.ActionKey, a.Fallback)).ToList(), state);
+                    result = _effects.FlActions(group.Where(b => b.Body is BlockBody.FlAction)
+                        .Select(b => (Action: (BlockBody.FlAction)b.Body, Block: b))
+                        .Select(x => new FlActionCall(x.Action.ActionKey, x.Action.Fallback, MarkerPayload.Of(x.Block))).ToList(), state);
                     break;
 
                 case BlockBody.IfElse ie:

@@ -57,6 +57,8 @@ internal sealed class FakeFl : IFlDriver
     public List<byte[]> Requests { get; } = new();
     /// Réponse du lien aux commandes avec données (null : faites).
     public int? DataRefusal { get; set; }
+    /// Lien absent pour une commande avec données (« Poser un marqueur » nommé…).
+    public string? DataFailure { get; set; }
     public bool LinkInstalled { get; set; } = true;
     public List<(string Path, int X, int Y)> Drops { get; } = new();
     public List<(long Dialog, string Path)> Chosen { get; } = new();
@@ -100,6 +102,7 @@ internal sealed class FakeFl : IFlDriver
     public DataReply RunData(IReadOnlyList<byte> units)
     {
         Data.Add(Pack7.Unpack(units.ToArray()) ?? Array.Empty<byte>());
+        if (DataFailure is { } why) return new DataReply.Failed(why);
         return DataRefusal is { } r ? new DataReply.Refused(r) : new DataReply.Done();
     }
 
@@ -347,6 +350,45 @@ public class MacroEffectsWindowsTests
 
         Assert.Equal("boîte de dialogue introuvable",
             Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.WaitWindow(WindowKind.Dialog, 300), state)).Why);
+    }
+
+    /// « Poser un marqueur » avec un nom (08/11) : opération 27 par le lien ; refus = mode Pattern ; sans le lien, la
+    /// touche de FL sans le nom, et la macro le dit.
+    [Fact]
+    public void NamedMarkerGoesThroughTheLinkOrItsKeyWithoutTheName()
+    {
+        var call = new FlActionCall("marker", ActionFallback.Key(new KeyRef(new MacKey(17), "t")), "Refrain");
+        var (fl, fx, state) = Start();
+        Assert.IsType<StepResult.Ok>(fx.FlActions(new[] { call }, state));
+        Assert.Equal(new byte[] { 27, 7 }.Concat(System.Text.Encoding.UTF8.GetBytes("Refrain")), Assert.Single(fl.Data));
+        Assert.Empty(fl.Actions);
+
+        (fl, fx, state) = Start(f => f.DataRefusal = 5);
+        Assert.Equal("FL n'a pas posé le marqueur : passe la Playlist en mode Song.",
+            Assert.IsType<StepResult.Fail>(fx.FlActions(new[] { call }, state)).Why);
+
+        (fl, fx, state) = Start(f => f.DataFailure = "lien endormi");
+        Assert.Equal("marqueur posé sans son nom : lien endormi", Assert.IsType<StepResult.Warn>(fx.FlActions(new[] { call }, state)).Why);
+        Assert.Single(fl.Sent);
+        Assert.StartsWith("ce bloc a besoin du lien avec FL",
+            Assert.IsType<StepResult.Fail>(fx.FlActions(new[] { call with { Fallback = ActionFallback.None } }, state)).Why);
+    }
+
+    [Fact]
+    public void MarkerPayloadIsCleanedLikeTheScriptCountsIt()
+    {
+        Assert.Equal(new byte[] { 27, 7 }.Concat(System.Text.Encoding.UTF8.GetBytes("Refrain")), new MarkerPayload("  Refrain ").Bytes);
+        Assert.Null(new MarkerPayload("   ").Name);
+        Assert.Null(new MarkerPayload(null).Name);
+        Assert.Equal("ab", new MarkerPayload("a\u0007b").Name);
+        Assert.Equal(64, new MarkerPayload(new string('é', 80)).Name!.EnumerateRunes().Count());
+        var emoji = new MarkerPayload(string.Concat(Enumerable.Repeat("🎹", 64))).Bytes;
+        Assert.True(emoji.Length - 2 <= 255);
+        Assert.Equal(emoji.Length - 2, emoji[1]);
+        var block = new Block(new BlockBody.FlAction("marker", ActionFallback.None)) { Note = "Pont" };
+        Assert.Equal("Pont", MarkerPayload.Of(block));
+        block.Body = new BlockBody.FlAction("play", ActionFallback.None);
+        Assert.Null(MarkerPayload.Of(block));
     }
 
     [Fact]

@@ -957,6 +957,7 @@
 "FL n'a pas enregistré la copie rangée : enregistre-la dans FL (⌘S)." = "FL didn't save the organized copy: save it in FL (⌘S).";
 "FL n'a pas enregistré ton projet (ou il n'a jamais été enregistré). Enregistre-le dans FL (Fichier › Enregistrer), puis clique sur « Réessayer »." = "FL didn't save your project (or it was never saved). Save it in FL (File › Save), then click “Try again”.";
 "FL n'a pas ouvert la copie rangée à temps : elle est à côté de ton projet, ouvre-la dans FL, puis relance l'Organiser. Ton projet n'a pas bougé." = "FL didn't open the organized copy in time: it's next to your project, open it in FL, then run the Organizer again. Your project wasn't changed.";
+"FL n'a pas posé le marqueur : passe la Playlist en mode Song." = "FL didn't add the marker: switch the Playlist to Song mode.";
 "FL n'a pas pris le plugin déposé : ouvert par le menu." = "FL didn't take the dropped plugin: opened from the menu.";
 "FL n'a pas pris le preset : clique d'abord au milieu de la tranche de ta piste" = "FL didn't take the preset: first click in the middle of your track's strip";
 "FL n'a pas pu ouvrir la copie rangée : elle est à côté de ton projet, ouvre-la dans FL. Ton projet n'a pas bougé." = "FL couldn't open the organized copy: it's next to your project, open it in FL. Your project wasn't changed.";
@@ -1422,6 +1423,7 @@
 "Nom de la macro" = "Macro name";
 "Nom de macro invalide." = "Invalid macro name.";
 "Nom de variable invalide." = "Invalid variable name.";
+"Nom du marqueur" = "Marker name";
 "Nom du son" = "Sound name";
 "Nom et couleur" = "Name and color";
 "Nom et couleur…" = "Name and color…";
@@ -2444,6 +2446,7 @@
 "magnétisme, ⌘+/⌘− et Z zooment, ⌘⌥B Browser, ⌘⌥M Mixer, ⇧⇥ Piano Roll, ⌘Z annule pas à pas. " = "snap, ⌘+/⌘− and Z zoom, ⌘⌥B Browser, ⌘⌥M Mixer, ⇧⇥ Piano Roll, ⌘Z undoes step by step. ";
 "maj" = "shift";
 "majuscule" = "shift";
+"marqueur posé sans son nom (%@)" = "marker added without its name (%@)";
 "menu de piste mal décrit" = "track menu not described correctly";
 "menu introuvable : apprends les positions du menu dans la fiche du raccourci" = "menu not found: learn the menu positions in the shortcut's details";
 "menu ouvert" = "open menu";

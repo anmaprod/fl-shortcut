@@ -364,3 +364,4 @@
 "Installe loopMIDI, puis crée « FL Shortcuts » et « FL Shortcuts Retour »." = "Install loopMIDI, then create “FL Shortcuts” and “FL Shortcuts Retour”.";
 "Prêts : créés par Windows." = "Ready: created by Windows.";
 "À installer" = "To install";
+"marqueur posé sans son nom : %@" = "marker added without its name: %@";

@@ -249,6 +249,7 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
     {
         var ids = group.Select(c => Core.FlActions.IdForKey(c.Key)).ToList();
         if (ids.Count == 0 || ids.Any(id => id is null)) return new StepResult.Fail(Loc.T("action de FL inconnue"));
+        if (group.Count == 1 && group[0].Name is not null) return NamedMarker(group[0]);
         if (_fl.RunActions(ids.Select(id => id!.Value).ToList()) is not { } why)
         {
             _fl.Log("MIDI", $"{group.Count} action(s) acknowledged");
@@ -745,6 +746,35 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
         }
         if (key is null) return new StepResult.Fail(Loc.F("canal %lld : lien avec FL nécessaire", number));
         return Key(key, 1);
+    }
+
+    /// « Poser un marqueur » avec un nom (08/11) : le script de FL le pose à la position de lecture avec ce nom
+    /// (opération 27), par le lien ouvert le temps du bloc. Sans le lien : le marqueur de FL par sa touche, sans le
+    /// nom, et la macro le dit. Le nom n'est jamais journalisé.
+    private StepResult NamedMarker(FlActionCall call)
+    {
+        switch (_fl.RunData(Pack7.Pack(new MarkerPayload(call.Name).Bytes)))
+        {
+            case DataReply.Done:
+                _fl.Log("MIDI", "named marker acknowledged");
+                return new StepResult.Ok();
+            case DataReply.Refused r:
+                _fl.Log("MIDI", $"named marker refused ({r.Reason})");
+                return new StepResult.Fail(Loc.T("FL n'a pas posé le marqueur : passe la Playlist en mode Song."));
+            case DataReply.Failed f:
+            {
+                _fl.Log("MIDI", "unavailable → marker key, without its name");
+                if (call.Fallback.Kind != "key" || call.Fallback.KeyRef is not { } key)
+                    return new StepResult.Fail(Loc.F("ce bloc a besoin du lien avec FL : %@", f.Why));
+                if (StopReason() is { } stop) return new StepResult.Cancel(stop);
+                if (MacKeys.ToWindows(key) is not { } combo || ForbiddenTargets.IsForbidden(combo))
+                    return new StepResult.Fail(Loc.F("action « %@ » non faite : touche interdite", call.Key));
+                if (!_fl.Send(combo)) return new StepResult.Cancel(Loc.T("FL n'est plus au premier plan"));
+                return new StepResult.Warn(Loc.F("marqueur posé sans son nom : %@", f.Why));
+            }
+            default:
+                return new StepResult.Fail("?");
+        }
     }
 
     /// Nouveau nom de la piste sélectionnée, posé par le script de FL (opération 1 : rien n'est tapé). Le nom n'est

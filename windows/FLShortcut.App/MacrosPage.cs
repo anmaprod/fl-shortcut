@@ -1183,7 +1183,12 @@ internal sealed class MacrosPage
             verb.TextWrapping = TextWrapping.NoWrap;
             verb.VerticalAlignment = VerticalAlignment.Center;
             sentence.Children.Add(verb);
-            if (spec?.Summary(body) is { Length: > 0 } summary) sentence.Children.Add(ValuePill(summary));
+            if (spec?.Summary(body) is { Length: > 0 } summary)
+            {
+                // « Poser un marqueur » avec un nom (08/11) : le nom suit l'action.
+                if (MarkerPayload.Of(doc.Blocks[index]) is { } marker) summary += " · " + DisplayText.Safe(marker, 40);
+                sentence.Children.Add(ValuePill(summary));
+            }
         }
         Grid.SetColumn(sentence, 2);
         grid.Children.Add(sentence);
@@ -1639,7 +1644,12 @@ internal sealed class MacrosPage
                     // Sans lien, la touche d'origine de FL quand elle existe (comme les pages).
                     var fallback = LightMode.NativeEquivalent(info.Id) is { } native && MacKeys.FromWindows(native) is { } key
                         ? ActionFallback.Key(key) : ActionFallback.None;
-                    set(new BlockBody.FlAction(info.Key, fallback));
+                    Change(doc, d =>
+                    {
+                        // Le nom du marqueur part avec l'action (gardé dans la note du bloc, comme le Mac).
+                        if (MarkerPayload.Of(d.Blocks[index]) is not null && info.Key != "marker") d.Blocks[index].Note = null;
+                        d.Blocks[index].Body = new BlockBody.FlAction(info.Key, fallback);
+                    });
                 }));
                 // Sa phrase courte dessous, comme le Mac (« Bascule entre la Playlist et le Mixer ») ; le repli sans lien
                 // est choisi tout seul et plus montré (08/11 : « tous ces petits détails-là, tu les enlèves »).
@@ -1648,6 +1658,14 @@ internal sealed class MacrosPage
                     var detail = Paragraph(Loc.T(actions[at].Detail()), 11);
                     detail.Margin = new Thickness(0, -6, 0, 0);
                     yield return detail;
+                }
+                // « Poser un marqueur » (08/11, « mettre un bouton en dessous, nommer le marqueur ») : vide = comme avant.
+                if (a.ActionKey == "marker")
+                {
+                    var markerName = Field(doc.Blocks[index].Note ?? "", NameColorPayload.MaxNameScalars, typed =>
+                        Change(doc, d => d.Blocks[index].Note = string.IsNullOrWhiteSpace(typed) ? null : typed));
+                    markerName.PlaceholderText = Loc.T("Facultatif");
+                    yield return Param(Loc.T("Nom du marqueur"), markerName);
                 }
                 break;
             case BlockBody.OpenPage p:

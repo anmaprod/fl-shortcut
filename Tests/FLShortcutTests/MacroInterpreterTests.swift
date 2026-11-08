@@ -59,7 +59,7 @@ final class FakeEffects: MacroEffects {
     }
 
     func flActions(_ group: [FLActionCall], state: inout RunState) -> StepResult {
-        trace.append("fl[" + group.map(\.key).joined(separator: ",") + "]")
+        trace.append("fl[" + group.map { call in call.name.map { "\(call.key)=\($0)" } ?? call.key }.joined(separator: ",") + "]")
         return flResult
     }
 
@@ -178,6 +178,20 @@ final class MacroInterpreterTests: XCTestCase {
                  b(.flAction(key: "recon", fallback: .none)),
                  b(.flAction(key: "stop", fallback: .none), onFailure: .keepGoing)], fx)
         XCTAssertEqual(fx.trace, ["begin", "idle", "fl[armon,recon]", "delay", "fl[recon]", "fl[stop]", "cleanup"])
+    }
+
+    /// « Poser un marqueur » avec un nom (08/11) : le nom (gardé dans la note du bloc) part avec l'action, jamais
+    /// regroupé avec une autre ; sans nom, regroupé comme avant.
+    func testNamedMarkerRunsAlone() {
+        let fx = FakeEffects()
+        var named = b(.flAction(key: "marker", fallback: .none))
+        named.note = "  Refrain "
+        var empty = b(.flAction(key: "marker", fallback: .none))
+        empty.note = "   "
+        var other = b(.flAction(key: "play", fallback: .none))
+        other.note = "pas un nom"
+        _ = run([b(.flAction(key: "play", fallback: .none)), named, b(.flAction(key: "stop", fallback: .none)), empty, other], fx)
+        XCTAssertEqual(fx.trace, ["begin", "idle", "fl[play]", "fl[marker=Refrain]", "fl[stop,marker,play]", "cleanup"])
     }
 
     func testFLActionWarningIsKept() {

@@ -208,6 +208,7 @@ private struct BlockInspector: View {
             fileField(path)
         case (.flAction(let key, _), "action"):
             actionPicker(key)
+            if key == "marker" { markerNameField }
         case (.flAction, "fallback"):
             // Repli sans le lien : choisi tout seul (`setAction`), plus montré (08/11) ; mute / solo sans le lien : le
             // rond de la piste sélectionnée est retrouvé tout seul, plus rien à montrer.
@@ -862,6 +863,15 @@ private struct BlockInspector: View {
         }
     }
 
+    /// « Poser un marqueur » (08/11, « mettre un bouton en dessous, nommer le marqueur ») : le nom du marqueur, vide =
+    /// le marqueur comme avant. Coupé en points de code, comme le compte le script de FL.
+    private var markerNameField: some View {
+        SwissTextField(String(localized: "Nom du marqueur"), text: Binding(get: { block.note ?? "" }, set: { text in
+            let cut = String(String.UnicodeScalarView(text.unicodeScalars.prefix(NameColorPayload.maxNameScalars)))
+            model.updateBlock(block.id, key: "markerName") { $0.note = cut.isEmpty ? nil : cut }
+        }), prompt: Text("Facultatif"))
+    }
+
     /// Nouvelle action : son repli sans lien est choisi tout seul (touche équivalente de FL, menu de la piste pour
     /// l'armement, sinon rien).
     private func setAction(_ key: String) {
@@ -874,7 +884,10 @@ private struct BlockInspector: View {
         } else {
             fallback = .none
         }
-        setBody(key: "action") { $0 = .flAction(key: key, fallback: fallback) }
+        model.updateBlock(block.id, key: "action") { b in
+            if b.markerName != nil, key != "marker" { b.note = nil }      // nom du marqueur oublié avec l'action
+            b.body = .flAction(key: key, fallback: fallback)
+        }
     }
 
 

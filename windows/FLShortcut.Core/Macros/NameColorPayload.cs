@@ -71,3 +71,39 @@ public sealed record NameColorPayload
         _ => Loc.T("FL a refusé le nom ou la couleur."),
     };
 }
+
+/// Données de l'opération 27 (08/11, « nommer le marqueur ») : `[27, n, nom UTF-8 (n octets)]` ; le script de FL pose
+/// le marqueur à la position de lecture avec ce nom (mode Song seulement). Miroir de MarkerPayload (NameColor.swift).
+public sealed record MarkerPayload
+{
+    public const byte Op = 27;
+
+    /// Nom sans espaces de début ni de fin ni caractère invisible, 64 caractères et 255 octets au plus ; null s'il
+    /// est vide (le marqueur est alors posé comme avant, sans nom choisi).
+    public string? Name { get; }
+
+    public MarkerPayload(string? name)
+    {
+        var runes = (name ?? "").Trim().EnumerateRunes().Where(r => r.Value >= 32 && r.Value != 127)
+            .Take(NameColorPayload.MaxNameScalars).ToList();
+        string Join() => string.Concat(runes.Select(r => r.ToString()));
+        while (System.Text.Encoding.UTF8.GetByteCount(Join()) > NameColorPayload.MaxNameBytes) runes.RemoveAt(runes.Count - 1);
+        var cut = Join();
+        Name = cut.Length == 0 ? null : cut;
+    }
+
+    public byte[] Bytes
+    {
+        get
+        {
+            var raw = System.Text.Encoding.UTF8.GetBytes(Name ?? "");
+            return new byte[] { Op, (byte)raw.Length }.Concat(raw).ToArray();
+        }
+    }
+
+    /// Nom choisi pour le bloc « Action de FL › Poser un marqueur », gardé dans `Note` du bloc (plus montrée ni écrite
+    /// ailleurs) : rien à changer au format des macros, commun au Mac.
+    public static string? Of(Block block) =>
+        block.Body is BlockBody.FlAction { ActionKey: "marker" } ? new MarkerPayload(block.Note).Name : null;
+}
+

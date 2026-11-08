@@ -1097,6 +1097,41 @@ class TestData(Base):
             out = [cc for (s, cc, v) in self.fl.cc_out() if cc in (116, 119)]
             self.assertEqual(out[-2:], [116, 119], kw)
 
+    def marker(self, name):
+        data = list(name.encode("utf-8"))
+        return [27, len(data)] + data
+
+    def test_named_marker_in_song_mode(self):
+        """Bloc « Poser un marqueur » avec un nom (08/11) : opération 27, marqueur à la position de lecture."""
+        self.make(api=45, loop_mode=1)
+        self.data_command(self.marker("Refrain é"))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.called("arrangement.addAutoTimeMarker"), [(1920, "Refrain é")])
+        self.assertEqual(self.reasons(), [])
+
+    def test_named_marker_refused(self):
+        self.make(api=45, loop_mode=0)                       # mode Pattern : pas de marqueur
+        self.data_command(self.marker("Couplet"))
+        self.assertEqual(self.last_ack(), 0)
+        self.assertEqual(self.reasons(), [5])
+        self.assertEqual(self.fl.called("arrangement.addAutoTimeMarker"), [])
+        for raw in ([27, 0], [27, 3] + list(b"ab"), self.marker("a" * 65), self.marker("x\x07y")):
+            self.make(api=45, loop_mode=1)
+            self.data_command(raw)
+            self.assertEqual(self.last_ack(), 0, raw[:4])
+            self.assertEqual(self.reasons(), [5], raw[:4])
+            self.assertEqual(self.fl.called("arrangement.addAutoTimeMarker"), [], raw[:4])
+        mods, fl = M.build_fl(api=45, loop_mode=1)          # sans addAutoTimeMarker : jamais FPT_AddMarker
+        mods["arrangement"] = None
+        self.mods, self.fl = mods, fl
+        self.dev = M.load_script(mods, key_hex=self.KEY)
+        self.dev._time = self.clock = M.FakeClock()
+        self.dev.OnInit()
+        self.send(103, 1)
+        self.data_command(self.marker("Pont"))
+        self.assertEqual(self.last_ack(), 0)
+        self.assertNotIn((33, 1), self.fl.called("transport.globalTransport"))
+
     def test_name_utf8_roundtrip(self):
         self.make(focused={0}, mx_sel={7})
         self.data_command(M.name_color("Café 🎹", self.RED))

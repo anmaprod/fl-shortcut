@@ -50,6 +50,8 @@ enum StepFailure: Error, Equatable {
 struct FLActionCall: Equatable {
     var key: String
     var fallback: ActionFallback
+    /// « Poser un marqueur » avec un nom choisi (08/11) : jamais regroupé avec une autre action.
+    var name: String? = nil
 }
 
 /// État d'un passage partagé entre les blocs (variables, dernier échec, compteurs). L'état propre au Mac (boîte de
@@ -187,11 +189,11 @@ final class MacroInterpreter {
 
             // Actions de FL consécutives (blocs inactifs sautés) : un seul réveil du lien.
             var group = [block]
-            if case .flAction = block.body {
+            if case .flAction = block.body, block.markerName == nil {
                 while index < blocks.count {
                     let next = blocks[index]
                     if !next.enabled { index += 1; continue }
-                    guard case .flAction = next.body, next.onFailure == block.onFailure else { break }
+                    guard case .flAction = next.body, next.onFailure == block.onFailure, next.markerName == nil else { break }
                     group.append(next)
                     index += 1
                 }
@@ -209,7 +211,7 @@ final class MacroInterpreter {
             case .flAction:
                 let calls = group.compactMap { b -> FLActionCall? in
                     guard case .flAction(let key, let fallback) = b.body else { return nil }
-                    return FLActionCall(key: key, fallback: fallback)
+                    return FLActionCall(key: key, fallback: fallback, name: b.markerName)
                 }
                 result = effects.flActions(calls, state: &state)
 

@@ -145,6 +145,7 @@ extension MacroEffectsMac {
     func flActions(_ group: [FLActionCall], state: inout RunState) -> StepResult {
         let ids = group.compactMap { FLActions.id(forKey: $0.key) }
         guard ids.count == group.count, !ids.isEmpty else { return .fail(String(localized: "action de FL inconnue")) }
+        if group.count == 1, group[0].name != nil { return namedMarker(group[0]) }
         let names = group.map { $0.key == "armon" ? "arm" : $0.key == "recon" ? "REC" : $0.key }
         // Une action sans repli au clavier ne peut passer que par le lien : il est ouvert le temps du bloc.
         let needsLink = group.contains { call in
@@ -435,6 +436,33 @@ extension MacroEffectsMac {
     static func inputWindow(in snap: WinSnapshot, size: CGSize, track: CGPoint) -> WinInfo? {
         let fits = snap.fl.filter { $0.layer == 0 && MacroSpots.sameSize($0.bounds.size, size) }
         return fits.first { $0.bounds.contains(track) } ?? fits.first
+    }
+}
+
+extension MacroEffectsMac {
+    /// « Poser un marqueur » avec un nom (08/11, « mettre un bouton en dessous, nommer le marqueur ») : le script de FL
+    /// le pose à la position de lecture avec ce nom (opération 27), par le lien ouvert le temps du bloc. Sans le
+    /// lien : le marqueur de FL par sa touche, sans le nom, et la macro le dit. Le nom n'est jamais journalisé.
+    func namedMarker(_ call: FLActionCall) -> StepResult {
+        switch MIDILink.shared.runMacroData(MarkerPayload(name: call.name).units) {
+        case .done:
+            MacroLog.shared.write("MIDI", "named marker acknowledged")
+            return .ok
+        case .refused(let reason):
+            MacroLog.shared.write("MIDI", "named marker refused (\(reason))")
+            return .fail(String(localized: "FL n'a pas posé le marqueur : passe la Playlist en mode Song."))
+        case .failed(let why):
+            MacroLog.shared.write("MIDI", "unavailable (\(why)) → marker key, without its name")
+            guard case .key(let ref) = call.fallback else {
+                return .fail(String(localized: "ce bloc a besoin du lien avec FL (\(why))"))
+            }
+            if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
+            if EventTap.shared.currentConfig.forbidden.isForbidden(ref.combo) {
+                return .fail(String(localized: "action « \(call.key) » non faite (touche interdite)"))
+            }
+            postKey(ref.combo, pid: ctx.pid)
+            return .warn(String(localized: "marqueur posé sans son nom (\(why))"))
+        }
     }
 }
 

@@ -63,6 +63,42 @@ struct FLIcon: Equatable, Hashable {
     var isReset: Bool { column == 0 && row == 0 }
 }
 
+/// Données de l'opération 27 (08/11, « nommer le marqueur ») : `[27, n, nom UTF-8 (n octets)]` ; le script de FL pose
+/// le marqueur à la position de lecture avec ce nom (mode Song seulement).
+struct MarkerPayload: Equatable {
+    static let op: UInt8 = 27
+
+    /// Nom sans espaces de début ni de fin ni caractère invisible, 64 caractères et 255 octets au plus ; nil s'il est
+    /// vide (le marqueur est alors posé comme avant, sans nom choisi).
+    let name: String?
+
+    init(name: String?) {
+        let trimmed = (name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        var scalars = Array(trimmed.unicodeScalars.filter { $0.value >= 32 && $0.value != 127 }
+            .prefix(NameColorPayload.maxNameScalars))
+        while String(String.UnicodeScalarView(scalars)).utf8.count > NameColorPayload.maxNameBytes { scalars.removeLast() }
+        let cut = String(String.UnicodeScalarView(scalars))
+        self.name = cut.isEmpty ? nil : cut
+    }
+
+    var bytes: [UInt8] {
+        let raw = Array((name ?? "").utf8)
+        return [Self.op, UInt8(raw.count)] + raw
+    }
+
+    var units: [UInt8] { Pack7.pack(bytes) }
+}
+
+extension Block {
+    /// Nom choisi pour le bloc « Action de FL › Poser un marqueur » (08/11), gardé dans `note` (plus montrée ni
+    /// écrite ailleurs depuis le 28/10) : rien à changer au format des macros, une version d'avant pose le marqueur
+    /// comme avant.
+    var markerName: String? {
+        guard case .flAction("marker", _) = body else { return nil }
+        return MarkerPayload(name: note).name
+    }
+}
+
 /// Données de l'opération 1 : `[1, drapeaux (bit 0 nom, bit 1 couleur), R, G, B, n, nom UTF-8 (n octets)]`.
 struct NameColorPayload: Equatable {
     /// Le script compte les points de code (Python) : même mesure ici.

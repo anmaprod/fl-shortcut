@@ -66,7 +66,7 @@ internal sealed class FakeEffects : IMacroEffects
 
     public StepResult FlActions(IReadOnlyList<FlActionCall> group, RunState state)
     {
-        Trace.Add("fl[" + string.Join(",", group.Select(g => g.Key)) + "]");
+        Trace.Add("fl[" + string.Join(",", group.Select(g => g.Name is { } n ? $"{g.Key}={n}" : g.Key)) + "]");
         return FlResult;
     }
 
@@ -235,6 +235,21 @@ public class MacroInterpreterTests
             B(new BlockBody.FlAction("stop", ActionFallback.None), FailurePolicy.KeepGoing),
         }, fx);
         Assert.Equal(new[] { "begin", "idle", "fl[armon,recon]", "delay", "fl[recon]", "fl[stop]", "cleanup" }, fx.Trace);
+    }
+
+    /// « Poser un marqueur » avec un nom (08/11) : le nom (note du bloc) part avec l'action, jamais regroupé.
+    [Fact]
+    public void NamedMarkerRunsAlone()
+    {
+        var fx = new FakeEffects();
+        var named = B(new BlockBody.FlAction("marker", ActionFallback.None));
+        named.Note = "  Refrain ";
+        var empty = B(new BlockBody.FlAction("marker", ActionFallback.None));
+        empty.Note = "   ";
+        var other = B(new BlockBody.FlAction("play", ActionFallback.None));
+        other.Note = "pas un nom";
+        Run(new[] { B(new BlockBody.FlAction("play", ActionFallback.None)), named, B(new BlockBody.FlAction("stop", ActionFallback.None)), empty, other }, fx);
+        Assert.Equal(new[] { "begin", "idle", "fl[play]", "fl[marker=Refrain]", "fl[stop,marker,play]", "cleanup" }, fx.Trace);
     }
 
     [Fact]

@@ -94,6 +94,7 @@ OP_SELECT_SET = 23         # ces canaux seuls sélectionnés (Organiser : sons i
 OP_LINK = 24               # canal relié à une piste du Mixer (Organiser : son envoyé au Master, script v14)
 OP_SONG_POS = 25           # position de la chanson pendant l'écoute (Organiser : chanson jouée d'un bout à l'autre)
 OP_PATTERN_PICK = 26       # ce pattern ouvert (Organiser : ⇧C de la Playlist sélectionne ensuite ses clips, script v15)
+OP_MARKER = 27             # marqueur posé avec le nom choisi dans la macro (bloc « Poser un marqueur », 08/11)
 ACTIVITY_HEARD = 1         # opération 14, 3e octet : ce qui a joué depuis la lecture précédente (script v13 ;
                            # pistes de la Playlist : script v14)
 MAX_LENGTHS = 64           # patterns au plus par réponse de l'opération 19
@@ -828,7 +829,9 @@ def _a_rec():
     return _gt("FPT_Record", 12)
 
 
-def _a_marker():
+def _a_marker(name=None):
+    """Marqueur à la position de lecture ; `name` : celui choisi dans la macro (08/11, « nommer le marqueur »),
+    sinon comme avant (« ça remet automatiquement le marqueur… on s'en fiche »)."""
     lm = _fn("transport", "getLoopMode")
     if lm is not None:
         try:
@@ -849,9 +852,24 @@ def _a_marker():
         except TypeError:
             pos = None
         if isinstance(pos, (int, float)) and not isinstance(pos, bool) and pos >= 0:
-            add(int(pos), "Bonne prise")
+            add(int(pos), name if name else "Bonne prise")
             return True
+    if name:
+        return False                      # sans addAutoTimeMarker, le nom ne peut pas être posé
     return _gt("FPT_AddMarker", 33)
+
+
+def _op_marker(raw):
+    """Opération 27 : [27, n, nom UTF-8 (n octets)] → marqueur à la position de lecture, avec ce nom. 0 ou la raison."""
+    if len(raw) < 2 or len(raw) != 2 + raw[1]:
+        return REASON_DATA
+    try:
+        name = bytes(raw[2:]).decode("utf-8")
+    except Exception:
+        return REASON_DATA
+    if not name or len(name) > 64 or any(ord(ch) < 32 or ord(ch) == 127 for ch in name):
+        return REASON_DATA
+    return 0 if _a_marker(name) else REASON_DATA
 
 
 def _av_marker():
@@ -1380,6 +1398,8 @@ def _run_data(units, seq3=(0, 0, 0)):
     op = raw[0]
     if op == OP_NAME_COLOR:
         return _op_name_color(raw)
+    if op == OP_MARKER:
+        return _op_marker(raw)
     handler = _EXT_OPS.get(op)
     if handler is None:
         return REASON_DATA
