@@ -43,8 +43,30 @@ internal sealed class MacrosPage
         BlockType.Key, BlockType.Delay, BlockType.MenuLetters, BlockType.MenuKey, BlockType.WaitWindow,
         BlockType.WaitWindowClose, BlockType.FlAction, BlockType.OpenPage, BlockType.Organize, BlockType.Stop, BlockType.Comment,
         BlockType.Click, BlockType.MenuBar, BlockType.NameColor, BlockType.PageOption, BlockType.TrackMenu,
-        BlockType.DropFile, BlockType.ChooseFile,
+        BlockType.DropFile, BlockType.ChooseFile, BlockType.MouseClick,
     };
+
+    /// Carré creux d'un bloc, comme `BlockSquare` du Mac (08/11, « le créateur n'est pas le même ») : creux à l'encre ;
+    /// orange au survol ; plein d'orange sur la ligne choisie.
+    private static Border BlockSquare(bool selected = false)
+    {
+        var square = new Border
+        {
+            Width = 9,
+            Height = 9,
+            BorderThickness = new Thickness(1.2),
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        SetBlockSquare(square, selected, hovered: false);
+        return square;
+    }
+
+    private static void SetBlockSquare(Border square, bool selected, bool hovered)
+    {
+        square.BorderBrush = Brush(selected || hovered ? BrandRed : Text);
+        square.Background = Brush(selected ? BrandRed : Colors.Transparent);
+    }
 
     /// Carré d'un bloc : orange pour tous (08/11, « carré violet, carré bleu… carré orange pour tous », comme le
     /// créateur du Mac depuis le 05/11 : plus de couleur par catégorie).
@@ -724,13 +746,19 @@ internal sealed class MacrosPage
         Creator.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 280 });
         Creator.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(InspectorWidth) });
 
-        var palette = Plate(new ScrollViewer
+        // Comme le Mac : trois colonnes sans cadre, séparées d'un trait fin.
+        var palette = new Border
         {
-            Content = PaletteView(),
-            VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-        }, 19, 0.10, 0.04, 0.16);
-        palette.Padding = new Thickness(10, 14, 10, 16);
+            Child = new ScrollViewer
+            {
+                Content = PaletteView(),
+                VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            },
+            Padding = new Thickness(8, 14, 8, 16),
+            BorderBrush = Brush(LineColor),
+            BorderThickness = new Thickness(0, 0, 1, 0),
+        };
         Creator.Children.Add(palette);
 
         _stepsPane.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -741,7 +769,7 @@ internal sealed class MacrosPage
         Grid.SetColumn(_stepsPane, 1);
         Creator.Children.Add(_stepsPane);
 
-        var inspector = Plate(_inspector, 19, 0.10, 0.04, 0.16);
+        var inspector = new Border { Child = _inspector, BorderBrush = Brush(LineColor), BorderThickness = new Thickness(1, 0, 0, 0) };
         Grid.SetColumn(inspector, 2);
         Creator.Children.Add(inspector);
     }
@@ -753,7 +781,7 @@ internal sealed class MacrosPage
         foreach (var (category, entries) in _palette)
         {
             var group = new StackPanel { Spacing = 1 };
-            var title = Label(category.Label(), 11, Secondary, semibold: true);
+            var title = SwissLabel(category.Label(), 10.5, Secondary);
             title.Margin = new Thickness(10, 0, 10, 4);
             AutomationProperties.SetHeadingLevel(title, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2);
             group.Children.Add(title);
@@ -767,8 +795,7 @@ internal sealed class MacrosPage
     /// pas, comme sur le Mac) ; au survol, pleine de la couleur de sa catégorie.
     private Border PaletteRow(PaletteEntry entry)
     {
-        var tint = CategoryTint(entry.Category);
-        var tile = Tile(entry.Symbol, tint, 22);
+        var tile = BlockSquare();
         var label = Label(entry.Label, 13);
         label.TextWrapping = TextWrapping.NoWrap;
         label.TextTrimming = TextTrimming.CharacterEllipsis;
@@ -789,7 +816,7 @@ internal sealed class MacrosPage
         {
             row.Background = Brush(on ? MacLook.Text : Colors.Transparent);      // style suisse : blanc plein, texte noir
             label.Foreground = Brush(on ? MacLook.WindowColor : Text);
-            SetTileHover(tile, entry.Symbol, tint, on);
+            SetBlockSquare(tile, selected: false, hovered: on);
         }
         row.PointerEntered += (_, _) => Hover(true);
         row.PointerExited += (_, _) => Hover(false);
@@ -1153,22 +1180,54 @@ internal sealed class MacrosPage
     {
         var page = new StackPanel { Spacing = 12, Padding = new Thickness(22, 4, 22, 24) };
         if (_recording == doc.Id) page.Children.Add(RecordingBanner());
+        // Comme le Mac (08/11, « même le bouton enregistrer n'est pas là ») : en haut, une barre bordée de rouge.
+        else if (!_demo || doc.Blocks.Count == 0) page.Children.Add(RecordBar());
         if (doc.Blocks.Count > 0)
         {
             var list = new StackPanel();
             for (var i = 0; i < doc.Blocks.Count; i++) list.Children.Add(StepRow(doc, i));
-            var plate = Plate(list, 14);
-            plate.Padding = new Thickness(2);
-            page.Children.Add(plate);
+            page.Children.Add(list);
         }
         page.Children.Add(DropZone(doc));
-        if (_recording is null && !_demo)
-        {
-            var record = Soft(Loc.T("Enregistrer clics et touches"), StartRecording);
-            record.HorizontalAlignment = HorizontalAlignment.Center;
-            page.Children.Add(record);
-        }
         return page;
+    }
+
+    /// « ⊙ Enregistrer clics et touches » : toute la largeur, bordée de rouge, rouge plein au survol (comme le Mac).
+    private FrameworkElement RecordBar()
+    {
+        var dot = Icon("record.circle", 16, Red);
+        dot.VerticalAlignment = VerticalAlignment.Center;
+        var label = Label(Loc.T("Enregistrer clics et touches"), 13.5, Text, bold: true);
+        label.VerticalAlignment = VerticalAlignment.Center;
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { dot, label } };
+        var face = new Border
+        {
+            Child = row,
+            MinHeight = 40,
+            Padding = new Thickness(14, 0, 14, 0),
+            BorderBrush = Brush(Red),
+            BorderThickness = new Thickness(1),
+            Background = Brush(WithOpacity(Red, 0.10)),
+        };
+        var button = new Button
+        {
+            Style = PlainButton,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Content = face,
+        };
+        void Set(bool on)
+        {
+            face.Background = Brush(on ? Red : WithOpacity(Red, 0.10));
+            label.Foreground = Brush(on ? MacLook.WindowColor : Text);
+        }
+        button.PointerEntered += (_, _) => Set(true);
+        button.PointerExited += (_, _) => Set(false);
+        button.PointerCanceled += (_, _) => Set(false);
+        button.Click += (_, _) => StartRecording();
+        ToolTipService.SetToolTip(button, Loc.T("FL passe devant : clique et tape ta suite, puis reviens ici."));
+        AutomationProperties.SetName(button, Loc.T("Enregistrer clics et touches"));
+        return button;
     }
 
     /// Une ligne : numéro, icône de couleur, la phrase (nom du bloc et sa valeur en pastille), l'interrupteur.
@@ -1185,12 +1244,13 @@ internal sealed class MacrosPage
         var grid = new Grid { ColumnSpacing = 8 };
         foreach (var width in new[] { GridLength.Auto, GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto, GridLength.Auto })
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
-        var number = Label((index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), 11, selected ? White(0.8) : Secondary);
+        var number = Label((index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), 11, selected ? WithOpacity(MacLook.WindowColor, 0.6) : Secondary);
         number.MinWidth = 24;
         number.TextAlignment = TextAlignment.Right;
         number.VerticalAlignment = VerticalAlignment.Center;
         grid.Children.Add(number);
-        var tile = Tile(symbol, tint, 24);
+        var tile = BlockSquare(selected);
+        tile.Margin = new Thickness(4, 0, 4, 0);
         Grid.SetColumn(tile, 1);
         grid.Children.Add(tile);
 
@@ -1204,7 +1264,7 @@ internal sealed class MacrosPage
         }
         else
         {
-            var verb = Label(BlockRegistry.Label(body), 14, selected ? MacLook.WindowColor : Text);
+            var verb = Label(BlockRegistry.Label(body), 13.5, selected ? MacLook.WindowColor : Text, bold: true);
             verb.TextWrapping = TextWrapping.NoWrap;
             verb.VerticalAlignment = VerticalAlignment.Center;
             sentence.Children.Add(verb);
@@ -1212,7 +1272,12 @@ internal sealed class MacrosPage
             {
                 // « Poser un marqueur » avec un nom (08/11) : le nom suit l'action.
                 if (MarkerPayload.Of(doc.Blocks[index]) is { } marker) summary += " · " + DisplayText.Safe(marker, 40);
-                sentence.Children.Add(ValuePill(summary));
+                // Comme le Mac : la valeur en gris à côté du verbe, plus dans une pastille.
+                var value = Label(summary, 13, selected ? WithOpacity(MacLook.WindowColor, 0.6) : Secondary);
+                value.TextWrapping = TextWrapping.NoWrap;
+                value.TextTrimming = TextTrimming.CharacterEllipsis;
+                value.VerticalAlignment = VerticalAlignment.Center;
+                sentence.Children.Add(value);
             }
         }
         Grid.SetColumn(sentence, 2);
@@ -1239,7 +1304,10 @@ internal sealed class MacrosPage
             MinHeight = 40,
             Padding = new Thickness(6, 4, 10, 4),
             CornerRadius = new CornerRadius(0),
-            Background = Brush(selected ? Accent : Colors.Transparent),
+            Background = Brush(selected ? MacLook.Text : Colors.Transparent),
+            // La ligne choisie, blanche, soulevée sur son encoche rouge (comme le Mac).
+            BorderBrush = Brush(selected ? BrandRed : Colors.Transparent),
+            BorderThickness = new Thickness(0, 0, selected ? 4 : 0, selected ? 4 : 0),
             CanDrag = true,
             AllowDrop = true,
         };
@@ -1248,7 +1316,7 @@ internal sealed class MacrosPage
             void Hover(bool on)
             {
                 row.Background = Brush(on ? White(0.08) : Colors.Transparent);    // la ligne choisie, elle, est blanche
-                SetTileHover(tile, symbol, tint, on);
+                SetBlockSquare(tile, selected: false, hovered: on);
             }
             row.PointerEntered += (_, _) => Hover(true);
             row.PointerExited += (_, _) => Hover(false);

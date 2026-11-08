@@ -918,4 +918,11 @@ entrée 1 ≈ 0,5 s.
   FL (pas de fonction du script pour ça) ; la piste cliquée doit être un en-tête de la Playlist (rond mute à droite du
   clic), sinon rien n'est cliqué ; « Consolidate… » lu dans le menu au moment du clic. Ni l'un ni l'autre vus sur le
   vrai FL.
+- 08/11 (10) : Windows donné à des amis (« pas du tout bien… FL crack ne marche pas… écrire à l'équipe ne fonctionne
+  pas… loopMIDI, Organiser ne fonctionnent pas… Avast a vu un virus… même le bouton enregistrer n'est pas là »).
+  Diagnostic d'un ami : `étape=attente-openFl`, `FL ?` → FL jamais reconnu (signature exigée) : reconnu maintenant à son
+  programme. Écrire à l'équipe : serveur vérifié (insertion sans compte acceptée, refus seulement de la règle de
+  longueur) ; l'appli Windows ne renvoyait pas sans le compte quand le jeton était refusé, et un échec du presse-papiers
+  pouvait la faire tomber. Ports créés par l'appli via le pilote de loopMIDI. Pages Windows alignées sur les photos du
+  Mac (CI e88f658). Antivirus : pas de solution sans certificat ; la CI signe dès qu'un certificat est fourni.
 

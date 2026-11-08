@@ -352,6 +352,21 @@
   Windows (dans l'app depuis le 04/11) ; « pour regarder, non » était faux : compte nécessaire pour regarder aussi.
   MIDISettings.png renumérotée (les deux Port en 1 et 2, Enable 3, Controller type 4 ; `MIDISettingsCrops` suit) ;
   tuto 4 de l'Organiser : « l'ancienne version part à la Corbeille » (plus « ton projet ne bouge pas »).
+- **Windows chez des amis, 08/11** (« pas du tout bien… je veux les mêmes logiciels pour les deux ») :
+  FL reconnu SANS la signature d'Image-Line (« un ami a FL Studio crack ») : programme FL64.exe/FL.exe/« FL64 (scaled) »
+  ou copie renommée dite « FL Studio » (`FlRecognition`, signature seulement notée : diagnostic `signé=`) ; le Mac ne
+  vérifiait déjà que l'identifiant (rien à changer). « Écrire à l'équipe » : jeton refusé → renvoyé sans le compte
+  (comme le Mac), message du serveur, plus de chute (async void). Ports du lien créés par l'APP avec le pilote de
+  loopMIDI (`VirtualMidiPorts`, teVirtualMIDI64.dll, ports qui renvoient ce qu'ils reçoivent, comme loopMIDI) quand
+  Windows MIDI Services manque : installer loopMIDI suffit, plus de ports à créer ni de loopMIDI ouvert (x64 seulement).
+  Pages comme le Mac : Mes raccourcis vide (étoile creuse grise), Macros vide (« Enregistrer une macro » + Importer
+  un fichier .flsmacro…), petits boutons Importer/Exporter, Communauté (Partager dans l'en-tête `_headerAction`,
+  recherche + cases + Actualiser sur une ligne, page vide centrée), créateur (barre « Enregistrer clics et touches »
+  bordée de rouge EN HAUT, carrés creux `BlockSquare`, verbe gras + valeur grise, ligne choisie blanche sur encoche
+  rouge, colonnes sans plaques, « Clic de souris » dans la palette). Antivirus (Avast) : signature prête dans la CI
+  (secrets WIN_CERT_PFX_BASE64 + WIN_CERT_PASSWORD, signtool + Inno `SignTool`), infos du programme et de l'installeur
+  complètes, version réelle hors tag ; question d'aide + ligne du mode d'emploi. Sans certificat, seul un signalement
+  du faux positif à Avast (par version) le fait accepter. Pas encore vu sur un PC.
 - **Avertissements au style suisse** (08/11, « pas avec un logo, un emoji d'attention… un point orange ») : un carré
   plein #FF3B1F (blanc sous Orange) devant le texte, le texte à l'encre ; plus aucun triangle, cercle « ! » ni octogone
   (Mac : `SwissWarning`, `SwissWarningMark`, `StatusSymbol` dans GlassStyle.swift, pastille carrée dans la barre des
