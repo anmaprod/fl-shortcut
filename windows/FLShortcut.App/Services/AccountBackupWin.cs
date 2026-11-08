@@ -314,6 +314,9 @@ internal sealed class AccountBackupWin
         if (_app.MacrosWritesDisabled) throw BackupFailure.Custom(MacroLibraryStore.WritesDisabledMessage);
         if (keepCopy && !_app.KeepCopies(CopyLabel)) throw BackupFailure.CopyFailed;
         _app.ReplaceAllData(shortcuts, macros);
+        // Les couleurs récentes du compte reviennent (aucune en ligne : celles de ce PC restent).
+        var colors = BackupCodec.Colors(remote.Content.Profile);
+        if (colors.Count > 0) _app.ReplaceRecentColors(colors);
         OnlineSummary = BackupRules.Summary(shortcuts.Count, macros.Count);
         MarkSynced(account, remote.Revision, remote.UpdatedAt, _changes);
         Notice = Loc.F("Ta sauvegarde est revenue : %@.", OnlineSummary);
@@ -404,6 +407,7 @@ internal sealed class AccountBackupWin
         }
         await _account.SignOutNow();
         _app.ReplaceAllData(ProfilePreset.Recommended.Shortcuts(), new List<MacroDoc>());
+        _app.ReplaceRecentColors(Array.Empty<string>());   // elles restent dans le compte, comme le reste
         ForgetSync();
         Notice = null;
         AppLog.Write("BACKUP", "déconnecté : ce PC revient au premier lancement");

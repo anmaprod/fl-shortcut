@@ -402,9 +402,27 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     /// « 12 raccourcis · 3 macros » : ce qui est sur ce PC.
     public string HereSummary => BackupRules.Summary(_shortcuts.Count, _macros.Macros.Count);
 
-    public BackupContent BackupContent() => BackupCodec.Of(_shortcuts, _macros.Macros, KeyLayout);
+    public BackupContent BackupContent() => BackupCodec.Of(_shortcuts, _macros.Macros, KeyLayout, RecentColors);
 
-    public bool SameAs(BackupContent remote) => BackupCodec.Same(remote, _shortcuts, _macros.Macros, KeyLayout);
+    public bool SameAs(BackupContent remote) => BackupCodec.Same(remote, _shortcuts, _macros.Macros, KeyLayout, RecentColors);
+
+    /// Les 10 dernières couleurs choisies (Organiser), gardées avec le compte (08/11, comme le Mac).
+    public IReadOnlyList<string> RecentColors => RecentColorList.Normalize(_settings.RecentColors);
+
+    /// Une couleur choisie : en tête des récentes, et la sauvegarde du compte suit.
+    public void RememberColor(RgbColor color)
+    {
+        _settings.RecentColors = RecentColorList.Remember(_settings.RecentColors, color.Hex);
+        _settings.Save();
+        if (!_applying) DataChanged?.Invoke();
+    }
+
+    /// Couleurs revenues du compte (aucune : celles de ce PC restent), ou effacées à la déconnexion.
+    public void ReplaceRecentColors(IReadOnlyList<string> colors)
+    {
+        _settings.RecentColors = RecentColorList.Normalize(colors);
+        _settings.Save();
+    }
 
     /// Copie datée des raccourcis et des macros d'ici (avant de les remplacer).
     public bool KeepCopies(string label) => ProfileStore.KeepCopy(_shortcuts, label) is not null && _macros.KeepCurrentCopy(label) is not null;

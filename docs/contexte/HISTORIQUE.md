@@ -909,3 +909,5 @@ entrée 1 ≈ 0,5 s.
   prise pour un Mixer, et la règle « voyants des effets à droite du Mixer » écartait alors la colonne du Channel rack ;
   en solo, les autres ronds du Mixer sont rose terne (ni gris ni francs). Corrigé (rangée ≥ 4 ronds, ronds ternes,
   séries allumées d'abord) et vérifié sur ses images. Actions retirées des listes, renommées ; mono à droite.
+- 08/11 (8) : couleurs récentes gardées avec le compte (dans le profil de la sauvegarde, pas de nouvelle colonne à
+  coller dans Supabase) ; Windows a maintenant aussi sa rangée « Récentes » dans les choix de couleur de l'Organiser.

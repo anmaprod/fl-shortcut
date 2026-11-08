@@ -839,13 +839,23 @@ internal sealed class OrganizerWindow : Window
             })));
             body.Children.Add(choice);
         }
-        body.Children.Add(picker);
         var flyout = new Flyout { Content = body };
+        var chosen = false;
+        body.Children.Add(RecentColorsRow(flyout, picked =>
+        {
+            chosen = true;
+            _app.RememberColor(picked);
+            set(picked);
+        }));
+        body.Children.Add(picker);
         flyout.Closed += (_, _) =>
         {
+            if (chosen) return;
             var c = picker.Color;
             var picked = new RgbColor(c.R, c.G, c.B);
-            if (picked != color) set(picked);
+            if (picked == color) return;
+            _app.RememberColor(picked);
+            set(picked);
         };
         button.Flyout = flyout;
         return button;
@@ -1349,12 +1359,24 @@ internal sealed class OrganizerWindow : Window
             Color = ColorOf(current), ColorSpectrumShape = ColorSpectrumShape.Ring, IsAlphaEnabled = false,
             IsMoreButtonVisible = false, IsColorChannelTextInputVisible = false, IsHexInputVisible = true,
         };
-        var flyout = new Flyout { Content = picker };
+        var body = new StackPanel { Spacing = 10 };
+        var flyout = new Flyout { Content = body };
+        var chosen = false;
+        body.Children.Add(RecentColorsRow(flyout, picked =>
+        {
+            chosen = true;
+            _app.RememberColor(picked);
+            _controller.SetBaseColor(family, picked);
+            refresh();
+        }));
+        body.Children.Add(picker);
         flyout.Closed += (_, _) =>
         {
+            if (chosen) return;
             var c = picker.Color;
             var picked = new RgbColor(c.R, c.G, c.B);
             if (picked == current) return;
+            _app.RememberColor(picked);
             _controller.SetBaseColor(family, picked);
             refresh();
         };
@@ -1362,5 +1384,39 @@ internal sealed class OrganizerWindow : Window
         ToolTipService.SetToolTip(button, Loc.T("Choisir une autre couleur"));
         AutomationProperties.SetName(button, family.Label() + " : " + Loc.T("Choisir une autre couleur"));
         return button;
+    }
+
+    /// Les 10 couleurs récentes, en haut du choix de couleur (comme FL et le Mac : la dernière posée d'abord ; gardées
+    /// avec le compte, 08/11) ; un clic en pose une et ferme le choix. Rien tant qu'aucune couleur n'a été choisie.
+    private UIElement RecentColorsRow(Flyout flyout, Action<RgbColor> pick)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+        foreach (var hex in _app.RecentColors)
+        {
+            if (RgbColor.FromHex(hex) is not { } color) continue;
+            var square = new Button
+            {
+                Style = PlainButton,
+                Width = 22,
+                Height = 22,
+                CornerRadius = new CornerRadius(0),
+                Background = Brush(ColorOf(color)),
+                BorderBrush = Brush(White(0.25)),
+                BorderThickness = new Thickness(1),
+            };
+            ToolTipService.SetToolTip(square, "#" + hex);
+            AutomationProperties.SetName(square, "#" + hex);
+            square.Click += (_, _) =>
+            {
+                pick(color);
+                flyout.Hide();
+            };
+            row.Children.Add(square);
+        }
+        if (row.Children.Count == 0) return new StackPanel { Visibility = Visibility.Collapsed };
+        var block = new StackPanel { Spacing = 6 };
+        block.Children.Add(Label(Loc.T("Récentes"), 11, Secondary));
+        block.Children.Add(row);
+        return block;
     }
 }

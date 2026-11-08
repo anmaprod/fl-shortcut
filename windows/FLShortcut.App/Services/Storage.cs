@@ -113,6 +113,8 @@ internal sealed class AppSettings
     /// Accueil du mode léger vu (08/11, « quand tu ouvres FL Shortcuts… ça demande d'installer loopMIDI avec un
     /// bouton ») : la page loopMIDI ne revient plus, même s'il n'est pas installé.
     public bool LoopMidiAsked { get; set; }
+    /// Les 10 dernières couleurs choisies (codes « E0453A », la plus récente d'abord), gardées avec le compte (08/11).
+    public List<string> RecentColors { get; set; } = new();
     /// La fenêtre s'est ouverte au lancement une fois (premier lancement) : ensuite FL Shortcuts démarre en icône seule,
     /// comme sur le Mac (retour du 03/11 : « je veux que ça soit une icône avec toutes les mêmes options »).
     public bool WindowShownAtLaunch { get; set; }

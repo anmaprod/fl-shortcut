@@ -940,6 +940,26 @@ public class BackupTests
     }
 
     [Fact]
+    public void RecentColors_TravelInsideTheProfile_LikeTheMac()
+    {
+        // 08/11 : les 10 couleurs récentes partent avec le compte, dans le profil ; les versions d'avant les ignorent.
+        var shortcuts = new List<Shortcut> { Shortcut.Action(new KeyCombo(Vk.Letter('S'), Ctrl: true), Action) };
+        var content = BackupCodec.Of(shortcuts, new List<MacroDoc>(), UsKeyLayout.Shared, new[] { "E0453A", "nope", "3a9be0" });
+        Assert.Equal(new[] { "E0453A", "3A9BE0" }, BackupCodec.Colors(content.Profile));
+        Assert.Single(BackupCodec.Decode(content, UsKeyLayout.Shared).Shortcuts);           // le profil se relit comme avant
+        Assert.Empty(BackupCodec.Colors(BackupCodec.Of(shortcuts, new List<MacroDoc>(), UsKeyLayout.Shared).Profile));
+        Assert.False(BackupCodec.Same(content, shortcuts, new List<MacroDoc>(), UsKeyLayout.Shared), "une couleur changée est à envoyer");
+        Assert.True(BackupCodec.Same(content, shortcuts, new List<MacroDoc>(), UsKeyLayout.Shared, new[] { "E0453A", "3A9BE0" }));
+        // Comme FL : la dernière en tête, une déjà là remonte, une 11e chasse la plus ancienne.
+        var list = Enumerable.Range(0, 10).Select(i => $"0000{i:X2}").ToList();
+        Assert.Equal("000005", RecentColorList.Remember(list, "000005")[0]);
+        var eleven = RecentColorList.Remember(list, "FFFFFF");
+        Assert.Equal(10, eleven.Count);
+        Assert.Equal("FFFFFF", eleven[0]);
+        Assert.DoesNotContain("000009", eleven);
+    }
+
+    [Fact]
     public void Content_RoundTripAndSame()
     {
         var shortcuts = new List<Shortcut> { Shortcut.Action(new KeyCombo(Vk.Letter('S'), Ctrl: true), Action) };

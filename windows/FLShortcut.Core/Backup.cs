@@ -69,8 +69,32 @@ public static class BackupCodec
     /// Profil de la sauvegarde : version lue par le Mac (ProfileCodec.currentVersion).
     public const int ProfileVersion = 2;
 
-    public static BackupContent Of(IEnumerable<Shortcut> shortcuts, IEnumerable<MacroDoc> macros, IKeyLayout layout) =>
-        new(MacProfile.ToMac(shortcuts, layout), Encoding.UTF8.GetString(MacroLibraryCodec.Encode(macros, pretty: false)));
+    public static BackupContent Of(IEnumerable<Shortcut> shortcuts, IEnumerable<MacroDoc> macros, IKeyLayout layout,
+        IReadOnlyList<string>? colors = null) =>
+        new(WithColors(MacProfile.ToMac(shortcuts, layout), colors ?? Array.Empty<string>()),
+            Encoding.UTF8.GetString(MacroLibraryCodec.Encode(macros, pretty: false)));
+
+    /// Les 10 couleurs récentes partent avec le compte (08/11, comme le Mac) : à la fin de l'objet du profil
+    /// (« ,"recentColors":["E0453A"] »), sans rien réécrire d'autre ; aucune couleur : le profil tel quel.
+    public static string WithColors(string profile, IReadOnlyList<string> colors)
+    {
+        var clean = RecentColorList.Normalize(colors);
+        var end = profile.LastIndexOf('}');
+        if (clean.Count == 0 || end < 0) return profile;
+        return profile[..end] + ",\"recentColors\":[" + string.Join(",", clean.Select(c => "\"" + c + "\"")) + "]" + profile[end..];
+    }
+
+    /// Les couleurs récentes du profil (vide : aucune, ou profil d'une version d'avant).
+    public static List<string> Colors(string profile)
+    {
+        try
+        {
+            if (JsonNode.Parse(profile) is JsonObject o && o["recentColors"] is JsonArray list)
+                return RecentColorList.Normalize(list.Select(x => x?.GetValueKind() == JsonValueKind.String ? x.GetValue<string>() : "").ToList());
+        }
+        catch (JsonException) { }
+        return new List<string>();
+    }
 
     /// Raccourcis (traduits pour ce PC) et macros relus ; refusé s'ils viennent d'une version plus récente de l'app
     /// (rien ne serait perdu ici, mais les renvoyer depuis cette version en perdrait une partie).
@@ -94,10 +118,12 @@ public static class BackupCodec
     }
 
     /// Même contenu ici et dans le compte (une fois relu de part et d'autre).
-    public static bool Same(BackupContent remote, IReadOnlyList<Shortcut> shortcuts, IReadOnlyList<MacroDoc> macros, IKeyLayout layout)
+    public static bool Same(BackupContent remote, IReadOnlyList<Shortcut> shortcuts, IReadOnlyList<MacroDoc> macros, IKeyLayout layout,
+        IReadOnlyList<string>? colors = null)
     {
         try
         {
+            if (!Colors(remote.Profile).SequenceEqual(RecentColorList.Normalize(colors ?? Array.Empty<string>()))) return false;
             var (theirShortcuts, theirMacros) = Decode(remote, layout);
             var theirs = JsonNode.Parse(MacProfile.ToMac(theirShortcuts, layout))!["remaps"];
             var ours = JsonNode.Parse(MacProfile.ToMac(shortcuts, layout))!["remaps"];
@@ -188,4 +214,18 @@ public static class BackupRequests
 
     private static string? Text(JsonElement row, string key) =>
         row.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+}
+
+/// Les 10 dernières couleurs choisies, la plus récente d'abord (codes « E0453A ») : comme RecentColors du Mac.
+public static class RecentColorList
+{
+    public const int Limit = 10;
+
+    /// Codes valides en majuscules, sans doublon, 10 au plus.
+    public static List<string> Normalize(IEnumerable<string> colors) =>
+        colors.Select(c => RgbColor.FromHex(c?.Trim() ?? "")).OfType<RgbColor>().Select(c => c.Hex).Distinct().Take(Limit).ToList();
+
+    /// `color` en tête (déjà là : elle remonte ; une 11e chasse la plus ancienne, comme FL).
+    public static List<string> Remember(IEnumerable<string> list, string color) =>
+        Normalize(new[] { color }.Concat(list));
 }

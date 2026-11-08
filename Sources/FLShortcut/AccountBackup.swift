@@ -5,6 +5,8 @@
 // du Mac, ni endroits appris hors des macros, ni journal. Un Mac n'écrase jamais une sauvegarde plus récente faite
 // ailleurs sans le demander (révision du serveur), et rien n'est remplacé sur ce Mac sans copie datée
 // (Application Support › FL Shortcuts), sauf à la déconnexion, où tout vient d'être mis en ligne.
+// 08/11 : les 10 couleurs récentes (Organiser, « Nom et couleur ») partent aussi, dans le profil (clé « recentColors »,
+// ignorée par les versions d'avant) : elles reviennent à la connexion, sur ce Mac ou un autre, et sur Windows.
 import Combine
 import Foundation
 
@@ -13,10 +15,28 @@ struct BackupContent: Equatable {
     var profile: String
     var macros: String
 
-    static func of(remaps: [Remap], macros: [MacroDoc]) throws -> BackupContent {
-        BackupContent(profile: String(decoding: try ProfileCodec.encode(remaps), as: UTF8.self),
+    static func of(remaps: [Remap], macros: [MacroDoc], colors: [String] = []) throws -> BackupContent {
+        BackupContent(profile: withColors(String(decoding: try ProfileCodec.encode(remaps), as: UTF8.self), colors),
                       macros: String(decoding: try MacroLibraryCodec.encode(macros, pretty: false), as: UTF8.self))
     }
+
+    /// Pur (testé) : le profil avec les couleurs récentes à la fin de son objet (« ,"recentColors":["E0453A"] »), sans
+    /// rien réécrire d'autre ; aucune couleur : le profil tel quel.
+    static func withColors(_ profile: String, _ colors: [String]) -> String {
+        let clean = colors.compactMap(RGBColor.init(hex:)).map(\.hex).prefix(RecentColors.limit)
+        guard !clean.isEmpty, let end = profile.lastIndex(of: "}") else { return profile }
+        let list = clean.map { "\"\($0)\"" }.joined(separator: ",")
+        return profile[..<end] + ",\"recentColors\":[" + list + "]" + profile[end...]
+    }
+
+    /// Les couleurs récentes du profil (vide : aucune, ou profil d'une version d'avant).
+    static func colors(in profile: String) -> [String] {
+        guard let object = try? JSONSerialization.jsonObject(with: Data(profile.utf8)) as? [String: Any],
+              let list = object["recentColors"] as? [String] else { return [] }
+        return list.compactMap(RGBColor.init(hex:)).map(\.hex)
+    }
+
+    var colors: [String] { Self.colors(in: profile) }
 
     /// Raccourcis et macros relus ; refusé s'ils viennent d'une version plus récente de l'app (rien ne serait perdu
     /// ici, mais les renvoyer depuis cette version en perdrait une partie).
@@ -38,7 +58,7 @@ struct BackupContent: Equatable {
     /// Même contenu une fois relu (encodage identique de part et d'autre).
     func sameAs(_ other: BackupContent) -> Bool {
         guard self != other else { return true }
-        guard let a = try? decoded(), let b = try? other.decoded() else { return false }
+        guard colors == other.colors, let a = try? decoded(), let b = try? other.decoded() else { return false }
         return (try? BackupContent.of(remaps: a.remaps, macros: a.macros)) == (try? BackupContent.of(remaps: b.remaps, macros: b.macros))
     }
 
@@ -172,6 +192,7 @@ final class AccountBackup: ObservableObject {
     private var pushTask: Task<Void, Never>?
     private var lastCheck = Date.distantPast
     private var watching: AnyCancellable?
+    private var colorsWatch: AnyCancellable?
 
     /// `community` nil : celle de l'app (lue ici, sur le fil principal, et pas en valeur par défaut : Swift 6).
     init(community: CommunityStore? = nil, store: Store = .shared, defaults: UserDefaults = .standard,
@@ -189,6 +210,8 @@ final class AccountBackup: ObservableObject {
     func start() {
         // Raccourcis et macros ne changent que sur le thread principal (fenêtre, créateur, import).
         store.onDataChange = { [weak self] in MainActor.assumeIsolated { self?.localChanged() } }
+        colorsWatch = NotificationCenter.default.publisher(for: RecentColors.changed)
+            .sink { [weak self] _ in MainActor.assumeIsolated { self?.localChanged() } }
         watching = community.$session.map { $0?.userID }.removeDuplicates()
             .sink { [weak self] user in
                 Task { @MainActor in await self?.sessionChanged(user) }
@@ -222,7 +245,8 @@ final class AccountBackup: ObservableObject {
     }
 
     private func currentContent() throws -> BackupContent {
-        try BackupContent.of(remaps: store.remaps, macros: store.library.macros)
+        try BackupContent.of(remaps: store.remaps, macros: store.library.macros,
+                             colors: RecentColors.list().map(\.hex))
     }
 
     private func markSynced(_ account: UUID, _ revision: Int64, at date: Date?, changesBefore: Int) {
@@ -403,6 +427,9 @@ final class AccountBackup: ObservableObject {
         }
         applying = true
         store.replaceAll(decoded.remaps, macros: decoded.macros)
+        // Les couleurs récentes du compte reviennent (aucune en ligne : celles de ce Mac restent).
+        let colors = remote.content.colors
+        if !colors.isEmpty { RecentColors.replace(colors) }
         applying = false
         onlineSummary = remote.content.summary
         markSynced(account, remote.revision, at: remote.updatedAt, changesBefore: changes)
@@ -495,6 +522,7 @@ final class AccountBackup: ObservableObject {
         await community.signOut()
         applying = true
         store.replaceAll(store.freshRemaps(), macros: [])
+        RecentColors.clear()                             // elles restent dans le compte, comme le reste
         applying = false
         forgetSync()
         notice = nil

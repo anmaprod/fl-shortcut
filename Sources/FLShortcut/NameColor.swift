@@ -142,7 +142,21 @@ enum RecentColors {
     static func remember(_ c: RGBColor, defaults: UserDefaults = .standard) {
         let others = list(defaults: defaults).filter { $0 != c }
         defaults.set(([c] + others).prefix(limit).map(\.hex), forKey: key)
+        // Gardées avec le compte (08/11, « si la personne est connectée, je veux que les couleurs qu'elle utilise soient
+        // gardées ») : la sauvegarde en ligne suit ce changement.
+        if defaults === UserDefaults.standard { NotificationCenter.default.post(name: changed, object: nil) }
     }
+
+    static let changed = Notification.Name("FLShortcuts.recentColorsChanged")
+
+    /// Les couleurs revenues du compte (codes « E0453A », la plus récente d'abord ; les autres codes sont ignorés).
+    static func replace(_ hexes: [String], defaults: UserDefaults = .standard) {
+        var seen = Set<RGBColor>()
+        let colors = hexes.compactMap(RGBColor.init(hex:)).filter { seen.insert($0).inserted }.prefix(limit)
+        defaults.set(colors.map(\.hex), forKey: key)
+    }
+
+    static func clear(defaults: UserDefaults = .standard) { defaults.removeObject(forKey: key) }
 }
 
 // MARK: - Fenêtre de couleur de FL (« Color selector »)

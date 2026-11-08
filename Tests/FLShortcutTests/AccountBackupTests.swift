@@ -155,6 +155,18 @@ final class AccountBackupTests: XCTestCase {
         }
     }
 
+    func testRecentColorsTravelInsideTheProfile() throws {
+        // 08/11 : les 10 couleurs récentes partent avec le compte, dans le profil ; les versions d'avant les ignorent.
+        let remaps = [Remap(trigger: KeyCombo(keyCode: 0, control: true), action: 4)]
+        let content = try BackupContent.of(remaps: remaps, macros: [], colors: ["E0453A", "nope", "3a9be0"])
+        XCTAssertEqual(content.colors, ["E0453A", "3A9BE0"])
+        XCTAssertEqual(try content.decoded().remaps, remaps)                 // le profil se relit comme avant
+        let plain = try BackupContent.of(remaps: remaps, macros: [])
+        XCTAssertEqual(plain.colors, [])
+        XCTAssertFalse(content.sameAs(plain), "une couleur changée est à envoyer")
+        XCTAssertTrue(content.sameAs(try BackupContent.of(remaps: remaps, macros: [], colors: ["E0453A", "3A9BE0"])))
+    }
+
     func testUntouchedMac() {
         let mac = Mac(FakeSupabase())
         XCTAssertTrue(mac.store.isUntouched, "premier lancement")

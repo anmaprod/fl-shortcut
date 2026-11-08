@@ -447,6 +447,12 @@
   moins un rond allumé d'abord ; bas brillant presque blanc : rapport largeur/hauteur jusqu'à 1,7. Vérifié sur les
   images de sa vidéo (Playlist, Channel rack avec Serum 2 éteint, Mixer, piste coupée, solo). Échec : journal `MUTE`
   avec `dots=allumés+éteints series=…` (nombres seulement).
+- **Couleurs récentes avec le compte** (08/11, « si la personne est connectée… qu'elle retrouve les couleurs qu'elle
+  a utilisées ») : les 10 récentes (Organiser, « Nom et couleur ») partent dans le PROFIL de la sauvegarde (clé
+  `recentColors` ajoutée à la fin de l'objet, ignorée par les versions d'avant ; aucune colonne de plus dans Supabase) ;
+  reviennent à la connexion (aucune en ligne : celles d'ici restent), effacées à la déconnexion ; une couleur choisie
+  relance la sauvegarde (Mac `RecentColors.changed`, `BackupContent.withColors/colors` ; Windows `RecentColorList`,
+  `BackupCodec.WithColors/Colors`, réglage `RecentColors`, rangée « Récentes » dans les choix de couleur de l'Organiser).
 - **Actions de FL** (08/11) : retirées des listes (`FLActions.retired`/`offered`, Windows `Retired`/`Offered` ; restent
   comprises dans les raccourcis et macros déjà faits, raccourcis posés montrés dans « Tes raccourcis ») : Grille
   suivante, Preset ±, Volume ±0,5 dB, Armer la piste si éteinte ; « Armer la piste » (bascule) et « Allumer le REC »
