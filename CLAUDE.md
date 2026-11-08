@@ -397,6 +397,11 @@
   couleurs de FL sur Mac, le ColorPicker en anneau sur Windows). « Ouvre un VST » : noms du Channel rack
   cherchés jusqu'à 240 points à gauche du titre (FL 2025). LISEZMOI (`scripts/lisezmoi_modeles.py` puis
   `scripts/lisezmoi.py`) refait en français, à faire valider avant l'anglais (README-*.html encore l'ancien).
+  08/11 (« plus facile à lire, vraiment bref ») : 1re page = « merci. » + « Merci d'avoir choisi la rapidité. » +
+  Commencer (plus d'icône, « Pour Mac », « Trois minutes ») ; plus de barre en haut ni de choix du thème ; 6 étapes
+  d'une à trois lignes (« ton compte » avec Thèmes ; plus « un compte, partout ») ; MIDI Settings repliées ; Commencer
+  = trait de l'étape 01 tout en haut. ATTENTION : lisezmoi.py écrit des README-*.html à moitié en français tant que
+  lisezmoi_en.py n'a pas les nouveaux textes : les remettre (`git checkout docs/telechargement/README-*.html`).
 - **Retours du 06/11** (long message + maquette HTML papier/orange) : effet Gumroad SEULEMENT au survol, dans les 3
   thèmes (`gumroadLift` : soulevé en haut à gauche sur son ombre nette `Swiss.primaryLift`, rouge, noire sous Orange) :
   boutons principaux pleins au repos sans ombre (Partager…), « Enregistrer » du créateur, bouton de l'Organiser, 3

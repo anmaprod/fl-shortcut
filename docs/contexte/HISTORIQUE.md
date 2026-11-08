@@ -876,3 +876,6 @@ entrée 1 ≈ 0,5 s.
   sur la ligne choisie (fond ajouté dans la ligne le matin) retiré ; « Carte son branchée » encore dans la palette (la
   liste de la palette ne lisait pas le réglage) ; « Nouveau pattern + Piano Roll » n'ouvrait pas le Piano roll sans le
   lien (seulement ⌘F4).
+- 08/11 : listes déroulantes au style suisse (Mac : liste à nous sous la case ; Windows : ComboBox restylée) ;
+  « Nouveau pattern + Piano Roll » déjà dans le Piano roll : F7 le refermait → par le lien s'il est installé ;
+  LISEZMOI raccourci (merci seul au début, plus de barre ni de thèmes, Commencer pile sous le trait).
