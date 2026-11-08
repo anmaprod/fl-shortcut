@@ -458,7 +458,10 @@
   suivante, Preset ±, Volume ±0,5 dB, Armer la piste si éteinte ; « Armer la piste » (bascule) et « Allumer le REC »
   sans parenthèse. Master en mono = bouton de séparation du Master tout à DROITE (+1, script, « il le met tout à
   gauche »). Carré du glisser depuis la palette : orange (Mac `PaletteDragPreview`, nom à l'encre ; Windows : carré
-  orange pour tous les blocs, `CategoryTint`).
+  orange pour tous les blocs, `CategoryTint`). Glisser un bloc dans le créateur (08/11, « il n'y a pas d'animation… pour
+  que les gens comprennent ») : les deux lignes voisines s'écartent en douceur (seul le dessin bouge, jamais la zone de
+  dépôt : pas d'aller-retour), trait orange + carré qui se déroule (Mac `StepDragDrop.gap`/`mark` ; Windows
+  `AcceptDrops(moving:)`, `TranslationTransition`, trait orange de 3).
 - Organiser, écran « Démarrer » (08/11, réponse « carré orange ») : un carré plein #FF3B1F devant « Ne touche pas à FL
   jusqu'à la fin. », à la place de l'ancienne baguette ; Windows (pas d'écran Démarrer) : devant « Préparation… ».
 - **Retours du 06/11** (long message + maquette HTML papier/orange) : effet Gumroad SEULEMENT au survol, dans les 3

@@ -459,16 +459,32 @@ private struct StepDragDrop: ViewModifier {
     let drop: ([NSItemProvider], Int) -> Void
     @State private var height: CGFloat = 40
 
+    /// Écart ouvert entre les deux blocs voisins de l'endroit où le bloc tombera (08/11, « il n'y a pas d'animation…
+    /// refais une animation avec le bloc… pour que les gens comprennent qu'ils peuvent glisser ») : les deux lignes
+    /// s'écartent en douceur et un trait orange, avec son carré, se déroule entre elles. Seul le dessin bouge : la
+    /// zone de dépôt de chaque ligne reste en place (jamais d'aller-retour sous la souris).
+    static let gap: CGFloat = 7
+
+    private var shift: CGFloat {
+        guard let before = line?.before else { return 0 }
+        if before == index { return Self.gap }                      // l'écart s'ouvre au-dessus de cette ligne
+        if before == index + 1 { return -Self.gap }                 // … ou en dessous
+        return 0
+    }
+
     func body(content: Content) -> some View {
         dragged(content)
+            .offset(y: shift)
+            .animation(Motion.reduce ? nil : .spring(response: 0.26, dampingFraction: 0.82), value: line?.before)
             .background(GeometryReader { g in
                 Color.clear
                     .onAppear { height = g.size.height }
                     .onChange(of: g.size.height) { h in height = h }
             })
             .onDrop(of: [.plainText], delegate: StepDropDelegate(index: index, height: height, line: $line, drop: drop))
-            .overlay(alignment: .top) { if line?.before == index { mark } }
-            .overlay(alignment: .bottom) { if index == count - 1, line?.before == count { mark } }
+            .overlay(alignment: .top) { if line?.before == index { mark.offset(y: -1.5) } }
+            .overlay(alignment: .bottom) { if index == count - 1, line?.before == count { mark.offset(y: 1.5) } }
+            .animation(Motion.reduce ? nil : .easeOut(duration: 0.16), value: line?.before)
     }
 
     @ViewBuilder private func dragged(_ content: Content) -> some View {
@@ -481,9 +497,14 @@ private struct StepDragDrop: ViewModifier {
         }
     }
 
-    /// Trait rouge (style suisse) là où le bloc tombera.
+    /// Là où le bloc tombera : un carré et un trait orange (style suisse), qui se déroule de gauche à droite.
     private var mark: some View {
-        Rectangle().fill(Swiss.brandRed).frame(height: 3).allowsHitTesting(false)
+        HStack(spacing: 0) {
+            Rectangle().fill(Swiss.brandRed).frame(width: 9, height: 9)
+            Rectangle().fill(Swiss.brandRed).frame(height: 3)
+        }
+        .allowsHitTesting(false)
+        .transition(.scale(scale: 0.05, anchor: .leading).combined(with: .opacity))
     }
 }
 

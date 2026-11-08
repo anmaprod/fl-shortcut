@@ -1200,8 +1200,8 @@ internal sealed class MacrosPage
         grid.Children.Add(toggle);
         foreach (var child in new UIElement[] { number, tile, sentence }) child.Opacity = block.Enabled ? 1 : 0.45;
 
-        // Trait d'insertion pendant un dépôt sur cette ligne.
-        var mark = new Rectangle { Height = 2, Fill = Brush(Accent), VerticalAlignment = VerticalAlignment.Top, Visibility = Visibility.Collapsed,
+        // Trait d'insertion pendant un dépôt sur cette ligne : orange (style suisse, comme le Mac).
+        var mark = new Rectangle { Height = 3, Fill = Brush(BrandRed), VerticalAlignment = VerticalAlignment.Top, Visibility = Visibility.Collapsed,
                                    Margin = new Thickness(8, 0, 8, 0), IsHitTestVisible = false };
         var row = new Border
         {
@@ -1244,7 +1244,7 @@ internal sealed class MacrosPage
             e.Data.SetText(StepDrag + index.ToString(System.Globalization.CultureInfo.InvariantCulture));
             e.Data.RequestedOperation = DataPackageOperation.Copy;
         };
-        AcceptDrops(row, index, mark, split: true);
+        AcceptDrops(row, index, mark, split: true, moving: grid);
         AutomationProperties.SetName(row, $"{index + 1}. {BlockRegistry.Label(body)}");
 
         var cell = new Grid();
@@ -1381,9 +1381,16 @@ internal sealed class MacrosPage
 
     /// Dépôt d'un bloc de la palette ou d'une ligne glissée, à la place `before`. `split` (une ligne, comme le Mac
     /// le 07/11) : moitié haute, au-dessus ; moitié basse, dessous ; le trait suit.
-    private void AcceptDrops(UIElement target, int before, Rectangle? mark, bool split = false)
+    /// `moving` : le contenu de la ligne, qui s'écarte en douceur du trait (08/11, « refais une animation… pour que les
+    /// gens comprennent qu'ils peuvent glisser », comme le Mac) ; la zone de dépôt, elle, ne bouge pas.
+    private void AcceptDrops(UIElement target, int before, Rectangle? mark, bool split = false, UIElement? moving = null)
     {
         var place = before;
+        if (moving is not null) moving.TranslationTransition = new Vector3Transition { Duration = TimeSpan.FromMilliseconds(160) };
+        void Settle()
+        {
+            if (moving is not null) moving.Translation = System.Numerics.Vector3.Zero;
+        }
         target.DragOver += (_, e) =>
         {
             e.AcceptedOperation = e.DataView.Contains(StandardDataFormats.Text) ? DataPackageOperation.Copy : DataPackageOperation.None;
@@ -1394,8 +1401,10 @@ internal sealed class MacrosPage
                 var lower = e.GetPosition(area).Y > area.ActualHeight / 2;
                 place = lower ? before + 1 : before;
                 if (mark is not null) mark.VerticalAlignment = lower ? VerticalAlignment.Bottom : VerticalAlignment.Top;
+                if (moving is not null) moving.Translation = new System.Numerics.Vector3(0, lower ? -6 : 6, 0);
             }
         };
+        target.DragLeave += (_, _) => Settle();
         if (mark is not null)
         {
             target.DragEnter += (_, _) => mark.Visibility = Visibility.Visible;
@@ -1403,6 +1412,7 @@ internal sealed class MacrosPage
         }
         target.Drop += async (_, e) =>
         {
+            Settle();
             if (mark is not null) mark.Visibility = Visibility.Collapsed;
             if (!e.DataView.Contains(StandardDataFormats.Text)) return;
             var at = place;
