@@ -43,7 +43,7 @@ enum FLActions {
         FLActionInfo(id: 6, key: "loop", label: String(localized: "Enregistrement en boucle"), category: .recording, minFL: "20.7"),
         FLActionInfo(id: 7, key: "wait", label: String(localized: "Attendre une note"), category: .recording, minFL: "20.7"),
         FLActionInfo(id: 8, key: "marker", label: String(localized: "Poser un marqueur"), category: .recording, minFL: "20.7"),
-        FLActionInfo(id: 9, key: "arm", label: String(localized: "Armer la piste (Mixer sélectionnée)"), category: .recording, minFL: "20.7"),
+        FLActionInfo(id: 9, key: "arm", label: String(localized: "Armer la piste"), category: .recording, minFL: "20.7"),
         FLActionInfo(id: 10, key: "tap", label: String(localized: "Tap tempo"), category: .composition, minFL: "20.7"),
         FLActionInfo(id: 11, key: "newpat", label: String(localized: "Nouveau pattern + Piano Roll"), category: .composition, minFL: "20.7"),
         FLActionInfo(id: 12, key: "clone", label: String(localized: "Cloner le pattern"), category: .composition, minFL: "21.0.3"),
@@ -74,8 +74,15 @@ enum FLActions {
         FLActionInfo(id: 37, key: "redo", label: String(localized: "Rétablir"), category: .navigation, minFL: "20.7"),
         FLActionInfo(id: 38, key: "save", label: String(localized: "Sauvegarder"), category: .navigation, minFL: "20.7"),
         FLActionInfo(id: 39, key: "armon", label: String(localized: "Armer la piste (si éteinte)"), category: .recording, minFL: "20.7"),
-        FLActionInfo(id: 40, key: "recon", label: String(localized: "Allumer le REC (si éteint)"), category: .recording, minFL: "20.7"),
+        FLActionInfo(id: 40, key: "recon", label: String(localized: "Allumer le REC"), category: .recording, minFL: "20.7"),
     ]
+
+    /// Retirées des listes (08/11, « tu peux enlever preset suivant, preset précédent, grille suivante, volume ±0,5 dB,
+    /// armer la piste si éteinte ») : toujours comprises dans les raccourcis et les macros déjà faits.
+    static let retired: Set<String> = ["snap", "presetnext", "presetprev", "volup", "voldn", "armon"]
+
+    /// Les actions proposées dans les listes (raccourcis, pages, bloc « Action de FL »).
+    static var offered: [FLActionInfo] { all.filter { !retired.contains($0.key) } }
 
     private static let byID: [Int: FLActionInfo] = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
     private static let byKey: [String: FLActionInfo] = Dictionary(uniqueKeysWithValues: all.map { ($0.key, $0) })

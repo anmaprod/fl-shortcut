@@ -209,8 +209,10 @@
 "Ajuster à la zone Performance" = "Fit to Performance area";
 "Aligne les notes de l'instrument sélectionné" = "Quantizes the selected instrument's notes";
 "Aller à la Playlist" = "Go to Playlist";
+"Allume le REC s'il est éteint" = "Turns REC on if it's off";
 "Allume le REC, sans jamais l'éteindre" = "Turns REC on, never off";
 "Allumer REC à la fin" = "Turn on REC at the end";
+"Allumer le REC" = "Turn REC on";
 "Allumer le REC (si éteint)" = "Turn on REC (if off)";
 "Allumer le REC à la fin (s'il est éteint)" = "Turn on REC at the end (if it's off)";
 "Alors" = "Then";
@@ -235,6 +237,7 @@
 "Appuie sur un bouton de ta souris…" = "Press a button on your mouse…";
 "Appuyer sur" = "Press";
 "Après la suppression des sons sans note, le Channel rack de la copie rangée ne correspond plus à l'analyse : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé." = "After deleting the sounds with no notes, the Channel rack of the organized copy no longer matches the analysis: Organize stopped. “Undo changes” reopens your original project, which hasn't changed.";
+"Arme la piste du Mixer sélectionnée, ou la désarme" = "Arms the selected Mixer track, or disarms it";
 "Arme la piste sélectionnée, sans jamais la désarmer" = "Arms the selected track, never disarms it";
 "Armement et entrée" = "Arm and input";
 "Armer la piste" = "Arm the track";
@@ -1788,6 +1791,7 @@
 "Renvoyer le code" = "Resend code";
 "Reprendre" = "Resume";
 "Repère « bonne prise » à la position de lecture" = "Adds a “good take” marker at the playhead";
+"Repère à la position de lecture" = "Marker at the playback position";
 "Reset" = "Reset";
 "Reste appuyé et glisse la famille sur une autre : elle prend sa place" = "Hold and drag the family onto another: it takes its place";
 "Reste cliqué à un endroit de FL (un son du Browser, un clip, un plugin…), glisse jusqu'à un autre endroit de FL et lâche. Les deux endroits se montrent une fois en faisant le geste dans FL ; toujours dans les fenêtres de FL, jamais sous une autre app." = "Holds the click on a spot in FL (a sound in the Browser, a clip, a plugin…), drags to another spot in FL and releases. You show both spots once by doing the gesture in FL; always in FL's windows, never over another app.";

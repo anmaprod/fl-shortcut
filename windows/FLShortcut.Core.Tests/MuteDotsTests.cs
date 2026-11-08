@@ -55,20 +55,23 @@ public sealed class MuteDotsTests
     internal static void Near(double expected, double actual, double tolerance = 1) =>
         Assert.InRange(actual, expected - tolerance, expected + tolerance);
 
-    private static readonly (int, int, int) Pink = (225, 143, 184), Green = (110, 220, 90), Unlit = (92, 92, 96);
+    private static readonly (int, int, int) Pink = (225, 143, 184), Green = (110, 220, 90), Unlit = (92, 92, 96),
+        Dull = (126, 87, 108);
 
     /// Mixer : 12 pistes de 58 pixels, nom au-dessus, rond rose dessous ; à droite, les voyants des effets. `half` :
     /// le même à moitié (écran à 100 %, ronds de 5 pixels), dans la même fenêtre de 1400 × 900.
-    internal static RgbImage Mixer(ISet<int>? muted = null, bool half = false)
+    internal static RgbImage Mixer(ISet<int>? muted = null, bool half = false, int? soloed = null)
     {
         var k = half ? 0.5 : 1.0;
         int S(double v) => (int)Math.Round(v * k);
         var c = new Canvas(1400, 900);
+        foreach (var bx in new[] { 300, 380, 460 }) c.Disk(S(bx), S(40), 8 * k, (200, 60, 60));   // barre d'outils de FL
         for (var t = 0; t < 12; t++)
         {
             var x = S(100 + t * 58);
             c.Rect(x - S(20), S(300), S(40), S(120), (60, 62, 66));
-            c.Disk(x, S(440), 5.5 * k, muted?.Contains(t) == true ? Unlit : Pink);
+            var color = soloed is { } so ? (so == t ? Pink : Dull) : muted?.Contains(t) == true ? Unlit : Pink;
+            c.Disk(x, S(440), 5.5 * k, color);
             c.Ring(x, S(480), 12 * k, (110, 110, 112));
             c.Rect(x - S(4), S(520), S(8), S(260), (40, 40, 42));
         }
@@ -98,11 +101,26 @@ public sealed class MuteDotsTests
     }
 
     [Fact]
+    public void SoloedMixerTrackIsFoundAmongDullDots()
+    {
+        var image = Mixer(soloed: 3);
+        var soloed = MuteDots.Find(image, 274, 360);
+        Assert.NotNull(soloed);
+        Near(274, soloed!.Value.X);
+        Assert.False(soloed.Value.Inferred);
+        var other = MuteDots.Find(image, 448, 360);
+        Assert.NotNull(other);
+        Near(448, other!.Value.X);
+        Assert.True(other.Value.Inferred);
+    }
+
+    [Fact]
     public void EffectSlotsNextToTheMixerAreNeverClicked() => Assert.Null(MuteDots.Find(Mixer(), 1300, 320));
 
     private static RgbImage ChannelRack((int, int, int) dot, ISet<int>? muted = null)
     {
         var c = new Canvas(1200, 600, (46, 48, 52));
+        foreach (var bx in new[] { 40, 120, 200 }) c.Disk(bx, 20, 8, (200, 60, 60));   // barre d'outils de FL
         for (var row = 0; row < 6; row++)
         {
             var y = 80 + row * 52;

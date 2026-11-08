@@ -66,6 +66,15 @@ public sealed class RgbImage
         int hi = Math.Max(c.R, Math.Max(c.G, c.B)), lo = Math.Min(c.R, Math.Min(c.G, c.B));
         return hi - lo >= MuteDots.MinSaturation && hi >= MuteDots.MinBrightness;
     }
+
+    /// Couleur terne, ni grise ni franche : un rond éteint (rose terne quand la piste est coupée ou qu'une autre est en
+    /// solo, vidéo du 08/11).
+    public bool Faint(int x, int y)
+    {
+        var c = Rgb(x, y);
+        int hi = Math.Max(c.R, Math.Max(c.G, c.B)), lo = Math.Min(c.R, Math.Min(c.G, c.B));
+        return hi - lo >= 18 && hi >= 85 && !(hi - lo >= MuteDots.MinSaturation && hi >= MuteDots.MinBrightness);
+    }
 }
 
 public static class MuteDots
@@ -76,26 +85,32 @@ public static class MuteDots
     /// Distance (pixels de l'image) entre le nom d'une piste et son rond, dans le Channel rack et la Playlist.
     public const double ChannelReach = 700, PlaylistReach = 640;
 
-    public readonly record struct Blob(double X, double Y, double Diameter);
+    /// `Lit` : allumé (couleur franche) ; sinon un rond éteint, d'une couleur terne.
+    public readonly record struct Blob(double X, double Y, double Diameter, bool Lit = true);
 
     public enum Page { Mixer, ChannelRack, Playlist }
 
+    /// `Inferred` : rond éteint (vu terne, ou sa place déduite de ses voisins).
     public readonly record struct Target(double X, double Y, bool Inferred, Page Page);
 
     /// Ronds alignés à pas réguliers : une rangée (Mixer) ou une colonne (Channel rack, Playlist).
     public sealed record Series(bool Horizontal, IReadOnlyList<Blob> Members, double Step, double Line, double Diameter)
     {
         public double Along(Blob b) => Horizontal ? b.X : b.Y;
+        public int LitCount => Members.Count(m => m.Lit);
     }
 
     private static readonly (int, int)[] Neighbours = { (-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1) };
 
-    /// Taches d'une couleur franche, petites, rondes et pleines.
-    public static List<Blob> Blobs(RgbImage image)
+    /// Petites taches rondes et pleines : d'une couleur franche (ronds allumés), puis d'une couleur terne (éteints).
+    public static List<Blob> Blobs(RgbImage image) => Shapes(image, true).Concat(Shapes(image, false)).ToList();
+
+    private static List<Blob> Shapes(RgbImage image, bool lit)
     {
         int w = image.Width, h = image.Height;
         var output = new List<Blob>();
         if (w <= 0 || h <= 0 || image.Pixels.Length < w * h * 4) return output;
+        Func<int, int, bool> seed = lit ? image.Lit : image.Faint;
         var seen = new bool[w * h];
         var stack = new Stack<int>();
         var members = new List<int>();
@@ -103,7 +118,7 @@ public static class MuteDots
         {
             if (seen[start]) continue;
             seen[start] = true;
-            if (!image.Lit(start % w, start / w)) continue;
+            if (!seed(start % w, start / w)) continue;
             int minX = start % w, maxX = minX, minY = start / w, maxY = minY, count = 0;
             long sumX = 0, sumY = 0;
             members.Clear();
@@ -125,14 +140,15 @@ public static class MuteDots
                     var n = ny * w + nx;
                     if (seen[n]) continue;
                     seen[n] = true;
-                    if (image.Lit(nx, ny)) stack.Push(n);
+                    if (seed(nx, ny)) stack.Push(n);
                 }
             }
             int bw = maxX - minX + 1, bh = maxY - minY + 1;
             if (bw < MinDiameter || bw > MaxDiameter || bh < MinDiameter || bh > MaxDiameter) continue;
             var aspect = (double)bw / bh;
             var fill = (double)count / (bw * bh);
-            if (aspect < 0.7 || aspect > 1.45 || fill < 0.6 || fill > 0.9) continue;
+            // Plus large que haut jusqu'à 1,7 : le bas brillant d'un rond, presque blanc, n'est pas compté.
+            if (aspect < 0.7 || aspect > 1.7 || fill < 0.6 || fill > 0.9) continue;
             // Un disque laisse ses coins vides : presque rien hors de l'ellipse inscrite dans son cadre.
             double cx = (minX + maxX) / 2.0, cy = (minY + maxY) / 2.0, a = Math.Max(1, bw / 2.0), b = Math.Max(1, bh / 2.0);
             var outside = members.Count(p =>
@@ -141,7 +157,7 @@ public static class MuteDots
                 return u * u + v * v > 1.35;
             });
             if (outside > 0.06 * members.Count) continue;
-            output.Add(new Blob((double)sumX / count, (double)sumY / count, (bw + bh) / 2.0));
+            output.Add(new Blob((double)sumX / count, (double)sumY / count, (bw + bh) / 2.0, lit));
         }
         return output;
     }
@@ -197,13 +213,16 @@ public static class MuteDots
         return output;
     }
 
-    /// Les séries qui peuvent être des pistes : au moins trois ronds (deux s'il n'y a rien d'autre), jamais la colonne
-    /// des voyants des effets à droite du Mixer (un clic dessus allumerait ou éteindrait un effet).
+    /// Les séries qui peuvent être des pistes : une rangée du Mixer d'au moins quatre ronds (trois voyants de la barre
+    /// d'outils de FL ne sont pas un Mixer, vidéo du 08/11) ; une colonne d'au moins trois (deux s'il n'y a rien
+    /// d'autre) ; jamais la colonne des voyants des effets juste à droite du Mixer (un clic dessus allumerait un effet).
     public static List<Series> Usable(IReadOnlyList<Series> all)
     {
-        var three = all.Where(s => s.Members.Count >= 3).ToList();
-        var pool = three.Count == 0 ? all.ToList() : three;
-        var mixers = pool.Where(s => s.Horizontal && s.Members.Count >= 3).ToList();
+        var rows = all.Where(s => s.Horizontal && s.Members.Count >= 4).ToList();
+        var columns = all.Where(s => !s.Horizontal).ToList();
+        var threeColumns = columns.Where(s => s.Members.Count >= 3).ToList();
+        var pool = rows.Concat(threeColumns.Count == 0 && rows.Count == 0 ? columns : threeColumns).ToList();
+        var mixers = rows.Where(s => s.LitCount > 0).ToList();
         return pool.Where(s =>
         {
             if (s.Horizontal) return true;
@@ -211,7 +230,8 @@ public static class MuteDots
             return !mixers.Any(m =>
             {
                 var right = m.Along(m.Members[^1]) + m.Step;
-                return s.Line > right && bottom >= m.Line - 2 * m.Step && top <= m.Line + 14 * m.Step;
+                return s.Line > right && s.Line - right < 12 * m.Step
+                    && bottom >= m.Line - 6 * m.Step && top <= m.Line + 6 * m.Step;
             });
         }).ToList();
     }
@@ -219,14 +239,29 @@ public static class MuteDots
     /// Le rond de la piste cliquée en (x, y) (pixels de l'image), ou null : aucune rangée ni colonne de ronds autour.
     public static Target? Find(RgbImage image, double x, double y)
     {
-        (double Score, int Count, Target Target)? best = null;
-        foreach (var s in Usable(FindSeries(Blobs(image))))
+        var all = Usable(FindSeries(Blobs(image)));
+        // Une série où au moins un rond est allumé passe avant une série toute terne.
+        foreach (var wantsLit in new[] { true, false })
         {
-            if (Candidate(s, x, y, image) is not { } c) continue;
-            if (best is not { } b || c.Score < b.Score - 0.05 || (Math.Abs(c.Score - b.Score) <= 0.05 && s.Members.Count > b.Count))
-                best = (c.Score, s.Members.Count, c.Target);
+            (double Score, int Count, Target Target)? best = null;
+            foreach (var s in all.Where(s => s.LitCount > 0 == wantsLit))
+            {
+                if (Candidate(s, x, y, image) is not { } c) continue;
+                if (best is not { } b || c.Score < b.Score - 0.05 || (Math.Abs(c.Score - b.Score) <= 0.05 && s.Members.Count > b.Count))
+                    best = (c.Score, s.Members.Count, c.Target);
+            }
+            if (best is { } found) return found.Target;
         }
-        return best?.Target;
+        return null;
+    }
+
+    /// Ce qui a été vu (nombres seulement, pour le journal) : ronds allumés + éteints, séries (ronds/allumés@pas).
+    public static string Summary(RgbImage image)
+    {
+        var b = Blobs(image);
+        var s = Usable(FindSeries(b));
+        return $"dots={b.Count(x => x.Lit)}+{b.Count(x => !x.Lit)} series={s.Count}"
+               + string.Concat(s.Take(8).Select(x => $" {(x.Horizontal ? "row" : "col")}{x.Members.Count}/{x.LitCount}@{(int)x.Step}"));
     }
 
     private static (double Score, Target Target)? Candidate(Series s, double x, double y, RgbImage image)
@@ -269,8 +304,8 @@ public static class MuteDots
     private static (double Along, bool Inferred)? Spot(Series s, double value, RgbImage image)
     {
         var positions = s.Members.Select(s.Along).ToList();
-        var nearest = positions.OrderBy(p => Math.Abs(p - value)).First();
-        if (Math.Abs(nearest - value) <= 0.5 * s.Step) return (nearest, false);
+        var nearest = s.Members.OrderBy(m => Math.Abs(s.Along(m) - value)).First();
+        if (Math.Abs(s.Along(nearest) - value) <= 0.5 * s.Step) return (s.Along(nearest), !nearest.Lit);
         double guess;
         var right = positions.FindIndex(p => p > value);
         if (right > 0)

@@ -49,15 +49,19 @@ final class MuteDotsTests: XCTestCase {
     private let pink = (225, 143, 184)
     private let green = (110, 220, 90)
     private let unlit = (92, 92, 96)
+    /// Rond éteint quand une autre piste est en solo (vidéo du 08/11) : rose terne.
+    private let dull = (126, 87, 108)
 
     /// Mixer : 12 pistes de 58 pixels, nom au-dessus, rond rose dessous, bouton et fader plus bas ; à droite, la colonne
     /// des voyants des effets (« Slot 1 » à 10), de la même couleur.
-    private func mixer(muted: Set<Int> = []) -> Canvas {
+    private func mixer(muted: Set<Int> = [], soloed: Int? = nil) -> Canvas {
         var c = Canvas(1400, 900)
+        for x in [300, 380, 460] { c.disk(x, 40, 8, (200, 60, 60)) }       // voyants de la barre d'outils de FL
         for t in 0..<12 {
             let x = 100 + t * 58
             c.rect(x - 20, 300, 40, 120, (60, 62, 66))                    // le nom (vertical)
-            c.disk(x, 440, 5.5, muted.contains(t) ? unlit : pink)
+            let color = soloed.map { $0 == t ? pink : dull } ?? (muted.contains(t) ? unlit : pink)
+            c.disk(x, 440, 5.5, color)
             c.ring(x, 480, 12, (110, 110, 112))                           // bouton de panoramique
             c.rect(x - 4, 520, 8, 260, (40, 40, 42))                      // fader
         }
@@ -84,6 +88,17 @@ final class MuteDotsTests: XCTestCase {
         XCTAssertTrue(t.inferred)
     }
 
+    func testSoloedMixerTrackIsFoundAmongDullDots() throws {
+        // 4e piste en solo : son rond seul allumé, les autres rose terne ; ⌘ + clic sur le sien pour l'enlever.
+        let image = mixer(soloed: 3).image
+        let soloed = try XCTUnwrap(MuteDots.target(in: image, click: (x: 274, y: 360)))
+        XCTAssertEqual(soloed.x, 274, accuracy: 1)
+        XCTAssertFalse(soloed.inferred)
+        let other = try XCTUnwrap(MuteDots.target(in: image, click: (x: 448, y: 360)))
+        XCTAssertEqual(other.x, 448, accuracy: 1)
+        XCTAssertTrue(other.inferred)
+    }
+
     func testEffectSlotsNextToTheMixerAreNeverClicked() {
         // Dernier clic dans la colonne des effets : ce n'est pas une piste, rien n'est cliqué.
         XCTAssertNil(MuteDots.target(in: mixer().image, click: (x: 1300, y: 320)))
@@ -92,6 +107,8 @@ final class MuteDotsTests: XCTestCase {
     /// Channel rack : 6 sons de 52 pixels ; rond, deux boutons, case du numéro, puis le nom ; pas à droite.
     private func channelRack(dot: (Int, Int, Int), muted: Set<Int> = []) -> Canvas {
         var c = Canvas(1200, 600, (46, 48, 52))
+        // Voyants de la barre d'outils de FL, en haut : ce n'est pas un Mixer, la colonne du Channel rack reste prise.
+        for x in [40, 120, 200] { c.disk(x, 20, 8, (200, 60, 60)) }
         for row in 0..<6 {
             let y = 80 + row * 52
             c.disk(60, y, 5.5, muted.contains(row) ? unlit : dot)

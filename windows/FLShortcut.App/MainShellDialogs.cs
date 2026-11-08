@@ -386,7 +386,7 @@ internal sealed partial class MainShell
             wheres.SelectedItem = wheres.Items.OfType<ComboBoxItem>().FirstOrDefault(x => x.Tag is ShortcutContext c && c == draft.Context);
             cats.SelectedItem = cats.Items.OfType<ComboBoxItem>().FirstOrDefault(x => x.Tag is ActionCategory c && c == category);
             actions.Items.Clear();
-            foreach (var info in FlActions.All.Where(x => x.Category == category))
+            foreach (var info in FlActions.Offered.Where(x => x.Category == category))
             {
                 var availability = _app.Availability(info.Id);
                 var item = new ListViewItem { Tag = info.Id, IsEnabled = availability.IsUsable };

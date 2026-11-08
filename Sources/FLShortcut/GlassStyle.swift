@@ -1198,8 +1198,8 @@ extension FLActionInfo {
         case "count": return String(localized: "Décompte avant l'enregistrement")
         case "loop": return String(localized: "Enchaîne les prises sur la boucle")
         case "wait": return String(localized: "Le REC démarre à la première note jouée")
-        case "marker": return String(localized: "Repère « bonne prise » à la position de lecture")
-        case "arm": return String(localized: "Prépare la piste du Mixer sélectionnée à enregistrer")
+        case "marker": return String(localized: "Repère à la position de lecture")
+        case "arm": return String(localized: "Arme la piste du Mixer sélectionnée, ou la désarme")
         case "tap": return String(localized: "Tape le tempo en rythme")
         case "newpat": return String(localized: "Crée un pattern vide et ouvre le Piano Roll")
         case "clone": return String(localized: "Duplique le pattern en cours pour une variation")
@@ -1230,7 +1230,7 @@ extension FLActionInfo {
         case "redo": return String(localized: "Rétablit l'action annulée")
         case "save": return String(localized: "Sauvegarde le projet")
         case "armon": return String(localized: "Arme la piste sélectionnée, sans jamais la désarmer")
-        case "recon": return String(localized: "Allume le REC, sans jamais l'éteindre")
+        case "recon": return String(localized: "Allume le REC s'il est éteint")
         default: return label
         }
     }

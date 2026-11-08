@@ -33,6 +33,14 @@ struct RGBAImage {
         let hi = max(c.r, c.g, c.b), lo = min(c.r, c.g, c.b)
         return hi - lo >= MuteDots.minSaturation && hi >= MuteDots.minBrightness
     }
+
+    /// Couleur terne, ni grise ni franche : un rond éteint (vidéo du 08/11 : rose terne quand la piste est coupée ou
+    /// qu'une autre est en solo).
+    func faint(_ x: Int, _ y: Int) -> Bool {
+        let c = rgb(x, y)
+        let hi = max(c.r, c.g, c.b), lo = min(c.r, c.g, c.b)
+        return hi - lo >= 18 && hi >= 85 && !(hi - lo >= MuteDots.minSaturation && hi >= MuteDots.minBrightness)
+    }
 }
 
 enum MuteDots {
@@ -45,6 +53,8 @@ enum MuteDots {
         var x: Double
         var y: Double
         var diameter: Double
+        /// Allumé (couleur franche) ; sinon un rond éteint, d'une couleur terne.
+        var lit = true
     }
 
     /// Ronds alignés à pas réguliers : une rangée (Mixer) ou une colonne (Channel rack, Playlist).
@@ -58,6 +68,7 @@ enum MuteDots {
         var diameter: Double
 
         func along(_ b: Blob) -> Double { horizontal ? b.x : b.y }
+        var litCount: Int { members.filter(\.lit).count }
     }
 
     enum Page: String { case mixer, channelRack, playlist }
@@ -65,23 +76,28 @@ enum MuteDots {
     struct Target: Equatable {
         var x: Double
         var y: Double
-        /// Rond éteint (piste coupée) : sa place vient de ses voisins.
+        /// Rond éteint (piste coupée) : vu terne, ou sa place déduite de ses voisins.
         var inferred: Bool
         var page: Page
     }
 
     // MARK: Ronds
 
-    /// Taches d'une couleur franche, petites, rondes et pleines.
+    /// Petites taches rondes et pleines : d'une couleur franche (ronds allumés), puis d'une couleur terne (éteints).
     static func blobs(in image: RGBAImage) -> [Blob] {
+        shapes(in: image, lit: true) + shapes(in: image, lit: false)
+    }
+
+    private static func shapes(in image: RGBAImage, lit: Bool) -> [Blob] {
         let w = image.width, h = image.height
         guard w > 0, h > 0, image.pixels.count >= w * h * 4 else { return [] }
+        let seed: (Int, Int) -> Bool = lit ? image.lit : image.faint
         var seen = [Bool](repeating: false, count: w * h)
         var out: [Blob] = []
         var stack: [Int] = []
         for start in 0..<(w * h) where !seen[start] {
             seen[start] = true
-            guard image.lit(start % w, start / w) else { continue }
+            guard seed(start % w, start / w) else { continue }
             var minX = start % w, maxX = minX, minY = start / w, maxY = minY, count = 0
             var sumX = 0, sumY = 0
             var members: [Int] = []
@@ -100,14 +116,15 @@ enum MuteDots {
                     let n = ny * w + nx
                     if seen[n] { continue }
                     seen[n] = true
-                    if image.lit(nx, ny) { stack.append(n) }
+                    if seed(nx, ny) { stack.append(n) }
                 }
             }
             let bw = maxX - minX + 1, bh = maxY - minY + 1
             guard diameters.contains(bw), diameters.contains(bh) else { continue }
             let aspect = Double(bw) / Double(bh)
             let fill = Double(count) / Double(bw * bh)
-            guard (0.7...1.45).contains(aspect), (0.6...0.9).contains(fill) else { continue }
+            // Plus large que haut jusqu'à 1,7 : le bas brillant d'un rond, presque blanc, n'est pas compté.
+            guard (0.7...1.7).contains(aspect), (0.6...0.9).contains(fill) else { continue }
             // Un disque laisse ses coins vides (pas des pas du Channel rack, rectangles aux coins arrondis) : presque rien
             // hors de l'ellipse inscrite dans son cadre.
             let cx = Double(minX + maxX) / 2, cy = Double(minY + maxY) / 2
@@ -118,7 +135,7 @@ enum MuteDots {
             }.count
             guard Double(outside) <= 0.06 * Double(members.count) else { continue }
             out.append(Blob(x: Double(sumX) / Double(count), y: Double(sumY) / Double(count),
-                            diameter: Double(bw + bh) / 2))
+                            diameter: Double(bw + bh) / 2, lit: lit))
         }
         return out
     }
@@ -177,30 +194,48 @@ enum MuteDots {
     /// Le rond de la piste cliquée en `click` (pixels de l'image), ou nil : aucune rangée ni colonne de ronds autour.
     static func target(in image: RGBAImage, click: (x: Double, y: Double)) -> Target? {
         let all = usable(series(blobs(in: image)))
-        var best: (score: Double, count: Int, target: Target)?
-        for s in all {
-            guard let candidate = candidate(s, click: click, image: image) else { continue }
-            if best == nil || candidate.score < best!.score - 0.05
-                || (abs(candidate.score - best!.score) <= 0.05 && s.members.count > best!.count) {
-                best = (candidate.score, s.members.count, candidate.target)
+        // Une série où au moins un rond est allumé passe avant une série toute terne.
+        for wantsLit in [true, false] {
+            var best: (score: Double, count: Int, target: Target)?
+            for s in all where (s.litCount > 0) == wantsLit {
+                guard let candidate = candidate(s, click: click, image: image) else { continue }
+                if best == nil || candidate.score < best!.score - 0.05
+                    || (abs(candidate.score - best!.score) <= 0.05 && s.members.count > best!.count) {
+                    best = (candidate.score, s.members.count, candidate.target)
+                }
             }
+            if let best { return best.target }
         }
-        return best?.target
+        return nil
     }
 
-    /// Les séries qui peuvent être des pistes : au moins trois ronds (deux seulement s'il n'y a rien d'autre), et jamais
-    /// la colonne des voyants des effets à droite du Mixer (« Mixer - Insert 2 », Slot 1 à 10 : ses ronds sont aussi
-    /// de la couleur des pistes, mais un clic dessus allumerait ou éteindrait un effet).
+    /// Ce qui a été vu (nombres seulement, pour le journal) : ronds allumés + éteints, séries (ronds/allumés@pas).
+    static func summary(of image: RGBAImage) -> String {
+        let b = blobs(in: image)
+        let s = usable(series(b))
+        return "dots=\(b.filter(\.lit).count)+\(b.filter { !$0.lit }.count) series=\(s.count)"
+            + s.prefix(8).map { " \($0.horizontal ? "row" : "col")\($0.members.count)/\($0.litCount)@\(Int($0.step))" }.joined()
+    }
+
+    /// Les séries qui peuvent être des pistes :
+    /// - une rangée du Mixer montre plusieurs pistes : au moins quatre ronds (trois voyants de la barre d'outils de FL
+    ///   ne sont pas un Mixer, vidéo du 08/11) ;
+    /// - une colonne : au moins trois ronds (deux seulement s'il n'y a rien d'autre) ;
+    /// - jamais la colonne des voyants des effets juste à droite du Mixer (« Mixer - Insert 2 », Slot 1 à 10 : ses ronds
+    ///   sont aussi de la couleur des pistes, mais un clic dessus allumerait ou éteindrait un effet).
     static func usable(_ all: [Series]) -> [Series] {
-        let three = all.filter { $0.members.count >= 3 }
-        let pool = three.isEmpty ? all : three
-        let mixers = pool.filter { $0.horizontal && $0.members.count >= 3 }
+        let rows = all.filter { $0.horizontal && $0.members.count >= 4 }
+        let columns = all.filter { !$0.horizontal }
+        let threeColumns = columns.filter { $0.members.count >= 3 }
+        let pool = rows + (threeColumns.isEmpty && rows.isEmpty ? columns : threeColumns)
+        let mixers = rows.filter { $0.litCount > 0 }
         return pool.filter { s in
             guard !s.horizontal else { return true }
             let top = s.along(s.members[0]), bottom = s.along(s.members[s.members.count - 1])
             return !mixers.contains { m in
                 let right = m.along(m.members[m.members.count - 1]) + m.step
-                return s.line > right && bottom >= m.line - 2 * m.step && top <= m.line + 14 * m.step
+                return s.line > right && s.line - right < 12 * m.step
+                    && bottom >= m.line - 6 * m.step && top <= m.line + 6 * m.step
             }
         }
     }
@@ -248,8 +283,9 @@ enum MuteDots {
     /// d'un rond éteint entre deux voisins (ou un pas au-delà du dernier), vérifiée dans l'image.
     static func spot(_ s: Series, at value: Double, image: RGBAImage) -> (along: Double, inferred: Bool)? {
         let positions = s.members.map(s.along)
-        if let nearest = positions.min(by: { abs($0 - value) < abs($1 - value) }), abs(nearest - value) <= 0.5 * s.step {
-            return (nearest, false)
+        if let nearest = s.members.min(by: { abs(s.along($0) - value) < abs(s.along($1) - value) }),
+           abs(s.along(nearest) - value) <= 0.5 * s.step {
+            return (s.along(nearest), !nearest.lit)
         }
         // Entre deux ronds allumés : leur écart partagé en pas égaux.
         let guess: Double

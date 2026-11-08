@@ -904,3 +904,8 @@ entrée 1 ≈ 0,5 s.
   la série dont la piste contient le dernier clic ; rond éteint déduit des voisins. Essayé sur sa capture du Mixer :
   chaque clic (nom, fader, Master) tombe sur le bon rond, jamais sur les voyants « Slot » à droite. Ancien
   apprentissage (MuteSwitch, « Montrer le bouton mute ») retiré, réglage effacé.
+- 08/11 (7) : vidéo 12.46 et message (« bouton mute introuvable », actions à enlever, Master en mono à l'envers).
+  Cause trouvée sur les images de la vidéo : trois voyants colorés de la barre d'outils de FL formaient une « rangée »
+  prise pour un Mixer, et la règle « voyants des effets à droite du Mixer » écartait alors la colonne du Channel rack ;
+  en solo, les autres ronds du Mixer sont rose terne (ni gris ni francs). Corrigé (rangée ≥ 4 ronds, ronds ternes,
+  séries allumées d'abord) et vérifié sur ses images. Actions retirées des listes, renommées ; mono à droite.

@@ -664,7 +664,7 @@ class TestActionBehaviour(Base):
     def test_mono_toggles_and_restores(self):
         self.make(api=45, master_sep=0.25)
         self.command(25)
-        self.assertEqual(self.fl.stereo_sep[0], -1.0)
+        self.assertEqual(self.fl.stereo_sep[0], 1.0)            # mono : bouton tout à droite (08/11)
         self.command(25)
         self.assertEqual(self.fl.stereo_sep[0], 0.25)
 

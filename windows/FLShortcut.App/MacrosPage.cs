@@ -46,15 +46,9 @@ internal sealed class MacrosPage
         BlockType.DropFile, BlockType.ChooseFile,
     };
 
-    /// Couleur d'une catégorie de blocs (comme BlockCategory.tint du Mac).
-    private static Color CategoryTint(BlockCategory c) => c switch
-    {
-        BlockCategory.Keyboard => Accent,
-        BlockCategory.Mouse => Orange,
-        BlockCategory.Windows => Green,
-        BlockCategory.Fl => Purple,
-        _ => Gray,
-    };
+    /// Carré d'un bloc : orange pour tous (08/11, « carré violet, carré bleu… carré orange pour tous », comme le
+    /// créateur du Mac depuis le 05/11 : plus de couleur par catégorie).
+    private static Color CategoryTint(BlockCategory c) => MacLook.BrandRed;
 
     /// Bibliothèque d'exemple du mode photos (CI) : en mémoire, jamais écrite ; `Sample` s'ouvre dans le créateur.
     public static (MacroLibraryStore Store, Guid Sample) DemoStore()
@@ -1626,7 +1620,8 @@ internal sealed class MacrosPage
                 yield return Param(Loc.T("Au plus, en ms"), Number(wc.TimeoutMs, 100, MacroValidation.MaxWaitMs, 100, n => set(wc with { TimeoutMs = n })));
                 break;
             case BlockBody.FlAction a:
-                var actions = FlActions.All;
+                // Les actions retirées des listes (08/11) restent montrées pour un bloc qui en a déjà une.
+                var actions = FlActions.All.Where(x => !FlActions.Retired.Contains(x.Key) || x.Key == a.ActionKey).ToList();
                 var at = actions.ToList().FindIndex(x => x.Key == a.ActionKey);
                 yield return Param(Loc.T("Action"), Choice(actions.Select(x => Loc.T(x.Label)).ToList(), at, i =>
                 {

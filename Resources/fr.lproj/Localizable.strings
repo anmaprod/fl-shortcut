@@ -209,8 +209,10 @@
 "Ajuster à la zone Performance" = "Ajuster à la zone Performance";
 "Aligne les notes de l'instrument sélectionné" = "Aligne les notes de l'instrument sélectionné";
 "Aller à la Playlist" = "Aller à la Playlist";
+"Allume le REC s'il est éteint" = "Allume le REC s'il est éteint";
 "Allume le REC, sans jamais l'éteindre" = "Allume le REC, sans jamais l'éteindre";
 "Allumer REC à la fin" = "Allumer REC à la fin";
+"Allumer le REC" = "Allumer le REC";
 "Allumer le REC (si éteint)" = "Allumer le REC (si éteint)";
 "Allumer le REC à la fin (s'il est éteint)" = "Allumer le REC à la fin (s'il est éteint)";
 "Alors" = "Alors";
@@ -235,6 +237,7 @@
 "Appuie sur un bouton de ta souris…" = "Appuie sur un bouton de ta souris…";
 "Appuyer sur" = "Appuyer sur";
 "Après la suppression des sons sans note, le Channel rack de la copie rangée ne correspond plus à l'analyse : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé." = "Après la suppression des sons sans note, le Channel rack de la copie rangée ne correspond plus à l'analyse : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé.";
+"Arme la piste du Mixer sélectionnée, ou la désarme" = "Arme la piste du Mixer sélectionnée, ou la désarme";
 "Arme la piste sélectionnée, sans jamais la désarmer" = "Arme la piste sélectionnée, sans jamais la désarmer";
 "Armement et entrée" = "Armement et entrée";
 "Armer la piste" = "Armer la piste";
@@ -1788,6 +1791,7 @@
 "Renvoyer le code" = "Renvoyer le code";
 "Reprendre" = "Reprendre";
 "Repère « bonne prise » à la position de lecture" = "Repère « bonne prise » à la position de lecture";
+"Repère à la position de lecture" = "Repère à la position de lecture";
 "Reset" = "Reset";
 "Reste appuyé et glisse la famille sur une autre : elle prend sa place" = "Reste appuyé et glisse la famille sur une autre : elle prend sa place";
 "Reste cliqué à un endroit de FL (un son du Browser, un clip, un plugin…), glisse jusqu'à un autre endroit de FL et lâche. Les deux endroits se montrent une fois en faisant le geste dans FL ; toujours dans les fenêtres de FL, jamais sous une autre app." = "Reste cliqué à un endroit de FL (un son du Browser, un clip, un plugin…), glisse jusqu'à un autre endroit de FL et lâche. Les deux endroits se montrent une fois en faisant le geste dans FL ; toujours dans les fenêtres de FL, jamais sous une autre app.";

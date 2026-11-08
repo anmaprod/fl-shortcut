@@ -68,7 +68,7 @@ public sealed partial class MacroEffectsWindows
             _fl.Log("MUTE", $"dot found ({dot.Page}{(dot.Inferred ? ", unlit" : "")}), {(solo ? "solo" : "mute")}");
             return new StepResult.Ok();
         }
-        _fl.Log("MUTE", "no dot near the clicked track");
+        _fl.Log("MUTE", "no dot near the clicked track · " + MuteDots.Summary(image));
         return new StepResult.Fail(Loc.T("bouton mute introuvable : clique sur ta piste (Mixer, Channel rack ou Playlist), puis relance"));
     }
 

@@ -441,6 +441,18 @@
   colonne des voyants des effets à droite du Mixer. Mute = clic gauche, solo = ⌘ + clic (Windows : Ctrl + clic) ; la
   touche S (solo du Mixer seulement) n'est plus utilisée. Écran Windows à 100 % : image agrandie deux fois. Vérifié sur
   sa capture du Mixer (17 ronds, Master compris) et sur des fenêtres dessinées ; pas encore sur le vrai FL.
+  08/11 midi (« bouton mute introuvable », vidéo 12.46) : trois voyants de la barre d'outils de FL passaient pour un
+  Mixer et faisaient écarter la colonne du Channel rack (« voyants des effets ») → une rangée du Mixer = au moins 4
+  ronds ; ronds éteints = rose TERNE (`faint`, coupée ou autre piste en solo) comptés dans la série ; série avec au
+  moins un rond allumé d'abord ; bas brillant presque blanc : rapport largeur/hauteur jusqu'à 1,7. Vérifié sur les
+  images de sa vidéo (Playlist, Channel rack avec Serum 2 éteint, Mixer, piste coupée, solo). Échec : journal `MUTE`
+  avec `dots=allumés+éteints series=…` (nombres seulement).
+- **Actions de FL** (08/11) : retirées des listes (`FLActions.retired`/`offered`, Windows `Retired`/`Offered` ; restent
+  comprises dans les raccourcis et macros déjà faits, raccourcis posés montrés dans « Tes raccourcis ») : Grille
+  suivante, Preset ±, Volume ±0,5 dB, Armer la piste si éteinte ; « Armer la piste » (bascule) et « Allumer le REC »
+  sans parenthèse. Master en mono = bouton de séparation du Master tout à DROITE (+1, script, « il le met tout à
+  gauche »). Carré du glisser depuis la palette : orange (Mac `PaletteDragPreview`, nom à l'encre ; Windows : carré
+  orange pour tous les blocs, `CategoryTint`).
 - Organiser, écran « Démarrer » (08/11, réponse « carré orange ») : un carré plein #FF3B1F devant « Ne touche pas à FL
   jusqu'à la fin. », à la place de l'ancienne baguette ; Windows (pas d'écran Démarrer) : devant « Préparation… ».
 - **Retours du 06/11** (long message + maquette HTML papier/orange) : effet Gumroad SEULEMENT au survol, dans les 3

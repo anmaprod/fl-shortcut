@@ -485,9 +485,11 @@ extension Store {
         // suivant, Nouveau pattern + Piano Roll = Pattern vide suivant ⌘F4…) : retirée, la ligne de FL reste. En mode
         // léger, les autres demandent le script : retirées aussi. Tes raccourcis déjà posés dessus restent (« Tes
         // raccourcis sur cette page »).
+        // 08/11 : les actions retirées des listes (Grille suivante, Preset ±, Volume ±0,5 dB, Armer si éteinte) aussi.
         entries.removeAll {
             guard case .action(let id) = $0.kind else { return false }
             return AppMode.light || AppMode.nativeEquivalent(of: id, layout: layout) != nil
+                || FLActions.info(id).map { FLActions.retired.contains($0.key) } == true
         }
         catalogCache = entries
         return entries

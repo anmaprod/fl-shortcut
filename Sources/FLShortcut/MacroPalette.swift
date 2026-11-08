@@ -130,8 +130,10 @@ private struct PaletteDragPreview: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Rectangle().fill(item.category.tint).frame(width: 8, height: 8)
-            Text(item.label).font(.system(size: 13, weight: .bold)).lineLimit(1)
+            // 08/11 (« carré violet, carré bleu… carré orange pour tous ») : le carré orange de la marque, et le nom à
+            // l'encre (l'image du glisser est dessinée hors de la fenêtre : sans couleur, le texte disparaissait).
+            Rectangle().fill(Swiss.brandRed).frame(width: 8, height: 8)
+            Text(item.label).font(.system(size: 13, weight: .bold)).lineLimit(1).foregroundStyle(Swiss.text)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)

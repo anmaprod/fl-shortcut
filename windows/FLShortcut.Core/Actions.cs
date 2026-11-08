@@ -30,7 +30,7 @@ public static class FlActions
         new(6, "loop", "Enregistrement en boucle", ActionCategory.Recording, "20.7"),
         new(7, "wait", "Attendre une note", ActionCategory.Recording, "20.7"),
         new(8, "marker", "Poser un marqueur", ActionCategory.Recording, "20.7"),
-        new(9, "arm", "Armer la piste choisie du Mixer", ActionCategory.Recording, "20.7"),
+        new(9, "arm", "Armer la piste", ActionCategory.Recording, "20.7"),
         new(10, "tap", "Tap tempo", ActionCategory.Composition, "20.7"),
         new(11, "newpat", "Nouveau pattern + Piano Roll", ActionCategory.Composition, "20.7"),
         new(12, "clone", "Cloner le pattern", ActionCategory.Composition, "21.0.3"),
@@ -61,11 +61,17 @@ public static class FlActions
         new(37, "redo", "Rétablir", ActionCategory.Navigation, "20.7"),
         new(38, "save", "Sauvegarder", ActionCategory.Navigation, "20.7"),
         new(39, "armon", "Armer la piste si éteinte", ActionCategory.Recording, "20.7"),
-        new(40, "recon", "Allumer le REC si éteint", ActionCategory.Recording, "20.7"),
+        new(40, "recon", "Allumer le REC", ActionCategory.Recording, "20.7"),
     };
 
     private static readonly Dictionary<int, FlActionInfo> ById = All.ToDictionary(a => a.Id);
     private static readonly Dictionary<string, FlActionInfo> ByKey = All.ToDictionary(a => a.Key);
+
+    /// Retirées des listes (08/11) : toujours comprises dans les raccourcis et les macros déjà faits (comme le Mac).
+    public static readonly IReadOnlySet<string> Retired = new HashSet<string> { "snap", "presetnext", "presetprev", "volup", "voldn", "armon" };
+
+    /// Les actions proposées dans les listes (raccourcis, pages, bloc « Action de FL »).
+    public static IEnumerable<FlActionInfo> Offered => All.Where(a => !Retired.Contains(a.Key));
 
     public static FlActionInfo? Info(int id) => ById.TryGetValue(id, out var a) ? a : null;
     public static bool IsKnown(int id) => ById.ContainsKey(id);
@@ -85,8 +91,8 @@ public static class FlActionDetails
         ["count"] = "Décompte avant l'enregistrement",
         ["loop"] = "Enchaîne les prises sur la boucle",
         ["wait"] = "Le REC démarre à la première note jouée",
-        ["marker"] = "Repère « bonne prise » à la position de lecture",
-        ["arm"] = "Prépare la piste du Mixer sélectionnée à enregistrer",
+        ["marker"] = "Repère à la position de lecture",
+        ["arm"] = "Arme la piste du Mixer sélectionnée, ou la désarme",
         ["tap"] = "Tape le tempo en rythme",
         ["newpat"] = "Crée un pattern vide et ouvre le Piano Roll",
         ["clone"] = "Duplique le pattern en cours pour une variation",
@@ -117,7 +123,7 @@ public static class FlActionDetails
         ["redo"] = "Rétablit l'action annulée",
         ["save"] = "Sauvegarde le projet",
         ["armon"] = "Arme la piste sélectionnée, sans jamais la désarmer",
-        ["recon"] = "Allume le REC, sans jamais l'éteindre",
+        ["recon"] = "Allume le REC s'il est éteint",
     };
 
     public static string Detail(this FlActionInfo info) => ByKey.TryGetValue(info.Key, out var d) ? d : info.Label;

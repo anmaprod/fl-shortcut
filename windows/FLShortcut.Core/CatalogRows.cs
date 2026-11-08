@@ -67,7 +67,7 @@ public static class CatalogEntries
                 if (n.Section != section || n.Combo is not { } combo || ForbiddenTargets.IsForbidden(combo)) continue;
                 out_.Add(new CatalogEntry(n.Id, section, n.Title, "", new CatalogEntryKind.Native(combo), combo));
             }
-            foreach (var info in FlActions.All)
+            foreach (var info in FlActions.Offered)
             {
                 if (!ActionSection.TryGetValue(info.Key, out var s) || s != section) continue;
                 // « Actions en plus » (07/11, comme le Mac) : une action qui a sa touche d'origine dans FL doublait la

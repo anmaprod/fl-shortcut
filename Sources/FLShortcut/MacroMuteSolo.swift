@@ -56,7 +56,8 @@ extension MacroEffectsMac {
         let sx = Double(image.width) / Double(window.bounds.width), sy = Double(image.height) / Double(window.bounds.height)
         let click = (x: Double(ctx.track.x - window.bounds.minX) * sx, y: Double(ctx.track.y - window.bounds.minY) * sy)
         guard let dot = MuteDots.target(in: image, click: click) else {
-            MacroLog.shared.write("MUTE", "no dot near the clicked track")
+            // Nombres seulement : ce qui a été vu, pour comprendre un échec chez quelqu'un.
+            MacroLog.shared.write("MUTE", "no dot near the clicked track · \(MuteDots.summary(of: image))")
             return .failure(.fail(String(localized: "bouton mute introuvable : clique sur ta piste (Mixer, Channel rack ou Playlist), puis relance")))
         }
         MacroLog.shared.write("MUTE", "dot found (\(dot.page.rawValue)\(dot.inferred ? ", unlit" : ""))")

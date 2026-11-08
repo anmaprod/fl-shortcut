@@ -844,7 +844,7 @@ private struct BlockInspector: View {
             SwissPicker(String(localized: "Action"), selection: Binding(get: { key }, set: { setAction($0) }),
                         current: info?.label ?? key,
                         entries: FLActionInfo.Category.allCases.flatMap { category -> [SwissPickerEntry<String>] in
-                            let actions = FLActions.all.filter { $0.category == category }
+                            let actions = FLActions.offered.filter { $0.category == category }
                             guard !actions.isEmpty else { return [] }
                             return [SwissPickerEntry<String>.header(category.label)]
                                 + actions.map { SwissPickerEntry<String>.option($0.key, $0.label) }

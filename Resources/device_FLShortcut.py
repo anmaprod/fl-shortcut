@@ -1086,6 +1086,8 @@ def _a_bypass():
 
 
 def _a_mono():
+    """Master en mono : le bouton de séparation stéréo du Master tout à DROITE (08/11, « pour mettre le Master en mono,
+    il faut mettre tout à droite le bouton, alors qu'il le met tout à gauche »), puis remis comme avant."""
     setsep = _fn("mixer", "setTrackStereoSep")
     getsep = _fn("mixer", "getTrackStereoSep")
     cur = None
@@ -1095,7 +1097,7 @@ def _a_mono():
         except Exception:
             cur = None
     if cur is not None:
-        is_mono = cur <= -0.999
+        is_mono = cur >= 0.999
     else:
         is_mono = _st.mono_on
     if is_mono:
@@ -1106,7 +1108,7 @@ def _a_mono():
         _hint("FL Shortcuts : Master en stéréo")
     else:
         _st.mono_prev = cur if cur is not None else 0.0
-        setsep(0, -1.0)
+        setsep(0, 1.0)
         _st.mono_on = True
         _hint("FL Shortcuts : Master en mono (réglage du projet, ré-appuie pour revenir)")
     return True

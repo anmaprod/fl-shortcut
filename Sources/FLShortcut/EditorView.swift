@@ -1726,7 +1726,7 @@ struct EditSheet: View {
 
     private var actions: [FLActionInfo] {
         let q = query.trimmingCharacters(in: .whitespaces)
-        return FLActions.all.filter { info in
+        return FLActions.offered.filter { info in
             q.isEmpty ? info.category == category
                       : (info.label + " " + info.detail).localizedCaseInsensitiveContains(q)
         }
