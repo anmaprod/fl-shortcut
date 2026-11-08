@@ -57,7 +57,7 @@
 "Ports MIDI « FL Shortcuts »" = "“FL Shortcuts” MIDI ports";
 "Prêts : « FL Shortcuts » et « FL Shortcuts Retour »." = "Ready: “FL Shortcuts” and “FL Shortcuts Retour”.";
 "Prêts" = "Ready";
-"Sortie « FL Shortcuts Retour » : le même numéro de Port que l'entrée" = "Output “FL Shortcuts Retour”: the same Port number as the input";
+"Sortie « FL Shortcuts » : le même numéro de Port que l'entrée" = "Output “FL Shortcuts”: the same Port number as the input";
 "Le Mixer vient de s'ouvrir dans FL Studio." = "The Mixer just opened in FL Studio.";
 "FL Studio n'a pas répondu. Vérifie MIDI Settings." = "FL Studio didn't answer. Check MIDI Settings.";
 "Choisir le dossier de FL…" = "Choose FL's folder…";
@@ -130,7 +130,7 @@
 "Ta carte son a le Controller type « FL Shortcuts » : remets-la sur « (generic controller) »." = "Your sound card has the “FL Shortcuts” Controller type: set it back to “(generic controller)”.";
 "Dans loopMIDI : « FL Shortcuts » et « FL Shortcuts Retour ». Laisse-le ouvert." = "In loopMIDI: “FL Shortcuts” and “FL Shortcuts Retour”. Keep it open.";
 "Input : ligne « FL Shortcuts », Controller type « FL Shortcuts », Enable, un Port." = "Input: “FL Shortcuts” row, Controller type “FL Shortcuts”, Enable, a Port.";
-"Output : « FL Shortcuts Retour » seul sur le même Port. Puis relance FL." = "Output: “FL Shortcuts Retour” alone on the same Port. Then restart FL.";
+"Output : « FL Shortcuts » sur le même Port. Puis relance FL." = "Output: “FL Shortcuts” on the same Port. Then restart FL.";
 "« FL Shortcuts » absent : choisis le dossier Hardware de FL." = "“FL Shortcuts” missing: choose FL's Hardware folder.";
 "Copie un texte technique, sans aucun nom de son." = "Copies a technical text, with no sound names.";
 "Supprimer les sons sans note, pour de bon" = "Delete sounds without notes, for good";
@@ -371,7 +371,7 @@
 "Installe loopMIDI. L'app crée ensuite les ports elle-même." = "Install loopMIDI. The app then creates the ports itself.";
 "Installe d'abord loopMIDI" = "Install loopMIDI first";
 "Gratuit. L'app crée ensuite les ports elle-même." = "Free. The app then creates the ports itself.";
-"loopMIDI installé : l'app crée « FL Shortcuts » et « FL Shortcuts Retour » elle-même." = "With loopMIDI installed, the app creates “FL Shortcuts” and “FL Shortcuts Retour” itself.";
+"loopMIDI installé : l'app crée « FL Shortcuts » elle-même." = "loopMIDI installed: the app creates “FL Shortcuts” by itself.";
 "Installe loopMIDI : l'app crée ensuite elle-même les ports qui la relient à FL, pour l'Organiser et les actions de FL." = "Install loopMIDI: the app then creates the ports that link it to FL, for Organize and FL actions.";
 "FL passe devant : clique et tape ta suite, puis reviens ici." = "FL comes to the front: click and type your sequence, then come back here.";
 "Installer loopMIDI" = "Install loopMIDI";
@@ -384,4 +384,5 @@
 "Relance FL Studio : il voit les ports seulement à son ouverture." = "Restart FL Studio: it only sees the ports when it opens.";
 "FL voit le lien seulement à son ouverture." = "FL only sees the link when it opens.";
 "FL ne répond pas au lien" = "FL doesn't answer the link";
-"Quitte et rouvre FL : il voit le lien seulement à son ouverture. Puis MIDI Settings : Controller type « FL Shortcuts », même Port pour « FL Shortcuts Retour »." = "Quit and reopen FL: it only sees the link when it opens. Then MIDI Settings: Controller type “FL Shortcuts”, same Port for “FL Shortcuts Retour”.";
+"Quitte et rouvre FL : il voit le lien seulement à son ouverture. Puis MIDI Settings : Controller type « FL Shortcuts », même Port pour la sortie « FL Shortcuts »." = "Quit and reopen FL: it only sees the link when it opens. Then MIDI Settings: Controller type “FL Shortcuts”, same Port for the “FL Shortcuts” output.";
+"Puis Options › MIDI Settings : Controller type « FL Shortcuts », même Port pour la sortie « FL Shortcuts »." = "Then Options › MIDI Settings: Controller type “FL Shortcuts”, same Port for the “FL Shortcuts” output.";

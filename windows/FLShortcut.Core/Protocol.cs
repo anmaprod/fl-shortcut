@@ -23,6 +23,9 @@ public static class FlProtocol
     /// Opérations 2 à 26 de la commande avec données (Organiser, dégradé ; script v5 et plus, PROTOCOL.md §8).
     public const int ExtActionId = 42;
     // FL → appli
+    /// Numéros de CC que seul le script envoie (90…95 capacités, 112…126 réponses, raison, fenêtre, battement, accusé,
+    /// HELLO) ; ceux de l'appli (96, 97, 103…111) n'en font jamais partie : sur un port boucle, chacun ignore les siens.
+    public static bool SentByFl(byte cc) => cc is (>= 90 and <= 95) or (>= 112 and <= 126);
     /// Réponse signée (PROTOCOL.md §8) : 112 début (valeur = opération), 113 unités, 114 fin, 4 × 115 MAC.
     public const byte CcRespStart = 112;
     public const byte CcRespUnit = 113;

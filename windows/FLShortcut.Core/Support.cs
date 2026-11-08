@@ -208,7 +208,7 @@ public static class HelpContent
             Loc.T("Installe loopMIDI, puis ferme-le : rien à faire dedans. L'app crée elle-même les ports qui la relient à FL."),
             "loopmidi midi port lien organiser actions installer windows 11 25h2 services"),
         new(16, Loc.T("FL ne répond pas au lien"),
-            Loc.T("Quitte et rouvre FL : il voit le lien seulement à son ouverture. Puis MIDI Settings : Controller type « FL Shortcuts », même Port pour « FL Shortcuts Retour »."),
+            Loc.T("Quitte et rouvre FL : il voit le lien seulement à son ouverture. Puis MIDI Settings : Controller type « FL Shortcuts », même Port pour la sortie « FL Shortcuts »."),
             "lien muet repond attente organiser midi settings port controller relancer rouvrir"),
         new(3, Loc.T("Comment créer une macro ?"),
             Loc.T("Page Macros : « Macro vide » ou « Modèles »."),

@@ -467,3 +467,56 @@ public sealed class LinkWatchTests
         Assert.False(LinkWatch.FlOpenedBeforePorts(null, ports));                     // heure illisible : rien
     }
 }
+
+/// 09/11 (capture de MIDI Settings d'un ami) : FL répond sur la sortie « FL Shortcuts » ou « FL Shortcuts Retour » ;
+/// l'appli lit les deux entrées et garde la première qui apporte un HELLO.
+public sealed class LinkInputsTests
+{
+    private static uint Cc(byte cc, byte value) => (uint)(FlProtocol.StatusCc | cc << 8 | value << 16);
+    private static readonly DateTime T0 = new(2026, 11, 9, 0, 0, 0, DateTimeKind.Utc);
+
+    [Fact]
+    public void AppAndScriptNumbersNeverMix()
+    {
+        foreach (var cc in new byte[] { FlProtocol.CcPing, FlProtocol.CcFrameFirst, 111, FlProtocol.CcDataStart, FlProtocol.CcDataUnit })
+            Assert.False(FlProtocol.SentByFl(cc));
+        foreach (var cc in new byte[] { 90, 95, FlProtocol.CcRespStart, FlProtocol.CcRespMac, FlProtocol.CcHello, FlProtocol.CcHeartbeat, FlProtocol.CcAck, 126 })
+            Assert.True(FlProtocol.SentByFl(cc));
+    }
+
+    [Fact]
+    public void KeepsTheFirstInputThatBringsAHello()
+    {
+        var inputs = new LinkInputs();
+        Assert.Equal(-1, inputs.Active);
+        // Avant le HELLO : tout passe (battements identiques des deux côtés).
+        Assert.True(inputs.Accept(0, Cc(FlProtocol.CcHeartbeat, 1), T0));
+        Assert.True(inputs.Accept(1, Cc(FlProtocol.CcHeartbeat, 1), T0));
+        // La boucle « FL Shortcuts » apporte le HELLO en premier : elle est gardée, « Retour » ignorée.
+        Assert.True(inputs.Accept(1, Cc(FlProtocol.CcHello, FlProtocol.HelloStart), T0));
+        Assert.Equal(1, inputs.Active);
+        Assert.False(inputs.Accept(0, Cc(FlProtocol.CcHello, FlProtocol.HelloStart), T0));
+        Assert.False(inputs.Accept(0, Cc(FlProtocol.CcRespUnit, 5), T0));
+        Assert.True(inputs.Accept(1, Cc(FlProtocol.CcRespUnit, 5), T0));
+        // Les messages de l'appli qui reviennent par la boucle passent (le décodeur les ignore) sans compter pour FL.
+        Assert.True(inputs.Accept(1, Cc(FlProtocol.CcPing, 3), T0));
+        // « Retour » : battement, HELLO, unité ; la boucle : battement, HELLO, unité (+ le PING de l'appli, pas compté).
+        Assert.Equal(3, inputs.FromFl(0));
+        Assert.Equal(3, inputs.FromFl(1));
+    }
+
+    [Fact]
+    public void SwitchesWhenTheKeptInputGoesSilent()
+    {
+        var inputs = new LinkInputs();
+        inputs.Accept(0, Cc(FlProtocol.CcHello, FlProtocol.HelloStart), T0);
+        Assert.Equal(0, inputs.Active);
+        // L'autre entrée parle tout de suite : pas de changement.
+        Assert.False(inputs.Accept(1, Cc(FlProtocol.CcHello, FlProtocol.HelloStart), T0.AddSeconds(1)));
+        // « Retour » se tait plus de 3 s (réglages changés dans FL) : la boucle prend la main à son HELLO.
+        Assert.True(inputs.Accept(1, Cc(FlProtocol.CcHello, FlProtocol.HelloStart), T0.AddSeconds(5)));
+        Assert.Equal(1, inputs.Active);
+        inputs.Reset();
+        Assert.Equal(-1, inputs.Active);
+    }
+}

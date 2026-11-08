@@ -1,9 +1,9 @@
 // Ports du lien créés par l'appli elle-même avec le pilote de loopMIDI (08/11 : « tout ce qui est loopMIDI, ça ne
 // fonctionne pas… il faut trouver une solution »). loopMIDI installe le pilote teVirtualMIDI (Tobias Erichsen) ;
 // loopMIDI lui-même n'est qu'une petite fenêtre qui crée, avec ce pilote, des ports qui renvoient ce qu'ils reçoivent.
-// L'appli fait la même chose : « FL Shortcuts » et « FL Shortcuts Retour » créés au lancement de l'appli et gardés
-// jusqu'à sa sortie (FL ne voit un port qu'à son ouverture : MidiServicesPorts), sans rien créer à la main ni garder
-// loopMIDI ouvert. Il faut seulement avoir installé loopMIDI.
+// L'appli fait la même chose : un seul port « FL Shortcuts » (09/11, MidiServicesPorts), créé au lancement de l'appli
+// et gardé jusqu'à sa sortie (FL ne voit un port qu'à son ouverture), sans rien créer à la main ni garder loopMIDI
+// ouvert. Il faut seulement avoir installé loopMIDI.
 //
 // Comme loopMIDI : un port teVirtualMIDI a deux côtés ; ce qu'un programme envoie au port arrive dans notre rappel,
 // qui le renvoie aussitôt de l'autre côté (virtualMIDISendData) : FL le lit comme une entrée MIDI. MidiLink ouvre ces
@@ -55,29 +55,25 @@ internal static class VirtualMidiPorts
         get { lock (Gate) return Open.Count > 0; }
     }
 
-    /// Crée les deux ports (chacun renvoie ce qu'il reçoit). Vrai s'ils sont ouverts tous les deux.
-    public static bool CreateBoth(string toFl, string fromFl)
+    /// Crée le port du lien (il renvoie ce qu'il reçoit). Vrai s'il est ouvert.
+    public static bool Create(string name)
     {
         if (!DriverInstalled) return false;
         lock (Gate)
         {
-            if (Open.Count == 2) return true;
+            if (Open.Count == 1) return true;
             CloseUnlocked();
             try
             {
-                foreach (var name in new[] { toFl, fromFl })
+                DataCallback echo = Echo;
+                var handle = CreatePort(name, echo, IntPtr.Zero, MaxSysex, Flags);
+                if (handle == IntPtr.Zero)
                 {
-                    DataCallback echo = Echo;
-                    var handle = CreatePort(name, echo, IntPtr.Zero, MaxSysex, Flags);
-                    if (handle == IntPtr.Zero)
-                    {
-                        AppLog.Write("MIDI", $"port loopMIDI non créé ({Marshal.GetLastWin32Error()})");
-                        CloseUnlocked();
-                        return false;
-                    }
-                    Open.Add(new Port(handle, echo));
+                    AppLog.Write("MIDI", $"port loopMIDI non créé ({Marshal.GetLastWin32Error()})");
+                    return false;
                 }
-                AppLog.Write("MIDI", "ports créés avec le pilote de loopMIDI");
+                Open.Add(new Port(handle, echo));
+                AppLog.Write("MIDI", "port créé avec le pilote de loopMIDI");
                 return true;
             }
             catch (Exception e)

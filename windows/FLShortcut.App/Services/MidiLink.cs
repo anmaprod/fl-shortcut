@@ -4,7 +4,8 @@
 //         rouverts paresseusement). Contrat : PROTOCOL.md v2.
 //
 // Ports (WinMM) : l'appli écrit sur la sortie « FL Shortcuts » (lue par FL) et lit l'entrée « FL Shortcuts Retour »
-// (écrite par FL). Ces deux ports de bouclage sont créés par loopMIDI ou par Windows MIDI Services (MidiServicesPorts :
+// ET la boucle « FL Shortcuts » (09/11 : FL répond sur la sortie qu'il apparie au Port de l'entrée, souvent celle du
+// même nom ; LinkInputs garde la première entrée qui apporte un HELLO). Ces deux ports de bouclage sont créés par loopMIDI ou par Windows MIDI Services (MidiServicesPorts :
 // Windows 11 25H2 à jour, l'appli les crée elle-même). Toute la logique
 // du lien (HELLO, battements, accusés, réponses signées, réveil du script, commandes de l'Organiser) est celle du cœur,
 // LinkCore, la même que sur le Mac ; ici, seulement les ports WinMM.
@@ -24,7 +25,11 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
     private readonly object _gate = new();
     private readonly Win32.MidiInProc _inProc;        // gardé vivant pour WinMM
     private IntPtr _out = IntPtr.Zero;
-    private IntPtr _in = IntPtr.Zero;
+    /// Entrées : 0 = « FL Shortcuts Retour », 1 = la boucle « FL Shortcuts » (LinkInputs).
+    private readonly IntPtr[] _ins = new IntPtr[LinkInputs.Count];
+    private readonly LinkInputs _inputs = new();
+    private long _sent;
+    private string? _openError;
     private Timer? _timer;
     private bool _wasAlive;
 
@@ -116,7 +121,7 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
         Start();
         lock (_gate)
         {
-            if (_out == IntPtr.Zero || _in == IntPtr.Zero) OpenUnlocked();
+            if (_out == IntPtr.Zero || !AnyInput()) OpenUnlocked();
         }
     }
 
@@ -235,7 +240,7 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
         bool had;
         lock (_gate)
         {
-            had = _out != IntPtr.Zero || _in != IntPtr.Zero || timer is not null;
+            had = _out != IntPtr.Zero || AnyInput() || timer is not null;
             CloseUnlocked();
         }
         Core.Reset();
@@ -289,7 +294,11 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
             if (_out == IntPtr.Zero) return false;
             foreach (var m in messages)
             {
-                if (Win32.midiOutShortMsg(_out, m.ShortMessage) == Win32.MMSYSERR_NOERROR) continue;
+                if (Win32.midiOutShortMsg(_out, m.ShortMessage) == Win32.MMSYSERR_NOERROR)
+                {
+                    _sent++;
+                    continue;
+                }
                 CloseUnlocked();
                 failed = true;
                 break;
@@ -307,7 +316,7 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
         lock (_gate)
         {
             if (_timer is null) return;                  // fermé entre-temps : on ne rouvre rien
-            if (_out == IntPtr.Zero || _in == IntPtr.Zero) changed |= OpenUnlocked();
+            if (_out == IntPtr.Zero || !AnyInput()) changed |= OpenUnlocked();
         }
         Core.Tick(FlPresence.IsRunning());
         var alive = Alive;
@@ -318,14 +327,14 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
 
     // Le rappel WinMM ne prend jamais de verrou (midiInReset/Close peuvent l'attendre) : il met en file,
     // et un seul « videur » à la fois traite la file dans l'ordre d'arrivée.
-    private readonly System.Collections.Concurrent.ConcurrentQueue<uint> _incoming = new();
+    private readonly System.Collections.Concurrent.ConcurrentQueue<(uint Raw, int Source)> _incoming = new();
     private int _draining;
     private const int MaxQueued = 4096;      // SEC-10 : un flot MIDI ne peut pas faire grossir la mémoire
 
     private void OnMidiIn(IntPtr hMidiIn, uint wMsg, IntPtr instance, IntPtr param1, IntPtr param2)
     {
         if (wMsg != Win32.MIM_DATA || _incoming.Count >= MaxQueued) return;
-        _incoming.Enqueue((uint)(param1.ToInt64() & 0xFFFFFFFF));
+        _incoming.Enqueue(((uint)(param1.ToInt64() & 0xFFFFFFFF), (int)instance.ToInt64()));
         if (Interlocked.Exchange(ref _draining, 1) == 0) ThreadPool.UnsafeQueueUserWorkItem(_ => Drain(), null);
     }
 
@@ -334,9 +343,11 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
         while (true)
         {
             var notify = false;
-            while (_incoming.TryDequeue(out var raw))
+            while (_incoming.TryDequeue(out var item))
             {
-                var e = Core.ReceiveShort(raw);
+                // Les deux entrées peuvent porter les mêmes messages de FL : une seule est écoutée.
+                if (!_inputs.Accept(item.Source, item.Raw, DateTime.UtcNow)) continue;
+                var e = Core.ReceiveShort(item.Raw);
                 if (e is not null and not IncomingEvent.Heartbeat and not IncomingEvent.Ack and not IncomingEvent.Response
                     and not IncomingEvent.Reason) notify = true;
             }
@@ -347,35 +358,70 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
         }
     }
 
+    private bool AnyInput() => _ins.Any(h => h != IntPtr.Zero);
+
     private bool OpenUnlocked()
     {
         var outId = FindOut(ToFlPortName) ?? FindOut(OldToFlPortName);
-        var inId = FindIn(FromFlPortName) ?? FindIn(OldFromFlPortName);
-        var present = outId is not null && inId is not null;
+        var inIds = new[]
+        {
+            FindIn(FromFlPortName) ?? FindIn(OldFromFlPortName),
+            FindIn(ToFlPortName) ?? FindIn(OldToFlPortName),        // la boucle de « FL Shortcuts »
+        };
+        var present = outId is not null && inIds.Any(id => id is not null);
         var changed = present != PortsPresent;
         PortsPresent = present;
         if (!present) return changed;
 
-        if (_out == IntPtr.Zero && Win32.midiOutOpen(out var hOut, outId!.Value, IntPtr.Zero, IntPtr.Zero, Win32.CALLBACK_NULL) == Win32.MMSYSERR_NOERROR)
-            _out = hOut;
-        if (_in == IntPtr.Zero && Win32.midiInOpen(out var hIn, inId!.Value, _inProc, IntPtr.Zero, Win32.CALLBACK_FUNCTION) == Win32.MMSYSERR_NOERROR)
+        string? error = null;
+        if (_out == IntPtr.Zero)
         {
-            _in = hIn;
-            Win32.midiInStart(_in);
+            var r = Win32.midiOutOpen(out var hOut, outId!.Value, IntPtr.Zero, IntPtr.Zero, Win32.CALLBACK_NULL);
+            if (r == Win32.MMSYSERR_NOERROR) _out = hOut;
+            else error = $"sortie {r}";
+        }
+        for (var i = 0; i < _ins.Length; i++)
+        {
+            if (_ins[i] != IntPtr.Zero || inIds[i] is not { } id) continue;
+            var r = Win32.midiInOpen(out var hIn, id, _inProc, new IntPtr(i), Win32.CALLBACK_FUNCTION);
+            if (r == Win32.MMSYSERR_NOERROR)
+            {
+                _ins[i] = hIn;
+                Win32.midiInStart(hIn);
+            }
+            else error ??= $"entrée {i} {r}";
+        }
+        if (error != _openError)
+        {
+            _openError = error;
+            if (error is not null) AppLog.Write("MIDI", "link port not opened (" + error + ")");
         }
         return true;
+    }
+
+    /// Diagnostic (nombres seulement) : messages envoyés, messages de FL reçus sur « Retour » + la boucle, entrée
+    /// gardée, erreur d'ouverture.
+    public string Counters
+    {
+        get
+        {
+            var active = _inputs.Active switch { 0 => "retour", 1 => "boucle", _ => "?" };
+            return $"envoyés={Interlocked.Read(ref _sent)} reçus={_inputs.FromFl(0)}+{_inputs.FromFl(1)} entrée={active}"
+                   + (_openError is { } e ? $" ouverture={e}" : "");
+        }
     }
 
     private void CloseUnlocked()
     {
         // Le rappel d'entrée ne prend aucun verrou : fermer ici ne peut pas bloquer. L'appelant remet ensuite le cœur à
         // zéro (Core.Reset), hors de ce verrou.
-        if (_in != IntPtr.Zero)
+        for (var i = 0; i < _ins.Length; i++)
         {
-            Win32.midiInStop(_in);
-            Win32.midiInReset(_in);
-            Win32.midiInClose(_in);
-            _in = IntPtr.Zero;
+            if (_ins[i] == IntPtr.Zero) continue;
+            Win32.midiInStop(_ins[i]);
+            Win32.midiInReset(_ins[i]);
+            Win32.midiInClose(_ins[i]);
+            _ins[i] = IntPtr.Zero;
         }
         if (_out != IntPtr.Zero)
         {
@@ -383,6 +429,7 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
             _out = IntPtr.Zero;
         }
         _incoming.Clear();
+        _inputs.Reset();
     }
 
     private static bool NameMatches(string? actual, string wanted)
@@ -428,7 +475,8 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
 
     /// Les deux ports existent-ils ? (pour l'écran « Préparer la connexion »)
     public static bool PortsExist() => (FindOut(ToFlPortName) ?? FindOut(OldToFlPortName)) is not null
-                                       && (FindIn(FromFlPortName) ?? FindIn(OldFromFlPortName)) is not null;
+                                       && (FindIn(FromFlPortName) ?? FindIn(OldFromFlPortName)
+                                           ?? FindIn(ToFlPortName) ?? FindIn(OldToFlPortName)) is not null;
 
     public void Dispose()
     {

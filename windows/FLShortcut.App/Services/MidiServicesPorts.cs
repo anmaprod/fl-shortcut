@@ -1,7 +1,10 @@
-// Ports MIDI créés par Windows (08/11, « on peut bosser sur ça ? ») : sur Windows 11 25H2 à jour (Windows MIDI Services,
-// arrivé avec la mise à jour de novembre 2026), l'appli crée elle-même les deux ports du lien, « FL Shortcuts » et
-// « FL Shortcuts Retour », comme loopMIDI les créait : des ports « boucle » de MIDI 1.0 (Basic Loopback) que FL voit
-// dans MIDI Settings. Sinon, le pilote installé avec loopMIDI (VirtualMidiPorts). MidiLink les ouvre par WinMM.
+// Port MIDI du lien créé par l'appli (08/11, « on peut bosser sur ça ? ») : sur Windows 11 25H2 à jour (Windows MIDI
+// Services, arrivé avec la mise à jour de novembre 2026), un port « boucle » de MIDI 1.0 (Basic Loopback) que FL voit
+// dans MIDI Settings ; sinon, le pilote installé avec loopMIDI (VirtualMidiPorts). MidiLink l'ouvre par WinMM.
+// UN SEUL port, « FL Shortcuts », dans les deux sens (09/11 : avec un second port « FL Shortcuts Retour », FL répondait
+// sur la sortie « FL Shortcuts » appariée à son entrée, l'appli écoutait l'autre : lien muet ; et l'entrée « Retour »
+// allumée en « generic controller » passait les messages du script au son choisi). Sur ce port boucle, l'appli et le
+// script entendent aussi leurs propres messages et les ignorent (numéros de CC disjoints, `FlProtocol.SentByFl`).
 //
 // Ports créés AU LANCEMENT de l'appli et gardés jusqu'à ce qu'elle quitte (08/11 au soir, diagnostic d'un ami :
 // « ports oui · lien muet ») : sous Windows, FL ne voit un port MIDI que s'il existait à son ouverture (manuel
@@ -23,9 +26,8 @@ namespace FLShortcut.App.Services;
 
 internal static class MidiServicesPorts
 {
-    /// Identifiants des deux ports (uniques dans le service MIDI de Windows).
+    /// Identifiant du port (unique dans le service MIDI de Windows).
     public const string ToFlId = "flshortcuts-to-fl";
-    public const string FromFlId = "flshortcuts-from-fl";
 
     private static readonly object Gate = new();
     private static readonly List<Guid> Created = new();
@@ -109,7 +111,7 @@ internal static class MidiServicesPorts
         return start;
     }
 
-    /// Les deux ports manquent : Windows les crée s'il sait le faire. Vrai si les ports sont là ensuite. Bloquant
+    /// Le port manque : l'appli le crée si elle sait le faire. Vrai s'il est là ensuite. Bloquant
     /// (jusqu'à ~3 s la première fois) : jamais sur le fil de l'interface. Au lancement de l'appli, puis si loopMIDI
     /// arrive après ; un essai RATÉ n'est refait qu'après 60 s.
     public static bool EnsureIfNeeded()
@@ -127,7 +129,7 @@ internal static class MidiServicesPorts
             {
                 try
                 {
-                    ok = CreateBoth();
+                    ok = CreateLink();
                 }
                 catch (Exception e)
                 {
@@ -139,7 +141,7 @@ internal static class MidiServicesPorts
 #endif
             // Sinon, le pilote installé avec loopMIDI (08/11) : l'appli crée elle-même les deux ports, rien à faire
             // dans loopMIDI.
-            if (!ok && VirtualMidiPorts.CreateBoth(MidiLink.ToFlPortName, MidiLink.FromFlPortName))
+            if (!ok && VirtualMidiPorts.Create(MidiLink.ToFlPortName))
             {
                 for (var i = 0; i < 15 && !MidiLink.PortsExist(); i++) Thread.Sleep(200);
                 ok = MidiLink.PortsExist();
@@ -185,7 +187,7 @@ internal static class MidiServicesPorts
     }
 
 #if MIDI_SERVICES
-    private static bool CreateBoth()
+    private static bool CreateLink()
     {
         if (!MidiApi.EnsureServiceAvailable())
         {
@@ -198,7 +200,6 @@ internal static class MidiServicesPorts
             return false;
         }
         Create(MidiLink.ToFlPortName, ToFlId);
-        Create(MidiLink.FromFlPortName, FromFlId);
         // WinMM voit les nouveaux ports un instant plus tard.
         for (var i = 0; i < 15 && !MidiLink.PortsExist(); i++) Thread.Sleep(200);
         var ok = MidiLink.PortsExist();

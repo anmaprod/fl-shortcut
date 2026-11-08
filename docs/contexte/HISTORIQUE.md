@@ -933,4 +933,12 @@ entrée 1 ≈ 0,5 s.
   lien (messages) toujours seulement quand il sert ; FL ouvert avant les ports → « Quitte et rouvre FL » (Organiser,
   bouton), « Relance FL Studio » (macros, accueil). Diagnostic : qui a fait les ports et « FL ouvert avant ». Pas
   encore vu sur un PC.
+- 09/11 : « ça ne fonctionne toujours pas pourtant tout est connecté » (capture de MIDI Settings, Windows) : entrée
+  « FL Shortcuts » (script, 236), sorties « FL Shortcuts » ET « FL Shortcuts Retour » toutes deux sur 236, entrée
+  « Retour » allumée en generic controller. FL envoie la réponse du script à une seule sortie (celle appariée par le
+  nom) : elle repartait dans la boucle « FL Shortcuts », l'appli écoutait « Retour ». Un seul port maintenant
+  (« FL Shortcuts », dans les deux sens), l'appli lit les deux entrées et garde celle qui apporte le HELLO ; l'entrée
+  « Retour » en generic controller pouvait aussi passer les CC du script (120 à 126 = messages de mode) au son
+  choisi. Compteurs dans le diagnostic. Puis demandes : enregistrement des macros, pages de l'Organiser, listes de
+  plugins de « Cliquer sur… » et tous les blocs comme sur Mac.
 

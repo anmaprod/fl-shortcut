@@ -276,6 +276,7 @@ internal static class OrganizerLive
         return $"app {AppVersion()} · Windows {Environment.OSVersion.Version} · FL {fl?.Version?.ToString() ?? "?"} "
                + $"· API {hello?.ApiVersion.ToString() ?? "?"} · lien {(hello is null ? "muet" : "ok")} · ports {(MidiLink.PortsExist() ? "oui" : "non")} "
                + $"({MidiServicesPorts.Source()}{(MidiServicesPorts.FlOpenedBefore() ? ", FL ouvert avant" : "")}) "
+               + $"· {app.Midi.Counters} "
                + $"· léger={(app.Light ? "oui" : "non")} · admin={(fl?.Elevated == true ? "oui" : "non")} "
                + $"· signé={(fl is null ? "?" : fl.Signed ? "oui" : "non")}";
     }

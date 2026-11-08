@@ -288,7 +288,7 @@ internal sealed partial class MainShell
         {
             (Loc.T("Installe le lien"), installed),
             (Loc.T("Dans FL : MIDI Settings, « FL Shortcuts » : Enable et Controller type « FL Shortcuts »"), linked),
-            (Loc.T("Sortie « FL Shortcuts Retour » : le même numéro de Port que l'entrée"), linked),
+            (Loc.T("Sortie « FL Shortcuts » : le même numéro de Port que l'entrée"), linked),
         };
         var list = new StackPanel { Spacing = 10 };
         for (var i = 0; i < steps.Length; i++)
@@ -355,7 +355,7 @@ internal sealed partial class MainShell
         var output = Label("Output", 11, Rgb(0x99, 0xA4, 0xAB));
         output.Margin = new Thickness(0, 4, 0, 0);
         stack.Children.Add(output);
-        stack.Children.Add(Line("FL Shortcuts Retour   ②"));
+        stack.Children.Add(Line("FL Shortcuts   ②"));
         var outer = new StackPanel();
         outer.Children.Add(new Border
         {

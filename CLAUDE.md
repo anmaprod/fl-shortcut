@@ -381,6 +381,13 @@
   (`MidiLink.RestartFlReason`), accueil → même phrase ; diagnostic `ports oui (app|Windows|loopMIDI, FL ouvert
   avant)` ; aide « FL ne répond pas au lien » (n° 16) ; mode d'emploi « Ouvre FL Shortcuts, puis FL Studio ». Mac :
   rien à changer (FL voit l'appareil arriver ; NE PAS y remettre les ports permanents).
+  09/11 (capture de MIDI Settings : « tout est connecté » mais muet ; sorties « FL Shortcuts » ET « FL Shortcuts
+  Retour » sur le même Port 236, entrée « Retour » allumée en generic controller) : FL répond sur UNE sortie (celle
+  du nom de l'entrée) → l'appli n'entendait rien. Maintenant UN SEUL port créé, « FL Shortcuts » (boucle), dans les
+  deux sens comme sur Mac ; l'appli lit l'entrée « FL Shortcuts » ET « FL Shortcuts Retour » s'il existe (loopMIDI
+  ouvert à la main), garde la 1re qui apporte un HELLO (`LinkInputs`, testé) ; sur la boucle chacun ignore ses
+  propres CC (`FlProtocol.SentByFl`). Consignes : sortie « FL Shortcuts » sur le même Port. Diagnostic :
+  `envoyés=… reçus=retour+boucle entrée=… ouverture=…` (erreurs de midiIn/OutOpen, journal MIDI).
   Pas encore vu sur un PC.
 - **Avertissements au style suisse** (08/11, « pas avec un logo, un emoji d'attention… un point orange ») : un carré
   plein #FF3B1F (blanc sous Orange) devant le texte, le texte à l'encre ; plus aucun triangle, cercle « ! » ni octogone

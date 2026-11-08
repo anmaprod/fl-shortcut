@@ -426,7 +426,7 @@ internal sealed class OrganizerWindow : Window
         {
             // Relier FL, une consigne à la fois (05/11, comme le Mac) : étape 2, puis MIDI Settings en étape 3 dessous.
             _content.Children.Add(LinkSteps(2, detail));
-            _content.Children.Add(Paragraph(Loc.T("Puis Options › MIDI Settings : Controller type « FL Shortcuts », même Port pour « FL Shortcuts Retour »."), 12));
+            _content.Children.Add(Paragraph(Loc.T("Puis Options › MIDI Settings : Controller type « FL Shortcuts », même Port pour la sortie « FL Shortcuts »."), 12));
         }
         else
         {
@@ -468,9 +468,9 @@ internal sealed class OrganizerWindow : Window
     /// Les réglages à vérifier, étape par étape, et où est le script.
     private void LinkHelp()
     {
-        _content.Children.Add(Step(1, Loc.T("loopMIDI installé : l'app crée « FL Shortcuts » et « FL Shortcuts Retour » elle-même.")));
+        _content.Children.Add(Step(1, Loc.T("loopMIDI installé : l'app crée « FL Shortcuts » elle-même.")));
         _content.Children.Add(Step(2, Loc.T("Input : ligne « FL Shortcuts », Controller type « FL Shortcuts », Enable, un Port.")));
-        _content.Children.Add(Step(3, Loc.T("Output : « FL Shortcuts Retour » seul sur le même Port. Puis relance FL.")));
+        _content.Children.Add(Step(3, Loc.T("Output : « FL Shortcuts » sur le même Port. Puis relance FL.")));
         _content.Children.Add(Step(4, Loc.T("« FL Shortcuts » absent : choisis le dossier Hardware de FL.")));
         ScriptCard();
     }
