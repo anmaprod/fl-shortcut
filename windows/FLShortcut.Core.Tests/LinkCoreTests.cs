@@ -48,11 +48,17 @@ internal static class Bytes
         foreach (var (cc, value) in messages) core.Receive(0xBF, cc, value);
     }
 
-    /// FL répond un peu plus tard, d'un autre fil (comme WinMM).
+    /// FL répond un peu plus tard, d'un autre fil (comme WinMM). Un fil à lui, pas le pool de threads : sur la CI
+    /// chargée (essais lancés en parallèle qui attendent), la suite d'un Task.Delay pouvait arriver après le délai de
+    /// l'essai (SilentRefusalWakesTheScriptAndRetriesOnce, échec au hasard du 08/11).
     public static void Later(this LinkCore core, IEnumerable<(byte Cc, byte Value)> messages)
     {
         var list = messages.ToArray();
-        Task.Delay(20).ContinueWith(_ => core.Feed(list));
+        new Thread(() =>
+        {
+            Thread.Sleep(20);
+            core.Feed(list);
+        }) { IsBackground = true }.Start();
     }
 }
 
