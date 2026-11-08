@@ -366,7 +366,9 @@
   rouge, colonnes sans plaques, « Clic de souris » dans la palette). Antivirus (Avast) : signature prête dans la CI
   (secrets WIN_CERT_PFX_BASE64 + WIN_CERT_PASSWORD, signtool + Inno `SignTool`), infos du programme et de l'installeur
   complètes, version réelle hors tag ; question d'aide + ligne du mode d'emploi. Sans certificat, seul un signalement
-  du faux positif à Avast (par version) le fait accepter. Pas encore vu sur un PC.
+  du faux positif à Avast (par version) le fait accepter. Mode léger Windows par défaut comme le Mac (`Light` =
+  réglage MidiActions seul ; avant : lien permanent dès que le script était installé, « léger=non » chez un ami).
+  Pas encore vu sur un PC.
 - **Avertissements au style suisse** (08/11, « pas avec un logo, un emoji d'attention… un point orange ») : un carré
   plein #FF3B1F (blanc sous Orange) devant le texte, le texte à l'encre ; plus aucun triangle, cercle « ! » ni octogone
   (Mac : `SwissWarning`, `SwissWarningMark`, `StatusSymbol` dans GlassStyle.swift, pastille carrée dans la barre des

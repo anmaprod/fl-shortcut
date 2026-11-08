@@ -96,8 +96,11 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     /// Bibliothèque des macros illisible, inaccessible ou impossible à enregistrer (jamais de macro perdue en silence).
     public string? MacroProblem => _macros.Problem;
     internal MacroLibraryStore Macros => _macros;
-    /// Mode léger (défaut) : FL Shortcuts n'envoie que des touches d'origine de FL, sans script ni MIDI.
-    public bool Light => !(_settings.MidiActions ?? _settings.ScriptPath is not null);
+    /// Mode léger (défaut) : FL Shortcuts envoie les touches d'origine de FL ; le lien MIDI ne s'ouvre que le temps
+    /// d'une action qui en a besoin (Organiser, bloc de macro), puis se ferme. 08/11 (diagnostic d'un ami : « léger=non »,
+    /// « mêmes logiciels pour les deux ») : comme le Mac, plus de lien permanent dès que le script est installé (FL rame
+    /// tant qu'il voit l'appareil) ; seul le réglage explicite MidiActions le garde ouvert.
+    public bool Light => !(_settings.MidiActions ?? false);
     /// Mode léger : une page d'accueil au premier lancement, pour installer loopMIDI (08/11) ; sautée si les deux
     /// ports sont déjà là (loopMIDI prêt, ou créés par Windows). Avec le lien : ports puis MIDI Settings, comme avant.
     public bool Onboarded => _photoPages || (Light ? _settings.LoopMidiAsked || MidiLink.PortsUsable() : _settings.Onboarded);
