@@ -38,6 +38,28 @@ public partial class App : Application
             Exit();
             return;
         }
+        // Essai de la CI (08/11) : les ports du lien par Windows MIDI Services (créés, vus, retirés), sans fenêtre ni
+        // hook ; le compte rendu dans le seul .txt donné. Sur la machine de la CI, Windows ne sait pas encore les
+        // créer : l'essai montre que l'appli le dit sans tomber.
+        var cmd = Environment.GetCommandLineArgs();
+        var check = Array.FindIndex(cmd, a => string.Equals(a, "--midi-ports-check", StringComparison.OrdinalIgnoreCase));
+        if (check >= 0 && check + 1 < cmd.Length && cmd[check + 1].EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
+        {
+            var lines = new List<string>();
+            FLShortcut.Core.AppLog.Sink = (area, line) => lines.Add(area + " " + line);
+            var before = Services.MidiLink.PortsExist();
+            var ready = Services.MidiServicesPorts.EnsureIfNeeded();
+            var byWindows = Services.MidiServicesPorts.CreatedByWindows;
+            Services.MidiServicesPorts.RemoveCreated();
+            var after = Services.MidiLink.PortsExist();
+            File.WriteAllLines(cmd[check + 1], new[]
+            {
+                $"ports avant : {before}", $"ports prêts : {ready}", $"créés par Windows : {byWindows}",
+                $"ports après retrait : {after}",
+            }.Concat(lines));
+            Exit();
+            return;
+        }
         // Essai des macros de la CI : un faux FL dans l'appli et les vrais blocs joués dessus, puis l'appli se ferme.
         if (MacroSelfTest.Folder is { } essai)
         {

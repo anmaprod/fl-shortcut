@@ -149,6 +149,21 @@ jobs:
           # L'appli est tombée : ce que Windows a noté (exception .NET avec sa pile, module fautif).
           Get-WinEvent -FilterHashtable @{ LogName = 'Application'; ProviderName = '.NET Runtime', 'Application Error' } -MaxEvents 4 -ErrorAction SilentlyContinue |
             ForEach-Object { "---- $($_.ProviderName) $($_.TimeCreated)"; $_.Message }
+      - name: Essai des ports du lien par Windows MIDI Services (créés si Windows sait, sinon loopMIDI, sans tomber)
+        continue-on-error: true      # à relire : la machine de la CI n'a pas encore Windows MIDI Services
+        shell: pwsh
+        run: |
+          $rapport = "$PWD\dist\ports-midi-essai.txt"
+          $app = Start-Process -FilePath dist/win-x64/FLShortcut.exe -ArgumentList '--midi-ports-check', $rapport -PassThru
+          if (-not $app.WaitForExit(60000)) { $app.Kill(); Write-Output "::warning::essai des ports arrêté au bout d'1 min" }
+          "code de sortie : $($app.ExitCode)"
+          if (Test-Path $rapport) {
+            Get-Content $rapport
+            "## Ports du lien (Windows MIDI Services)" >> $env:GITHUB_STEP_SUMMARY
+            '```' >> $env:GITHUB_STEP_SUMMARY
+            Get-Content $rapport >> $env:GITHUB_STEP_SUMMARY
+            '```' >> $env:GITHUB_STEP_SUMMARY
+          } else { "rapport absent"; exit 1 }
       - name: Essai des macros (faux FL dans l'appli, Menu de FL, grisé, clic appris, menu de la piste, preset déposé, boîte Open)
         continue-on-error: true      # à relire (comme les essais du Mac) : n'empêche jamais la publication
         shell: pwsh

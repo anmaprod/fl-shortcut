@@ -281,7 +281,7 @@
 "Écris au moins %lld caractères." = "Write at least %lld characters.";
 "Vérifie : 1. FL Studio est devant. 2. FL Shortcuts n'est pas en pause. 3. FL n'est pas lancé en administrateur." = "Check: 1. FL Studio is in front. 2. FL Shortcuts isn't paused. 3. FL isn't run as administrator.";
 "Réinstalle FL Studio depuis le site d'Image-Line." = "Reinstall FL Studio from Image-Line's site.";
-"loopMIDI relie FL Shortcuts à FL. Il sert à l'Organiser et aux actions de FL." = "loopMIDI links FL Shortcuts to FL. Organize and FL actions need it.";
+"loopMIDI relie FL Shortcuts à FL, pour l'Organiser et les actions de FL. Sur Windows 11 25H2 à jour, l'app crée ses ports elle-même." = "loopMIDI links FL Shortcuts to FL, for Organize and FL actions. On an up-to-date Windows 11 25H2, the app creates its ports itself.";
 "Page Macros : « Macro vide » ou « Modèles »." = "Macros page: “Empty macro” or “Templates”.";
 "Remontre le clic du bloc marqué : « Montrer dans FL… »." = "Show the marked block's click again: “Show in FL…”.";
 "Le message dit le bloc. Remontre son endroit ou ajoute « Attendre »." = "The message names the block. Show its spot again or add “Wait”.";

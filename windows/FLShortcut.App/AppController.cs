@@ -72,6 +72,9 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
 
     public void Start()
     {
+        // Windows 11 25H2 à jour : les deux ports du lien créés par Windows (sans loopMIDI), en arrière-plan, pour que
+        // FL les voie comme ceux de loopMIDI. Ailleurs : rien (loopMIDI).
+        Task.Run(MidiServicesPorts.EnsureIfNeeded);
         if (!Light) _midi.Start();          // mode léger : aucun port MIDI ouvert, rien dans FL
         _hook.Start();
         RefreshAll();
@@ -602,5 +605,6 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         _macros.SaveNow();
         _hook.Dispose();
         _midi.Dispose();
+        MidiServicesPorts.RemoveCreated();
     }
 }

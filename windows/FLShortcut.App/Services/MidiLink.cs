@@ -4,7 +4,8 @@
 //         rouverts paresseusement). Contrat : PROTOCOL.md v2.
 //
 // Ports (WinMM) : l'appli écrit sur la sortie « FL Shortcuts » (lue par FL) et lit l'entrée « FL Shortcuts Retour »
-// (écrite par FL). Ces deux ports de bouclage sont créés par loopMIDI ou par Windows MIDI Services. Toute la logique
+// (écrite par FL). Ces deux ports de bouclage sont créés par loopMIDI ou par Windows MIDI Services (MidiServicesPorts :
+// Windows 11 25H2 à jour, l'appli les crée elle-même). Toute la logique
 // du lien (HELLO, battements, accusés, réponses signées, réveil du script, commandes de l'Organiser) est celle du cœur,
 // LinkCore, la même que sur le Mac ; ici, seulement les ports WinMM.
 using FLShortcut.App.Native;
@@ -73,7 +74,7 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
     /// (`brief` : mode léger, il se rendort ensuite), actions dans l'ordre. null si FL les a faites, sinon la raison.
     public string? RunBriefly(IReadOnlyList<int> ids, bool brief)
     {
-        if (!HasKey || !(PortsPresent || PortsExist())) return Loc.T("lien avec FL non installé");
+        if (!HasKey || !(PortsPresent || PortsReady())) return Loc.T("lien avec FL non installé");
         Start();
         lock (_gate)
         {
@@ -86,7 +87,7 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
     /// script réveillé si besoin (`brief` : il se rendort ensuite).
     public DataReply RunData(IReadOnlyList<byte> units, bool brief)
     {
-        if (!HasKey || !(PortsPresent || PortsExist())) return new DataReply.Failed(Loc.T("lien avec FL non installé"));
+        if (!HasKey || !(PortsPresent || PortsReady())) return new DataReply.Failed(Loc.T("lien avec FL non installé"));
         Start();
         lock (_gate)
         {
@@ -98,6 +99,7 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
     /// Opération de l'Organiser (PROTOCOL.md §8), bloquante : ports ouverts à la demande, script réveillé si besoin.
     public RequestReply RunRequest(byte[] bytes, bool brief)
     {
+        PortsReady();
         Start();
         lock (_gate)
         {
@@ -250,6 +252,9 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
         }
         return null;
     }
+
+    /// Les deux ports sont là, ou Windows vient de les créer (Windows MIDI Services, sans loopMIDI).
+    public static bool PortsReady() => PortsExist() || MidiServicesPorts.EnsureIfNeeded();
 
     /// Les deux ports existent-ils ? (pour l'écran « Préparer la connexion »)
     public static bool PortsExist() => (FindOut(ToFlPortName) ?? FindOut(OldToFlPortName)) is not null

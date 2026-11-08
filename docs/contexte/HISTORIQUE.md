@@ -879,3 +879,6 @@ entrée 1 ≈ 0,5 s.
 - 08/11 : listes déroulantes au style suisse (Mac : liste à nous sous la case ; Windows : ComboBox restylée) ;
   « Nouveau pattern + Piano Roll » déjà dans le Piano roll : F7 le refermait → par le lien s'il est installé ;
   LISEZMOI raccourci (merci seul au début, plus de barre ni de thèmes, Commencer pile sous le trait).
+- 08/11 (2) : LISEZMOI selon ses retours ligne par ligne + anglais écrit à part ; Windows MIDI Services : les deux
+  ports du lien créés par Windows 11 25H2 à jour (Basic Loopback transitoires), loopMIDI sinon. Correction : c'est
+  25H2, pas 24H2 (24H2 n'aura pas l'API, d'après les notes de Microsoft).

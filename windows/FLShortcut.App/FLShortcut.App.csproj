@@ -61,6 +61,20 @@
     <ProjectReference Include="..\FLShortcut.Core\FLShortcut.Core.csproj" />
   </ItemGroup>
 
+  <!-- Windows MIDI Services (08/11) : sur Windows 11 25H2 à jour, l'appli crée elle-même ses deux ports MIDI, sans
+       loopMIDI (Services/MidiServicesPorts.cs). L'API n'est pas encore dans le SDK Windows : ses métadonnées
+       (ThirdParty/WindowsMidiServices, MIT) donnent une projection C# (CsWinRT), générée seulement sous Windows, où son
+       outil existe ; ailleurs (compilation de contrôle sous Linux), le code dit « indisponible » (MIDI_SERVICES). -->
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
+    <DefineConstants>$(DefineConstants);MIDI_SERVICES</DefineConstants>
+    <CsWinRTIncludes>Windows.Devices.Midi2</CsWinRTIncludes>
+    <CsWinRTWindowsMetadata>10.0.26100.0</CsWinRTWindowsMetadata>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
+    <PackageReference Include="Microsoft.Windows.CsWinRT" Version="2.2.0" />
+    <CsWinRTInputs Include="..\ThirdParty\WindowsMidiServices\Windows.Devices.Midi2.winmd" />
+  </ItemGroup>
+
   <!-- L'IA intégrée de l'Organiser (YAMNet + têtes apprises), à côté de l'exécutable (ClasseurSons.Partage). -->
   <ItemGroup>
     <None Include="..\..\ia\modele\classeur_sons.onnx" Link="classeur_sons.onnx" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
