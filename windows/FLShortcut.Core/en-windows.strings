@@ -374,3 +374,6 @@
 "loopMIDI installé : l'app crée « FL Shortcuts » et « FL Shortcuts Retour » elle-même." = "With loopMIDI installed, the app creates “FL Shortcuts” and “FL Shortcuts Retour” itself.";
 "Installe loopMIDI : l'app crée ensuite elle-même les ports qui la relient à FL, pour l'Organiser et les actions de FL." = "Install loopMIDI: the app then creates the ports that link it to FL, for Organize and FL actions.";
 "FL passe devant : clique et tape ta suite, puis reviens ici." = "FL comes to the front: click and type your sequence, then come back here.";
+"Installer loopMIDI" = "Install loopMIDI";
+"Ports MIDI" = "MIDI ports";
+"Pour relier FL Shortcuts à FL." = "To link FL Shortcuts to FL.";

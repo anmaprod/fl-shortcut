@@ -153,6 +153,42 @@ internal sealed partial class MainShell
         };
     }
 
+    /// Ligne de la carte d'accueil (comme le Mac) : le nom en gras, une phrase grise dessous, l'état à droite.
+    private static Grid WelcomeRow(string title, string text, UIElement state)
+    {
+        var row = new Grid { ColumnSpacing = 16, MinHeight = 58, Padding = new Thickness(0, 8, 0, 8) };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var words = new StackPanel { Spacing = 3, VerticalAlignment = VerticalAlignment.Center };
+        words.Children.Add(Label(title, 16, Text, bold: true));
+        words.Children.Add(Paragraph(text, 12, Secondary));
+        row.Children.Add(words);
+        Grid.SetColumn((FrameworkElement)state, 1);
+        row.Children.Add(state);
+        return row;
+    }
+
+    /// État fait (comme « AUTORISÉ » du Mac) : petites capitales à l'encre, sans cadre.
+    private static TextBlock Done(string text)
+    {
+        var label = SwissLabel(text, 11, Text);
+        label.VerticalAlignment = VerticalAlignment.Center;
+        return label;
+    }
+
+    /// État à faire (comme « À AUTORISER » du Mac) : un bouton bordé de rouge qui le fait, rouge plein au survol.
+    private static Button ToDo(string text, Action click)
+    {
+        var label = SwissLabel(text, 11, Red);
+        var face = new Border { Child = label, Padding = new Thickness(12, 6, 12, 6), BorderBrush = Brush(Red), BorderThickness = new Thickness(1.5) };
+        var button = new Button { Style = PlainButton, Content = face, VerticalAlignment = VerticalAlignment.Center };
+        button.PointerEntered += (_, _) => { face.Background = Brush(Red); label.Foreground = Brush(MacLook.OnRed); };
+        button.PointerExited += (_, _) => { face.Background = Brush(Colors.Transparent); label.Foreground = Brush(Red); };
+        button.Click += (_, _) => click();
+        AutomationProperties.SetName(button, text);
+        return button;
+    }
+
     /// Numéro d'étape dans une pastille ; coche verte une fois faite (StepBadge du Mac).
     private static Border StepBadge(int number, bool done) => new()
     {
@@ -190,34 +226,23 @@ internal sealed partial class MainShell
         _welcomeContent.Children.Clear();
         _welcomeContent.Children.Add(WelcomeHead());
 
-        var row = new Grid { ColumnSpacing = 12, MinHeight = 64 };
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var text = new StackPanel { Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
-        text.Children.Add(Label(Loc.T("Ports MIDI « FL Shortcuts »"), 18, Text, bold: true));
-        text.Children.Add(Paragraph(ok
-            ? (exist && !MidiServicesPorts.CreatedByWindows ? Loc.T("Prêts : « FL Shortcuts » et « FL Shortcuts Retour ».")
-                                                             : Loc.T("Prêts : l'app crée les ports elle-même."))
-            : Loc.T("Installe loopMIDI. L'app crée ensuite les ports elle-même."), 12));
-        if (!ok)
-        {
-            // Un vrai bouton (08/11) : la page de téléchargement de loopMIDI dans le navigateur.
-            var download = Soft(Loc.T("Télécharger loopMIDI"), () =>
+        // Comme l'accueil du Mac (08/11, « la page d'installation n'est pas du tout pareille ») : une carte à lignes
+        // « nom, phrase grise » avec l'état à droite (fait : petites capitales ; à faire : bouton bordé de rouge qui
+        // le fait), puis un grand « Continuer ».
+        var rows = new StackPanel();
+        rows.Children.Add(WelcomeRow(Loc.T("Clavier"), Loc.T("Pour tes raccourcis dans FL."), Done(Loc.T("Autorisé"))));
+        rows.Children.Add(Rule(Faint));
+        UIElement portsState = ok
+            ? Done(Loc.T("Prêts"))
+            : ToDo(Loc.T("Installer loopMIDI"), () =>
             {
+                // La page de téléchargement de loopMIDI dans le navigateur (gratuit) ; l'app crée ensuite les ports.
                 try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(LoopMidiPage) { UseShellExecute = true }); }
                 catch (Exception e) { AppLog.Write("STATUS", "page loopMIDI non ouverte (" + e.GetType().Name + ")"); }
             });
-            download.HorizontalAlignment = HorizontalAlignment.Left;
-            download.Margin = new Thickness(0, 4, 0, 0);
-            text.Children.Add(download);
-        }
-        row.Children.Add(text);
-        var state = State(ok ? Loc.T("Prêts") : light ? Loc.T("À installer") : Loc.T("En attente…"), ok ? Green : Orange);
-        Grid.SetColumn(state, 1);
-        row.Children.Add(state);
-        _welcomeContent.Children.Add(WelcomeCard(row));
-
-        _welcomeContent.Children.Add(Paragraph(Loc.T("Tes touches ne sont lues que dans FL. Rien n'est gardé."), 12));
+        rows.Children.Add(WelcomeRow(Loc.T("Ports MIDI"), ok ? Loc.T("Pour relier FL Shortcuts à FL.")
+                                                             : Loc.T("Installe loopMIDI. L'app crée ensuite les ports elle-même."), portsState));
+        _welcomeContent.Children.Add(WelcomeCard(rows));
 
         // Mode léger : loopMIDI ne sert qu'à l'Organiser et aux actions de FL ; on peut continuer sans lui.
         var next = Primary(ok || light ? Loc.T("Continuer") : Loc.T("Crée d'abord les deux ports MIDI"), () =>
@@ -235,6 +260,9 @@ internal sealed partial class MainShell
         next.IsEnabled = ok || light;
         next.Opacity = ok || light ? 1 : 0.45;
         next.HorizontalAlignment = HorizontalAlignment.Right;
+        next.MinWidth = 260;
+        next.MinHeight = 44;
+        next.Margin = new Thickness(0, 24, 0, 0);
         _welcomeContent.Children.Add(next);
         AddBackLink();
     }
