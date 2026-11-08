@@ -423,6 +423,8 @@
   réglage `LoopMidiAsked` ; sautée si les ports sont déjà là) ; photo CI `accueil-loopmidi.png` (`ShowPage("accueil")`,
   le mode photos sinon toujours sur les pages : `_photoPages`). LISEZMOI Windows : loopMIDI dans « installe », étape 02
   « Ouvre loopMIDI ». Mac : rien (pas de loopMIDI).
+- Organiser, écran « Démarrer » (08/11, réponse « carré orange ») : un carré plein #FF3B1F devant « Ne touche pas à FL
+  jusqu'à la fin. », à la place de l'ancienne baguette ; Windows (pas d'écran Démarrer) : devant « Préparation… ».
 - **Retours du 06/11** (long message + maquette HTML papier/orange) : effet Gumroad SEULEMENT au survol, dans les 3
   thèmes (`gumroadLift` : soulevé en haut à gauche sur son ombre nette `Swiss.primaryLift`, rouge, noire sous Orange) :
   boutons principaux pleins au repos sans ombre (Partager…), « Enregistrer » du créateur, bouton de l'Organiser, 3

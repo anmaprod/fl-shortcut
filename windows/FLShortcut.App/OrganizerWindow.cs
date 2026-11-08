@@ -296,7 +296,9 @@ internal sealed class OrganizerWindow : Window
         switch (_controller.Phase)
         {
             case OrganizerPhase.Starting:
-                Working(Loc.T("Préparation…"));
+                // 08/11, comme le Mac (écran « Démarrer ») : un carré orange plein à la place de l'ancienne baguette.
+                _content.Children.Add(Card(Row(new Rectangle { Width = 14, Height = 14, Fill = Brush(BrandRed) },
+                                               Label(Loc.T("Préparation…"), 13, Text))));
                 break;
             case OrganizerPhase.Setup:
                 Setup();

@@ -1988,13 +1988,20 @@ struct OrganizerView: View {
         VStack(alignment: .leading, spacing: 14) {
             // 07/11 : plus « Organiser ton projet » ni les deux traits gris ; la consigne seule, en grand (« c'est
             // vraiment important »), sous le trait blanc du titre.
-            Text(String(localized: "Ne touche pas à FL jusqu'à la fin."))
-                .font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
-                .foregroundStyle(Swiss.text)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 10)
-                .morphIn(1)
+            // 08/11 : à la place de l'ancienne baguette, un carré orange plein (choix du propriétaire).
+            HStack(alignment: .center, spacing: 14) {
+                Rectangle()
+                    .fill(Swiss.brandRed)
+                    .frame(width: 16, height: 16)
+                    .accessibilityHidden(true)
+                Text(String(localized: "Ne touche pas à FL jusqu'à la fin."))
+                    .font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
+                    .foregroundStyle(Swiss.text)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.vertical, 10)
+            .morphIn(1)
             HStack(spacing: 12) {
                 Spacer()
                 Button(String(localized: "Fermer")) { controller.close() }
