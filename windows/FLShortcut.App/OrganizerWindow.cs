@@ -407,7 +407,7 @@ internal sealed class OrganizerWindow : Window
 
     private static (string Icon, string Title, string Detail) WaitText(OrganizerWait reason) => reason switch
     {
-        OrganizerWait.RestartFl => ("arrow.clockwise", Loc.T("Quitte et rouvre FL"), ""),
+        OrganizerWait.RestartFl => ("arrow.clockwise", Loc.T("Quitte et rouvre FL"), Loc.T("FL voit le lien seulement à son ouverture.")),
         OrganizerWait.NoResponse => ("antenna.radiowaves.left.and.right", Loc.T("En attente de FL Studio"),
             Loc.T("FL ne répond pas encore. Vérifie MIDI Settings ci-dessous.")),
         OrganizerWait.WrongInput => ("link", Loc.T("Le lien est sur la mauvaise entrée"),

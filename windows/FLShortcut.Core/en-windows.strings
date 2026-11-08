@@ -380,3 +380,8 @@
 "Rien à faire dans loopMIDI : l'app crée les ports." = "Nothing to do in loopMIDI: the app creates the ports.";
 "Installe loopMIDI, puis ferme-le : rien à faire dedans." = "Install loopMIDI, then close it: nothing to do in it.";
 "Installe loopMIDI, puis ferme-le : rien à faire dedans. L'app crée elle-même les ports qui la relient à FL." = "Install loopMIDI, then close it: nothing to do in it. The app creates the ports that link it to FL by itself.";
+"Relance FL Studio : il voit le lien seulement à son ouverture." = "Restart FL Studio: it only sees the link when it opens.";
+"Relance FL Studio : il voit les ports seulement à son ouverture." = "Restart FL Studio: it only sees the ports when it opens.";
+"FL voit le lien seulement à son ouverture." = "FL only sees the link when it opens.";
+"FL ne répond pas au lien" = "FL doesn't answer the link";
+"Quitte et rouvre FL : il voit le lien seulement à son ouverture. Puis MIDI Settings : Controller type « FL Shortcuts », même Port pour « FL Shortcuts Retour »." = "Quit and reopen FL: it only sees the link when it opens. Then MIDI Settings: Controller type “FL Shortcuts”, same Port for “FL Shortcuts Retour”.";

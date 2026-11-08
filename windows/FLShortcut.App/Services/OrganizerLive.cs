@@ -132,11 +132,21 @@ internal static class OrganizerLive
 
     /// Lien installé : script remis dans FL s'il en a disparu (FL le relira à son prochain lancement), lien tenu par
     /// l'Organiser jusqu'à la fin du rangement ou sa fermeture (le temps que FL voie le script : 2 secondes la première
-    /// fois).
+    /// fois). FL ouvert avant les ports de l'appli : il ne les voit pas, « Quitte et rouvre FL » (08/11 au soir).
+    private static bool _flBeforePortsLogged;
+
     private static OrganizerLinkState PrepareLink(AppController app)
     {
         if (!app.Midi.HasKey) return new OrganizerLinkState.NotInstalled();
         if (app.RepairScriptIfMissing()) return new OrganizerLinkState.Restored();
+        MidiLink.PortsReady();
+        var before = MidiServicesPorts.FlOpenedBefore();
+        if (before != _flBeforePortsLogged)
+        {
+            _flBeforePortsLogged = before;                   // une ligne par changement, pas toutes les 2 s
+            if (before) AppLog.Write("MIDI", "FL opened before the ports: restart asked");
+        }
+        if (before) return new OrganizerLinkState.Restored();
         var fresh = app.Midi.Use(LinkUser.Organizer);
         return new OrganizerLinkState.Ready(fresh ? 2 : 0);
     }
@@ -265,6 +275,7 @@ internal static class OrganizerLive
         var hello = app.Midi.Hello;
         return $"app {AppVersion()} · Windows {Environment.OSVersion.Version} · FL {fl?.Version?.ToString() ?? "?"} "
                + $"· API {hello?.ApiVersion.ToString() ?? "?"} · lien {(hello is null ? "muet" : "ok")} · ports {(MidiLink.PortsExist() ? "oui" : "non")} "
+               + $"({MidiServicesPorts.Source()}{(MidiServicesPorts.FlOpenedBefore() ? ", FL ouvert avant" : "")}) "
                + $"· léger={(app.Light ? "oui" : "non")} · admin={(fl?.Elevated == true ? "oui" : "non")} "
                + $"· signé={(fl is null ? "?" : fl.Signed ? "oui" : "non")}";
     }

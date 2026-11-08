@@ -29,4 +29,12 @@ public static class LinkWatch
         if (gone && organizerGoneFor is { } g && g >= OrganizerGrace) release.Add(LinkUser.Organizer);
         return new Verdict(release, holders.Count == 0 && activeBorrows == 0, gone);
     }
+
+    /// Windows (08/11 au soir, « ports oui · lien muet ») : FL ne voit un port MIDI que s'il existait à son ouverture.
+    /// FL ouvert plus de `PortsSeenAfter` s avant que l'appli crée les ports : il faut le relancer. Heure illisible :
+    /// on ne demande rien.
+    public const double PortsSeenAfter = 2;
+
+    public static bool FlOpenedBeforePorts(DateTime? flStartUtc, DateTime portsCreatedUtc) =>
+        flStartUtc is { } start && start < portsCreatedUtc - TimeSpan.FromSeconds(PortsSeenAfter);
 }

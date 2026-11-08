@@ -75,12 +75,13 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
 
     public void Start()
     {
-        // Windows 11 25H2 à jour : les deux ports du lien créés par Windows (sans loopMIDI). Mode léger (08/11, « FL
-        // rame ») : seulement quand le lien sert (MidiLink.Use), ici on regarde juste si Windows sait les créer.
+        // Les deux ports du lien créés dès le lancement (Windows MIDI Services, sinon le pilote de loopMIDI) et gardés
+        // jusqu'à la sortie : sous Windows, FL ne voit un port MIDI que s'il existait à son ouverture (08/11 au soir,
+        // « ports oui · lien muet »). Le lien, lui, ne s'ouvre que quand il sert (mode léger, MidiLink.Use).
         Task.Run(() =>
         {
             MidiServicesPorts.CheckAvailable();
-            if (!Light) MidiServicesPorts.EnsureIfNeeded();
+            MidiServicesPorts.EnsureIfNeeded();
         });
         if (!Light) _midi.Start();          // mode léger : aucun port MIDI ouvert, rien dans FL
         _hook.Start();

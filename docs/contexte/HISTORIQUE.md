@@ -925,4 +925,12 @@ entrée 1 ≈ 0,5 s.
   longueur) ; l'appli Windows ne renvoyait pas sans le compte quand le jeton était refusé, et un échec du presse-papiers
   pouvait la faire tomber. Ports créés par l'appli via le pilote de loopMIDI. Pages Windows alignées sur les photos du
   Mac (CI e88f658). Antivirus : pas de solution sans certificat ; la CI signe dès qu'un certificat est fourni.
+- 08/11 (11) : « ça ne fonctionne toujours pas le midi dans windows » (diagnostic : Windows 11 23H2, FL 26.1.4,
+  `ports oui · lien muet · étape=attente-noResponse`). Cause : depuis le matin, les ports n'étaient créés que le temps
+  du lien (comme le Mac, pour « FL rame »). Sous Windows, FL ne lit ses appareils MIDI qu'à son ouverture (manuel
+  d'Image-Line : « Refresh device list » pour un appareil arrivé après ; forums : un appareil retiré peut le faire
+  tomber) : il ne voyait jamais les ports. Maintenant : ports créés au lancement de l'appli et gardés jusqu'à sa sortie,
+  lien (messages) toujours seulement quand il sert ; FL ouvert avant les ports → « Quitte et rouvre FL » (Organiser,
+  bouton), « Relance FL Studio » (macros, accueil). Diagnostic : qui a fait les ports et « FL ouvert avant ». Pas
+  encore vu sur un PC.
 

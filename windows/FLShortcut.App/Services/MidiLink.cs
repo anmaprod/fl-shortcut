@@ -78,6 +78,7 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
         return Borrow(() =>
         {
             if (!(PortsPresent || PortsReady())) return Loc.T("lien avec FL non installé");
+            if (MidiServicesPorts.FlOpenedBefore()) return RestartFlReason;
             OpenNow();
             return Core.RunBriefly(ids, brief);
         });
@@ -91,6 +92,7 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
         return Borrow<DataReply>(() =>
         {
             if (!(PortsPresent || PortsReady())) return new DataReply.Failed(Loc.T("lien avec FL non installé"));
+            if (MidiServicesPorts.FlOpenedBefore()) return new DataReply.Failed(RestartFlReason);
             OpenNow();
             return Core.RunData(units, brief);
         });
@@ -105,6 +107,9 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
         OpenNow();
         return Core.RunRequest(bytes, brief, TimeSpan.FromSeconds(1.5));
     }
+
+    /// FL ouvert avant les ports de l'appli : il ne les voit qu'après un redémarrage (Windows).
+    public static string RestartFlReason => Loc.T("Relance FL Studio : il voit le lien seulement à son ouverture.");
 
     private void OpenNow()
     {
@@ -122,8 +127,8 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
     // ouvert jusqu'à la fermeture de l'appli (PING toutes les 6 à 60 s : le script de FL se réveillait sans cesse).
     // Maintenant : ouvert par l'Organiser (de « Démarrer » à la fin du rangement) ou le temps d'un bloc de macro,
     // fermé à la fin de la macro (ou 3 s après son dernier bloc), et le surveillant ferme ce que personne ne tient.
-    // Ports créés par Windows MIDI Services : retirés aussi (FL ne voit plus l'appareil, comme le Mac) ; ceux de
-    // loopMIDI sont à loopMIDI, l'appli ne leur parle plus.
+    // Les ports eux-mêmes restent jusqu'à la sortie de l'appli (08/11 au soir : FL, sous Windows, ne voit un port qu'à
+    // son ouverture) ; lien fermé = plus aucun message dedans, le script de FL se rendort.
 
     private readonly HashSet<LinkUser> _users = new();
     private int _macroGeneration;
@@ -191,7 +196,7 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
         try
         {
             Use(LinkUser.Macro, out var portsNew);
-            if (portsNew) WarmUp();
+            if (portsNew && !MidiServicesPorts.FlOpenedBefore()) WarmUp();
             return body();
         }
         finally
@@ -237,7 +242,7 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
         _organizerGoneSince = null;
         var since = _openedAt;
         _openedAt = null;
-        MidiServicesPorts.RemoveCreated();
+        // Les ports restent (MidiServicesPorts : FL ne voit un port qu'à son ouverture) ; plus rien ne passe dedans.
         if (had)
         {
             var seconds = since is { } d ? $" after {(DateTime.UtcNow - d).TotalSeconds:0.0} s" : "";

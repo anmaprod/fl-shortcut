@@ -371,6 +371,16 @@
   Accueil Windows comme le Mac (carte Clavier « Autorisé » / Ports MIDI « Prêts » ou « Installer loopMIDI » bordé de
   rouge, grand Continuer) ; consigne partout : « Installe loopMIDI, puis ferme-le : rien à faire dedans » (« dans
   loopMIDI après on sait pas quoi faire »).
+  08/11 au soir (diagnostic d'un ami : `ports oui · lien muet · étape=attente-noResponse`) : sous Windows, FL ne voit
+  un port MIDI que s'il existait à SON OUVERTURE (manuel d'Image-Line, « Refresh device list » sinon ; un appareil qui
+  disparaît peut le faire tomber) → ports créés AU LANCEMENT de l'appli (`AppController.Start`, aussi dès que loopMIDI
+  vient d'être installé) et gardés jusqu'à sa sortie (`MidiServicesPorts.RemoveCreated` seulement à la sortie) ; le
+  LIEN reste ouvert seulement quand il sert (script de FL endormi sinon, `_idle` rend la main tout de suite). FL ouvert
+  avant les ports (`LinkWatch.FlOpenedBeforePorts`, heure d'ouverture du processus de FL, 2 s de marge) : Organiser
+  → « Quitte et rouvre FL » + bouton (`OrganizerLinkState.Restored`), bloc de macro → « Relance FL Studio… »
+  (`MidiLink.RestartFlReason`), accueil → même phrase ; diagnostic `ports oui (app|Windows|loopMIDI, FL ouvert
+  avant)` ; aide « FL ne répond pas au lien » (n° 16) ; mode d'emploi « Ouvre FL Shortcuts, puis FL Studio ». Mac :
+  rien à changer (FL voit l'appareil arriver ; NE PAS y remettre les ports permanents).
   Pas encore vu sur un PC.
 - **Avertissements au style suisse** (08/11, « pas avec un logo, un emoji d'attention… un point orange ») : un carré
   plein #FF3B1F (blanc sous Orange) devant le texte, le texte à l'encre ; plus aucun triangle, cercle « ! » ni octogone
@@ -641,8 +651,8 @@
   sont ouverts (`LinkWatch` : bloc en cours ou fini depuis < 5 s, Organiser qui le tient — `holdsLink`, 4 s de grâce
   après sa fermeture ; sinon ports retirés, journal « watchdog », durée « after N s »). Windows avait le vrai bug : le
   lien restait ouvert jusqu'à la fermeture de l'appli après la 1re macro ou l'Organiser (PING sans fin) → même règle
-  (`MidiLink.Use/Release`), ports de Windows MIDI Services créés au besoin puis retirés (`MidiServicesPorts.Available`
-  au lancement, rien créé).
+  (`MidiLink.Use/Release`) ; ports eux-mêmes créés au lancement et gardés (voir « Windows chez des amis » : FL ne
+  voit un port qu'à son ouverture sous Windows).
 - Organiser, « Installer le lien » (31/10, « ça se ferme ») : FL remis devant (⌘Q quittait FL Shortcuts, activé par
   l'installation), la fenêtre attend que FL soit quitté puis rouvert (« Ouvrir FL Studio » s'il est fermé), puis
   l'image MIDI Settings des 4 cases (`.midiSettings`, image du README) tant que FL ne répond pas ; « Copier le

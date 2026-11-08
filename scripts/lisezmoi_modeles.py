@@ -401,7 +401,7 @@ win = {
                     "<li>Ton antivirus râle ? Autorise FL Shortcuts : il n'y a aucun virus.</li>"
                     "<li>Installe aussi <b>loopMIDI</b>, puis ferme-le : rien à faire dedans.</li>",
         "debut_titre": "deux ports midi",
-        "debut": "<li>Ouvre <b>FL Shortcuts</b>.</li><li>Les ports MIDI se créent tout seuls.</li>",
+        "debut": "<li>Ouvre <b>FL Shortcuts</b>, puis FL Studio.</li><li>Les ports MIDI se créent tout seuls.</li>",
         "debut_panel": accueil("loopMIDI", [("FL Shortcuts", OK.format("Prêt")), ("FL Shortcuts Retour", OK.format("Prêt"))]),
         "espace": "Espace", "ctrl": "Ctrl", "alt": "Alt", "shift": "Maj", "meta": "Win",
     },
@@ -411,7 +411,7 @@ win = {
                     "<li>Antivirus complaining? Allow FL Shortcuts: there is no virus.</li>"
                     "<li>Also install <b>loopMIDI</b>, then close it: nothing to do in it.</li>",
         "debut_titre": "two midi ports",
-        "debut": "<li>Open <b>FL Shortcuts</b>.</li><li>The MIDI ports create themselves.</li>",
+        "debut": "<li>Open <b>FL Shortcuts</b>, then FL Studio.</li><li>The MIDI ports create themselves.</li>",
         "debut_panel": accueil("loopMIDI", [("FL Shortcuts", OK.format("Ready")), ("FL Shortcuts Retour", OK.format("Ready"))]),
         "espace": "Space", "ctrl": "Ctrl", "alt": "Alt", "shift": "Shift", "meta": "Win",
     },

@@ -1,14 +1,18 @@
 // Ports MIDI créés par Windows (08/11, « on peut bosser sur ça ? ») : sur Windows 11 25H2 à jour (Windows MIDI Services,
 // arrivé avec la mise à jour de novembre 2026), l'appli crée elle-même les deux ports du lien, « FL Shortcuts » et
 // « FL Shortcuts Retour », comme loopMIDI les créait : des ports « boucle » de MIDI 1.0 (Basic Loopback) que FL voit
-// dans MIDI Settings. Rien d'autre à installer. MidiLink les ouvre par WinMM, comme ceux de loopMIDI.
+// dans MIDI Settings. Sinon, le pilote installé avec loopMIDI (VirtualMidiPorts). MidiLink les ouvre par WinMM.
 //
-// Ports « transitoires », créés seulement quand le lien sert (Organiser, bloc de macro : MidiLink.Use) et retirés dès
-// qu'il ne sert plus (08/11, « FL rame ») ; l'appli les retire aussi en quittant. Si elle est tuée avant, ils restent
-// jusqu'au redémarrage du service : la création suivante est refusée (même identifiant) mais les ports sont là.
+// Ports créés AU LANCEMENT de l'appli et gardés jusqu'à ce qu'elle quitte (08/11 au soir, diagnostic d'un ami :
+// « ports oui · lien muet ») : sous Windows, FL ne voit un port MIDI que s'il existait à son ouverture (manuel
+// d'Image-Line : « Refresh device list » pour un appareil arrivé après) et un appareil qui disparaît pendant que FL
+// tourne peut le faire tomber. Créés seulement le temps du lien (comme sur le Mac, où FL les voit arriver), FL ne les
+// voyait jamais. Rien ne passe dedans hors d'une action (le script de FL dort jusqu'au premier PING) : le lien, lui,
+// reste ouvert seulement quand il sert (MidiLink.Use). FL ouvert AVANT les ports : il faut le relancer
+// (`FlOpenedBefore`, l'Organiser le demande avec « Quitter et rouvrir FL »).
 //
-// Windows plus ancien, service absent, loopMIDI déjà là : rien n'est créé, l'appli garde loopMIDI (écran « Télécharger
-// loopMIDI » de l'Organiser). Jamais d'exception vers l'appelant. Journal : MIDI (mots fixes, codes d'erreur).
+// Windows plus ancien, service absent, loopMIDI déjà là : rien n'est créé par Windows. Jamais d'exception vers
+// l'appelant. Journal : MIDI (mots fixes, codes d'erreur).
 using FLShortcut.Core;
 #if MIDI_SERVICES
 using Windows.Devices.Midi2;
@@ -26,10 +30,14 @@ internal static class MidiServicesPorts
     private static readonly object Gate = new();
     private static readonly List<Guid> Created = new();
     private static DateTime _lastFailure = DateTime.MinValue;
+    private static bool _failedWithDriver;
     private static bool? _available;
+    private static DateTime? _createdAt;
+    private sealed record FlStartTime(uint Pid, DateTime? Start);
+    private static FlStartTime? _flStart;          // remplacé d'un coup (lu sans verrou)
 
-    /// Windows sait créer les ports lui-même (25H2 à jour) : rien à installer, ils apparaissent quand le lien sert
-    /// (08/11 : jamais en permanence, FL ramait). Faux tant que `CheckAvailable` n'a pas répondu.
+    /// L'appli sait créer les ports elle-même (Windows 25H2 à jour, ou pilote de loopMIDI installé) : créés au
+    /// lancement. Faux tant que `CheckAvailable` n'a pas répondu (sauf pilote de loopMIDI).
     public static bool Available => _available == true || VirtualMidiPorts.DriverInstalled;
 
     /// Le service MIDI de Windows et ses ports « boucle » sont-ils là ? Bloquant (jusqu'à ~3 s) : en tâche de fond, au
@@ -59,16 +67,60 @@ internal static class MidiServicesPorts
         get { lock (Gate) return Created.Count > 0 || VirtualMidiPorts.Created; }
     }
 
+    /// Qui a fait les ports, pour le diagnostic : « app » (pilote de loopMIDI), « Windows » (MIDI Services),
+    /// « loopMIDI » (déjà là : loopMIDI ouvert), « non ».
+    public static string Source()
+    {
+        lock (Gate)
+        {
+            if (VirtualMidiPorts.Created) return "app";
+            if (Created.Count > 0) return "Windows";
+        }
+        return MidiLink.PortsExist() ? "loopMIDI" : "non";
+    }
+
+    /// FL a été ouvert avant que l'appli crée les ports : il ne les voit pas tant qu'il n'est pas relancé (Windows).
+    /// Faux si les ports ne sont pas de l'appli, si FL est fermé ou si son heure d'ouverture est illisible.
+    public static bool FlOpenedBefore()
+    {
+        DateTime created;
+        lock (Gate)
+        {
+            if (_createdAt is not { } c) return false;
+            created = c;
+        }
+        if (FlPresence.RunningInstance() is not { } fl) return false;
+        return LinkWatch.FlOpenedBeforePorts(FlStart(fl.Pid), created);
+    }
+
+    /// Heure d'ouverture de FL (gardée pour ce processus) ; null si Windows ne la donne pas.
+    private static DateTime? FlStart(uint pid)
+    {
+        if (Volatile.Read(ref _flStart) is { } known && known.Pid == pid) return known.Start;
+        DateTime? start = null;
+        try
+        {
+            using var process = System.Diagnostics.Process.GetProcessById((int)pid);
+            start = process.StartTime.ToUniversalTime();
+        }
+        catch (Exception e) when (e is ArgumentException or InvalidOperationException
+                                       or System.ComponentModel.Win32Exception or NotSupportedException) { }
+        Volatile.Write(ref _flStart, new FlStartTime(pid, start));
+        return start;
+    }
+
     /// Les deux ports manquent : Windows les crée s'il sait le faire. Vrai si les ports sont là ensuite. Bloquant
-    /// (jusqu'à ~3 s la première fois) : jamais sur le fil de l'interface. Un essai RATÉ n'est refait qu'après 60 s
-    /// (créés puis retirés après une macro : recréés tout de suite à la suivante).
+    /// (jusqu'à ~3 s la première fois) : jamais sur le fil de l'interface. Au lancement de l'appli, puis si loopMIDI
+    /// arrive après ; un essai RATÉ n'est refait qu'après 60 s.
     public static bool EnsureIfNeeded()
     {
         if (MidiLink.PortsExist()) return true;
         lock (Gate)
         {
             if (MidiLink.PortsExist()) return true;
-            if (DateTime.UtcNow - _lastFailure < TimeSpan.FromSeconds(60)) return false;
+            // loopMIDI installé depuis l'essai raté : on réessaie tout de suite.
+            var driverArrived = VirtualMidiPorts.DriverInstalled && !_failedWithDriver;
+            if (DateTime.UtcNow - _lastFailure < TimeSpan.FromSeconds(60) && !driverArrived) return false;
             var ok = false;
 #if MIDI_SERVICES
             if (_available != false)
@@ -97,12 +149,17 @@ internal static class MidiServicesPorts
                     VirtualMidiPorts.CloseAll();
                 }
             }
-            if (!ok) _lastFailure = DateTime.UtcNow;
+            if (!ok)
+            {
+                _lastFailure = DateTime.UtcNow;
+                _failedWithDriver = VirtualMidiPorts.DriverInstalled;
+            }
+            else if (CreatedByWindows) _createdAt ??= DateTime.UtcNow;
             return ok;
         }
     }
 
-    /// À la sortie de l'appli : retire les ports créés pendant ce lancement (FL les voit partir).
+    /// À la sortie de l'appli seulement : retire les ports créés pendant ce lancement (FL les voit partir).
     public static void RemoveCreated()
     {
         lock (Gate)
@@ -123,6 +180,7 @@ internal static class MidiServicesPorts
 #endif
             Created.Clear();
             VirtualMidiPorts.CloseAll();
+            _createdAt = null;
         }
     }
 

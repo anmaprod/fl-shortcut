@@ -219,8 +219,12 @@ internal sealed partial class MainShell
     {
         _onLinkStep = false;
         var exist = MidiLink.PortsExist();
-        // Windows 25H2, ou loopMIDI installé (son pilote) : l'appli crée les ports quand le lien sert.
+        // Windows 25H2, ou loopMIDI installé (son pilote) : l'appli crée les ports (au lancement, ou dès que loopMIDI
+        // vient d'être installé : FL ouvert ensuite les verra).
         var ok = exist || MidiServicesPorts.Available;
+        if (!exist && ok) Task.Run(() => MidiServicesPorts.EnsureIfNeeded());
+        // FL ouvert avant les ports : il ne les voit qu'après un redémarrage (Windows).
+        var restart = exist && MidiServicesPorts.FlOpenedBefore();
         var light = _app.Light;
         _shownPortsOk = ok;
         _welcomeContent.Children.Clear();
@@ -242,7 +246,8 @@ internal sealed partial class MainShell
             });
         // 08/11 (« il faut bien guider parce que dans loopMIDI après on sait pas quoi faire ») : rien à faire dedans,
         // c'est dit ; la ligne passe toute seule à « Prêts » dès que loopMIDI est installé.
-        rows.Children.Add(WelcomeRow(Loc.T("Ports MIDI"), ok ? Loc.T("Rien à faire dans loopMIDI : l'app crée les ports.")
+        rows.Children.Add(WelcomeRow(Loc.T("Ports MIDI"), restart ? Loc.T("Relance FL Studio : il voit les ports seulement à son ouverture.")
+                                                        : ok ? Loc.T("Rien à faire dans loopMIDI : l'app crée les ports.")
                                                              : Loc.T("Installe loopMIDI, puis ferme-le : rien à faire dedans."), portsState));
         _welcomeContent.Children.Add(WelcomeCard(rows));
 

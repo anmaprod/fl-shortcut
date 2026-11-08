@@ -455,4 +455,15 @@ public sealed class LinkWatchTests
         Assert.Equal(new[] { LinkUser.Organizer }, v.Release);
         Assert.False(v.CloseNow);
     }
+
+    /// Windows : FL ne voit un port qu'à son ouverture (08/11 au soir, diagnostic d'un ami « ports oui · lien muet »).
+    [Fact]
+    public void FlOpenedBeforeThePortsMustRestart()
+    {
+        var ports = new DateTime(2026, 11, 8, 20, 0, 0, DateTimeKind.Utc);
+        Assert.True(LinkWatch.FlOpenedBeforePorts(ports.AddMinutes(-10), ports));     // FL déjà ouvert : relancer
+        Assert.False(LinkWatch.FlOpenedBeforePorts(ports.AddSeconds(30), ports));     // ouvert après : il les voit
+        Assert.False(LinkWatch.FlOpenedBeforePorts(ports.AddSeconds(-1), ports));     // presque en même temps
+        Assert.False(LinkWatch.FlOpenedBeforePorts(null, ports));                     // heure illisible : rien
+    }
 }

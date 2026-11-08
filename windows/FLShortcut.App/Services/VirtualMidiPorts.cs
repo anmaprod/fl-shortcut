@@ -1,8 +1,9 @@
 // Ports du lien créés par l'appli elle-même avec le pilote de loopMIDI (08/11 : « tout ce qui est loopMIDI, ça ne
 // fonctionne pas… il faut trouver une solution »). loopMIDI installe le pilote teVirtualMIDI (Tobias Erichsen) ;
 // loopMIDI lui-même n'est qu'une petite fenêtre qui crée, avec ce pilote, des ports qui renvoient ce qu'ils reçoivent.
-// L'appli fait la même chose : « FL Shortcuts » et « FL Shortcuts Retour » apparaissent dans FL quand le lien sert et
-// disparaissent après, sans rien créer à la main ni garder loopMIDI ouvert. Il faut seulement avoir installé loopMIDI.
+// L'appli fait la même chose : « FL Shortcuts » et « FL Shortcuts Retour » créés au lancement de l'appli et gardés
+// jusqu'à sa sortie (FL ne voit un port qu'à son ouverture : MidiServicesPorts), sans rien créer à la main ni garder
+// loopMIDI ouvert. Il faut seulement avoir installé loopMIDI.
 //
 // Comme loopMIDI : un port teVirtualMIDI a deux côtés ; ce qu'un programme envoie au port arrive dans notre rappel,
 // qui le renvoie aussitôt de l'autre côté (virtualMIDISendData) : FL le lit comme une entrée MIDI. MidiLink ouvre ces
@@ -88,7 +89,7 @@ internal static class VirtualMidiPorts
         }
     }
 
-    /// Ports retirés (FL les voit partir).
+    /// Ports retirés, à la sortie de l'appli seulement.
     public static void CloseAll()
     {
         lock (Gate) CloseUnlocked();
