@@ -1,34 +1,45 @@
 #!/usr/bin/env python3
-# Fabrique docs/telechargement/modele-mac.html et modele-windows.html (05/11) : une page de remerciement, puis les
-# étapes, au style suisse de l'app, avec deux petits jeux (changer une touche, ranger un projet). 08/11 (« plus facile
-# à lire, vraiment bref ») : « merci » seul au début, plus de barre ni de thèmes, une à trois lignes par étape, et
-# « Commencer » arrive pile sous le trait de la première étape.
+# Fabrique les modèles des modes d'emploi du téléchargement : docs/telechargement/modele-mac.html et
+# modele-windows.html (français), modele-mac-en.html et modele-windows-en.html (anglais), au style suisse de l'app.
+# 05/11 : une page de remerciement, puis les étapes. 08/11 (« plus facile à lire, vraiment bref », puis ses retours
+# ligne par ligne) : « merci » seul au début, plus de barre en haut, une à cinq lignes courtes par étape, deux lignes
+# dans le jeu des touches, les cartes des macros toutes noires (blanches et soulevées au survol), les 4 cases de MIDI
+# Settings à droite, les thèmes de l'app qui changent toute la page (section « à ton goût »), plus de pied de page ;
+# l'anglais écrit ici, à côté du français (plus traduit morceau par morceau).
 # Usage : python3 scripts/lisezmoi_modeles.py docs/telechargement, puis python3 scripts/lisezmoi.py (images collées).
 import sys
 DOSSIER = sys.argv[1] if len(sys.argv) > 1 else "docs/telechargement"
 
 CSS = r'''
-/* Mode d'emploi du téléchargement (LISEZMOI.html, 05/11 : « une page de remerciement… un peu interactif… rapide »),
-   au style suisse de l'app : fond plein, encre, traits fins, coins carrés, gros titres en minuscules et leur point
-   carré, rouge #FF3B1F pour ce qui compte. */
-:root {
+/* Mode d'emploi du téléchargement, au style suisse de l'app : fond plein, encre, traits fins, coins carrés, gros
+   titres en minuscules et leur point carré, rouge #FF3B1F pour ce qui compte. Les trois thèmes de l'app (Noir,
+   Papier, Orange) se choisissent dans la section « à ton goût » et changent toute la page. */
+:root, :root[data-theme="noir"] {
   --bg: #000000; --ink: #FFFFFF; --gray: #8A8A8A; --line: #333333; --faint: #222222; --dot: #FF3B1F;
-  --card: #000000; --cardInk: #FFFFFF; --btnBg: #FFFFFF; --btnInk: #000000; --btnShadow: none;
+  --card: #000000; --cardInk: #FFFFFF; --btnBg: #FFFFFF; --btnInk: #000000; --btnShadow: none; --lift: #FF3B1F;
+}
+:root[data-theme="papier"] {
+  --bg: #FFFFFF; --ink: #000000; --gray: #6E6E6E; --line: #CFCFCF; --faint: #E6E6E6; --dot: #FF3B1F;
+  --card: #FFFFFF; --cardInk: #000000; --btnBg: #000000; --btnInk: #FFFFFF; --btnShadow: 6px 6px 0 #FF3B1F; --lift: #FF3B1F;
+}
+:root[data-theme="orange"] {
+  --bg: #FF3B1F; --ink: #000000; --gray: #3A0B03; --line: #A62614; --faint: #D5341B; --dot: #FFFFFF;
+  --card: #000000; --cardInk: #FFFFFF; --btnBg: #FFFFFF; --btnInk: #000000; --btnShadow: 6px 6px 0 #000000; --lift: #000000;
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
   font: 16px/1.45 "Helvetica Neue", Helvetica, Arial, sans-serif;
+  transition: background .25s, color .25s;
 }
-main { max-width: 980px; margin: 0 auto; padding: 0 16px 64px; }
+main { max-width: 980px; margin: 0 auto; padding: 0 16px 80px; }
 .label { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gray); font-weight: 700; }
 .dot { display: inline-block; width: .19em; height: .19em; background: var(--dot); margin-left: .07em; }
 h1, h2 { margin: 0; font-weight: 700; text-transform: lowercase; }
 h1 { font-size: clamp(72px, 16vw, 168px); line-height: .82; letter-spacing: -.07em; }
 h2 { font-size: clamp(40px, 7vw, 64px); line-height: .9; letter-spacing: -.06em; }
 p { margin: 0; }
-a { color: inherit; }
 kbd {
   display: inline-flex; align-items: center; min-width: 26px; height: 26px; padding: 0 7px; justify-content: center;
   border: 2px solid var(--ink); font: 700 12px "Helvetica Neue", Helvetica, Arial, sans-serif; vertical-align: middle;
@@ -40,31 +51,30 @@ kbd {
   text-decoration: none; cursor: pointer; transition: transform .12s, box-shadow .12s;
 }
 .btn:hover { transform: translate(-2px, -2px); }
-.btn.soft { background: var(--bg); color: var(--ink); box-shadow: none; }
-.btn.soft:hover { background: var(--ink); color: var(--bg); transform: none; }
 :focus-visible { outline: 3px solid var(--dot); outline-offset: 3px; }
 
-/* Merci : la première page. */
+/* Merci : la première page, seule. */
 .merci { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; gap: 28px; padding: 48px 0; }
 .merci p.lead { font-size: clamp(20px, 2.6vw, 28px); max-width: 30ch; letter-spacing: -.01em; }
 
-/* Une étape : son numéro, le titre, trois lignes au plus ; à droite, de quoi essayer. */
+/* Une étape : son numéro, le titre, quelques lignes ; à droite, ce qui aide. « Commencer » : le trait de l'étape
+   tout en haut de l'écran. */
 section.step {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; align-items: start;
-  padding: 56px 0; border-top: 1px solid var(--line);
-  scroll-margin-top: 0;          /* « Commencer » : le trait de l'étape tout en haut de l'écran, rien de caché */
+  padding: 56px 0; border-top: 1px solid var(--line); scroll-margin-top: 0;
 }
 .step .head { display: flex; flex-direction: column; gap: 14px; }
 .step .num { color: var(--dot); }
+.step .say { font-size: 17px; }
 ol.do { list-style: none; margin: 8px 0 0; padding: 0; counter-reset: n; }
 ol.do li {
   counter-increment: n; position: relative; padding: 12px 0 12px 36px;
   border-top: 1px solid var(--faint); font-size: 16px;
 }
 ol.do li::before { content: counter(n); position: absolute; left: 0; font-weight: 700; }
-.note { color: var(--gray); font-size: 14px; }
 .panel { background: var(--card); color: var(--cardInk); border: 1px solid var(--line); padding: 20px; }
 .panel .label { color: var(--gray); }
+:root[data-theme="orange"] .panel .label { color: #B4B4B4; }
 
 /* Jeu : changer une touche. */
 .row {
@@ -78,48 +88,54 @@ ol.do li::before { content: counter(n); position: absolute; left: 0; font-weight
 .row .reset { border: 0; background: none; color: inherit; font-size: 16px; font-weight: 700; cursor: pointer; visibility: hidden; }
 .row.changed .reset { visibility: visible; }
 .row .wait { font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; }
+.row.still { cursor: default; }
+.row.still:hover { background: none; color: inherit; }
 
-/* Jeu : ranger un projet. */
-.mess { display: flex; flex-direction: column; gap: 6px; min-height: 290px; }
-.sound {
-  display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 10px; border: 1px solid #333;
-  font-size: 14px; transition: transform .35s ease, opacity .35s;
-}
-.sound i { width: 12px; height: 12px; display: inline-block; }
-.family { font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; font-weight: 700; padding: 8px 0 2px; border-top: 3px solid; }
-
-/* Les trois départs d'une macro, comme l'app. */
+/* Les trois départs d'une macro, comme l'app : noirs au repos ; au survol, pleins, soulevés sur leur ombre rouge. */
 .cards { display: grid; grid-template-columns: 1fr; gap: 14px; }
 .cards div {
-  border: 1px solid var(--line); background: var(--card); color: var(--cardInk); padding: 16px; display: flex; flex-direction: column; gap: 6px;
-  transition: transform .12s, box-shadow .12s;
+  border: 1px solid var(--line); background: var(--card); color: var(--cardInk); padding: 16px;
+  display: flex; flex-direction: column; gap: 6px; transition: transform .12s, box-shadow .12s, background .12s;
 }
-.cards div:hover { transform: translate(-3px, -3px); box-shadow: 3px 3px 0 #FF3B1F; border-color: var(--ink); }
+.cards div:hover {
+  background: var(--btnBg); color: var(--btnInk); border-color: var(--btnBg);
+  transform: translate(-3px, -3px); box-shadow: 4px 4px 0 var(--lift);
+}
 .cards b { font-size: 26px; letter-spacing: -.05em; line-height: 1; text-transform: lowercase; }
 .cards small { color: var(--gray); font-size: 13px; }
 .cards .n { color: var(--gray); font-weight: 700; font-size: 13px; }
-.cards div:first-child { background: var(--btnBg); color: var(--btnInk); box-shadow: var(--btnShadow); border-color: var(--ink); }
-.cards div:first-child small, .cards div:first-child .n { color: inherit; opacity: .75; }
+.cards div:hover small { color: inherit; opacity: .7; }
+.cards div:hover .n { color: #FF3B1F; opacity: 1; }
 
 /* MIDI Settings : les 4 cases. */
-.cases { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
-.cases figure { margin: 0; border: 1px solid var(--line); background: #000; }
+.cases { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cases figure { margin: 0; border: 1px solid #333; background: #000; }
 .cases img { width: 100%; display: block; }
 .cases figcaption { font-size: 12px; padding: 6px 8px; color: #FFF; background: #000; }
-details.full { margin-top: 10px; }
+details.full { margin-top: 12px; }
 details.full summary { cursor: pointer; font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 700; }
-details.full img { width: 100%; margin-top: 10px; border: 1px solid var(--line); }
-details.full .cases { margin-top: 12px; }
+details.full img { width: 100%; margin-top: 10px; border: 1px solid #333; }
+
+/* Thèmes : trois aperçus ; un clic change toute la page. */
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.tiles button {
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink); padding: 6px; cursor: pointer; text-align: left;
+  font: 700 14px "Helvetica Neue", Helvetica, Arial, sans-serif; transition: transform .12s, box-shadow .12s;
+}
+.tiles button:hover { transform: translate(-2px, -2px); }
+.tiles button[aria-pressed="true"] { border: 2px solid var(--ink); transform: translate(-3px, -3px); box-shadow: 4px 4px 0 var(--lift); }
+.tiles .mini { height: 72px; display: flex; border: 1px solid #333; margin-bottom: 8px; }
+.tiles .mini span:first-child { width: 32%; }
+.tiles .mini span:last-child { flex: 1; position: relative; }
+.tiles .mini span:last-child::after {
+  content: ""; position: absolute; left: 8px; bottom: 8px; width: 10px; height: 10px; border-radius: 50%; background: #FF3B1F;
+}
 
 .three { list-style: none; margin: 0; padding: 0; }
 .three li { display: grid; grid-template-columns: 36px 1fr; gap: 6px; padding: 14px 0; border-top: 1px solid var(--line); }
 .three li b { display: block; font-size: 17px; letter-spacing: -.02em; }
 .three li span { color: var(--gray); font-size: 14px; }
 .three li em { color: var(--dot); font-style: normal; font-weight: 700; font-size: 13px; }
-
-footer { border-top: 1px solid var(--line); padding: 48px 0 0; display: flex; flex-wrap: wrap; gap: 18px; align-items: end; justify-content: space-between; }
-footer h2 { font-size: clamp(36px, 6vw, 56px); }
-footer p { color: var(--gray); font-size: 14px; max-width: 40ch; }
 
 @media (max-width: 760px) {
   section.step { grid-template-columns: 1fr; gap: 24px; padding: 48px 0; }
@@ -130,25 +146,25 @@ footer p { color: var(--gray); font-size: 14px; max-width: 40ch; }
 }
 '''
 
-def page(v):
-    return f'''<title>Lisez-moi FL Shortcuts</title>
+
+def page(v, t):
+    return f'''<title>{t["titre"]}</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>{CSS}</style>
 
 <main>
-  <section class="merci" aria-label="Merci">
-    <h1>merci<span class="dot"></span></h1>
-    <p class="lead">Merci d'avoir choisi la rapidité.</p>
-    <div><a class="btn" href="#installer">Commencer</a></div>
+  <section class="merci" aria-label="{t["merci"]}">
+    <h1>{t["merci"]}<span class="dot"></span></h1>
+    <p class="lead">{t["merci_lead"]}</p>
+    <div><a class="btn" href="#installer">{t["commencer"]}</a></div>
   </section>
 
   <section class="step" id="installer">
     <div class="head">
       <span class="label num">01</span>
-      <h2>installe<span class="dot"></span></h2>
+      <h2>{t["installe"]}<span class="dot"></span></h2>
       <ol class="do">{v["installe"]}</ol>
     </div>
-    <div class="panel">{v["installe_panel"]}</div>
   </section>
 
   <section class="step" id="debut">
@@ -163,18 +179,14 @@ def page(v):
   <section class="step" id="touches">
     <div class="head">
       <span class="label num">03</span>
-      <h2>change une touche<span class="dot"></span></h2>
-      <ol class="do">
-        <li>Clique sur un raccourci.</li>
-        <li>Appuie sur ta touche.</li>
-      </ol>
+      <h2>{t["touche"]}<span class="dot"></span></h2>
+      <ol class="do"><li>{t["touche_1"]}</li><li>{t["touche_2"]}</li></ol>
     </div>
-    <div class="panel" aria-label="Essai : change une touche">
-      <span class="label">Essaie · Playlist</span>
+    <div class="panel" aria-label="{t["touche"]}">
+      <span class="label">Playlist</span>
       <div id="rows">
-        <div class="row" tabindex="0" data-key="{v["espace"]}"><span class="name">Lecture / Stop</span><button class="reset" aria-label="Remettre">↺</button><kbd>{v["espace"]}</kbd></div>
-        <div class="row" tabindex="0" data-key="C"><span class="name">Couper</span><button class="reset" aria-label="Remettre">↺</button><kbd>C</kbd></div>
-        <div class="row" tabindex="0" data-key="P"><span class="name">Dessin</span><button class="reset" aria-label="Remettre">↺</button><kbd>P</kbd></div>
+        <div class="row" tabindex="0" data-key="{v["espace"]}"><span class="name">{t["lecture"]}</span><button class="reset" aria-label="{t["remettre"]}">↺</button><kbd>{v["espace"]}</kbd></div>
+        <div class="row" tabindex="0" data-key="C"><span class="name">{t["couper"]}</span><button class="reset" aria-label="{t["remettre"]}">↺</button><kbd>C</kbd></div>
       </div>
     </div>
   </section>
@@ -183,69 +195,72 @@ def page(v):
     <div class="head">
       <span class="label num">04</span>
       <h2>macros<span class="dot"></span></h2>
-      <ol class="do">
-        <li>Fais-le une fois dans FL.</li>
-        <li>L'app le refait d'une touche.</li>
-      </ol>
+      <ol class="do"><li>{t["macros_1"]}</li></ol>
     </div>
-    <div class="cards" aria-label="Les trois façons de commencer">
-      <div><span class="n">01</span><b>enregistrer une macro</b><small>Fais-le dans FL, l'app le retient.</small></div>
-      <div><span class="n">02</span><b>macro vide</b><small>Pose les blocs un par un.</small></div>
-      <div><span class="n">03</span><b>modèles</b><small>Pars d'une macro toute prête.</small></div>
+    <div class="cards">
+      <div><span class="n">01</span><b>{t["carte1"]}</b><small>{t["carte1_d"]}</small></div>
+      <div><span class="n">02</span><b>{t["carte2"]}</b><small>{t["carte2_d"]}</small></div>
+      <div><span class="n">03</span><b>{t["carte3"]}</b><small>{t["carte3_d"]}</small></div>
     </div>
   </section>
 
   <section class="step" id="organiser">
     <div class="head">
       <span class="label num">05</span>
-      <h2>range ton projet<span class="dot"></span></h2>
-      <ol class="do">
-        <li>Icône › Organiser.</li>
-        <li>La première fois, l'app t'aide à installer le lien.</li>
-        <li>Organiser.</li>
-      </ol>
-      <details class="full"><summary>Les 4 cases de MIDI Settings</summary>
-        <div class="cases">
-          <figure><img src="{{{{MIDI1}}}}" alt=""><figcaption>1 · Port de sortie</figcaption></figure>
-          <figure><img src="{{{{MIDI2}}}}" alt=""><figcaption>2 · Même Port en entrée</figcaption></figure>
-          <figure><img src="{{{{MIDI3}}}}" alt=""><figcaption>3 · Enable</figcaption></figure>
-          <figure><img src="{{{{MIDI4}}}}" alt=""><figcaption>4 · Controller type : FL Shortcuts</figcaption></figure>
-        </div>
-      </details>
+      <h2>{t["range"]}<span class="dot"></span></h2>
+      <ol class="do">{"".join(f"<li>{x}</li>" for x in t["range_lignes"])}</ol>
     </div>
-    <div class="panel" aria-label="Essai : ranger un projet">
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px">
-        <span class="label">Essaie · Ton projet</span>
-        <button class="btn" id="ranger" style="height:38px; padding:0 16px">Organiser</button>
+    <div class="panel">
+      <div class="cases">
+        <figure><img src="{{{{MIDI1}}}}" alt=""><figcaption>{t["case1"]}</figcaption></figure>
+        <figure><img src="{{{{MIDI2}}}}" alt=""><figcaption>{t["case2"]}</figcaption></figure>
+        <figure><img src="{{{{MIDI3}}}}" alt=""><figcaption>3 · Enable</figcaption></figure>
+        <figure><img src="{{{{MIDI4}}}}" alt=""><figcaption>{t["case4"]}</figcaption></figure>
       </div>
-      <div class="mess" id="mess"></div>
+      <details class="full"><summary>{t["fenetre"]}</summary><img src="{{{{MIDIFULL}}}}" alt="MIDI Settings"></details>
+    </div>
+  </section>
+
+  <section class="step" id="theme">
+    <div class="head">
+      <span class="label num">06</span>
+      <h2>{t["gout"]}<span class="dot"></span></h2>
+      <p class="say">{t["gout_d"]}</p>
+    </div>
+    <div class="tiles" role="group" aria-label="{t["theme"]}">
+      <button type="button" data-set="noir" aria-pressed="true"><span class="mini" style="background:#000"><span style="background:#000; border-right:1px solid #333"></span><span></span></span>{t["noir"]}</button>
+      <button type="button" data-set="papier" aria-pressed="false"><span class="mini" style="background:#FFF"><span style="background:#FFF; border-right:1px solid #CFCFCF"></span><span></span></span>{t["papier"]}</button>
+      <button type="button" data-set="orange" aria-pressed="false"><span class="mini" style="background:#FF3B1F"><span style="background:#000"></span><span></span></span>Orange</button>
     </div>
   </section>
 
   <section class="step" id="compte">
     <div class="head">
-      <span class="label num">06</span>
-      <h2>ton compte<span class="dot"></span></h2>
-      <ol class="do">
-        <li>Mon compte. C'est gratuit.</li>
-      </ol>
+      <span class="label num">07</span>
+      <h2>{t["compte"]}<span class="dot"></span></h2>
+      <p class="say">{t["compte_d"]}</p>
     </div>
     <ul class="three">
-      <li><em>01</em><div><b>Sauvegarde</b><span>Tes raccourcis et tes macros, en ligne.</span></div></li>
-      <li><em>02</em><div><b>Tous tes ordis</b><span>Les mêmes sur ton Mac et ton PC.</span></div></li>
-      <li><em>03</em><div><b>Communauté</b><span>Partage et récupère des macros.</span></div></li>
-      <li><em>04</em><div><b>Thèmes</b><span>Noir, Papier ou Orange.</span></div></li>
+      <li><em>01</em><div><b>{t["sauvegarde"]}</b><span>{t["sauvegarde_d"]}</span></div></li>
+      <li><em>02</em><div><b>{t["ordis"]}</b><span>{t["ordis_d"]}</span></div></li>
+      <li><em>03</em><div><b>{t["communaute"]}</b><span>{t["communaute_d"]}</span></div></li>
     </ul>
   </section>
-
-  <footer>
-    <h2>bon son<span class="dot"></span></h2>
-    <p>Une question : Aide › Écrire à l'équipe.</p>
-  </footer>
 </main>
 
 <script>
 (function () {{
+  // Thèmes de l'app : un aperçu de la section « à ton goût » change toute la page.
+  document.querySelectorAll("[data-set]").forEach(function (b) {{
+    b.addEventListener("click", function () {{
+      var name = b.getAttribute("data-set");
+      document.documentElement.setAttribute("data-theme", name);
+      document.querySelectorAll("[data-set]").forEach(function (o) {{
+        o.setAttribute("aria-pressed", o.getAttribute("data-set") === name ? "true" : "false");
+      }});
+    }});
+  }});
+
   // Jeu : un clic sur une ligne, puis une touche ; ↺ la remet. Échap annule.
   var listening = null;
   function names(e) {{
@@ -277,11 +292,11 @@ def page(v):
       row.querySelectorAll("kbd").forEach(function (n) {{ n.remove(); }});
       var w = document.createElement("span");
       w.className = "wait";
-      w.textContent = "Appuie sur une touche…";
+      w.textContent = "{t["attente"]}";
       row.appendChild(w);
     }}
     row.addEventListener("click", function (e) {{ if (!e.target.classList.contains("reset")) listen(); }});
-    row.addEventListener("keydown", function (e) {{ if (!listening && (e.key === "Enter")) {{ e.preventDefault(); listen(); }} }});
+    row.addEventListener("keydown", function (e) {{ if (!listening && e.key === "Enter") {{ e.preventDefault(); listen(); }} }});
     row.querySelector(".reset").addEventListener("click", function (e) {{
       e.stopPropagation();
       show(row, [row.getAttribute("data-key")], false);
@@ -298,69 +313,104 @@ def page(v):
     var keys = names(e);
     show(row, keys, keys.join("") !== row.getAttribute("data-key"));
   }});
-
-  // Jeu : un projet en vrac, « Organiser » le range par familles, à leurs couleurs.
-  var sons = [["Audio Clip 4", "Voix"], ["Kick 1", "Drums"], ["Pad 3", "Mélodies"], ["808 long", "Basse"],
-              ["riser", "FX"], ["snare_02", "Drums"], ["ZENOLOGY", "Mélodies"], ["Hat loop", "Drums"]];
-  var couleurs = {{ "Drums": "#FF3B1F", "Basse": "#2F55FF", "Mélodies": "#FFC400", "Voix": "#FF5FA2", "FX": "#19C3A0" }};
-  var ordre = ["Drums", "Basse", "Mélodies", "Voix", "FX"];
-  var mess = document.getElementById("mess");
-  var range = false;
-  function draw() {{
-    mess.innerHTML = "";
-    if (!range) {{
-      sons.forEach(function (s) {{
-        var d = document.createElement("div");
-        d.className = "sound";
-        d.innerHTML = "<i style='background:#555'></i>" + s[0];
-        mess.appendChild(d);
-      }});
-      return;
-    }}
-    ordre.forEach(function (f) {{
-      var h = document.createElement("div");
-      h.className = "family";
-      h.style.borderColor = couleurs[f];
-      h.textContent = f;
-      mess.appendChild(h);
-      sons.filter(function (s) {{ return s[1] === f; }}).forEach(function (s, i) {{
-        var d = document.createElement("div");
-        d.className = "sound";
-        d.style.opacity = "0";
-        d.style.transform = "translateX(-12px)";
-        d.innerHTML = "<i style='background:" + couleurs[f] + "'></i>" + s[0];
-        mess.appendChild(d);
-        setTimeout(function () {{ d.style.opacity = "1"; d.style.transform = "none"; }}, 60 + i * 60);
-      }});
-    }});
-  }}
-  draw();
-  var ranger = document.getElementById("ranger");
-  ranger.addEventListener("click", function () {{
-    range = !range;
-    ranger.textContent = range ? "Revenir comme avant" : "Organiser";
-    draw();
-  }});
 }})();
 </script>
 '''
 
+
+FR = {
+    "titre": "Lisez-moi FL Shortcuts",
+    "merci": "merci", "merci_lead": "Merci d'avoir choisi la rapidité.", "commencer": "Commencer",
+    "installe": "installe",
+    "touche": "change une touche", "touche_1": "Clique sur un raccourci.", "touche_2": "Appuie sur ta touche.",
+    "lecture": "Lecture / Stop", "couper": "Couper", "remettre": "Remettre", "attente": "Appuie sur une touche…",
+    "macros_1": "Clique sur Macros.",
+    "carte1": "enregistrer une macro", "carte1_d": "Fais-le dans FL, l'app le retient.",
+    "carte2": "macro vide", "carte2_d": "Pose les blocs un par un.",
+    "carte3": "modèles", "carte3_d": "Pars d'une macro toute prête.",
+    "range": "range ton projet",
+    "range_lignes": ["Ouvre ton projet dans FL.", "Icône › Organiser.", "Suis les consignes.",
+                     "Options › MIDI Settings : les 4 cases.", "Organiser."],
+    "case1": "1 · Port de sortie", "case2": "2 · Même Port en entrée", "case4": "4 · Controller type : FL Shortcuts",
+    "fenetre": "Voir toute la fenêtre",
+    "gout": "à ton goût", "gout_d": "Trois thèmes : Noir, Papier, Orange. Dans Mon compte.", "theme": "Thème",
+    "noir": "Noir", "papier": "Papier",
+    "compte": "ton compte", "compte_d": "Dans Mon compte.",
+    "sauvegarde": "Sauvegarde", "sauvegarde_d": "Tes raccourcis et tes macros, en ligne.",
+    "ordis": "Tous tes ordis", "ordis_d": "Les mêmes sur ton Mac et ton PC.",
+    "communaute": "Communauté", "communaute_d": "Partage et récupère des macros.",
+}
+EN = {
+    "titre": "FL Shortcuts README",
+    "merci": "thanks", "merci_lead": "Thanks for choosing speed.", "commencer": "Get started",
+    "installe": "install",
+    "touche": "change a key", "touche_1": "Click a shortcut.", "touche_2": "Press your key.",
+    "lecture": "Play / Stop", "couper": "Cut", "remettre": "Reset", "attente": "Press a key…",
+    "macros_1": "Click Macros.",
+    "carte1": "record a macro", "carte1_d": "Do it in FL, the app remembers it.",
+    "carte2": "empty macro", "carte2_d": "Place the blocks one by one.",
+    "carte3": "templates", "carte3_d": "Start from a ready-made macro.",
+    "range": "organize your project",
+    "range_lignes": ["Open your project in FL.", "Icon › Organize.", "Follow the instructions.",
+                     "Options › MIDI Settings: the 4 boxes.", "Organize."],
+    "case1": "1 · Output port", "case2": "2 · Same port as input", "case4": "4 · Controller type: FL Shortcuts",
+    "fenetre": "See the whole window",
+    "gout": "your way", "gout_d": "Three themes: Black, Paper, Orange. In My account.", "theme": "Theme",
+    "noir": "Black", "papier": "Paper",
+    "compte": "your account", "compte_d": "In My account.",
+    "sauvegarde": "Backup", "sauvegarde_d": "Your shortcuts and macros, online.",
+    "ordis": "All your computers", "ordis_d": "The same on your Mac and your PC.",
+    "communaute": "Community", "communaute_d": "Share and get macros.",
+}
+
+
+def accueil(titre, lignes):
+    """Panneau de l'étape 02 : des lignes « nom · état », comme l'accueil de l'app (ou loopMIDI)."""
+    rows = "".join(f'<div class="row still"><span class="name"><b>{n}</b></span>{etat}</div>' for n, etat in lignes)
+    return f'<span class="label">{titre}</span>{rows}'
+
+
+OK = '<kbd style="border-color:currentColor">{}</kbd>'
+A_FAIRE = '<kbd class="changed">{}</kbd>'
+
 mac = {
-  "installe": "<li>Ouvre <b>FLShortcuts.pkg</b>.</li><li>Bloqué ? Réglages Système › Confidentialité et sécurité › <b>Ouvrir quand même</b>.</li>",
-  "installe_panel": '<span class="label">Le paquet</span><div style="display:flex; align-items:center; gap:18px; margin-top:14px"><img src="{{PKG}}" alt="" style="width:72px; height:72px; background:#000; padding:6px"><div><b style="font-size:18px">FLShortcuts.pkg</b><p class="note">Pas encore signé par Apple : c\'est normal.</p></div></div>',
-  "debut_titre": "autorise",
-  "debut": "<li>Ouvre FL Shortcuts.</li><li>Autorise le <b>Clavier</b>, puis le <b>Son de FL</b>.</li>",
-  "debut_panel": '<span class="label">Accueil</span><div class="row" style="cursor:default"><span class="name"><b>Clavier</b></span><kbd style="border-color:currentColor">Autorisé</kbd></div><div class="row" style="cursor:default"><span class="name"><b>Son de FL</b></span><kbd class="changed">À autoriser</kbd></div><p class="note" style="margin-top:12px">Ensuite, tout est dans le rond blanc, en haut de l\'écran.</p>',
-  "espace": "Espace", "ctrl": "⌃", "alt": "⌥", "shift": "⇧", "meta": "⌘",
+    "fr": {
+        "installe": "<li>Ouvre <b>FLShortcuts.pkg</b>.</li>"
+                    "<li>Bloqué ? Réglages Système › Confidentialité et sécurité › <b>Ouvrir quand même</b>.</li>",
+        "debut_titre": "autorise",
+        "debut": "<li>Ouvre FL Shortcuts.</li><li>Autorise le <b>Clavier</b>, puis le <b>Son de FL</b>.</li>",
+        "debut_panel": accueil("Accueil", [("Clavier", OK.format("Autorisé")), ("Son de FL", A_FAIRE.format("À autoriser"))]),
+        "espace": "Espace", "ctrl": "⌃", "alt": "⌥", "shift": "⇧", "meta": "⌘",
+    },
+    "en": {
+        "installe": "<li>Open <b>FLShortcuts.pkg</b>.</li>"
+                    "<li>Blocked? System Settings › Privacy &amp; Security › <b>Open Anyway</b>.</li>",
+        "debut_titre": "allow",
+        "debut": "<li>Open FL Shortcuts.</li><li>Allow <b>Keyboard</b>, then <b>FL sound</b>.</li>",
+        "debut_panel": accueil("Welcome", [("Keyboard", OK.format("Allowed")), ("FL sound", A_FAIRE.format("To allow"))]),
+        "espace": "Space", "ctrl": "⌃", "alt": "⌥", "shift": "⇧", "meta": "⌘",
+    },
 }
 win = {
-  "installe": "<li>Lance <b>FLShortcuts-Windows-Setup.exe</b>.</li><li>Bloqué ? Informations complémentaires › <b>Exécuter quand même</b>.</li>",
-  "installe_panel": '<span class="label">Microsoft Defender SmartScreen</span><p style="margin-top:10px; font-size:18px; font-weight:700">Windows a protégé votre ordinateur</p><p class="note">Pas encore reconnue : c\'est normal.</p><p style="margin-top:12px"><u>Informations complémentaires</u> › <b>Exécuter quand même</b></p>',
-  "debut_titre": "deux ports midi",
-  "debut": "<li>Installe <b>loopMIDI</b>.</li><li>Crée « FL Shortcuts » et « FL Shortcuts Retour ».</li>",
-  "debut_panel": '<span class="label">loopMIDI</span><div class="row" style="cursor:default"><span class="name"><b>FL Shortcuts</b></span><kbd style="border-color:currentColor">Prêt</kbd></div><div class="row" style="cursor:default"><span class="name"><b>FL Shortcuts Retour</b></span><kbd style="border-color:currentColor">Prêt</kbd></div><p class="note" style="margin-top:12px">Ensuite, tout est dans l\'icône près de l\'heure.</p>',
-  "espace": "Espace", "ctrl": "Ctrl", "alt": "Alt", "shift": "Maj", "meta": "Win",
+    "fr": {
+        "installe": "<li>Lance <b>FLShortcuts-Windows-Setup.exe</b>.</li>"
+                    "<li>Bloqué ? Informations complémentaires › <b>Exécuter quand même</b>.</li>",
+        "debut_titre": "deux ports midi",
+        "debut": "<li>Installe <b>loopMIDI</b>.</li><li>Crée « FL Shortcuts » et « FL Shortcuts Retour ».</li>",
+        "debut_panel": accueil("loopMIDI", [("FL Shortcuts", OK.format("Prêt")), ("FL Shortcuts Retour", OK.format("Prêt"))]),
+        "espace": "Espace", "ctrl": "Ctrl", "alt": "Alt", "shift": "Maj", "meta": "Win",
+    },
+    "en": {
+        "installe": "<li>Run <b>FLShortcuts-Windows-Setup.exe</b>.</li>"
+                    "<li>Blocked? More info › <b>Run anyway</b>.</li>",
+        "debut_titre": "two midi ports",
+        "debut": "<li>Install <b>loopMIDI</b>.</li><li>Create “FL Shortcuts” and “FL Shortcuts Retour”.</li>",
+        "debut_panel": accueil("loopMIDI", [("FL Shortcuts", OK.format("Ready")), ("FL Shortcuts Retour", OK.format("Ready"))]),
+        "espace": "Space", "ctrl": "Ctrl", "alt": "Alt", "shift": "Shift", "meta": "Win",
+    },
 }
+
 for nom, v in (("mac", mac), ("windows", win)):
-    open(f"{DOSSIER}/modele-{nom}.html", "w", encoding="utf-8").write(page(v))
+    open(f"{DOSSIER}/modele-{nom}.html", "w", encoding="utf-8").write(page(v["fr"], FR))
+    open(f"{DOSSIER}/modele-{nom}-en.html", "w", encoding="utf-8").write(page(v["en"], EN))
 print("ok")

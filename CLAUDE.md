@@ -400,8 +400,14 @@
   08/11 (« plus facile à lire, vraiment bref ») : 1re page = « merci. » + « Merci d'avoir choisi la rapidité. » +
   Commencer (plus d'icône, « Pour Mac », « Trois minutes ») ; plus de barre en haut ni de choix du thème ; 6 étapes
   d'une à trois lignes (« ton compte » avec Thèmes ; plus « un compte, partout ») ; MIDI Settings repliées ; Commencer
-  = trait de l'étape 01 tout en haut. ATTENTION : lisezmoi.py écrit des README-*.html à moitié en français tant que
-  lisezmoi_en.py n'a pas les nouveaux textes : les remettre (`git checkout docs/telechargement/README-*.html`).
+  = trait de l'étape 01 tout en haut. Puis ses retours ligne par ligne (08/11) : plus de carte du paquet ni de
+  « rond blanc… tout est là », 2 lignes au jeu des touches (sans Dessin), plus « Essaie », macros = « Clique sur
+  Macros. » + 3 cartes NOIRES (pleines et soulevées sur ombre rouge au survol), range ton projet = 5 lignes (3 « Suis
+  les consignes. », 4 MIDI Settings) + les 4 cases à droite, plus le jeu « Ton projet » ; « à ton goût » revenu (06) :
+  3 aperçus qui changent TOUTE la page (sans « cette page change aussi ») ; « ton compte » (07) sans « Gratuit » ; plus
+  de pied de page (bon son, Écrire à l'équipe). Anglais écrit dans `lisezmoi_modeles.py` (FR/EN), modèles
+  `modele-*-en.html` pris tels quels par lisezmoi.py (plus de traduction morceau par morceau, qui laissait du
+  français). Windows : loopMIDI à l'étape 02 (proposé de le mettre dans « range ton projet », réponse attendue).
 - **Retours du 06/11** (long message + maquette HTML papier/orange) : effet Gumroad SEULEMENT au survol, dans les 3
   thèmes (`gumroadLift` : soulevé en haut à gauche sur son ombre nette `Swiss.primaryLift`, rouge, noire sous Orange) :
   boutons principaux pleins au repos sans ombre (Partager…), « Enregistrer » du créateur, bouton de l'Organiser, 3

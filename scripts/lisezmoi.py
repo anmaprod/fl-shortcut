@@ -61,8 +61,15 @@ def main():
         vals = images(langue)
         for nom in ("mac", "windows"):
             modele = os.path.join(DOSSIER, f"modele-{nom}.html")
+            anglais = os.path.join(DOSSIER, f"modele-{nom}-en.html")
+            # 08/11 : l'anglais est écrit à côté du français (scripts/lisezmoi_modeles.py) ; sinon, l'ancienne
+            # traduction morceau par morceau.
+            if langue == "en" and os.path.exists(anglais):
+                modele, langue_ecrite = anglais, True
+            else:
+                langue_ecrite = False
             s = open(modele, encoding="utf-8").read()
-            if langue == "en":
+            if langue == "en" and not langue_ecrite:
                 s = lisezmoi_en.traduire(s)
                 oubli = lisezmoi_en.reste_du_francais(s)
                 if oubli:
