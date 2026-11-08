@@ -401,7 +401,7 @@ internal sealed class OrganizerWindow : Window
         };
         _content.Children.Add(Card(Row(Badge("exclamationmark", Orange), Stack(4,
             Label(Loc.T("Installe d'abord loopMIDI"), 14, Text, semibold: true),
-            Paragraph(Loc.T("Gratuit. L'app crée ensuite les ports elle-même."), 12),
+            Paragraph(Loc.T("Installe loopMIDI, puis ferme-le : rien à faire dedans."), 12),
             link), 14), Orange));
     }
 

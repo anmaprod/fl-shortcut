@@ -368,6 +368,9 @@
   complètes, version réelle hors tag ; question d'aide + ligne du mode d'emploi. Sans certificat, seul un signalement
   du faux positif à Avast (par version) le fait accepter. Mode léger Windows par défaut comme le Mac (`Light` =
   réglage MidiActions seul ; avant : lien permanent dès que le script était installé, « léger=non » chez un ami).
+  Accueil Windows comme le Mac (carte Clavier « Autorisé » / Ports MIDI « Prêts » ou « Installer loopMIDI » bordé de
+  rouge, grand Continuer) ; consigne partout : « Installe loopMIDI, puis ferme-le : rien à faire dedans » (« dans
+  loopMIDI après on sait pas quoi faire »).
   Pas encore vu sur un PC.
 - **Avertissements au style suisse** (08/11, « pas avec un logo, un emoji d'attention… un point orange ») : un carré
   plein #FF3B1F (blanc sous Orange) devant le texte, le texte à l'encre ; plus aucun triangle, cercle « ! » ni octogone

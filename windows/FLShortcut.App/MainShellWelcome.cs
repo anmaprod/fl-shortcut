@@ -240,8 +240,10 @@ internal sealed partial class MainShell
                 try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(LoopMidiPage) { UseShellExecute = true }); }
                 catch (Exception e) { AppLog.Write("STATUS", "page loopMIDI non ouverte (" + e.GetType().Name + ")"); }
             });
-        rows.Children.Add(WelcomeRow(Loc.T("Ports MIDI"), ok ? Loc.T("Pour relier FL Shortcuts à FL.")
-                                                             : Loc.T("Installe loopMIDI. L'app crée ensuite les ports elle-même."), portsState));
+        // 08/11 (« il faut bien guider parce que dans loopMIDI après on sait pas quoi faire ») : rien à faire dedans,
+        // c'est dit ; la ligne passe toute seule à « Prêts » dès que loopMIDI est installé.
+        rows.Children.Add(WelcomeRow(Loc.T("Ports MIDI"), ok ? Loc.T("Rien à faire dans loopMIDI : l'app crée les ports.")
+                                                             : Loc.T("Installe loopMIDI, puis ferme-le : rien à faire dedans."), portsState));
         _welcomeContent.Children.Add(WelcomeCard(rows));
 
         // Mode léger : loopMIDI ne sert qu'à l'Organiser et aux actions de FL ; on peut continuer sans lui.

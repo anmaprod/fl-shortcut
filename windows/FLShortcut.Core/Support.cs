@@ -205,7 +205,7 @@ public static class HelpContent
             Loc.T("Il n'y a aucun virus. Autorise FL Shortcuts dans ton antivirus : Avast › Menu › Paramètres › Exceptions."),
             "antivirus avast virus bloque defender smartscreen exception menace"),
         new(13, Loc.T("À quoi sert loopMIDI ?"),
-            Loc.T("Installe loopMIDI : l'app crée ensuite elle-même les ports qui la relient à FL, pour l'Organiser et les actions de FL."),
+            Loc.T("Installe loopMIDI, puis ferme-le : rien à faire dedans. L'app crée elle-même les ports qui la relient à FL."),
             "loopmidi midi port lien organiser actions installer windows 11 25h2 services"),
         new(3, Loc.T("Comment créer une macro ?"),
             Loc.T("Page Macros : « Macro vide » ou « Modèles »."),

@@ -377,3 +377,6 @@
 "Installer loopMIDI" = "Install loopMIDI";
 "Ports MIDI" = "MIDI ports";
 "Pour relier FL Shortcuts à FL." = "To link FL Shortcuts to FL.";
+"Rien à faire dans loopMIDI : l'app crée les ports." = "Nothing to do in loopMIDI: the app creates the ports.";
+"Installe loopMIDI, puis ferme-le : rien à faire dedans." = "Install loopMIDI, then close it: nothing to do in it.";
+"Installe loopMIDI, puis ferme-le : rien à faire dedans. L'app crée elle-même les ports qui la relient à FL." = "Install loopMIDI, then close it: nothing to do in it. The app creates the ports that link it to FL by itself.";
