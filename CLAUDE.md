@@ -416,6 +416,11 @@
   (champ de texte) ; `RouterInput.TypingInFl`, `KeyCombo.IsTypingKey` ; lu seulement quand une touche seule lance un
   raccourci. Message : « Touche seule : laissée à FL quand tu tapes du texte, qu'un menu ou une boîte de FL est
   ouvert. » Pas le clavier-piano (illisible sous Windows).
+  Messages « Écrire à l'équipe » PAR MAIL (09/11, « que je reçoive les messages… dans mes mails… quelque chose de
+  simple ») : `supabase/messages-par-mail.sql` (déclencheur sur support_requests → Resend par pg_net, clé et adresse
+  dans le Vault de Supabase, réponse à la personne par reply_to, jamais de message perdu), étape 11 de
+  `supabase/README.md`, À COLLER PAR LE PROPRIÉTAIRE (compte Resend à son adresse). Essais
+  `supabase/tests/messages-par-mail.sql` (+ `supabase-stubs-mail.sql`).
   Pas encore vu sur un PC.
 - **Avertissements au style suisse** (08/11, « pas avec un logo, un emoji d'attention… un point orange ») : un carré
   plein #FF3B1F (blanc sous Orange) devant le texte, le texte à l'encre ; plus aucun triangle, cercle « ! » ni octogone

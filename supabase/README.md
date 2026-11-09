@@ -67,6 +67,16 @@ et l'étape 7 (modèles des mails avec le code).
    administrateur de la retirer. Les photos ne sont lisibles qu'avec un compte. Peut être recollé sans risque. Sans
    cette étape, l'app garde l'initiale de couleur et dit que les photos et le changement de pseudo ne sont pas encore
    ouverts.
+11. **Recevoir les messages « Écrire à l'équipe » par mail** (page Aide de l'app, Mac et Windows) : chaque message
+   arrive dans ta boîte mail en quelques secondes, et « Répondre » répond directement à la personne si elle a laissé
+   son mail. Une fois, 5 minutes :
+   1. Sur <https://resend.com>, crée un compte gratuit **avec l'adresse où tu veux recevoir les messages**.
+   2. **API Keys › Create API Key** : copie la clé (elle commence par `re_`).
+   3. **SQL Editor › New query** : colle tout `supabase/messages-par-mail.sql`, remplace les deux lignes marquées ⬇
+      tout en haut (ta clé `re_…` et ton adresse), puis **Run**.
+   4. Essaie : dans l'app, Aide › Écrire à l'équipe (la première fois, regarde aussi les spams).
+   La clé et l'adresse restent dans le coffre de Supabase (Vault), jamais dans l'app ni dans le dépôt. Si l'envoi du
+   mail échoue, le message reste dans **Table Editor › support_requests** comme avant. Peut être recollé sans risque.
 
 ## 2. Compiler l'app reliée au serveur
 
@@ -115,8 +125,7 @@ message arrive dans **Table Editor › support_requests** (ou SQL :
 `select created_at, reference, kind, email, message, error, diagnostic from support_requests order by created_at desc`). Personne ne
 peut les relire depuis l'app ; 5 messages par heure et par mail au plus.
 
-- Être prévenu à chaque message : **Database › Webhooks › Create a new hook**, table `support_requests`, événement
-  *Insert*, vers l'adresse d'un webhook Discord ou Slack (ou une Edge Function qui envoie un mail).
+- Être prévenu à chaque message, par mail : étape 11 ci-dessus (`supabase/messages-par-mail.sql`).
 - Sans serveur (ou s'il échoue), l'app propose « Envoyer par mail » vers l'adresse de l'équipe :
   `FLS_SUPPORT_EMAIL="toi@exemple.fr" ./build.sh` (CI : **Settings › Secrets and variables › Actions › Variables ›
   New repository variable** `FLS_SUPPORT_EMAIL`). Sans adresse non plus : « Copier » et « Ouvrir un ticket sur

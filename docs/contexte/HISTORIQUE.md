@@ -950,3 +950,10 @@ entrée 1 ≈ 0,5 s.
   celles du Mac. Touche seule laissée à FL pendant la saisie, un menu ou une boîte (TypingGuard du Mac porté). Essai
   du MIDI sur la CI proposé puis abandonné à sa demande (« ne fais pas de CI »).
 
+- 09/11 (3) : « que je reçoive les messages d'Écrire à l'équipe… sûrement dans mes mails… quelque chose de simple » :
+  chaque message de la table support_requests part aussitôt par mail (Resend, gratuit, par pg_net depuis Supabase ;
+  clé et adresse dans le Vault de Supabase, jamais dans l'app ni le dépôt ; « Répondre » écrit à la personne si elle a
+  laissé son mail ; un échec du mail ne perd jamais le message). `supabase/messages-par-mail.sql`, étape 11 du README
+  de supabase, à coller par le propriétaire après avoir créé son compte Resend. Essais sur un PostgreSQL ordinaire
+  (Vault et pg_net simulés). Puis « regarde si tu n'as pas oublié des choses » : bloc « Cliquer sur… › Playlist ›
+  Arrangement » porté sur Windows.
