@@ -584,12 +584,23 @@ public sealed partial class MacroEffectsWindows
     /// Pages de la liste lues au plus (une page : ce qu'on voit, puis la molette).
     private const int PluginListPages = 15;
 
-    /// Add › Channel (ou Effect) › More plugins..., puis le plugin retrouvé à son nom dans la liste de FL (fenêtre
-    /// « Select plugin », lue au moment du clic, défilée si besoin) et double-cliqué : FL l'ouvre. Jamais la case devant
-    /// le nom (elle en ferait un favori) : le double-clic tombe au milieu du nom. Rien n'est ajouté aux listes de FL
-    /// (demande du propriétaire, 28/10). Le nom n'est jamais journalisé.
+    /// D'abord le menu Add de FL lui-même (comme le Mac, 09/11) : un plugin qui y est (favori de FL) est pris là, comme à
+    /// la main, sans parcourir la liste. Sinon Add › Channel (ou Effect) › More plugins..., le nom tapé dans « Find » de
+    /// la liste (sans « Find » lisible, la liste défile), puis le plugin retrouvé dans la liste (ligne lue d'un seul
+    /// tenant ou avec l'étoile comprise, format préféré : PluginListPick) et double-cliqué au milieu de son nom : FL
+    /// l'ouvre. Jamais la case devant le nom (elle en ferait un favori). Rien n'est ajouté aux listes de FL (demande du
+    /// propriétaire, 28/10). Le nom n'est jamais journalisé.
     private StepResult AddFromPluginList(string plugin, string item)
     {
+        switch (MenuBar(new[] { "Add", item, plugin }))
+        {
+            case StepResult.Ok:
+                _fl.Log("PLUGIN", "taken from the Add menu");
+                return new StepResult.Ok();
+            case StepResult.Cancel cancelled:
+                return cancelled;
+        }
+        _fl.Log("PLUGIN", "not in the Add menu: More plugins");
         var before = Ids();
         var opened = MenuBar(new[] { "Add", item, PageOptions.MorePlugins });
         if (opened is not StepResult.Ok) return opened;
@@ -605,7 +616,12 @@ public sealed partial class MacroEffectsWindows
         }
         var window = list.Value;
         _fl.Log("PLUGIN", $"plugin list {window.Width}x{window.Height}");
-        var wanted = MenuText.Normalized(plugin);
+        if (SearchPluginList(window, plugin) is { } halted)
+        {
+            ClosePluginList(window);
+            return new StepResult.Cancel(halted);
+        }
+        var prefer = PluginListPick.PreferredFormats(item);
         List<string>? previous = null;
         for (var page = 0; page < PluginListPages; page++)
         {
@@ -619,12 +635,13 @@ public sealed partial class MacroEffectsWindows
                 ClosePluginList(window);
                 return new StepResult.Fail(Loc.T("liste « More plugins… » de FL illisible"));
             }
-            if (items.Where(t => MenuText.Normalized(t.Text) == wanted).OrderBy(t => t.Y).Cast<TextItem?>().FirstOrDefault() is { } hit)
+            if (PluginListPick.Best(plugin, prefer, items) is { } hit)
             {
+                var at = PluginListPick.NamePoint(hit, plugin);
                 _fl.Log("PLUGIN", $"found on page {page + 1}");
                 _cursorBefore ??= _fl.Cursor();
-                if (!_fl.DoubleClick(hit.CenterX, hit.CenterY)) return new StepResult.Cancel(Loc.T("FL n'est plus au premier plan"));
-                _lastClick = (hit.CenterX, hit.CenterY);
+                if (!_fl.DoubleClick(at.X, at.Y)) return new StepResult.Cancel(Loc.T("FL n'est plus au premier plan"));
+                _lastClick = at;
                 // La liste se ferme d'elle-même, ou reste ouverte : refermée (le plugin est ouvert).
                 if (Gone(new HashSet<long> { window.Id }, 1_500, checkStop: false) is not StepResult.Ok) ClosePluginList(window);
                 return new StepResult.Ok();
@@ -638,7 +655,53 @@ public sealed partial class MacroEffectsWindows
         }
         ClosePluginList(window);
         _fl.Log("PLUGIN", "not found in the list");
-        return new StepResult.Fail(Loc.T("plugin introuvable : vérifie son nom"));
+        return new StepResult.Fail(Loc.T("plugin introuvable dans « More plugins… » de FL : vérifie son nom, ou choisis-le de nouveau dans « Cliquer sur… »"));
+    }
+
+    /// « Find » de la liste cliqué, puis le nom du plugin tapé (comme le Mac) : dans la petite fenêtre que FL ouvre alors
+    /// (validée par Entrée), ou dans la liste elle-même. Rien si « Find » n'est pas lu ou si le nom ne peut pas être
+    /// tapé : la liste défile. null, ou la raison d'un arrêt (Échap).
+    private string? SearchPluginList(FlWin list, string plugin)
+    {
+        if (_fl.ReadText(list.Id) is not { } items || PluginListPick.FindButton(items, list) is not { } find)
+        {
+            _fl.Log("PLUGIN", "no Find button read: the list scrolls");
+            return null;
+        }
+        if (StopReason() is { } stop) return stop;
+        var before = Ids();
+        switch (ClickAt((find.CenterX, find.CenterY), false, 60))
+        {
+            case StepResult.Cancel { Why: var why }: return why;
+            case StepResult.Fail:
+                _fl.Log("PLUGIN", "Find not clicked: the list scrolls");
+                return null;
+        }
+        FlWin? prompt = null;
+        var until = _fl.Now.AddMilliseconds(800);
+        while (prompt is null && _fl.Now < until)
+        {
+            if (StopReason() is { } halted) return halted;
+            prompt = _fl.Windows().Where(w => !before.Contains(w.Id)).Cast<FlWin?>().FirstOrDefault();
+            if (prompt is null) _fl.Sleep(30);
+        }
+        _fl.Sleep(200);
+        // Touches du raccourci encore tenues : attendues relâchées (Ctrl + lettre ferait un raccourci de FL).
+        for (var i = 0; i < 50 && _fl.ModifiersDown(); i++) _fl.Sleep(20);
+        if (!_fl.TypeText(plugin))
+        {
+            _fl.Log("PLUGIN", "name not typed in Find: the list scrolls");
+            if (prompt is { } open) { _fl.Send(new KeyCombo(Vk.Escape)); Gone(new HashSet<long> { open.Id }, 800, checkStop: false); }
+            return StopReason();
+        }
+        if (prompt is { } window)
+        {
+            _fl.Send(new KeyCombo(Vk.Return));                                            // Entrée : la recherche est lancée
+            Gone(new HashSet<long> { window.Id }, 1_500, checkStop: false);
+        }
+        _fl.Log("PLUGIN", $"name typed in Find ({(prompt is null ? "in the list" : "in its window")})");
+        _fl.Sleep(400);
+        return null;
     }
 
     /// Échap tant que la liste est encore là (jamais d'Échap à l'aveugle) : elle se referme.

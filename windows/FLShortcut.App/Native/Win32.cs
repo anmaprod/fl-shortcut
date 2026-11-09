@@ -128,7 +128,7 @@ internal static class Win32
 
     // ---------- Injection de frappes ----------
     public const uint INPUT_KEYBOARD = 1;
-    public const uint KEYEVENTF_EXTENDEDKEY = 0x0001, KEYEVENTF_KEYUP = 0x0002;
+    public const uint KEYEVENTF_EXTENDEDKEY = 0x0001, KEYEVENTF_KEYUP = 0x0002, KEYEVENTF_UNICODE = 0x0004;
 
     [StructLayout(LayoutKind.Sequential)]
     public struct MOUSEINPUT

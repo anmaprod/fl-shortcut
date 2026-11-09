@@ -416,6 +416,17 @@
   (champ de texte) ; `RouterInput.TypingInFl`, `KeyCombo.IsTypingKey` ; lu seulement quand une touche seule lance un
   raccourci. Message : « Touche seule : laissée à FL quand tu tapes du texte, qu'un menu ou une boîte de FL est
   ouvert. » Pas le clavier-piano (illisible sous Windows).
+  Plugins par « Cliquer sur… » (09/11, « des bugs… il faut utiliser les mêmes dossiers que pour Mac… Image-Line ›
+  Plugin database › Installed › Effects / Generators… le même drag and drop ») : même méthode que le Mac (liste et .fst
+  glissé). Bases cherchées à toutes leurs places Windows (`FlDataFolders` + `PluginDatabase.Roots` : script, dossiers
+  notés par FL dans HKCU\Software\Image-Line\Shared\Paths, Documents de Windows / du profil / de OneDrive, ancienne
+  « Image-Line\Data\FL Studio ») ; VRAI BUG : la recherche du .fst sautait les « points d'analyse », donc tous les
+  fichiers d'un Documents synchronisé par OneDrive (réglage par défaut) → aucun .fst, menus de FL à la place ;
+  maintenant seuls les vrais liens sont sautés (`PluginDrop.FstFiles`). Titre « Channel rack » lu collé à un mot ou en
+  deux mots (`PluginDrop.Titles`). Secours comme le Mac : menu Add d'abord (favori), puis « More plugins… » avec
+  « Find » + nom tapé (`IFlDriver.TypeText`, caractères Unicode, attend les modificateurs relâchés), ligne lue d'un seul
+  tenant / étoile / format préféré (`PluginListPick`, miroir du Mac), double-clic au milieu du nom. Journal `PLUGIN`
+  (`database: N/M base(s), .fst found`). Pas encore vu sur un PC.
   Messages « Écrire à l'équipe » PAR MAIL (09/11, « que je reçoive les messages… dans mes mails… quelque chose de
   simple ») : `supabase/messages-par-mail.sql` (déclencheur sur support_requests → Resend par pg_net, clé et adresse
   dans le Vault de Supabase, réponse à la personne par reply_to, jamais de message perdu), étape 11 de

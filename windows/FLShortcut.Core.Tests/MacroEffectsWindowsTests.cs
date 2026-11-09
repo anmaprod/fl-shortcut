@@ -46,6 +46,18 @@ internal sealed class FakeFl : IFlDriver
     public RgbImage? ColorImage { get; set; }
     public RgbImage? WindowColorImage(long window) => ColorImage;
     public List<(int X, int Y)> ControlClicks { get; } = new();
+    /// Textes tapés dans FL (nom d'un plugin dans « Find ») ; réaction du faux FL.
+    public List<string> Typed { get; } = new();
+    public Action<string>? OnType { get; set; }
+    public bool CanType { get; set; } = true;
+
+    public bool TypeText(string text)
+    {
+        if (!Front || !CanType) return false;
+        Typed.Add(text);
+        OnType?.Invoke(text);
+        return true;
+    }
 
     public bool ControlClick(int x, int y)
     {
@@ -914,11 +926,120 @@ public class MacroEffectsWindowsTests
         Assert.True(fl.Scrolls > 0);
         Assert.All(fl.Lines, l => Assert.DoesNotContain("Fake", l));
 
-        Assert.Equal("plugin introuvable : vérifie son nom",
+        Assert.Equal(Loc.T("plugin introuvable dans « More plugins… » de FL : vérifie son nom, ou choisis-le de nouveau dans « Cliquer sur… »"),
             Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.PageOption("channelRack.addInstrument", "More plugins... › Massive"), state)).Why);
         Assert.DoesNotContain(fl.Open, w => w.Id == 40);
         Assert.Equal("Massive", PageOptions.FromPluginList("More plugins... › Massive"));
         Assert.Null(PageOptions.FromPluginList("Synths › Massive"));
+
+        // Le plugin est dans le menu Add (favori de FL) : pris là, comme à la main, sans ouvrir la liste.
+        opened.Clear();
+        var fromMenu = new List<string>();
+        var previous = fl.OnClick;
+        fl.OnClick = (x, y, right) =>
+        {
+            if (fl.Open.Any(w => w.Id == 31) && Hit(channel[0], x, y)) { fromMenu.Add("serum 2"); fl.Hide(31); fl.Hide(30); return; }
+            previous!(x, y, right);
+        };
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.PageOption("channelRack.addInstrument", "More plugins... › Serum 2"), state));
+        Assert.Equal(new[] { "serum 2" }, fromMenu);
+        Assert.Empty(opened);
+        Assert.DoesNotContain(fl.Open, w => w.Id == 40);
+    }
+
+    /// La liste « More plugins… » comme sur le Mac (09/11) : « Find » cliqué et le nom tapé (plus de défilement), ligne
+    /// lue d'un seul tenant avec ses colonnes et l'étoile, format préféré (VST3 pour un instrument), double-clic au milieu
+    /// du nom ; sans « Find » lisible ou sans frappe possible : la liste défile comme avant.
+    [Fact]
+    public void PluginListIsSearchedWithFindThenPickedByItsLine()
+    {
+        var fl = new FakeFl { Bar = new() { new("ADD", 90, 4, 30, 12) } };
+        var add = new List<TextItem> { Entry("Channel", 92, 24) };
+        var channel = new List<TextItem> { Entry("More plugins...", 292, 26) };
+        var rows = new List<TextItem>
+        {
+            new("Analog Lab Pro VST3 Arturia", 420, 220, 300, 16), new("Fake Synth 1", 420, 240, 120, 16),
+        };
+        var found = new List<TextItem>
+        {
+            new("★ Analog Lab V VST Arturia", 420, 220, 300, 16), new("Analog Lab V VST3 Arturia", 420, 240, 300, 16),
+        };
+        var find = new TextItem("Find", 700, 570, 40, 16);
+        var opened = new List<int>();
+        fl.OnClick = (x, y, _) =>
+        {
+            if (Hit(fl.Bar[0], x, y)) { fl.Show(30, FlWindowRole.Menu, 90, 20, 200, 60); fl.MenuTexts[30] = add; }
+            else if (fl.Open.Any(w => w.Id == 30) && Hit(add[0], x, y)) { fl.Show(31, FlWindowRole.Menu, 290, 22, 200, 60); fl.MenuTexts[31] = channel; }
+            else if (fl.Open.Any(w => w.Id == 31) && Hit(channel[0], x, y))
+            {
+                fl.Hide(31);
+                fl.Hide(30);
+                fl.After(100, () => { fl.Show(40, FlWindowRole.Dialog, 400, 200, 360, 400); fl.Texts[40] = rows.Append(find).ToList(); });
+            }
+            else if (fl.Open.Any(w => w.Id == 40) && Hit(find, x, y)) fl.Show(41, FlWindowRole.Dialog, 450, 300, 200, 60);
+        };
+        fl.OnKey = c =>
+        {
+            if (c.Vk == Vk.Return && fl.Open.Any(w => w.Id == 41)) { fl.Hide(41); fl.Texts[40] = found.Append(find).ToList(); }
+            else if (c.Vk == Vk.Escape) fl.Hide(fl.Open.FirstOrDefault(w => w.Role != FlWindowRole.Main).Id);
+        };
+        fl.OnDoubleClick = (x, y) =>
+        {
+            if (fl.Texts[40].FindIndex(t => x >= t.X && x < t.X + t.Width && y >= t.Y && y < t.Y + t.Height) is var i and >= 0)
+            {
+                opened.Add(i);
+                fl.Hide(40);
+            }
+        };
+        var (_, fx, state) = Start(fl);
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.PageOption("channelRack.addInstrument", "More plugins... › Analog Lab V"), state));
+        Assert.Equal(new[] { "Analog Lab V" }, fl.Typed);
+        Assert.Equal(0, fl.Scrolls);
+        Assert.Equal(new[] { 1 }, opened);                                            // la ligne VST3, pas celle en VST
+        Assert.True(fl.DoubleClicks[^1].X < 420 + 150);                               // au milieu du nom, pas des colonnes
+        Assert.All(fl.Lines, l => Assert.DoesNotContain("Analog", l));
+    }
+
+    [Fact]
+    public void PluginListLinesAreReadLikeOnTheMac()
+    {
+        var wanted = MenuText.Normalized("Serum 2");
+        Assert.True(PluginListPick.Matches(MenuText.Normalized("★ Serum 2"), wanted));
+        Assert.True(PluginListPick.Matches(MenuText.Normalized("Serum 2 VST3 Xfer Records"), wanted));
+        Assert.False(PluginListPick.Matches(MenuText.Normalized("Serum 2 FX VST3"), wanted));
+        Assert.False(PluginListPick.Matches(MenuText.Normalized("Serum VST3"), wanted));
+        Assert.False(PluginListPick.Matches(MenuText.Normalized("Serum 20"), wanted));
+        // Format lu à droite du nom sur la même ligne ; un effet préfère l'AU, un instrument le VST3.
+        var items = new List<TextItem>
+        {
+            new("Pro-Q 3", 10, 10, 60, 14), new("VST3", 200, 10, 30, 14),
+            new("Pro-Q 3", 10, 30, 60, 14), new("VST", 200, 30, 30, 14),
+        };
+        Assert.Equal(10, PluginListPick.Best("Pro-Q 3", PluginListPick.PreferredFormats("Channel"), items)!.Value.Y);
+        items.Add(new("Pro-Q 3", 10, 50, 60, 14));
+        items.Add(new("AU", 200, 50, 30, 14));
+        Assert.Equal(50, PluginListPick.Best("Pro-Q 3", PluginListPick.PreferredFormats("Effect"), items)!.Value.Y);
+        Assert.Null(PluginListPick.Best("Pro-Q 2", PluginListPick.PreferredFormats("Effect"), items));
+        var list = new FlWin(5, FlWindowRole.Dialog, 0, 0, 400, 400);
+        Assert.NotNull(PluginListPick.FindButton(new List<TextItem> { new("Find", 300, 370, 30, 14) }, list));
+        Assert.Null(PluginListPick.FindButton(new List<TextItem> { new("Find", 300, 40, 30, 14) }, list));
+        Assert.Equal((15, 7), PluginListPick.NamePoint(new TextItem("Serum", 0, 0, 30, 14), "Serum"));
+    }
+
+    /// Titre « Channel rack » lu collé à un autre mot, ou en deux mots : le point de dépôt est quand même trouvé.
+    [Fact]
+    public void ChannelRackTitleIsFoundEvenStuckToAnotherWord()
+    {
+        List<TextItem> Rack(params TextItem[] title) => title.Concat(new TextItem[]
+        {
+            new("Kick", 120, 140, 40, 14), new("Snare", 120, 170, 44, 14), new("Hat", 120, 200, 30, 14),
+        }).ToList();
+        var alone = PluginDrop.ChannelRackPoint(Rack(new TextItem("Channel rack", 200, 100, 90, 14)));
+        Assert.NotNull(alone);
+        Assert.Equal(alone, PluginDrop.ChannelRackPoint(Rack(new TextItem("Channel rack All", 200, 100, 130, 14))));
+        Assert.Equal(alone, PluginDrop.ChannelRackPoint(Rack(new TextItem("Channel", 200, 100, 50, 14), new TextItem("rack", 254, 100, 30, 14))));
+        Assert.True(PluginDrop.PageShown(false, new List<TextItem> { new("Channel rack All", 200, 100, 130, 14) }));
+        Assert.False(PluginDrop.PageShown(false, new List<TextItem> { new("Channel", 200, 100, 50, 14) }));
     }
 
     // ---------- Menu de FL ----------

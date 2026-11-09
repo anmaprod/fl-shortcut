@@ -12,8 +12,16 @@ public static class PluginDatabase
     public sealed record Plugin(string Format, string Name);
 
     /// « Plugin database » de FL : à côté du script installé (dossier de données choisi dans FL), puis l'emplacement
-    /// par défaut (Documents › Image-Line › FL Studio).
-    public static IReadOnlyList<string> Roots(string? scriptPath, string documents)
+    /// par défaut (Documents › Image-Line › FL Studio), comme le Mac.
+    public static IReadOnlyList<string> Roots(string? scriptPath, string documents) =>
+        Roots(scriptPath, documents.Length > 0 ? new[] { documents } : Array.Empty<string>());
+
+    /// Mêmes dossiers que le Mac (Image-Line › FL Studio › Presets › Plugin database), cherchés à toutes les places
+    /// qu'ils peuvent avoir sous Windows (09/11) : à côté du script installé ; les dossiers de données que FL a notés
+    /// (`flFolders`, lus par l'appli) ; puis chaque dossier Documents possible (`documents` : celui de Windows, celui du
+    /// profil, celui de OneDrive), avec l'ancienne place « Image-Line › Data › FL Studio ». Sans doublon, dans cet
+    /// ordre ; la première base qui a des plugins gagne.
+    public static IReadOnlyList<string> Roots(string? scriptPath, IEnumerable<string> documents, IEnumerable<string>? flFolders = null)
     {
         var roots = new List<string>();
         try
@@ -22,8 +30,21 @@ public static class PluginDatabase
             if (scriptPath is { Length: > 0 } && Directory.GetParent(scriptPath)?.Parent?.Parent?.Parent is { } flStudio)
                 roots.Add(Path.Combine(flStudio.FullName, "Presets", "Plugin database"));
         }
-        catch (Exception e) when (e is ArgumentException or IOException or UnauthorizedAccessException) { }
-        if (documents.Length > 0) roots.Add(Path.Combine(documents, "Image-Line", "FL Studio", "Presets", "Plugin database"));
+        catch (Exception e) when (e is ArgumentException or IOException or UnauthorizedAccessException or System.Security.SecurityException) { }
+        foreach (var folder in flFolders ?? Array.Empty<string>())
+        {
+            if (folder.Trim().Length == 0 || !Path.IsPathRooted(folder)) continue;
+            var f = folder.Trim().TrimEnd('\\', '/');
+            if (Path.GetFileName(f).Equals("Plugin database", StringComparison.OrdinalIgnoreCase)) roots.Add(f);
+            else
+            {
+                roots.Add(Path.Combine(f, "Presets", "Plugin database"));
+                roots.Add(Path.Combine(f, "FL Studio", "Presets", "Plugin database"));
+            }
+        }
+        var docs = documents.Where(d => d.Trim().Length > 0).ToList();
+        foreach (var d in docs) roots.Add(Path.Combine(d, "Image-Line", "FL Studio", "Presets", "Plugin database"));
+        foreach (var d in docs) roots.Add(Path.Combine(d, "Image-Line", "Data", "FL Studio", "Presets", "Plugin database"));
         return roots.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 

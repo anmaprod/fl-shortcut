@@ -246,9 +246,32 @@ public sealed class PluginDatabaseTests
     {
         var script = Path.Combine("C:", "Data", "FL Studio", "Settings", "Hardware", "FL Shortcuts", "device_FLShortcut.py");
         var roots = PluginDatabase.Roots(script, Path.Combine("C:", "Docs"));
-        Assert.Equal(2, roots.Count);
+        Assert.Equal(3, roots.Count);
         Assert.EndsWith(Path.Combine("FL Studio", "Presets", "Plugin database"), roots[0]);
         Assert.Equal(Path.Combine("C:", "Docs", "Image-Line", "FL Studio", "Presets", "Plugin database"), roots[1]);
-        Assert.Single(PluginDatabase.Roots(null, Path.Combine("C:", "Docs")));
+        Assert.Equal(Path.Combine("C:", "Docs", "Image-Line", "Data", "FL Studio", "Presets", "Plugin database"), roots[2]);
+        Assert.Equal(2, PluginDatabase.Roots(null, Path.Combine("C:", "Docs")).Count);
+    }
+
+    /// Mêmes dossiers que le Mac, à toutes leurs places sous Windows (09/11) : dossiers de données notés par FL, puis
+    /// chaque Documents (Windows, profil, OneDrive), sans doublon, le script d'abord.
+    [Fact]
+    public void RootsCoverEveryWindowsDocumentsFolder()
+    {
+        var docs = Path.Combine(Path.GetTempPath(), "Docs");
+        var drive = Path.Combine(Path.GetTempPath(), "OneDrive", "Documents");
+        var data = Path.Combine(Path.GetTempPath(), "FLData");
+        var roots = PluginDatabase.Roots(null, new[] { docs, drive, docs.ToUpperInvariant() }, new[] { data, "relatif", "" });
+        Assert.Equal(new[]
+        {
+            Path.Combine(data, "Presets", "Plugin database"),
+            Path.Combine(data, "FL Studio", "Presets", "Plugin database"),
+            Path.Combine(docs, "Image-Line", "FL Studio", "Presets", "Plugin database"),
+            Path.Combine(drive, "Image-Line", "FL Studio", "Presets", "Plugin database"),
+            Path.Combine(docs, "Image-Line", "Data", "FL Studio", "Presets", "Plugin database"),
+            Path.Combine(drive, "Image-Line", "Data", "FL Studio", "Presets", "Plugin database"),
+        }, roots);
+        var direct = Path.Combine(data, "Plugin database");
+        Assert.Equal(direct, PluginDatabase.Roots(null, Array.Empty<string>(), new[] { direct })[0]);
     }
 }

@@ -104,8 +104,11 @@ internal sealed class WindowsFlDriver : IFlDriver
     /// « Plugin database » de FL : à côté du script installé (dossier de données choisi dans FL), sinon dans Documents.
     public string? PluginPreset(string name, bool effect)
     {
-        var roots = PluginDatabase.Roots(_settings.ScriptPath, Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
-        return roots.Select(r => PluginDrop.PresetFile(r, name, effect)).FirstOrDefault(f => f is not null);
+        var roots = FlDataFolders.PluginRoots(_settings.ScriptPath);
+        var file = roots.Select(r => PluginDrop.PresetFile(r, name, effect)).FirstOrDefault(f => f is not null);
+        // Journal : combien de bases existent et si le .fst est trouvé (jamais le nom du plugin ni les dossiers).
+        Log("PLUGIN", $"database: {roots.Count(Directory.Exists)}/{roots.Count} base(s), .fst {(file is null ? "not found" : "found")}");
+        return file;
     }
 
     public WindowsFlDriver(uint pid, MidiLink midi, AppSettings settings, Func<bool> light, Func<int> escapes,
@@ -310,6 +313,37 @@ internal sealed class WindowsFlDriver : IFlDriver
     public RgbImage? WindowColorImage(long window) => Owned(window) ? FlScreen.ColorWindow((IntPtr)window) : null;
 
     /// Solo d'une piste sans le lien : Ctrl tenu pendant un clic gauche (toujours relâché).
+    /// Texte tapé dans FL seul, lettre par lettre (caractères Unicode, marqués comme venant de l'appli : le crochet du
+    /// clavier les laisse passer). Faux si FL n'est plus devant ou si une touche de modification est encore enfoncée
+    /// (Ctrl + lettre ferait un raccourci de FL). Le texte n'est jamais journalisé.
+    public bool TypeText(string text)
+    {
+        if (string.IsNullOrEmpty(text) || text.Length > 120 || ModifiersDown()) return false;
+        foreach (var c in text)
+        {
+            if (char.IsControl(c)) continue;
+            if (!InFront()) return false;
+            var inputs = new[] { Unicode(c, false), Unicode(c, true) };
+            if (Win32.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<Win32.INPUT>()) != inputs.Length) return false;
+            Thread.Sleep(8);
+        }
+        return true;
+    }
+
+    private static Win32.INPUT Unicode(char c, bool up) => new()
+    {
+        type = Win32.INPUT_KEYBOARD,
+        U = new Win32.InputUnion
+        {
+            ki = new Win32.KEYBDINPUT
+            {
+                wScan = c,
+                dwFlags = Win32.KEYEVENTF_UNICODE | (up ? Win32.KEYEVENTF_KEYUP : 0),
+                dwExtraInfo = KeyboardHook.Magic,
+            },
+        },
+    };
+
     public bool ControlClick(int x, int y)
     {
         if (!InFront()) return false;

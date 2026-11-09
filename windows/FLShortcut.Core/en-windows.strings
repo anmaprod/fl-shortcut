@@ -169,7 +169,6 @@
 "endroit où attraper introuvable : remontre le glisser" = "grab spot not found: show the drag again";
 "endroit où lâcher introuvable : remontre le glisser" = "drop spot not found: show the drag again";
 "menu de FL illisible : mets FL devant" = "FL's menu unreadable: bring FL to the front";
-"plugin introuvable : vérifie son nom" = "plugin not found: check its name";
 "Fichier trop gros pour une macro." = "File too big for a macro.";
 "Ce fichier n'est pas une macro de FL Shortcuts." = "This file isn't an FL Shortcuts macro.";
 "Blocs trop imbriqués : %lld niveaux au plus." = "Blocks nested too deep: %lld levels at most.";

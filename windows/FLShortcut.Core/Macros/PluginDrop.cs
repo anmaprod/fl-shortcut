@@ -114,27 +114,47 @@ public static class PluginDrop
         return t.Length is >= 2 and <= 40 && t.Any(char.IsLetter) && !t.Contains(':');
     }
 
-    /// Les .fst sous `folder` (sous-dossiers compris, sans lien), avec leur premier dossier (le format sous Installed) ;
-    /// `skip` : un dossier du premier niveau laissé de côté. 50 000 fichiers au plus.
+    /// Les .fst sous `folder` (sous-dossiers compris), avec leur premier dossier (le format sous Installed) ; `skip` : un
+    /// dossier du premier niveau laissé de côté. 50 000 fichiers et 8 niveaux au plus. Jamais un vrai lien (lien
+    /// symbolique, jonction) ; 09/11 : les fichiers d'un Documents synchronisé par OneDrive (réglage par défaut de
+    /// Windows) portent aussi une marque de « point d'analyse » : ils étaient sautés, aucun .fst n'était trouvé, et le
+    /// plugin passait par les menus de FL au lieu d'être glissé. Ils sont pris maintenant.
     private static List<(string File, string Top)> FstFiles(string folder, string? skip)
     {
         var found = new List<(string, string)>();
         if (!Directory.Exists(folder)) return found;
-        var options = new EnumerationOptions
+        var options = new EnumerationOptions { IgnoreInaccessible = true, AttributesToSkip = FileAttributes.Hidden | FileAttributes.System };
+        void Walk(string dir, string top, int depth)
         {
-            RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint | FileAttributes.Hidden,
-        };
-        try
-        {
-            foreach (var file in Directory.EnumerateFiles(folder, "*.fst", options).Take(50_000))
+            if (found.Count >= 50_000) return;
+            try
             {
-                var parts = Path.GetRelativePath(folder, file).Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                if (skip is not null && parts.Length > 1 && string.Equals(parts[0], skip, StringComparison.OrdinalIgnoreCase)) continue;
-                found.Add((file, parts.Length > 1 ? parts[0] : ""));
+                foreach (var file in Directory.EnumerateFiles(dir, "*.fst", options))
+                {
+                    if (found.Count >= 50_000) return;
+                    if (IsLink(file)) continue;
+                    found.Add((file, top));
+                }
+                if (depth >= 8) return;
+                foreach (var sub in Directory.EnumerateDirectories(dir, "*", options))
+                {
+                    if (IsLink(sub)) continue;
+                    var name = Path.GetFileName(sub);
+                    if (depth == 0 && skip is not null && string.Equals(name, skip, StringComparison.OrdinalIgnoreCase)) continue;
+                    Walk(sub, depth == 0 ? name : top, depth + 1);
+                }
             }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException) { }
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+        Walk(folder, "", 0);
         return found;
+    }
+
+    /// Vrai lien (symbolique ou jonction) : jamais suivi. Un fichier de OneDrive n'en est pas un.
+    private static bool IsLink(string path)
+    {
+        try { return (File.Exists(path) ? new FileInfo(path).LinkTarget : new DirectoryInfo(path).LinkTarget) is not null; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return true; }
     }
 
     /// La première case d'effet vide de la piste choisie du Mixer (06/11, comme le Mac, « ça vise la piste qui est
@@ -171,9 +191,36 @@ public static class PluginDrop
     public static bool PageShown(bool effect, IReadOnlyList<TextItem> items) => items.Any(item =>
     {
         var t = MenuText.Normalized(item.Text);
-        return effect ? t == MenuText.Normalized("Mixer") || t.StartsWith(MenuText.Normalized("Mixer -"), StringComparison.Ordinal)
-                      : t == MenuText.Normalized("Channel rack");
-    });
+        return effect && (t == MenuText.Normalized("Mixer") || t.StartsWith(MenuText.Normalized("Mixer -"), StringComparison.Ordinal));
+    }) || (!effect && Titles(items, "Channel rack").Any());
+
+    /// Le titre `title` (« Channel rack ») parmi les textes lus (09/11, Windows) : lu seul, au début d'une ligne plus
+    /// longue (« Channel rack All » : la lecture de Windows colle parfois le mot voisin), ou en deux mots voisins sur la
+    /// même ligne. Avant, seul le titre lu seul comptait : le plugin n'était pas déposé (menu Add à la place).
+    public static IEnumerable<TextItem> Titles(IReadOnlyList<TextItem> items, string title)
+    {
+        var key = MenuText.Normalized(title);
+        if (key.Length == 0) yield break;
+        foreach (var t in items)
+        {
+            var n = MenuText.Normalized(t.Text);
+            if (n == key) yield return t;
+            else if (n.StartsWith(key + " ", StringComparison.Ordinal))
+                yield return t with { Width = Math.Max(1, (int)Math.Round(t.Width * key.Length / (double)n.Length)) };
+        }
+        var words = key.Split(' ');
+        if (words.Length != 2) yield break;
+        foreach (var first in items.Where(t => MenuText.Normalized(t.Text) == words[0]))
+        {
+            var line = Math.Max(first.Height, 8);
+            var second = items.Where(o => MenuText.Normalized(o.Text) == words[1] && Math.Abs(o.CenterY - first.CenterY) < line * 0.6
+                                          && o.X >= first.X + first.Width - 2 && o.X - (first.X + first.Width) <= line * 2)
+                .OrderBy(o => o.X).Cast<TextItem?>().FirstOrDefault();
+            if (second is not { } s) continue;
+            var top = Math.Min(first.Y, s.Y);
+            yield return new TextItem(title, first.X, top, s.X + s.Width - first.X, Math.Max(first.Y + first.Height, s.Y + s.Height) - top);
+        }
+    }
 
     /// Point où déposer dans le Channel rack, toujours dans l'espace entre deux lignes (jamais SUR un son : il le
     /// remplacerait) : juste sous le dernier son ; Channel rack coupé (dernier nom lu à moitié, ou dernier son au ras de
@@ -182,8 +229,7 @@ public static class PluginDrop
     /// réguliers (un nom illisible laisse un trou d'une ligne). null : titre absent, moins de deux noms, pas réguliers.
     public static (int X, int Y)? ChannelRackPoint(IReadOnlyList<TextItem> items, int? bottom = null)
     {
-        var titleKey = MenuText.Normalized("Channel rack");
-        foreach (var title in items.Where(t => MenuText.Normalized(t.Text) == titleKey).OrderBy(t => t.Y))
+        foreach (var title in Titles(items, "Channel rack").OrderBy(t => t.Y).ToList())
         {
             var top = title.Y + title.Height;
             // Vidéo du 05/11 (FL 2025) : le titre est à ~100 points à droite des noms, centrés dans leur bouton : noms

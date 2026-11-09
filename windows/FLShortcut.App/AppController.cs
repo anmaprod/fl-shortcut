@@ -315,7 +315,7 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
 
     /// Bases de plugins de FL (Plugin database) : à côté du script installé, puis Documents › Image-Line.
     public IReadOnlyList<string> PluginRoots =>
-        PluginDatabase.Roots(_settings.ScriptPath, Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
+        FlDataFolders.PluginRoots(_settings.ScriptPath);
 
     /// Premier raccourci qui lance cette macro.
     public Shortcut? MacroShortcut(Guid macro) => MacroDrafts.ShortcutsOf(macro, _shortcuts).FirstOrDefault();

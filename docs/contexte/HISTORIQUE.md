@@ -957,3 +957,10 @@ entrée 1 ≈ 0,5 s.
   de supabase, à coller par le propriétaire après avoir créé son compte Resend. Essais sur un PostgreSQL ordinaire
   (Vault et pg_net simulés). Puis « regarde si tu n'as pas oublié des choses » : bloc « Cliquer sur… › Playlist ›
   Arrangement » porté sur Windows.
+- 09/11 (4) : « des bugs avec l'ouverture de vst/plugin en passant par macro cliquer sur… pour win uniquement », puis
+  « les mêmes dossiers qu'on a utilisés pour Mac… Plugin Database › Installed › Effect et Generator… le même drag and
+  drop » et « je veux que le logiciel Windows soit pareil que Mac… réadapté pour Windows ». Trouvé : la recherche du
+  .fst sous Windows sautait les fichiers marqués « point d'analyse », c'est-à-dire tout Documents synchronisé par
+  OneDrive (réglage par défaut de Windows) → jamais de dépôt, les menus de FL à la place (lent) ; la base n'était
+  cherchée que dans Documents. Secours « More plugins… » : nom exact seulement (le bug du Mac du 03/11), pas de
+  « Find », pas d'essai du menu Add. Tout corrigé comme le Mac. Prochaine étape demandée : revue complète Mac → Windows.

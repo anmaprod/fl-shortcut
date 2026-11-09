@@ -71,6 +71,9 @@ public interface IFlDriver
     RgbImage? WindowColorImage(long window) => null;
     /// Ctrl + clic gauche en ce point (solo d'une piste) ; faux si FL n'est plus devant.
     bool ControlClick(int x, int y) => false;
+    /// Texte tapé dans FL, lettre par lettre (nom d'un plugin dans « Find » de la liste « More plugins… ») ; faux si FL
+    /// n'est plus devant ou si l'appareil ne sait pas taper.
+    bool TypeText(string text) => false;
     /// Menus de FL refermés sans touche (fin d'un Menu de FL raté : plus rien de surligné en haut de FL).
     void CancelMenus();
     /// Dernier clic de l'utilisateur dans une fenêtre normale de FL, s'il est récent (la piste visée).
