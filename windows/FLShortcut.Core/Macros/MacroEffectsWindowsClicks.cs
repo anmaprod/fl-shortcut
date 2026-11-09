@@ -124,6 +124,51 @@ public sealed partial class MacroEffectsWindows
         return new StepResult.Ok();
     }
 
+    // ---------- « Cliquer sur… » › Playlist › Arrangement ----------
+
+    /// Bouton « Arrangement » de la Playlist retrouvé à son nom dans les fenêtres de FL au moment du clic (la plus grande
+    /// d'abord : la Playlist peut être détachée), puis `item` dans le menu qu'il ouvre, retrouvé lui aussi à son nom :
+    /// « Add one », « Clone », « Rename », « Delete », « Merge with » (son sous-menu reste ouvert) ou le nom d'un
+    /// arrangement. Ligne absente : menu refermé. Miroir de MacroEffectsMac.arrangementMenu ; aucun nom au journal.
+    private StepResult ArrangementMenu(string item)
+    {
+        var wanted = MenuText.Normalized(item);
+        if (wanted.Length == 0) return new StepResult.Fail(Loc.T("nom de l'arrangement à écrire dans « Cliquer sur… »"));
+        if (StopReason() is { } stop) return new StepResult.Cancel(stop);
+        (int X, int Y)? button = null;
+        foreach (var w in _fl.Windows().Where(w => w.Role != FlWindowRole.Menu && w.Width >= 300 && w.Height >= 200)
+                     .OrderByDescending(w => (long)w.Width * w.Height))
+        {
+            if (_fl.ReadText(w.Id) is not { } texts) continue;
+            if (MenuText.ArrangementLabel(texts) is { } found) { button = found; break; }
+        }
+        if (button is not { } at)
+        {
+            _fl.Log("FL", "arrangement button not found");
+            return new StepResult.Fail(Loc.T("bouton « Arrangement » introuvable : ouvre la Playlist juste au-dessus (son titre visible)"));
+        }
+        var before = Ids();
+        _beforeLastClick = before;
+        var opening = ClickAt(at, false, 60);
+        if (opening is not StepResult.Ok) return opening;
+        var (opened, menu) = NewWindow(before, FlWindowRole.Menu, MenuAppearMs);
+        if (opened is StepResult.Cancel) return Abandon(opened);
+        if (menu is not { } m || Settled(m.Id) is not { } current)
+            return Abandon(new StepResult.Fail(Loc.T("le menu « Arrangement » de FL ne s'est pas ouvert")));
+        var items = _fl.MenuItems(current.Id) ?? _fl.ReadText(current.Id);
+        if (items?.Where(t => MenuText.Normalized(t.Text) == wanted).OrderBy(t => t.Y).Cast<TextItem?>().FirstOrDefault()
+            is not { } line)
+        {
+            _fl.Log("FL", $"arrangement menu: line not among {items?.Count ?? 0} item(s)");
+            return Abandon(new StepResult.Fail(Loc.T("cette ligne est introuvable dans le menu « Arrangement » de FL")));
+        }
+        var chosen = ClickInside((line.CenterX, line.CenterY), current, 80);
+        if (chosen is not StepResult.Ok) return Abandon(chosen);
+        _fl.Sleep(150);
+        _fl.Log("FL", "arrangement menu item chosen");
+        return new StepResult.Ok();
+    }
+
     private static bool Contains(FlWin w, (int X, int Y) p) => p.X >= w.X && p.X < w.X + w.Width && p.Y >= w.Y && p.Y < w.Y + w.Height;
 
     private static bool SameSize(FlWin w, Size2 size) => Math.Abs(w.Width - size.Width) <= 2 && Math.Abs(w.Height - size.Height) <= 2;

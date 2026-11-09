@@ -111,8 +111,6 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
     /// Bloc pas encore fait pour Windows : la raison (la macro est bloquée à la validation), sinon null.
     public static string? Unsupported(BlockBody body) => body switch
     {
-        BlockBody.PageOption { Option: { } id } when PageOptions.Option(id)?.Kind is Macros.PageOption.OptionKind.Arrangement
-            => Loc.T("menu « Arrangement » de la Playlist : pas encore sur Windows."),
         BlockBody.SelectInput or BlockBody.FeedbackCheck or BlockBody.SoundCard or BlockBody.MenuAX
             => Loc.F("bloc « %@ » pas encore pris en charge sur Windows.",
                 body.Type is { } type ? BlockRegistry.Spec(type).Label : "?"),
@@ -643,6 +641,8 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
                     : new StepResult.Fail(Loc.T("numéro du canal à écrire dans « Cliquer sur… »"));
             case Macros.PageOption.OptionKind.Rename:
                 return RenameTrack(p.Name);
+            case Macros.PageOption.OptionKind.Arrangement a:
+                return ArrangementMenu(a.Item ?? p.Name.Trim());
         }
         // D'abord son fichier de la Plugin database déposé dans FL (04/11 : bien plus rapide) ; sinon le menu Add.
         if (option.Kind is Macros.PageOption.OptionKind.AddMenu adding

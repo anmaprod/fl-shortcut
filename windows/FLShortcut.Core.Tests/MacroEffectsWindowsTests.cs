@@ -779,7 +779,7 @@ public class MacroEffectsWindowsTests
     // ---------- « Cliquer sur… » ----------
 
     /// Mute d'un canal : par le lien, sinon la touche de FL (canaux 1 à 10) ; renommer : par le lien ; menu Arrangement :
-    /// pas encore sous Windows.
+    /// pris en charge sous Windows (09/11).
     [Fact]
     public void PageOptionsUseTheLinkOrTheirKey()
     {
@@ -796,7 +796,53 @@ public class MacroEffectsWindowsTests
         Assert.Equal(new byte[] { 1, 1, 0, 0, 0, 4, (byte)'L', (byte)'e', (byte)'a', (byte)'d' }, Assert.Single(fl.Data));
         Assert.All(fl.Lines, l => Assert.DoesNotContain("Lead", l));
 
-        Assert.NotNull(MacroEffectsWindows.Unsupported(new BlockBody.PageOption("playlist.arrangementGo", "Arrangement 2")));
+        Assert.Null(MacroEffectsWindows.Unsupported(new BlockBody.PageOption("playlist.arrangementGo", "Arrangement 2")));
+    }
+
+    /// Menu « Arrangement » de la Playlist (comme le Mac) : bouton retrouvé à son nom dans la fenêtre de FL (dans une ligne
+    /// plus longue, à sa place), clic, puis la ligne voulue retrouvée à son nom dans le menu ouvert ; ligne absente : menu
+    /// refermé ; bouton absent : rien de cliqué. Aucun nom au journal.
+    [Fact]
+    public void ArrangementMenuFindsTheButtonThenTheLine()
+    {
+        (FakeFl, MacroEffectsWindows, RunState) Playlist(bool withButton)
+        {
+            var started = Start();
+            var fl = started.Fl;
+            if (withButton)
+                fl.Texts[FakeFl.Main] = new List<TextItem> { new("Playlist - Arrangement", 400, 40, 220, 16), new("Arrangement", 30, 600, 90, 14) };
+            else
+                fl.Texts[FakeFl.Main] = new List<TextItem> { new("Playlist", 400, 40, 80, 16) };
+            fl.OnClick = (_, y, _) => { if (y < 100) fl.After(50, () => fl.Show(10, FlWindowRole.Menu, 500, 60, 200, 200)); };
+            fl.MenuTexts[10] = new List<TextItem>
+            {
+                new("Add one", 510, 70, 80, 14), new("Clone", 510, 90, 60, 14), new("Couplet 2", 510, 150, 90, 14),
+            };
+            return started;
+        }
+
+        var (fl, fx, state) = Playlist(withButton: true);
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.PageOption("playlist.arrangementClone", ""), state));
+        Assert.Equal(new[] { (565, 48, false), (540, 97, false) }, fl.Clicks);
+
+        (fl, fx, state) = Playlist(withButton: true);
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.PageOption("playlist.arrangementGo", " couplet 2 "), state));
+        Assert.Equal((555, 157, false), fl.Clicks[^1]);
+        Assert.All(fl.Lines, l => Assert.DoesNotContain("ouplet", l));
+
+        (fl, fx, state) = Playlist(withButton: true);
+        Assert.Equal(Loc.T("cette ligne est introuvable dans le menu « Arrangement » de FL"),
+            Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.PageOption("playlist.arrangementGo", "Refrain"), state)).Why);
+        Assert.Single(fl.Clicks);
+        Assert.True(fl.MenusCancelled > 0);
+
+        (fl, fx, state) = Playlist(withButton: false);
+        Assert.Equal(Loc.T("bouton « Arrangement » introuvable : ouvre la Playlist juste au-dessus (son titre visible)"),
+            Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.PageOption("playlist.arrangementAdd", ""), state)).Why);
+        Assert.Empty(fl.Clicks);
+
+        Assert.Equal((70, 607), MenuText.ArrangementLabel(new List<TextItem> { new("Arrangement", 30, 600, 80, 14) }));
+        Assert.Null(MenuText.ArrangementLabel(new List<TextItem> { new("Pattern 1", 30, 600, 80, 14) }));
     }
 
     /// « Ajouter un instrument » : ADD › Channel › le plugin, par le menu de FL ; plugin absent : dit comme tel.

@@ -204,9 +204,9 @@
   de FL puis chaque élément cliqué comme à la main, retrouvé à son nom : menu standard lu par Windows avec l'état grisé,
   sinon texte lu dans la seule fenêtre de FL, `FlScreen`), menu de la piste (piste visée = dernier clic dans FL, crochet
   souris seulement si une macro la vise), preset déposé (glisser d'OLE comme depuis l'Explorateur) ou écrit dans la
-  boîte « Open », « Cliquer sur… » (sauf menu Arrangement), Nom et couleur (sans l'icône) : les 5 modèles peuvent
+  boîte « Open », « Cliquer sur… » (menu Arrangement compris depuis le 09/11 : bouton et ligne retrouvés à leur nom, `ArrangementMenu`), Nom et couleur (sans l'icône) : les 5 modèles peuvent
   tourner. PAS ENCORE (`MacroEffectsWindows.Unsupported`, macro bloquée, raccourci laissé à FL) : entrée, larsen,
-  carte son, menu Arrangement. Clic appris « intelligent » comme le Mac (04/11, « si c'est un bouton il va l'apprendre
+  carte son (tous hors de la palette du Mac aussi). Clic appris « intelligent » comme le Mac (04/11, « si c'est un bouton il va l'apprendre
   le bouton en lui même ») : « Montrer dans FL… » et l'enregistrement lisent le nom du bouton sous le clic dans la seule
   fenêtre de FL (`FlScreen.Around/NameAt`, `TextLook.Label`, `MacroDrafts.Named`), sinon, case « Retrouver ce bouton
   s'il bouge », son image (`FlScreen.PatchAt`, `MacroDrafts.Visual`, rejouée par `VisualMatch` dans

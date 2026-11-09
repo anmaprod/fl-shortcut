@@ -68,6 +68,25 @@ public static class MenuText
         return close.Count > 0 ? close[0].Item : null;
     }
 
+    /// Pur (testé) : où cliquer le nom de l'arrangement (« Arrangement », « Arrangement 2 », nom donné par FL) parmi les
+    /// textes lus d'une fenêtre : le plus haut qui le contient ; dans une ligne plus longue (« Playlist - Arrangement »),
+    /// à sa place dans la ligne. Miroir de MacroEffectsMac.arrangementLabel.
+    public static (int X, int Y)? ArrangementLabel(IReadOnlyList<TextItem> items)
+    {
+        (int X, int Y)? best = null;
+        var top = int.MaxValue;
+        foreach (var item in items)
+        {
+            var text = item.Text ?? "";
+            var start = text.IndexOf("arrangement", StringComparison.OrdinalIgnoreCase);
+            if (start < 0 || item.Y >= top) continue;
+            var middle = (start + "arrangement".Length / 2.0) / Math.Max(text.Length, 1);
+            best = (item.X + (int)Math.Round(item.Width * middle), item.CenterY);
+            top = item.Y;
+        }
+        return best;
+    }
+
     /// Pur (testé) : l'élément dont le texte commence par `start` (« Consolidate this track… »), le plus haut. null :
     /// absent. Miroir de TrackMenuPick.item du Mac.
     public static TextItem? StartingWith(string start, IReadOnlyList<TextItem> items)
