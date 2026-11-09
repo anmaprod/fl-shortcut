@@ -80,6 +80,10 @@ public readonly record struct KeyCombo(ushort Vk, bool Ctrl = false, bool Alt = 
     /// Bouton de souris (molette cliquée, côtés) : un déclencheur seulement.
     public bool IsMouseButton => global::FLShortcut.Core.Vk.IsMouseButton(Vk);
 
+    /// Touche qui sert aussi à écrire (sans Ctrl, Alt ni Win ; Maj permise ; ni F1…F24 ni bouton de souris), comme
+    /// isTypingKey du Mac : laissée à FL quand il s'en sert.
+    public bool IsTypingKey => !Ctrl && !Alt && !Win && !global::FLShortcut.Core.Vk.IsFunctionKey(Vk) && !IsMouseButton;
+
     /// Ce qui peut être envoyé à FL : une touche, jamais un bouton de souris.
     public bool IsValidTarget => IsValidKey && !IsMouseButton;
 

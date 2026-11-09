@@ -273,10 +273,16 @@ internal sealed class KeyboardHook : IDisposable
     /// Décision du routeur pour cet appui (touche ou bouton de souris) et ses effets ; vrai : l'appui est avalé.
     private bool Route(ushort vk, bool isDown, bool isRepeat)
     {
-        var input = new RouterInput(isDown ? RouterInput.Kinds.Down : RouterInput.Kinds.Up, _mods.Combo(vk),
-            IsRepeat: isRepeat, IsOwn: false, TargetIsFl: _flPid != 0 && FlPresence.ForegroundPid() == _flPid,
-            AltGr: _mods.AltGr);
-        var decision = _router.Route(input, Config, Link);
+        var combo = _mods.Combo(vk);
+        var targetIsFl = _flPid != 0 && FlPresence.ForegroundPid() == _flPid;
+        // Touche seule qui lance un raccourci : FL s'en sert-il en ce moment (saisie, menu, boîte) ? Lu seulement dans
+        // ce cas, jamais pour les autres frappes ni au repos (comme le Mac).
+        var config = Config;
+        var typing = isDown && !isRepeat && targetIsFl && combo.IsTypingKey && config.Enabled && !config.Recording
+                     && config.Index.ContainsTrigger(combo) && TypingGuard.Reason(_flPid) is not null;
+        var input = new RouterInput(isDown ? RouterInput.Kinds.Down : RouterInput.Kinds.Up, combo,
+            IsRepeat: isRepeat, IsOwn: false, TargetIsFl: targetIsFl, AltGr: _mods.AltGr, TypingInFl: typing);
+        var decision = _router.Route(input, config, Link);
 
         // Alt (ou Win) tenu et déclencheur avalé : FL verrait « Alt seul » et ouvrirait son menu au relâchement.
         // Une touche neutre, envoyée avant tout effet, l'en empêche (même technique qu'AutoHotkey).

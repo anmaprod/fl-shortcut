@@ -720,10 +720,9 @@ internal sealed class OrganizerWindow : Window
         block.Padding = new Thickness(14, 14, 14, 14);
         _content.Children.Add(block);
         if (linkHelp) LinkHelp();
-        var copy = new HyperlinkButton
-        {
-            Content = Label(_controller.Copied ? Loc.T("Copié") : Loc.T("Copier le diagnostic"), 11.5, Text), Padding = new Thickness(0),
-        };
+        var copyText = Label(_controller.Copied ? Loc.T("Copié") : Loc.T("Copier le diagnostic"), 11.5, Text);
+        copyText.TextDecorations = Windows.UI.Text.TextDecorations.Underline;
+        var copy = new HyperlinkButton { Content = copyText, Padding = new Thickness(0) };
         copy.Click += (_, _) => _controller.CopyDiagnostic();
         _content.Children.Add(copy);
         if (_controller.CanUndo) _left.Children.Add(SoftButton(Loc.T("Revenir comme avant"), _controller.Undo));
@@ -1054,41 +1053,27 @@ internal sealed class OrganizerWindow : Window
         var button = new Button { Style = PlainButton, Content = dot, CornerRadius = new CornerRadius(0), VerticalAlignment = VerticalAlignment.Center };
         ToolTipService.SetToolTip(button, "#" + color.Hex);
         AutomationProperties.SetName(button, "#" + color.Hex);
-        var picker = new ColorPicker
-        {
-            Color = ColorOf(color), IsAlphaEnabled = false, IsMoreButtonVisible = false,
-            IsColorChannelTextInputVisible = false, IsHexInputVisible = true,
-        };
         var body = new StackPanel { Spacing = 10 };
         if (withFade)
         {
             var fadeOn = _controller.StyleOf(family).Fade is not null;
-            var choice = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+            var choice = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 0 };
             choice.Children.Add(Segment(Loc.T("Une couleur"), !fadeOn, () => _controller.UpdateStyle(family, s => s with { Fade = null })));
             choice.Children.Add(Segment(Loc.T("Dégradé"), fadeOn, () => _controller.UpdateStyle(family, s => s with
             {
                 Fade = s.Fade ?? s.Color.Lerp(new RgbColor(0, 0, 0), 0.45),
             })));
+            choice.Margin = new Thickness(14, 14, 14, 0);
             body.Children.Add(choice);
         }
-        var flyout = new Flyout { Content = body };
-        var chosen = false;
-        body.Children.Add(RecentColorsRow(flyout, picked =>
+        var flyout = new Flyout { Content = body, FlyoutPresenterStyle = FlatFlyout() };
+        // La fenêtre de couleur de FL, comme le Mac (09/11) : une couleur est posée par « Accept » ou une récente.
+        body.Children.Add(ColorSelector(color, picked =>
         {
-            chosen = true;
+            flyout.Hide();
             _app.RememberColor(picked);
             set(picked);
         }));
-        body.Children.Add(picker);
-        flyout.Closed += (_, _) =>
-        {
-            if (chosen) return;
-            var c = picker.Color;
-            var picked = new RgbColor(c.R, c.G, c.B);
-            if (picked == color) return;
-            _app.RememberColor(picked);
-            set(picked);
-        };
         button.Flyout = flyout;
         return button;
     }
@@ -1099,8 +1084,8 @@ internal sealed class OrganizerWindow : Window
         var button = new Button
         {
             Style = PlainButton,
-            Content = Label(text, 12, selected ? MacLook.WindowColor : Text, semibold: selected),
-            Padding = new Thickness(12, 5, 12, 5),
+            Content = SwissLabel(text, 10.5, selected ? MacLook.WindowColor : Text),
+            Padding = new Thickness(10, 5, 10, 5),
             Background = Brush(selected ? MacLook.Text : MacLook.WindowColor),
             BorderBrush = Brush(selected ? MacLook.Text : LineColor),
             BorderThickness = new Thickness(1),
@@ -1130,12 +1115,12 @@ internal sealed class OrganizerWindow : Window
         var grid = new Grid { ColumnSpacing = 8 };
         Grid.SetColumn(grid, 1);
         row.Children.Add(grid);
-        foreach (var width in new[] { GridLength.Auto, GridLength.Auto, GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto })
+        // Comme le Mac : le nom prend la place, la flèche et la case de sorte (largeur fixe) s'alignent à droite.
+        foreach (var width in new[] { new GridLength(1, GridUnitType.Star), GridLength.Auto, GridLength.Auto, new GridLength(118), GridLength.Auto })
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
         var name = Label(member.Name.Length == 0 ? Loc.T("Sans nom") : member.Name, 13, Text);
         name.TextWrapping = TextWrapping.NoWrap;
         name.TextTrimming = TextTrimming.CharacterEllipsis;
-        name.MaxWidth = 150;
         name.VerticalAlignment = VerticalAlignment.Center;
         grid.Children.Add(name);
         if (member.TestNotes)
@@ -1168,7 +1153,7 @@ internal sealed class OrganizerWindow : Window
         inside.Children.Add(chevron);
         var kind = new Button
         {
-            Style = PlainButton, Content = inside, MinHeight = 26, Padding = new Thickness(8, 0, 8, 0),
+            Style = PlainButton, Content = inside, MinHeight = 26, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(8, 0, 8, 0),
             CornerRadius = new CornerRadius(0), Background = Brush(MacLook.WindowColor), VerticalAlignment = VerticalAlignment.Center,
             BorderBrush = Brush(LineColor), BorderThickness = new Thickness(1),           // case bordée, comme le Mac
         };
@@ -1603,69 +1588,39 @@ internal sealed class OrganizerWindow : Window
             BorderThickness = new Thickness(custom ? 1 : 0),
             Content = face,
         };
-        var picker = new ColorPicker
+        var body = new StackPanel();
+        var flyout = new Flyout { Content = body, FlyoutPresenterStyle = FlatFlyout() };
+        body.Children.Add(ColorSelector(current, picked =>
         {
-            Color = ColorOf(current), ColorSpectrumShape = ColorSpectrumShape.Ring, IsAlphaEnabled = false,
-            IsMoreButtonVisible = false, IsColorChannelTextInputVisible = false, IsHexInputVisible = true,
-        };
-        var body = new StackPanel { Spacing = 10 };
-        var flyout = new Flyout { Content = body };
-        var chosen = false;
-        body.Children.Add(RecentColorsRow(flyout, picked =>
-        {
-            chosen = true;
+            flyout.Hide();
             _app.RememberColor(picked);
             _controller.SetBaseColor(family, picked);
             refresh();
         }));
-        body.Children.Add(picker);
-        flyout.Closed += (_, _) =>
-        {
-            if (chosen) return;
-            var c = picker.Color;
-            var picked = new RgbColor(c.R, c.G, c.B);
-            if (picked == current) return;
-            _app.RememberColor(picked);
-            _controller.SetBaseColor(family, picked);
-            refresh();
-        };
         button.Flyout = flyout;
         ToolTipService.SetToolTip(button, Loc.T("Choisir une autre couleur"));
         AutomationProperties.SetName(button, family.Label() + " : " + Loc.T("Choisir une autre couleur"));
         return button;
     }
 
-    /// Les 10 couleurs récentes, en haut du choix de couleur (comme FL et le Mac : la dernière posée d'abord ; gardées
-    /// avec le compte, 08/11) ; un clic en pose une et ferme le choix. Rien tant qu'aucune couleur n'a été choisie.
-    private UIElement RecentColorsRow(Flyout flyout, Action<RgbColor> pick)
+    /// Cadre d'une bulle au style suisse : noir plein, trait fin, coins carrés, sans marge (le contenu a la sienne).
+    private static Style FlatFlyout()
     {
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
-        foreach (var hex in _app.RecentColors)
-        {
-            if (RgbColor.FromHex(hex) is not { } color) continue;
-            var square = new Button
-            {
-                Style = PlainButton,
-                Width = 22,
-                Height = 22,
-                CornerRadius = new CornerRadius(0),
-                Background = Brush(ColorOf(color)),
-                BorderBrush = Brush(White(0.25)),
-                BorderThickness = new Thickness(1),
-            };
-            ToolTipService.SetToolTip(square, "#" + hex);
-            AutomationProperties.SetName(square, "#" + hex);
-            square.Click += (_, _) =>
-            {
-                pick(color);
-                flyout.Hide();
-            };
-            row.Children.Add(square);
-        }
-        if (row.Children.Count == 0) return new StackPanel { Visibility = Visibility.Collapsed };
-        var block = new StackPanel { Spacing = 6 };
-        block.Children.Add(Label(Loc.T("Récentes"), 11, Secondary));
-        block.Children.Add(row);
-        return block;
+        var style = new Style(typeof(FlyoutPresenter));
+        style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(0)));
+        style.Setters.Add(new Setter(Control.BackgroundProperty, Brush(WindowColor)));
+        style.Setters.Add(new Setter(Control.BorderBrushProperty, Brush(LineColor)));
+        style.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(1)));
+        style.Setters.Add(new Setter(Control.CornerRadiusProperty, new CornerRadius(0)));
+        style.Setters.Add(new Setter(FrameworkElement.MaxWidthProperty, 420.0));
+        return style;
     }
+
+    /// La fenêtre de couleur de FL (FlColorSelector, comme le Mac), avec les 10 récentes de ce PC ou du compte.
+    private UIElement ColorSelector(RgbColor initial, Action<RgbColor> accept)
+    {
+        var recent = _app.RecentColors.Select(h => RgbColor.FromHex(h)).OfType<RgbColor>().ToList();
+        return new FlColorSelector(initial, recent, accept).View;
+    }
+
 }

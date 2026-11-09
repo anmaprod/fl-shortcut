@@ -406,7 +406,16 @@
   entre deux traits fins (barre rouge, « NE TOUCHE PAS À FL. ») ; aperçu : barre des familles (`FamilyBar`), en-têtes
   à six points, carré de couleur, nom en capitales, « MIXER », sons avec poignée glissée vers une autre famille
   (`OrganizerController.MoveSound`, testé), case de sorte bordée, Annuler/Organiser collés ; fenêtre 480 de large hors
-  aperçu (720 pour l'aperçu). Pas encore les icônes de FL de l'en-tête.
+  aperçu (720 pour l'aperçu). Pas encore les icônes de FL de l'en-tête. Choix de couleur = fenêtre de couleur de FL
+  comme le Mac (`FlColorSelector.cs` : 10 récentes numérotées, roue à 16 secteurs × 5 anneaux `FlColorWheel`/`FlHsl`
+  du cœur, testés comme le Mac, curseur de luminosité, #RRGGBB, Hue/Sat/Lum, Red/Green/Blue, Reset/Accept ; plus le
+  ColorPicker de Windows) ; photo CI `organiser-couleurs.png`.
+  Touche seule laissée à FL quand il s'en sert (09/11, « que ça soit encore utilisable pour écrire dans FL… sur Mac on
+  n'a pas ce problème ») : comme TypingGuard du Mac, `TypingGuardRules` (cœur, testé) + `Services/TypingGuard.cs` :
+  menu de FL ouvert (GetGUIThreadInfo en mode menu, ou petite fenêtre surgissante), boîte devant, curseur de saisie
+  (champ de texte) ; `RouterInput.TypingInFl`, `KeyCombo.IsTypingKey` ; lu seulement quand une touche seule lance un
+  raccourci. Message : « Touche seule : laissée à FL quand tu tapes du texte, qu'un menu ou une boîte de FL est
+  ouvert. » Pas le clavier-piano (illisible sous Windows).
   Pas encore vu sur un PC.
 - **Avertissements au style suisse** (08/11, « pas avec un logo, un emoji d'attention… un point orange ») : un carré
   plein #FF3B1F (blanc sous Orange) devant le texte, le texte à l'encre ; plus aucun triangle, cercle « ! » ni octogone

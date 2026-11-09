@@ -66,7 +66,7 @@ public sealed record HookConfig(bool Enabled, ShortcutIndex Index, KeyCombo Togg
 
 /// Événement clavier réduit à ce qui sert à la décision.
 public readonly record struct RouterInput(RouterInput.Kinds Kind, KeyCombo Combo, bool IsRepeat = false,
-    bool IsOwn = false, bool TargetIsFl = false, bool AltGr = false)
+    bool IsOwn = false, bool TargetIsFl = false, bool AltGr = false, bool TypingInFl = false)
 {
     public enum Kinds { Down, Up, Reset }
 }
@@ -136,6 +136,9 @@ public sealed class KeyRouter
             return RouterDecision.Do(new RouterEffect.ToggleEnabled());
         }
 
+        // Touche seule (sans Ctrl, Alt ni Win) pendant que FL s'en sert (saisie de texte, menu, boîte) : elle va à FL,
+        // comme sur le Mac (TypingGuard ; 09/11, « que ça soit encore utilisable pour écrire dans FL »).
+        if (e.TypingInFl && e.Combo.IsTypingKey) return RouterDecision.Pass;
         if (!config.Enabled || !e.TargetIsFl) return RouterDecision.Pass;
         if (config.Index.Lookup(e.Combo, link.KnownWindow, config.AnyContext) is not { } entry) return RouterDecision.Pass;
 

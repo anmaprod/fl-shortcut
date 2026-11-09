@@ -944,4 +944,9 @@ entrée 1 ≈ 0,5 s.
   liste des plugins installés dans « Cliquer sur… », relance de FL une seule fois même après plusieurs clics, nouvel
   essai de création du port au démarrage de Windows. Restent (demandés le même soir) : pages de l'Organiser identiques,
   messages « Écrire à l'équipe » reçus par mail, frappe dans FL avec une touche changée (Windows).
+- 09/11 (2) : « bosse organiser de win pour qu'il soit le même que sur mac » : titre, Démarrer, étapes du lien, aide
+  avec les 4 cases de MIDI Settings, écoute/attente/fin entre deux traits, aperçu (barre des familles, en-têtes,
+  poignées, sons glissés vers une autre famille), fenêtre de couleur de FL, largeurs 480/720 ; photos CI comparées à
+  celles du Mac. Touche seule laissée à FL pendant la saisie, un menu ou une boîte (TypingGuard du Mac porté). Essai
+  du MIDI sur la CI proposé puis abandonné à sa demande (« ne fais pas de CI »).
 

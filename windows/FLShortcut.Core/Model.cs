@@ -352,7 +352,7 @@ public abstract record ShortcutIssue
         ForbiddenTrigger f => Loc.F("Raccourci impossible : %@.", f.Why),
         ReservedToggle => Loc.T("Réservé à Ctrl+Alt+Maj+F : pause de FL Shortcuts."),
         Duplicate => Loc.T("Déjà utilisé ici : seul le premier compte."),
-        BareKey => Loc.T("Touche seule : elle ne tapera plus de texte ni de notes dans FL."),
+        BareKey => Loc.T("Touche seule : laissée à FL quand tu tapes du texte, qu'un menu ou une boîte de FL est ouvert."),
         WindowsConflict w => Loc.F("Conflit : %@.", Loc.T(w.What)),
         FlConflict f => Loc.F("Remplace un raccourci de %@.", Loc.T(f.What)),
         Loop => Loc.T("La touche envoyée est aussi un raccourci : elle part telle quelle."),

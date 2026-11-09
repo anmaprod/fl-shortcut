@@ -316,7 +316,6 @@
 "Raccourci impossible : %@." = "Shortcut not possible: %@.";
 "Réservé à Ctrl+Alt+Maj+F : pause de FL Shortcuts." = "Reserved for Ctrl+Alt+Shift+F: pauses FL Shortcuts.";
 "Déjà utilisé ici : seul le premier compte." = "Already used here: only the first one counts.";
-"Touche seule : elle ne tapera plus de texte ni de notes dans FL." = "Single key: it won't type text or play notes in FL anymore.";
 "Remplace un raccourci de %@." = "Replaces a shortcut of %@.";
 "La touche envoyée est aussi un raccourci : elle part telle quelle." = "The sent key is also a shortcut: it's sent as is.";
 "Profil illisible." = "Unreadable profile.";
@@ -390,3 +389,4 @@
 "Relire la liste" = "Read the list again";
 "Glisse ce son dans une autre famille." = "Drag this sound into another family.";
 "Input : clique « FL Shortcuts », puis allume Enable." = "Input: click “FL Shortcuts”, then turn on Enable.";
+"Touche seule : laissée à FL quand tu tapes du texte, qu'un menu ou une boîte de FL est ouvert." = "Single key: left to FL while you type text or while an FL menu or box is open.";

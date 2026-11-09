@@ -115,6 +115,19 @@ internal static class Photos
             await Save(bar.Content, Path.Combine(folder, "enregistrement-barre.png"));
             Note("enregistrement-barre : photo");
             bar.Dismiss();
+            // La fenêtre de couleur de FL de l'Organiser (comme organiser-couleurs.png du Mac, 09/11).
+            var colors = new Window();
+            var selector = new FlColorSelector(new FLShortcut.Core.RgbColor(0xFF, 0x3B, 0x1F),
+                new[] { new FLShortcut.Core.RgbColor(0xE0, 0x45, 0x3A), new FLShortcut.Core.RgbColor(0xF2, 0xA0, 0x3D),
+                        new FLShortcut.Core.RgbColor(0xF0, 0xD8, 0x4A), new FLShortcut.Core.RgbColor(0x4C, 0xB8, 0x5E) }, _ => { });
+            var holder = new Microsoft.UI.Xaml.Controls.Grid { Background = MacLook.Brush(MacLook.WindowColor) };
+            holder.Children.Add(selector.View);
+            colors.Content = holder;
+            colors.Activate();
+            await Task.Delay(800);
+            await Save(selector.View, Path.Combine(folder, "organiser-couleurs.png"));
+            Note("organiser-couleurs : photo");
+            colors.Close();
             foreach (var screen in Screens)
             {
                 Note($"{screen} : création");

@@ -1027,3 +1027,69 @@ public class BackupTests
         Assert.False(BackupRequests.IsConflict("""{"message":"autre"}"""));
     }
 }
+
+/// Fenêtre de couleur de FL (comme testFLColorScaleAndWheel du Mac) : échelle de FL, roue à 16 secteurs.
+public sealed class FlColorWheelTests
+{
+    [Fact]
+    public void ScaleAndWheelLikeFl()
+    {
+        var v = FlHsl.Of(new RgbColor(88, 110, 124));
+        Assert.Equal(203, v.Hue);
+        Assert.InRange(v.Saturation, 40, 41);
+        Assert.Equal(100, v.Luminance);
+        foreach (var c in new[] { new RgbColor(254, 105, 110), new RgbColor(46, 253, 197), new RgbColor(12, 12, 12) })
+        {
+            var back = FlHsl.Of(c).ToRgb();
+            Assert.True(Math.Abs(back.R - c.R) + Math.Abs(back.G - c.G) + Math.Abs(back.B - c.B) <= 9, c.Hex);
+        }
+        Assert.Equal(16, FlColorWheel.Pale.Length);
+        Assert.Equal(16, FlColorWheel.Medium.Length);
+        Assert.Equal(16, FlColorWheel.Vivid.Length);
+        Assert.Equal(0, FlColorWheel.Hit(0, 0)?.Ring);
+        Assert.Equal((3, 0), FlColorWheel.Hit(0, -0.6));
+        Assert.Equal(new RgbColor(254, 105, 110), FlColorWheel.Color(3, 0));
+        Assert.Equal((5, 4), FlColorWheel.Hit(0.9, 0));
+        Assert.Equal(1, FlColorWheel.Hit(0.3, -0.95)?.Sector);
+        Assert.Null(FlColorWheel.Hit(1.05, 0));
+        var dark = FlHsl.Of(FlColorWheel.Color(5, 0));
+        Assert.True(dark.Luminance < FlHsl.Of(FlColorWheel.Color(4, 0)).Luminance);
+        var d = Math.Abs(dark.Hue - FlHsl.Of(FlColorWheel.Vivid[0]).Hue);
+        Assert.True(Math.Min(d, 360 - d) < 3);
+    }
+}
+
+/// Touche seule laissée à FL quand il s'en sert (comme TypingGuard du Mac, 09/11).
+public sealed class TypingGuardTests
+{
+    private static FLShortcut.Core.Macros.FlWin W(long id, FLShortcut.Core.Macros.FlWindowRole role, int w, int h) => new(id, role, 0, 0, w, h);
+
+    [Fact]
+    public void BareKeyGoesToFlWhenItTypes()
+    {
+        var main = W(1, FLShortcut.Core.Macros.FlWindowRole.Main, 1600, 900);
+        Assert.Null(TypingGuardRules.Decide(new[] { main }, caret: false));
+        Assert.Equal(TypingGuardRules.Reason.TextField, TypingGuardRules.Decide(new[] { main }, caret: true));
+        Assert.Equal(TypingGuardRules.Reason.Menu,
+            TypingGuardRules.Decide(new[] { W(2, FLShortcut.Core.Macros.FlWindowRole.Menu, 220, 400), main }, caret: false));
+        Assert.Equal(TypingGuardRules.Reason.Dialog,
+            TypingGuardRules.Decide(new[] { W(3, FLShortcut.Core.Macros.FlWindowRole.Dialog, 500, 300), main }, caret: false));
+        // Grande fenêtre détachée de FL prise pour un « menu » : jamais.
+        Assert.Null(TypingGuardRules.Decide(new[] { W(5, FLShortcut.Core.Macros.FlWindowRole.Menu, 1200, 700), main }, caret: false));
+        // La touche seule va à FL ; avec Ctrl, le raccourci reste.
+        Assert.True(new KeyCombo(0x41).IsTypingKey);
+        Assert.True(new KeyCombo(0x41, Shift: true).IsTypingKey);
+        Assert.False(new KeyCombo(0x41, Ctrl: true).IsTypingKey);
+        Assert.False(new KeyCombo(Vk.F1).IsTypingKey);
+    }
+
+    [Fact]
+    public void RouterLeavesTypingKeysToFl()
+    {
+        var router = new KeyRouter();
+        var shortcut = Shortcut.Action(new KeyCombo(0x51), 1);
+        var config = new HookConfig(true, new ShortcutIndex(new[] { shortcut }, new HashSet<Guid>()), ProfilePresets.Toggle, false);
+        var typing = new RouterInput(RouterInput.Kinds.Down, new KeyCombo(0x51), TargetIsFl: true, TypingInFl: true);
+        Assert.False(router.Route(typing, config, LinkRoutingView.Offline).Swallow);
+    }
+}
