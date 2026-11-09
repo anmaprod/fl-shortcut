@@ -146,6 +146,8 @@ enum SupportDiagnostic {
         var macrosToLearn: Int
         var lastMacro: String?
         var screens: [String]
+        /// Script de FL Shortcuts installé dans FL (le lien MIDI s'ouvre avec lui le temps d'une action).
+        var scriptInstalled = false
     }
 
     /// Tout ce qui est joint : l'état, puis les derniers problèmes et le journal de la dernière macro s'il y en a.
@@ -162,7 +164,10 @@ enum SupportDiagnostic {
         lines.append("FL Studio : " + (f.flRunning ? "ouvert" + (f.flVersion.map { " (\($0))" } ?? "") : "fermé"))
         lines.append("Clavier autorisé : \(yes(f.accessibility))" + (f.staleTCC ? " (autorisation périmée)" : "")
                      + " · En pause : \(yes(f.paused)) · Saisie sécurisée : \(yes(f.secureInput))")
-        lines.append("Mode : " + (f.light ? "léger (sans lien MIDI)" : "lien avec FL : \(f.link)"))
+        // 09/11 (« il n'y a plus de mode léger, on est avec MIDI ») : le lien MIDI s'ouvre le temps d'une action.
+        lines.append("Lien MIDI avec FL : " + (f.light
+            ? "ouvert le temps d'une action · script \(f.scriptInstalled ? "installé" : "pas installé")"
+            : "toujours ouvert · \(f.link)"))
         lines.append("Raccourcis modifiés ou ajoutés : \(f.shortcuts) · Macros : \(f.macros)"
                      + (f.macrosToLearn > 0 ? " (\(f.macrosToLearn) à apprendre)" : ""))
         if let last = f.lastMacro { lines.append("Dernière macro : \(last)") }
@@ -181,7 +186,8 @@ enum SupportDiagnostic {
                      paused: !store.enabled, light: AppMode.light, link: link.status.label,
                      shortcuts: store.remaps.count, macros: store.library.macros.count, macrosToLearn: toLearn,
                      lastMacro: status.lastMacro.map { ($0.ok ? "réussie" : "échec") + " — " + $0.text },
-                     screens: NSScreen.screens.map { "\(Int($0.frame.width))×\(Int($0.frame.height))" })
+                     screens: NSScreen.screens.map { "\(Int($0.frame.width))×\(Int($0.frame.height))" },
+                     scriptInstalled: FLScriptInstaller.installedScript()?.present ?? false)
     }
 }
 

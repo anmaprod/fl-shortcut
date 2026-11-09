@@ -175,7 +175,12 @@ internal sealed partial class MainShell
         // Thèmes seulement avec un compte (07/11, comme le Mac) : connexion, déconnexion, fin de la sauvegarde.
         _account.Changed += ThemeFollowsAccount;
         backup.Changed += ThemeFollowsAccount;
-        _help.Token = () => _account.Session is { } session && !session.Expired(DateTimeOffset.UtcNow) ? session.AccessToken : null;
+        _help.Token = async () =>
+        {
+            if (_account.Session is null) return null;
+            try { return (await _account.FreshSession())?.AccessToken; }
+            catch (Exception) { return _account.Session?.AccessToken; }      // hors ligne : l'ancien jeton
+        };
         UpdateAccountButton();
         _macros = new MacrosPage(_app, macroStore, photos, window,
             listChanged: () => { if (_kind == PageKind.Macros && _query.Trim().Length == 0) RenderPage(); },

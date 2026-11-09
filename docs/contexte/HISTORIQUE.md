@@ -964,3 +964,7 @@ entrée 1 ≈ 0,5 s.
   OneDrive (réglage par défaut de Windows) → jamais de dépôt, les menus de FL à la place (lent) ; la base n'était
   cherchée que dans Documents. Secours « More plugins… » : nom exact seulement (le bug du Mac du 03/11), pas de
   « Find », pas d'essai du menu Add. Tout corrigé comme le Mac. Prochaine étape demandée : revue complète Mac → Windows.
+- 09/11 (5) : 1er mail reçu (« heyyyy how are u ? ») : « Compte : non connecté » alors qu'il l'était (jeton du compte
+  expiré, refusé, renvoyé sans compte : jeton rafraîchi avant l'envoi, Mac et Windows ; pseudo dans le mail) ; « Mode :
+  léger (sans lien MIDI) » faux (« on est avec MIDI ») : remplacé par l'état du lien MIDI ouvert le temps d'une action.
+  Puis « as-tu vérifié que tout était pareil sur Windows ? » : revue Mac → Windows lancée.

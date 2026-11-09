@@ -186,6 +186,9 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         }
     }
 
+    /// Script de FL Shortcuts présent dans FL (diagnostic).
+    public bool ScriptInstalled => _settings.ScriptPath is { Length: > 0 } path && File.Exists(path);
+
     /// Le script a disparu de FL Studio (dossier vidé, FL réinstallé) : remis à sa place avec la même clé. Vrai s'il
     /// vient d'être remis (FL ne le lira qu'à son prochain lancement).
     public bool RepairScriptIfMissing()

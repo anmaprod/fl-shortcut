@@ -431,7 +431,13 @@
   simple ») : `supabase/messages-par-mail.sql` (déclencheur sur support_requests → Resend par pg_net, clé et adresse
   dans le Vault de Supabase, réponse à la personne par reply_to, jamais de message perdu), étape 11 de
   `supabase/README.md`, À COLLER PAR LE PROPRIÉTAIRE (compte Resend à son adresse). Essais
-  `supabase/tests/messages-par-mail.sql` (+ `supabase-stubs-mail.sql`).
+  `supabase/tests/messages-par-mail.sql` (+ `supabase-stubs-mail.sql`). 1er mail reçu le 09/11 : « Compte : non
+  connecté » alors qu'il l'était (jeton expiré au bout d'une heure, refusé, message renvoyé sans le compte) → jeton
+  rafraîchi avant l'envoi (Mac `CommunityStore.freshToken`, aussi pour les corrections de l'IA ; Windows
+  `HelpPage.Token` async par `AccountPage.FreshSession`) ; le mail donne le pseudo (« connecté (pseudo) ») et le
+  fichier recollé tel quel garde la clé et l'adresse (essai `messages-par-mail-recolle.sql`). « Mode : léger (sans lien
+  MIDI) » du diagnostic → « Lien MIDI avec FL : ouvert le temps d'une action · script installé / pas installé » (Mac
+  et Windows, « il n'y a plus de mode léger, on est avec MIDI »).
   Pas encore vu sur un PC.
 - **Avertissements au style suisse** (08/11, « pas avec un logo, un emoji d'attention… un point orange ») : un carré
   plein #FF3B1F (blanc sous Orange) devant le texte, le texte à l'encre ; plus aucun triangle, cercle « ! » ni octogone

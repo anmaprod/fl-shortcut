@@ -79,7 +79,7 @@ final class SupportTests: XCTestCase {
             FL Shortcuts 0.1.0 · macOS 26.6.2
             FL Studio : ouvert (26.1.7)
             Clavier autorisé : non (autorisation périmée) · En pause : non · Saisie sécurisée : non
-            Mode : léger (sans lien MIDI)
+            Lien MIDI avec FL : ouvert le temps d'une action · script pas installé
             Raccourcis modifiés ou ajoutés : 4 · Macros : 3 (1 à apprendre)
             Dernière macro : échec — bloc 3
             Écrans : 1512×982, 2560×1440

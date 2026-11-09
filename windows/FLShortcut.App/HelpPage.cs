@@ -39,7 +39,9 @@ internal sealed class HelpPage
     private string? _lastMacro;
 
     /// Jeton du compte connecté (Mon compte) : le message part avec le compte, comme sur le Mac ; sinon sans.
-    public Func<string?> Token { get; set; } = () => null;
+    /// Jeton du compte, rafraîchi s'il expire (09/11 : un jeton périmé faisait partir le message « non connecté ») ;
+    /// null : pas de compte.
+    public Func<Task<string?>> Token { get; set; } = () => Task.FromResult<string?>(null);
 
     public HelpPage(AppController app, Action render, Action<string, Action?> toast)
     {
@@ -348,7 +350,8 @@ internal sealed class HelpPage
         var facts = new SupportDiagnostic.Facts(
             AppVersion, "Windows " + Environment.OSVersion.Version, fl is not null, fl?.Version?.ToString(),
             _app.Status == StatusKind.Unrecognized, _app.Status == StatusKind.Elevated, !_app.Enabled, _app.Light,
-            _app.StatusTitle, _app.Shortcuts.Count, _app.Macros.Macros.Count, _lastMacro, Array.Empty<string>());
+            _app.StatusTitle, _app.Shortcuts.Count, _app.Macros.Macros.Count, _lastMacro, Array.Empty<string>(),
+            ScriptInstalled: _app.ScriptInstalled);
         return SupportDiagnostic.Report(facts, problems: null);
     }
 
@@ -373,7 +376,7 @@ internal sealed class HelpPage
         {
             // Avec le compte s'il y en a un ; jeton refusé (session expirée ou révoquée) : sans, comme le Mac
             // (08/11, « Écrire à l'équipe ne fonctionne pas »).
-            var token = Token();
+            var token = await Token();
             var (status, body) = await Post(server, token);
             if (token is not null && status is 401 or 403)
             {

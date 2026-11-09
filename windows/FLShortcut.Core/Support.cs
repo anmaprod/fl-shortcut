@@ -117,7 +117,7 @@ public static class SupportDiagnostic
 {
     public sealed record Facts(string AppVersion, string Windows, bool FlRunning, string? FlVersion, bool FlUnrecognized,
                                bool FlElevated, bool Paused, bool Light, string Link, int Shortcuts, int Macros,
-                               string? LastMacro, IReadOnlyList<string> Screens);
+                               string? LastMacro, IReadOnlyList<string> Screens, bool ScriptInstalled = false);
 
     public static string Text(Facts f)
     {
@@ -130,7 +130,10 @@ public static class SupportDiagnostic
             $"FL Shortcuts {f.AppVersion} · {f.Windows}",
             "FL Studio : " + fl,
             "En pause : " + Yes(f.Paused),
-            "Mode : " + (f.Light ? "léger (sans lien MIDI)" : "lien avec FL : " + f.Link),
+            // 09/11 (« il n'y a plus de mode léger, on est avec MIDI ») : le lien MIDI s'ouvre le temps d'une action.
+            "Lien MIDI avec FL : " + (f.Light
+                ? "ouvert le temps d'une action · script " + (f.ScriptInstalled ? "installé" : "pas installé")
+                : "toujours ouvert · " + f.Link),
             $"Raccourcis modifiés ou ajoutés : {f.Shortcuts} · Macros : {f.Macros}",
         };
         if (f.LastMacro is { } last) lines.Add("Dernière macro : " + last);

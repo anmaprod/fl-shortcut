@@ -13,7 +13,8 @@
 --      (ta clé et ton adresse), puis Run. « Success. No rows returned » : c'est en place.
 --   4. Essaie : Aide › Écrire à l'équipe dans l'app ; le mail arrive en quelques secondes (regarde aussi les spams
 --      la première fois).
--- Peut être recollé sans risque (pour changer de clé ou d'adresse). Pour arrêter : `drop trigger support_mail on
+-- Peut être recollé sans risque (pour changer de clé ou d'adresse ; recollé tel quel, sans rien remplacer, il garde ta
+-- clé et ton adresse et met seulement le reste à jour). Pour arrêter : `drop trigger support_mail on
 -- public.support_requests;`. La clé et l'adresse restent dans le coffre de Supabase (Vault), jamais dans l'app ni
 -- dans le dépôt. Si l'envoi du mail échoue, le message reste quand même dans la table (Table Editor › support_requests).
 
@@ -26,22 +27,24 @@ declare
   adresse constant text := 'ton.adresse@exemple.fr';  -- ⬇ remplace par l'adresse de ton compte Resend
   sid uuid;
 begin
+  -- Les deux lignes d'exemple laissées telles quelles ne remplacent jamais une vraie clé ou une vraie adresse.
   select id into sid from vault.secrets where name = 'fls_resend_key';
   if sid is null then
     perform vault.create_secret(cle, 'fls_resend_key', 'Clé Resend : messages « Écrire à l''équipe » de FL Shortcuts');
-  else
+  elsif cle <> 're_TA_CLE_RESEND' then
     perform vault.update_secret(sid, cle);
   end if;
   select id into sid from vault.secrets where name = 'fls_support_to';
   if sid is null then
     perform vault.create_secret(adresse, 'fls_support_to', 'Adresse qui reçoit les messages de FL Shortcuts');
-  else
+  elsif adresse <> 'ton.adresse@exemple.fr' then
     perform vault.update_secret(sid, adresse);
   end if;
 end $$;
 
 -- Le mail d'un message : sujet « FL Shortcuts · Problème · FLS-3F9A2C », le message, l'erreur signalée, le mail de
--- la personne, la version de l'app, puis l'état de l'app joint (des nombres, jamais de nom de son ni de touche tapée).
+-- la personne, la version de l'app, le compte (son pseudo s'il est connecté), puis l'état de l'app joint (des
+-- nombres, jamais de nom de son ni de touche tapée).
 create or replace function public.mail_support() returns trigger
 language plpgsql security definer set search_path = public, extensions as $$
 declare
@@ -50,11 +53,19 @@ declare
   sujet text;
   corps text;
   envoi jsonb;
+  pseudo text;
 begin
   select decrypted_secret into k from vault.decrypted_secrets where name = 'fls_resend_key';
   select decrypted_secret into dest from vault.decrypted_secrets where name = 'fls_support_to';
   if k is null or dest is null or k = 're_TA_CLE_RESEND' then
     return new;                       -- pas encore réglé : le message reste seulement dans la table
+  end if;
+  if new.user_id is not null then
+    begin
+      select username into pseudo from public.profiles where id = new.user_id;
+    exception when others then
+      pseudo := null;                 -- pas de pseudo lisible : « connecté » seulement
+    end;
   end if;
   sujet := 'FL Shortcuts · '
     || case new.kind when 'probleme' then 'Problème' when 'question' then 'Question' else 'Idée' end
@@ -64,7 +75,8 @@ begin
     || E'\n\n— '
     || coalesce('Mail pour répondre : ' || new.email, 'Pas de mail laissé (on ne peut pas répondre).')
     || E'\nVersion de l''app : ' || coalesce(nullif(new.app_version, ''), '?')
-    || E'\nCompte : ' || case when new.user_id is null then 'non connecté' else 'connecté' end
+    || E'\nCompte : ' || case when new.user_id is null then 'non connecté'
+                              else 'connecté' || coalesce(' (' || pseudo || ')', '') end
     || case when new.diagnostic <> '' then E'\n\nÉtat de l''app :\n' || new.diagnostic else '' end;
   envoi := jsonb_build_object(
     'from', 'FL Shortcuts <onboarding@resend.dev>',

@@ -580,7 +580,7 @@ public class SupportTests
             FlUnrecognized: false, FlElevated: true, Paused: false, Light: true, Link: "FL fermé", Shortcuts: 4, Macros: 3,
             LastMacro: "échec — bloc 3", Screens: new[] { "1920×1080" });
         Assert.Equal("FL Shortcuts 0.2.0 · Windows 11 (26100)\nFL Studio : ouvert (2025.1) · lancé en administrateur\n" +
-                     "En pause : non\nMode : léger (sans lien MIDI)\nRaccourcis modifiés ou ajoutés : 4 · Macros : 3\n" +
+                     "En pause : non\nLien MIDI avec FL : ouvert le temps d'une action · script pas installé\nRaccourcis modifiés ou ajoutés : 4 · Macros : 3\n" +
                      "Dernière macro : échec — bloc 3\nÉcrans : 1920×1080", SupportDiagnostic.Text(facts));
         Assert.True(SupportDiagnostic.Report(facts, new string('x', 50_000)).Length <= SupportRules.MaxDiagnostic);
     }

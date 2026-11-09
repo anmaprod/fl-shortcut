@@ -139,6 +139,15 @@ final class CommunityStore: ObservableObject {
         return current
     }
 
+    /// Jeton du compte pour un envoi qui marche aussi sans compte (message à l'équipe, correction de l'IA) : rafraîchi
+    /// s'il expire (09/11 : un jeton périmé, refusé, faisait partir le message « non connecté » alors que la personne
+    /// l'était) ; hors ligne : l'ancien ; pas de compte ou session refusée : nil.
+    func freshToken() async -> String? {
+        guard session != nil else { return nil }
+        if let fresh = try? await validSession() { return fresh.accessToken }
+        return session?.accessToken
+    }
+
     /// Le serveur refuse le jeton de rafraîchissement (expiré, révoqué) : seul cas où la session est oubliée ; une
     /// panne (5xx), une limite (429) ou une réponse illisible la gardent.
     static func sessionRefused(_ error: CommunityError) -> Bool {
@@ -353,10 +362,11 @@ final class CommunityStore: ObservableObject {
     func sendSupport(_ message: SupportMessage) async -> String? {
         if demo { return nil }
         guard let client else { return CommunityError.notConfigured.errorDescription }
+        let token = await freshToken()
         do {
             do {
-                try await client.sendSupport(message, appVersion: MacroFileActions.appVersion, token: session?.accessToken)
-            } catch CommunityError.server(let status, _) where session != nil && (status == 401 || status == 403) {
+                try await client.sendSupport(message, appVersion: MacroFileActions.appVersion, token: token)
+            } catch CommunityError.server(let status, _) where token != nil && (status == 401 || status == 403) {
                 try await client.sendSupport(message, appVersion: MacroFileActions.appVersion, token: nil)
             }
             return nil
@@ -369,9 +379,10 @@ final class CommunityStore: ObservableObject {
     /// échec (hors ligne, serveur) est sans gravité : elle reste apprise sur ce Mac.
     func shareCorrection(_ json: Data) async {
         guard !demo, let client else { return }
+        let token = await freshToken()
         do {
-            try await client.sendCorrection(json, token: session?.accessToken)
-        } catch CommunityError.server(let status, _) where session != nil && (status == 401 || status == 403) {
+            try await client.sendCorrection(json, token: token)
+        } catch CommunityError.server(let status, _) where token != nil && (status == 401 || status == 403) {
             try? await client.sendCorrection(json, token: nil)
         } catch {}
     }
