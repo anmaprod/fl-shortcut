@@ -536,6 +536,17 @@ public sealed class OrganizerController
         Raise();
     }
 
+    /// Un son glissé dans une autre famille (comme le Mac, moveSound, demande du 01/11) : il en prend la couleur, la
+    /// place et le bus ; sa sorte d'avant (d'une autre famille) et sa case du Mixer choisie à la main sont oubliées.
+    public void MoveSound(int index, SoundFamily family)
+    {
+        if (!Families.TryGetValue(index, out var now) || now == family) return;
+        Families[index] = family;
+        if (Kinds.TryGetValue(index, out var kind) && kind.Family() != family) Kinds.Remove(index);
+        Slots.Remove(index);
+        Raise();
+    }
+
     public void SetKind(int index, SoundKind kind)
     {
         Families[index] = kind.Family();

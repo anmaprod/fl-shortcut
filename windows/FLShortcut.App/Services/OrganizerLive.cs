@@ -19,6 +19,41 @@ internal static class OrganizerLive
     /// clics suivants ne font rien tant que FL n'est pas reparti puis rouvert (2 min 30 au plus).
     private static int _restarting;
 
+    /// « Ouvrir FL Studio » (FL fermé à l'étape 2, comme le Mac) : le FL vu en dernier, sinon le plus récent installé
+    /// dans Program Files › Image-Line. Un seul lancé, même après plusieurs clics.
+    public static void OpenFlStudio()
+    {
+        if (FlPresence.RunningInstance() is not null || Interlocked.CompareExchange(ref _restarting, 1, 0) != 0) return;
+        var path = _lastFlPath is { } known && File.Exists(known) ? known : InstalledFl();
+        if (path is null)
+        {
+            Volatile.Write(ref _restarting, 0);
+            return;
+        }
+        Start(path, "");
+        _ = Task.Run(() =>
+        {
+            try { for (var i = 0; i < 30 && FlPresence.RunningInstance() is null; i++) Thread.Sleep(1000); }
+            finally { Volatile.Write(ref _restarting, 0); }
+        });
+    }
+
+    private static string? _lastFlPath;
+
+    /// FL64.exe du dossier « FL Studio … » le plus récent de Program Files › Image-Line, s'il y en a un.
+    private static string? InstalledFl()
+    {
+        try
+        {
+            var root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Image-Line");
+            if (!Directory.Exists(root)) return null;
+            return Directory.EnumerateDirectories(root, "FL Studio*")
+                .Select(d => Path.Combine(d, "FL64.exe")).Where(File.Exists)
+                .OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return null; }
+    }
+
     private static void RestartFl()
     {
         if (Interlocked.CompareExchange(ref _restarting, 1, 0) != 0) return;
@@ -31,6 +66,7 @@ internal static class OrganizerLive
         try { process = System.Diagnostics.Process.GetProcessById((int)fl.Pid); }
         catch (ArgumentException) { Volatile.Write(ref _restarting, 0); return; }
         var path = fl.Path;
+        _lastFlPath = path;
         try { process.CloseMainWindow(); }
         catch (InvalidOperationException) { Volatile.Write(ref _restarting, 0); return; }
         _ = Task.Run(() =>
@@ -153,6 +189,7 @@ internal static class OrganizerLive
 
     private static OrganizerLinkState PrepareLink(AppController app)
     {
+        if (FlPresence.RunningInstance() is { } running) _lastFlPath = running.Path;     // pour « Ouvrir FL Studio »
         if (!app.Midi.HasKey) return new OrganizerLinkState.NotInstalled();
         if (app.RepairScriptIfMissing()) return new OrganizerLinkState.Restored();
         MidiLink.PortsReady();

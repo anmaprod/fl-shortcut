@@ -397,6 +397,16 @@
   instrument / un effet = liste de TOUS les plugins installés par format comme le Mac (`PluginDatabase.Installed`,
   Plugin database lue seulement ; choix → « More plugins... › nom », la macro dépose son .fst d'abord), « Écrire le nom
   moi-même », « Relire la liste ».
+  Organiser Windows comme le Mac (09/11, « bosse organiser de win pour qu'il soit le même que sur mac ») : titre
+  « organiser. » (PageTitle 36 + trait à l'encre), écran « Démarrer » (carré rouge + « Ne touche pas à FL jusqu'à la
+  fin. », Fermer/Démarrer ; lien pas installé : « Installer le lien » tout de suite), étape 2 avec « Quitter et rouvrir
+  FL » (ou « Ouvrir FL Studio », `OrganizerLive.OpenFlStudio`) dans la page, « Ça ne marche toujours pas ? » blanc
+  souligné, aide = 4 étapes à carré rouge + les 4 cases de MIDI Settings découpées dans l'image du Mac
+  (`Resources/MIDISettings.png` embarquée, `MidiSettingsCrops`) + « Toujours rien ? » + script ; écoute, attente et fin
+  entre deux traits fins (barre rouge, « NE TOUCHE PAS À FL. ») ; aperçu : barre des familles (`FamilyBar`), en-têtes
+  à six points, carré de couleur, nom en capitales, « MIXER », sons avec poignée glissée vers une autre famille
+  (`OrganizerController.MoveSound`, testé), case de sorte bordée, Annuler/Organiser collés ; fenêtre 480 de large hors
+  aperçu (720 pour l'aperçu). Pas encore les icônes de FL de l'en-tête.
   Pas encore vu sur un PC.
 - **Avertissements au style suisse** (08/11, « pas avec un logo, un emoji d'attention… un point orange ») : un carré
   plein #FF3B1F (blanc sous Orange) devant le texte, le texte à l'encre ; plus aucun triangle, cercle « ! » ni octogone

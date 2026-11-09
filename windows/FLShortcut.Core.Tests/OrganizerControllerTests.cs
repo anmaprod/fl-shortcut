@@ -73,6 +73,25 @@ public sealed class OrganizerControllerTests
         CopyMade = (o, c) => made?.Add((o, c)),
     };
 
+    /// Comme le Mac (moveSound) : un son glissé dans une autre famille en prend la place ; sa sorte d'une autre
+    /// famille et sa case du Mixer choisie à la main sont oubliées.
+    [Fact]
+    public void SoundDraggedToAnotherFamily()
+    {
+        var (link, disk) = Project();
+        var controller = new OrganizerController(Env(link, disk, new Later()));
+        controller.ShowDemo("apercu");
+        var (index, family) = controller.Families.First();
+        var other = SoundFamilies.Order.First(f => f != family);
+        controller.SetSlot(index, 40);
+        controller.MoveSound(index, other);
+        Assert.Equal(other, controller.Families[index]);
+        Assert.False(controller.Kinds.TryGetValue(index, out var kind) && kind.Family() != other);
+        Assert.False(controller.Slots.ContainsKey(index));
+        controller.MoveSound(index, other);                       // déjà là : rien ne change
+        Assert.Equal(other, controller.Families[index]);
+    }
+
     [Fact]
     public void WholeProjectOrganizedInACopyThenUndone()
     {
