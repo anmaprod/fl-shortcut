@@ -43,6 +43,9 @@ internal sealed class HelpPage
     /// null : pas de compte.
     public Func<Task<string?>> Token { get; set; } = () => Task.FromResult<string?>(null);
 
+    /// « Revoir le guide » : la fenêtre principale pose le guide sur elle (comme la feuille du Mac).
+    public Action? ShowGuide { get; set; }
+
     public HelpPage(AppController app, Action render, Action<string, Action?> toast)
     {
         _app = app;
@@ -232,7 +235,8 @@ internal sealed class HelpPage
 
     // ---------- Écrire à l'équipe ----------
 
-    /// À droite des questions (maquette du 05/11, comme le Mac) : « Écrire à l'équipe », grand bouton principal.
+    /// À droite des questions (maquette du 05/11, comme le Mac) : deux grands boutons, « Écrire à l'équipe »
+    /// (principal) et « Revoir le guide » (bordé).
     private FrameworkElement SideCards()
     {
         var write = Primary(Loc.T("Écrire à l'équipe"), () =>
@@ -243,7 +247,12 @@ internal sealed class HelpPage
         });
         write.HorizontalAlignment = HorizontalAlignment.Stretch;
         write.MinHeight = 48;
-        return new StackPanel { Spacing = 16, VerticalAlignment = VerticalAlignment.Top, Children = { write } };
+        // « Revoir le guide » (10/11, comme le Mac) : bordé, plein du fond, sous le bouton principal.
+        var guide = Soft(Loc.T("Revoir le guide"), () => ShowGuide?.Invoke());
+        guide.HorizontalAlignment = HorizontalAlignment.Stretch;
+        guide.MinHeight = 48;
+        ToolTipService.SetToolTip(guide, Loc.T("Revoir le guide de FL Shortcuts"));
+        return new StackPanel { Spacing = 16, VerticalAlignment = VerticalAlignment.Top, Children = { write, guide } };
     }
 
     private static TextBox Field(string text, string placeholder) => new()

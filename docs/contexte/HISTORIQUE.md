@@ -968,3 +968,8 @@ entrée 1 ≈ 0,5 s.
   expiré, refusé, renvoyé sans compte : jeton rafraîchi avant l'envoi, Mac et Windows ; pseudo dans le mail) ; « Mode :
   léger (sans lien MIDI) » faux (« on est avec MIDI ») : remplacé par l'état du lien MIDI ouvert le temps d'une action.
   Puis « as-tu vérifié que tout était pareil sur Windows ? » : revue Mac → Windows lancée.
+- 10/11 : « l'autre Claude était en train de faire la page de guide après l'installation, le même que sur Mac… je
+  veux le même logiciel des deux côtés et on prend exemple sur le Mac pour Win » : rien du guide n'était dans la
+  branche. Fait : guide Windows identique au Mac (Bienvenue + 4 parties, mêmes textes, « Au quotidien » adapté à
+  Windows), montré après l'accueil ou à la 1re ouverture de la fenêtre, « Revoir le guide » dans l'Aide. Puis revue
+  page par page avec les photos de la CI des deux côtés.

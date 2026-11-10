@@ -115,6 +115,9 @@ internal sealed class AppSettings
     public bool LoopMidiAsked { get; set; }
     /// Les 10 dernières couleurs choisies (codes « E0453A », la plus récente d'abord), gardées avec le compte (08/11).
     public List<string> RecentColors { get; set; } = new();
+    /// Le guide (« Bienvenue », puis les quatre parties) a été vu : il ne revient plus tout seul, comme `guideSeen` du
+    /// Mac ; on le retrouve dans la page Aide (10/11).
+    public bool GuideSeen { get; set; }
     /// La fenêtre s'est ouverte au lancement une fois (premier lancement) : ensuite FL Shortcuts démarre en icône seule,
     /// comme sur le Mac (retour du 03/11 : « je veux que ça soit une icône avec toutes les mêmes options »).
     public bool WindowShownAtLaunch { get; set; }

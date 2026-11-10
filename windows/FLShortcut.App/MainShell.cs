@@ -162,7 +162,10 @@ internal sealed partial class MainShell
         // Macros : la page de la fenêtre et le créateur, posé au-dessus quand une macro est ouverte (comme le Mac).
         var (macroStore, demoMacro) = photos ? MacrosPage.DemoStore() : (_app.Macros, Guid.Empty);
         _demoMacro = demoMacro;
-        _help = new HelpPage(_app, () => { if (_kind == PageKind.Help) RenderPage(); }, ShowToast);
+        _help = new HelpPage(_app, () => { if (_kind == PageKind.Help) RenderPage(); }, ShowToast)
+        {
+            ShowGuide = () => ShowGuide(plain: false),
+        };
         // La carte de connexion sert aussi à la page Communauté (sans compte).
         _account = new AccountPage(() => { if (_kind is PageKind.Account or PageKind.Community) RenderPage(); }, ConfirmAsync, _hwnd);
         _account.ThemeCard = () => AccountPage.ThemeChoice(Theme, ChooseTheme);
@@ -189,6 +192,7 @@ internal sealed partial class MainShell
         root.Children.Add(_main);
         root.Children.Add(_macros.Creator);
         root.Children.Add(_welcome);
+        root.Children.Add(_guideLayer);
         root.Children.Add(_toast);
         root.Children.Add(_titleBar);
         root.PreviewKeyDown += OnRootKey;
@@ -392,9 +396,11 @@ internal sealed partial class MainShell
             RenderPage();
             RenderNotices();
             UpdateTooltip();
+            ShowGuideIfNeverSeen();
         }
         else
         {
+            _welcomeShown = true;
             ShowWelcomePorts();
         }
     }
@@ -402,6 +408,14 @@ internal sealed partial class MainShell
     /// Mode photos de la CI : une page donnée (« general », « playlist », « custom », « recherche »…).
     public void ShowPage(string page)
     {
+        // « guide », « guide-1 »… « guide-4 » : le guide posé sur la page Général (« Bienvenue », puis une partie).
+        CloseGuide();
+        if (page.StartsWith("guide", StringComparison.Ordinal))
+        {
+            ShowPage("general");
+            ShowGuide(plain: false, page: int.TryParse(page.AsSpan(page.IndexOf('-') + 1), out var part) ? part : 0);
+            return;
+        }
         // « accueil » : la page d'accueil (loopMIDI à installer, 08/11) ; les autres pages la cachent.
         if (page == "accueil")
         {
@@ -699,6 +713,7 @@ internal sealed partial class MainShell
     /// Touches appuyées pendant la recherche par raccourci (Échap annule) ; les autres touches suivent leur cours.
     private void OnRootKey(object sender, KeyRoutedEventArgs e)
     {
+        if (GuideKey(e)) return;
         if (!_keyListening) return;
         var vk = (ushort)e.Key;
         if (Vk.IsModifier(vk)) return;

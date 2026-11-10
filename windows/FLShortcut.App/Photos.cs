@@ -63,6 +63,7 @@ internal static class Photos
                                                  ("custom", "principale-mes-raccourcis"), ("recherche", "principale-recherche"),
                                                  ("macros", "macros-liste"), ("macros-createur", "macros-createur"),
                                                  ("aide", "aide"), ("compte", "compte"),
+                                                 ("guide", "guide-0"), ("guide-1", "guide-1"), ("guide-4", "guide-4"),
                                                  ("communaute", "communaute"), ("communaute-fiche", "communaute-fiche") })
             {
                 main.ShowPage(page);

@@ -439,6 +439,13 @@
   MIDI) » du diagnostic → « Lien MIDI avec FL : ouvert le temps d'une action · script installé / pas installé » (Mac
   et Windows, « il n'y a plus de mode léger, on est avec MIDI »).
   Pas encore vu sur un PC.
+  Guide d'après l'installation comme le Mac (10/11, « la page de guide après l'installation, le même que sur Mac…
+  adapter les touches ») : `GuideContent` (cœur, mêmes textes que Guide.swift, essai qui les compare ; seule « Au
+  quotidien » parle de Windows : icône près de l'horloge, Ctrl+Alt+Maj+F, « Un souci ? Le menu de l'icône le dit. »),
+  `GuideView.cs` (carte 640 × 540 : « bienvenue. » + 4 lignes, une partie = 3 étapes à numéro rouge, Passer, points,
+  Précédent, Découvrir / Suivant / C'est parti ; Entrée, Échap ; points jamais sous les boutons), `MainShellGuide.cs`
+  (après l'accueil sur fond plein, sinon à la 1re ouverture de la fenêtre sur la fenêtre assombrie ; réglage
+  `GuideSeen`), « Revoir le guide » dans l'Aide ; photos CI `guide-0/1/4.png`. Pas encore vu sur un PC.
 - **Avertissements au style suisse** (08/11, « pas avec un logo, un emoji d'attention… un point orange ») : un carré
   plein #FF3B1F (blanc sous Orange) devant le texte, le texte à l'encre ; plus aucun triangle, cercle « ! » ni octogone
   (Mac : `SwissWarning`, `SwissWarningMark`, `StatusSymbol` dans GlassStyle.swift, pastille carrée dans la barre des
