@@ -94,10 +94,11 @@ et l'étape 7 (modèles des mails avec le code).
    La clé et l'adresse restent dans le coffre de Supabase (Vault), jamais dans l'app ni dans le dépôt. Si l'envoi du
    mail échoue, le message reste dans **Table Editor › support_requests** comme avant. Peut être recollé sans risque.
 
-## 2. Compiler l'app reliée au serveur
+## 2. Compiler l'app reliée au serveur (rien à faire)
 
-L'adresse et la clé publique du projet sont dans `Resources/Info.plist` : toute compilation est reliée au serveur.
-Pour un autre projet (essais) sans toucher au fichier :
+Déjà fait : l'adresse et la clé publique de ton projet sont dans l'app (Mac : `Resources/Info.plist` ; Windows :
+`windows/FLShortcut.App/FLShortcut.App.csproj`). Toute compilation, sur ton Mac comme sur la CI, parle donc à ton
+serveur. La suite ne sert qu'à relier l'app à un AUTRE projet Supabase, pour des essais :
 
 ```
 FLS_SUPABASE_URL="https://xxxx.supabase.co" FLS_SUPABASE_ANON_KEY="sb_publishable_…" ./build.sh
