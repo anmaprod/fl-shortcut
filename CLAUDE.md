@@ -96,7 +96,9 @@
     avec les sons ; « À vérifier » : ni tête ni groupe). Pistes touchées et têtes remises à neuf dans la copie (nom,
     couleur) ; plus AUCUNE icône dans la Playlist de la copie, même sur les pistes vides (`FLPProject.trackIcon` ; les
     icônes de l'ancien projet restaient sur leur piste : clé de fa sur « Snare 3 » ; demande : « si aucune icône n'est
-    mise et qu'il y en a déjà dans la Playlist, il faut les enlever »). Windows pas encore fait (en pause).
+    mise et qu'il y en a déjà dans la Playlist, il faut les enlever »). Windows : fait le 11/11 (`FlpProject.Rearranged`,
+    `PlaylistLayout.Result.Headers/Grouped`), avec le pré-master (`OrganizerOptions.Premaster`) et « Pas content ? » par nom
+    (`CorrectionsIA.ChercheNom/AjouteNom`, même clé que le Mac).
   - Playlist rangée dans une copie « <nom>_2.flp » (comme « Save new version » de FL ; puis _3…) à côté de l'original : chaque clip sur la piste de ses
     sons (les mêmes sons, la même piste ; un clip qui en chevaucherait un autre : une piste de plus dessous ; patterns
     vides en bas), pistes dans l'ordre des familles ; FL ouvre la copie (reconnue à un nom de pattern posé pour ça,
@@ -252,7 +254,7 @@
   clavier lus toutes les 5 ms, FL devant seulement, fin au retour dans FL Shortcuts ou « Terminer », 120 s / 80 entrées,
   rien journalisé) → `ClickSequenceCompiler` (pur, testé : touche, × n, menu ouvert → Dans le menu / Lettres, clic appris,
   glisser) ; essai CI sur le faux FL (`MacroSelfTest.Recording` : clic + Ctrl+S, clic rejoué). Bouton cliqué retenu
-  par son nom (04/11). Pas encore : élément de menu de FL enregistré → « Menu de FL › … » (`SmartClicks` du Mac).
+  par son nom (04/11). Fait le 11/11 : élément de menu de FL enregistré → « Menu de FL › … » (`SmartClicks` du Mac).
   04/11 (vidéo : « quand on clique dans la barre de recherche, la barre et le mot rechercher se décalent… la barre
   blanche pas bleue » ; « je ne peux pas zoomer dans la photo de mon profil ») : Mac : recherche = simple NSTextField
   sans cadre (`PlainSearchField`, loupe dessinée par SwiftUI à côté, curseur blanc, sélection grise ; NE PAS remettre
@@ -783,6 +785,14 @@
   (99 €/an) → notarisation, plus de « Ouvrir quand même » (build.sh est prêt : SIGN_IDENTITY, NOTARY_*).
 - Aussi : « Nouvelle version disponible » dans l'app, page de téléchargement à jour (`site/index.html` dit encore
   « n'utilise pas le réseau ») avec guide en images pour « Ouvrir quand même ».
+- **Communauté du 11/11** (« suivre des gens par leur travail… les pages des gens… des notes pour chaque macro »,
+  spec `docs/superpowers/specs/2026-11-11-communaute-suivre-design.md`, maquette B · Vitrine) : onglets Pour toi /
+  Abonnements (point rouge) / Les plus ajoutées / Les miens, vitrine, page d'une personne (Suivre, abonnés, son travail
+  trié), « ★ 4,6 · Ajoutée 312 fois », étoiles après un ajout (« Noter » dans le message), note des créateurs
+  bayésienne (serveur). Mac `CommunitySocial.swift`/`CommunityShowcase.swift`, Windows `CommunitySocial.cs`/
+  `CommunityPageSocial.cs`. SERVEUR À COLLER PAR LE PROPRIÉTAIRE : `supabase/communaute-suivre.sql` (étape 12) ; sans
+  lui, la Communauté d'avant, sans erreur (`socialNotReady` / `IsMissingSocial`). Photos CI `communaute-abonnements`,
+  `-plus-ajoutees`, `-personne`, `-note`.
 - Mails du compte : 2 par heure (donc 2 inscriptions) tant que le propriétaire n'a pas fait l'étape 6 de
   `supabase/README.md` (11/11 : Gmail rien que pour l'app, 60 par heure ; plus tard Brevo avec le domaine du site).
   Bêta limitée (1 000 comptes, un compte = un ordinateur) mise de côté le 11/11 : choix dans HISTORIQUE.

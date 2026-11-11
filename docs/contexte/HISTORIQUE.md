@@ -992,4 +992,14 @@ entrée 1 ≈ 0,5 s.
 - 11/11 (2) : « seulement… deux envois de mail par heure, ça faudrait qu'on règle » : limite de Supabase sans serveur
   de mail à soi (2 inscriptions par heure). Rien à changer dans l'app : étape 6 de `supabase/README.md` réécrite pas à
   pas (adresse Gmail rien que pour l'app, mot de passe d'application, 60 mails par heure ; plus tard Brevo avec le
-  domaine du site, 300 par jour). À FAIRE PAR LE PROPRIÉTAIRE dans Supabase.
+  domaine du site, 300 par jour). À FAIRE PAR LE PROPRIÉTAIRE dans Supabase. Puis « il y a tout ce que tu m'as écrit
+  qui a été fait sauf le grand 2 » : la partie 2 du README (relier l'app au serveur) est déjà faite dans l'app, marquée
+  « rien à faire » ; vérifié d'ici avec la clé publique : les 9 tables sont là, inscription par mail avec code.
+- 11/11 (3) : « fait ce qui n'a pas encore été fait et fait la communauté je valide ». Windows comme le Mac :
+  pré-master du Mixer, piste de tête par famille dans la Playlist (sons groupés dessous, plus d'anciennes icônes),
+  « Pas content ? » sur tous les sons (nom codé, même clé SHA-256 que le Mac), menus de FL enregistrés → « Menu de FL ›
+  … » / raccourci / « Cliquer sur… » (`SmartClicks`, menus ouverts lus au clic). Reste : les icônes de FL sous Windows
+  (pose par clic droit › « Change icon… » et grille, jamais faite sur Windows). Nouvelle Communauté (Mac et Windows,
+  spec du jour) : serveur `supabase/communaute-suivre.sql` (étape 12, À COLLER PAR LE PROPRIÉTAIRE ; essais
+  `supabase/tests/communaute-suivre*.sql` passés sur PostgreSQL 16), vitrine, abonnements, page d'une personne, ajouts
+  comptés, étoiles, point rouge ; sans le fichier du serveur, la Communauté d'avant.
