@@ -248,6 +248,9 @@ public static class AccountRequests
             return Loc.T("Le mail n'est pas parti. Réessaie plus tard.");
         if (lower.Contains("trop de partages") || lower.Contains("trop de messages") || lower.StartsWith("attends ")
             || lower.StartsWith("réservé aux administrateurs")) return raw;
+        // Communauté du 11/11 (communaute-suivre.sql) : messages déjà en français, tels quels (comme le Mac).
+        if (lower.Contains("trop d'abonnements") || lower.Contains("trop de notes") || lower.StartsWith("ajoute-le d'abord")
+            || lower.StartsWith("tu ne peux pas noter") || lower.StartsWith("une note de 1 à 5")) return raw;
         if (lower.Contains("pseudo déjà pris") || lower.Contains("profiles_username")) return Loc.T("Ce pseudo est déjà pris.");
         if (lower.Contains("pseudo invalide")) return AccountRules.UsernameProblem("")!;
         if (lower.Contains("avatars_image_check")) return Loc.T("Photo trop grande ou illisible : choisis-en une autre.");

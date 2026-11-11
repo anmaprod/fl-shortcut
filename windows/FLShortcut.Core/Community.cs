@@ -7,11 +7,16 @@ using System.Text.Json;
 
 namespace FLShortcut.Core;
 
-/// Un partage tel que listé (sans le fichier, chargé seulement pour l'ajout).
+/// Un partage tel que listé (sans le fichier, chargé seulement pour l'ajout). Communauté du 11/11
+/// (communaute-suivre.sql) : nombre d'ajouts, somme et nombre des notes (null : serveur d'avant).
 public sealed record Share(Guid Id, Guid AuthorId, string Kind, string Title, string Notes, string AppVersion,
-                           string CreatedAt, string AuthorName)
+                           string CreatedAt, string AuthorName, int? AddCount = null, int? RatingSum = null,
+                           int? RatingCount = null)
 {
     public bool IsMacro => Kind == CommunityRules.MacroKind;
+
+    /// Moyenne des notes (null : aucune note).
+    public double? Rating => RatingSum is { } sum && RatingCount is > 0 and var count ? (double)sum / count : null;
 
     /// « 2026-10-16T18:02:11… » → « 16/10/2026 ».
     public string Day
@@ -59,11 +64,15 @@ public static class CommunityRequests
 {
     public const string ListColumns = "id,author_id,kind,title,notes,app_version,created_at,author:profiles(username)";
 
+    /// Colonnes d'un partage avec ses nombres (communaute-suivre.sql).
+    public const string SocialColumns = ListColumns + ",add_count,rating_sum,rating_count";
+
     /// Les 50 partages les plus récents : d'une sorte (null : toutes), d'un auteur, ou dont le titre ou l'explication
-    /// contient la recherche.
-    public static HttpRequestMessage Shares(ServerConfig c, AccountSession s, string? kind, string search, Guid? authorId = null)
+    /// contient la recherche. `social` : avec les ajouts et les notes ; `order` : ordre du serveur.
+    public static HttpRequestMessage Shares(ServerConfig c, AccountSession s, string? kind, string search, Guid? authorId = null,
+                                            bool social = false, string order = "created_at.desc")
     {
-        var query = new List<(string, string)> { ("select", ListColumns), ("order", "created_at.desc"), ("limit", "50") };
+        var query = new List<(string, string)> { ("select", social ? SocialColumns : ListColumns), ("order", order), ("limit", "50") };
         if (kind is not null) query.Add(("kind", "eq." + kind));
         if (authorId is { } author) query.Add(("author_id", "eq." + Id(author)));
         var words = CommunityRules.SearchPattern(search);
@@ -119,8 +128,10 @@ public static class CommunityRequests
                              && au.TryGetProperty("username", out var u) && u.ValueKind == JsonValueKind.String ? u.GetString()! : "?";
                 var kind = Text("kind");
                 if (kind is not (CommunityRules.MacroKind or CommunityRules.ProfileKind) || Text("title").Length == 0) continue;
+                int? Number(string key) => row.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.Number
+                                           && v.TryGetInt32(out var n) ? n : null;
                 shares.Add(new Share(shareId, authorId, kind, Text("title"), Text("notes"), Text("app_version"),
-                                     Text("created_at"), author));
+                                     Text("created_at"), author, Number("add_count"), Number("rating_sum"), Number("rating_count")));
             }
         }
         catch (Exception e) when (e is JsonException or InvalidOperationException) { }
