@@ -1003,3 +1003,7 @@ entrée 1 ≈ 0,5 s.
   spec du jour) : serveur `supabase/communaute-suivre.sql` (étape 12, À COLLER PAR LE PROPRIÉTAIRE ; essais
   `supabase/tests/communaute-suivre*.sql` passés sur PostgreSQL 16), vitrine, abonnements, page d'une personne, ajouts
   comptés, étoiles, point rouge ; sans le fichier du serveur, la Communauté d'avant.
+- 11/11 (4) : « dans communauté le compte j'aime pas le carré à côté du nom et tu peux mettre le nom à la place de
+  communauté et enlever communauté » : page d'une personne, son pseudo à la place du titre « communauté. » (Mac et
+  Windows), plus la ligne « ← encadrée + nom » ; flèche seule sans cadre devant le titre, « Communauté » de la barre
+  de gauche ramène aussi à la liste ; Suivre à droite de la photo et des abonnés.

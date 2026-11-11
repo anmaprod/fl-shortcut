@@ -224,6 +224,14 @@ extension CommunityStore {
 
     var isPersonPage: Bool { author != nil && author?.id != session?.userID }
 
+    /// 11/11 : sur la page d'une personne, son pseudo prend la place du titre « communauté. » de la fenêtre.
+    var personName: String? { isPersonPage ? author?.username : nil }
+
+    /// Retour de la page d'une personne à la liste (← du titre, ou « Communauté » de la barre de gauche).
+    func leavePerson() async {
+        await choose(tab == .mine ? .forYou : tab)
+    }
+
     /// Partages de l'onglet, d'une recherche ou de la page d'une personne ; avec leurs nombres tant que le serveur
     /// les a (sinon : la Communauté d'avant).
     func loadShares(_ client: CommunityClient, _ session: CommunitySession) async throws -> [Share] {

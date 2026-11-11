@@ -225,9 +225,10 @@ struct CommunityShowcase: View {
     }
 }
 
-/// Page d'une personne : ← et son pseudo en grand (minuscules + point carré), Suivre / Abonné ; sa photo en grand et
-/// son nombre d'abonnés ; « Son travail » et son tri. Rien d'autre (ni bio, ni date). Clic droit sur la photo :
-/// la signaler, ou la retirer (administrateur).
+/// Page d'une personne : son pseudo est le titre de la fenêtre (à la place de « communauté. », avec la flèche pour
+/// revenir : EditorView.pageHeader, 11/11) ; ici sa photo en grand, son nombre d'abonnés et Suivre / Abonné ;
+/// « Son travail » et son tri. Rien d'autre (ni bio, ni date). Clic droit sur la photo : la signaler, ou la retirer
+/// (administrateur).
 struct CommunityPersonHeader: View {
     @ObservedObject var community: CommunityStore
     let author: CommunityMember
@@ -236,27 +237,6 @@ struct CommunityPersonHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
-            HStack(alignment: .center, spacing: 14) {
-                Button {
-                    Task { await community.choose(community.tab == .mine ? .forYou : community.tab) }
-                } label: {
-                    Image(systemName: "arrow.left")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(Swiss.text)
-                        .frame(width: 36, height: 36)
-                        .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 2))
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help(String(localized: "Revenir à la Communauté"))
-                .accessibilityLabel(String(localized: "Revenir"))
-                SwissPageTitle(text: author.username, size: 34)
-                    .lineLimit(1)
-                Spacer(minLength: 8)
-                if community.social {
-                    CommunityFollowButton(community: community, id: author.id, small: false)
-                }
-            }
             HStack(spacing: 22) {
                 AvatarView(photo: photo, username: author.username, size: 96)
                     .swissContextMenu {
@@ -276,6 +256,10 @@ struct CommunityPersonHeader: View {
                             .font(Swiss.title(34)).tracking(Swiss.titleTracking(34))
                         Text("Abonnés").swissLabel()
                     }
+                }
+                Spacer(minLength: 8)
+                if community.social {
+                    CommunityFollowButton(community: community, id: author.id, small: false)
                 }
             }
             HStack(spacing: 12) {

@@ -38,6 +38,12 @@ internal sealed partial class CommunityPage
     public Action<string, Action?, string, Action>? ToastAction { get; set; }
 
     private bool IsPersonPage => _author is { } a && a.Id != _account.Session?.UserId;
+
+    /// 11/11 : sur la page d'une personne, son pseudo prend la place du titre « communauté. » de la fenêtre.
+    public string? PersonName => IsPersonPage ? _author!.Value.Name : null;
+
+    /// Retour de la page d'une personne à la liste (← du titre, ou « Communauté » de la barre de gauche).
+    public void LeavePerson() => Choose(_tab == CommunityTab.Mine ? CommunityTab.ForYou : _tab);
     private bool Searching => CommunityRules.SearchPattern(_search).Length > 0;
     private bool Showcase => _social && _tab == CommunityTab.ForYou && _author is null && !Searching;
 
@@ -553,41 +559,19 @@ internal sealed partial class CommunityPage
         return border;
     }
 
-    /// Page d'une personne : ← et son pseudo en grand (minuscules + point carré), Suivre / Abonné ; sa photo en grand et
-    /// son nombre d'abonnés ; « Son travail » et son tri. Rien d'autre (ni bio, ni date).
+    /// Page d'une personne : son pseudo est le titre de la fenêtre (à la place de « communauté. », avec la flèche pour
+    /// revenir : MainShell, 11/11) ; ici sa photo en grand, son nombre d'abonnés et Suivre / Abonné ; « Son travail »
+    /// et son tri. Rien d'autre (ni bio, ni date).
     private FrameworkElement PersonHeader()
     {
         var (id, name) = _author!.Value;
         var page = new StackPanel { Spacing = 22 };
-        var top = new Grid { ColumnSpacing = 14 };
-        top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var back = Option(Icon("arrow.left", 16, Text), Tint, 0, () => Choose(_tab == CommunityTab.Mine ? CommunityTab.ForYou : _tab),
-                          minHeight: 36, padding: new Thickness(9, 0, 9, 0));
-        back.BorderBrush = Brush(Text);
-        back.BorderThickness = new Thickness(2);
-        back.VerticalAlignment = VerticalAlignment.Center;
-        ToolTipService.SetToolTip(back, Loc.T("Revenir à la Communauté"));
-        AutomationProperties.SetName(back, Loc.T("Revenir"));
-        top.Children.Add(back);
-        var titleText = Label(name.ToLowerInvariant(), 34, Text, bold: true);
-        titleText.FontFamily = SwissFont;
-        titleText.CharacterSpacing = -40;
-        titleText.TextTrimming = TextTrimming.CharacterEllipsis;
-        var title = PageTitle(titleText, 34);
-        title.VerticalAlignment = VerticalAlignment.Center;
-        Grid.SetColumn(title, 1);
-        top.Children.Add(title);
-        if (_social && FollowButton(id) is { } follow)
-        {
-            follow.VerticalAlignment = VerticalAlignment.Center;
-            Grid.SetColumn(follow, 2);
-            top.Children.Add(follow);
-        }
-        page.Children.Add(top);
 
-        var who = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 22 };
+        var who = new Grid { ColumnSpacing = 22 };
+        who.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        who.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        who.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        who.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         who.Children.Add(AccountPage.Avatar(_photos.GetValueOrDefault(id), name, 96));
         if (_social && _personFollowers is { } followers)
         {
@@ -597,7 +581,14 @@ internal sealed partial class CommunityPage
             number.CharacterSpacing = -40;
             count.Children.Add(number);
             count.Children.Add(SwissLabel(Loc.T("Abonnés"), 11));
+            Grid.SetColumn(count, 1);
             who.Children.Add(count);
+        }
+        if (_social && FollowButton(id) is { } follow)
+        {
+            follow.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(follow, 3);
+            who.Children.Add(follow);
         }
         page.Children.Add(who);
 

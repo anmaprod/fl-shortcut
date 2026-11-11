@@ -229,7 +229,7 @@ private struct CommunityBrowse: View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 16) {
                 if let author = community.author, community.isPersonPage {
-                    // Page d'une personne (11/11) : elle prend la place de la liste, ← pour revenir.
+                    // Page d'une personne (11/11) : elle prend la place de la liste ; son pseudo est le titre, ← devant.
                     CommunityPersonHeader(community: community, author: author)
                     CommunityStatus(community: community)
                 } else {

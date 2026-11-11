@@ -57,6 +57,15 @@ internal sealed partial class MainShell
     private readonly Button _keyButton;
     /// Gros titre de page (style suisse : 46, gras, serré, souligné d'un trait blanc).
     private readonly TextBlock _title = SwissTitle();
+    /// 11/11 : flèche seule, sans cadre, devant le titre de la page d'une personne de la Communauté (son pseudo).
+    private readonly Button _titleBack = new()
+    {
+        Style = PlainButton,
+        Content = Icon("arrow.left", 26, Text),
+        Padding = new Thickness(2, 0, 2, 0),
+        VerticalAlignment = VerticalAlignment.Center,
+        Visibility = Visibility.Collapsed,
+    };
     private readonly StackPanel _capsule = new() { Orientation = Orientation.Horizontal, Spacing = 2 };
     private readonly Border _capsuleBorder;
     /// Bouton de la page dans l'en-tête, à gauche du compte (« Partager » de la Communauté, comme le Mac).
@@ -570,7 +579,16 @@ internal sealed partial class MainShell
         page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         page.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         var header = new Grid { Margin = new Thickness(26, TitleBarHeight - 8, 26, 4), MinHeight = 72, Padding = new Thickness(0, 0, 0, 10) };
-        header.Children.Add(PageTitle(_title, 46));
+        ToolTipService.SetToolTip(_titleBack, Loc.T("Revenir à la Communauté"));
+        AutomationProperties.SetName(_titleBack, Loc.T("Revenir"));
+        _titleBack.Click += (_, _) => _community.LeavePerson();
+        header.Children.Add(new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 14,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Children = { _titleBack, PageTitle(_title, 46) },
+        });
         // À droite : la capsule de la page, puis le compte (sa photo, ou l'icône du compte).
         var right = new StackPanel
         {
@@ -627,7 +645,14 @@ internal sealed partial class MainShell
         _sidebarGroups.Children.Add(custom);
         var share = Group(Loc.T("Partager"));
         var communityRow = SidebarRow("community", CommunityPage.Tint, Loc.T("Communauté"),
-            !searching && _kind == PageKind.Community, () => Choose(PageKind.Community, _section));
+            !searching && _kind == PageKind.Community, () =>
+            {
+                // Déjà sur la page d'une personne : « Communauté » ramène à la liste.
+                if (_kind == PageKind.Community && _query.Trim().Length == 0 && _community.PersonName is not null)
+                    _community.LeavePerson();
+                else
+                    Choose(PageKind.Community, _section);
+            });
         if (_community.NewFromFollowed > 0)
         {
             // 11/11 : point rouge, un partage d'une personne suivie depuis la dernière visite d'« Abonnements ».
@@ -937,6 +962,7 @@ internal sealed partial class MainShell
         _capsule.Children.Clear();
         _capsuleBorder.Visibility = Visibility.Collapsed;
         _headerAction.Content = null;
+        _titleBack.Visibility = Visibility.Collapsed;
         List<PageCard> cards;
         Color tint;
         if (q.Length > 0)
@@ -961,7 +987,9 @@ internal sealed partial class MainShell
         }
         else if (_kind == PageKind.Community)
         {
-            SetTitle(Loc.T("Communauté"));
+            // 11/11 : sur la page d'une personne, son pseudo à la place de « communauté. », la flèche pour revenir.
+            SetTitle(_community.PersonName ?? Loc.T("Communauté"));
+            if (_community.PersonName is not null) _titleBack.Visibility = Visibility.Visible;
             _scroll.Content = _community.Content(_columns);
             _headerAction.Content = _community.HeaderShare();
             return;

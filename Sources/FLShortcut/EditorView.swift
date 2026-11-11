@@ -505,8 +505,25 @@ struct EditorView: View {
     /// de flèche « dernière macro » sur Macros (05/11 : « elle est inutile »).
     private var pageHeader: some View {
         HStack(alignment: .bottom, spacing: 12) {
-            SwissPageTitle(text: title)
-                .accessibilityAddTraits(.isHeader)
+            HStack(alignment: .center, spacing: 14) {
+                if personPageShown {
+                    // 11/11 (« j'aime pas le carré à côté du nom ») : une flèche seule, sans cadre, pour revenir.
+                    Button {
+                        Task { await community.leavePerson() }
+                    } label: {
+                        Image(systemName: "arrow.left")
+                            .font(.system(size: 26, weight: .bold))
+                            .foregroundStyle(Swiss.text)
+                            .frame(width: 30, height: 40)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(String(localized: "Revenir à la Communauté"))
+                    .accessibilityLabel(String(localized: "Revenir"))
+                }
+                SwissPageTitle(text: title)
+                    .accessibilityAddTraits(.isHeader)
+            }
             Spacer(minLength: 8)
             if showsShareButton {
                 Button {
@@ -549,7 +566,8 @@ struct EditorView: View {
         case .section(let s): return s.title
         case .custom: return String(localized: "Mes raccourcis")
         case .macros: return String(localized: "Macros")
-        case .community: return String(localized: "Communauté")
+        // 11/11 : sur la page d'une personne, son pseudo à la place de « communauté. ».
+        case .community: return community.personName ?? String(localized: "Communauté")
         case .help: return String(localized: "Aide")
         case .account: return String(localized: "Mon compte")
         }
@@ -584,8 +602,16 @@ struct EditorView: View {
 
     /// Clic sur une ligne de la barre latérale : comme une sélection de la liste (quitte la recherche s'il y en a une).
     private func choose(_ item: SidebarItem) {
+        // Déjà sur la page d'une personne : « Communauté » ramène à la liste.
+        if item == .community, personPageShown {
+            Task { await community.leavePerson() }
+            return
+        }
         sidebarSelection.wrappedValue = item
     }
+
+    /// La page d'une personne est à l'écran (sans recherche en cours).
+    private var personPageShown: Bool { isShown(.community) && community.personName != nil }
 
     /// Barre de gauche (maquette) : plaque claire arrondie, les boutons de la fenêtre en haut, la recherche, puis les
     /// groupes de pages, chacun sous son titre gris. Plus de compteurs (« rien d'inutile ») ; la page choisie est une

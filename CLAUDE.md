@@ -792,7 +792,9 @@
   bayésienne (serveur). Mac `CommunitySocial.swift`/`CommunityShowcase.swift`, Windows `CommunitySocial.cs`/
   `CommunityPageSocial.cs`. SERVEUR À COLLER PAR LE PROPRIÉTAIRE : `supabase/communaute-suivre.sql` (étape 12) ; sans
   lui, la Communauté d'avant, sans erreur (`socialNotReady` / `IsMissingSocial`). Photos CI `communaute-abonnements`,
-  `-plus-ajoutees`, `-personne`, `-note`.
+  `-plus-ajoutees`, `-personne`, `-note`. Page d'une personne (11/11, « j'aime pas le carré à côté du nom… le nom à
+  la place de communauté ») : son pseudo EST le titre de la fenêtre, flèche ← seule sans cadre devant, « Communauté »
+  de la barre de gauche y ramène aussi ; Suivre à droite de la photo (`personName`/`leavePerson`, `PersonName`).
 - Mails du compte : 2 par heure (donc 2 inscriptions) tant que le propriétaire n'a pas fait l'étape 6 de
   `supabase/README.md` (11/11 : Gmail rien que pour l'app, 60 par heure ; plus tard Brevo avec le domaine du site).
   Bêta limitée (1 000 comptes, un compte = un ordinateur) mise de côté le 11/11 : choix dans HISTORIQUE.
