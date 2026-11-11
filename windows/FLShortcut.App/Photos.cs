@@ -64,7 +64,9 @@ internal static class Photos
                                                  ("macros", "macros-liste"), ("macros-createur", "macros-createur"),
                                                  ("aide", "aide"), ("compte", "compte"),
                                                  ("guide", "guide-0"), ("guide-1", "guide-1"), ("guide-4", "guide-4"),
-                                                 ("communaute", "communaute"), ("communaute-fiche", "communaute-fiche") })
+                                                 ("communaute", "communaute"), ("communaute-fiche", "communaute-fiche"),
+                                                 ("communaute-abonnements", "communaute-abonnements"),
+                                                 ("communaute-personne", "communaute-personne"), ("communaute-note", "communaute-note") })
             {
                 main.ShowPage(page);
                 await Task.Delay(800);

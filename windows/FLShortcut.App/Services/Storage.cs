@@ -123,6 +123,9 @@ internal sealed class AppSettings
     public bool WindowShownAtLaunch { get; set; }
     public string? ScriptPath { get; set; }
     public string? ScriptSha256 { get; set; }
+    /// Communauté (11/11) : dernière ouverture d'« Abonnements » (secondes depuis 1970), pour le point rouge ; rien de
+    /// sensible.
+    public double? CommunityFollowedSeen { get; set; }
     public string Profile { get; set; } = "Recommended";
     /// Vrai = actions MIDI avec le script dans FL (loopMIDI requis). Faux = mode léger, rien dans FL.
     /// Absent (null) : mode léger pour une nouvelle installation, mode MIDI pour qui avait déjà installé le

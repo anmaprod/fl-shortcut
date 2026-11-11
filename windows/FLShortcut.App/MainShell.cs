@@ -175,8 +175,14 @@ internal sealed partial class MainShell
         _community = new CommunityPage(_app, _account, () => { if (_kind == PageKind.Community) RenderPage(); }, ShowToast, ConfirmAsync)
         {
             AboveChanged = UpdateAbove,
+            // 11/11 : point rouge de la barre de gauche, et « Noter » dans le message qui suit un ajout.
+            BadgeChanged = () => RenderSidebar(),
+            ToastAction = ShowToastWithAction,
         };
         _account.Changed += UpdateAccountButton;
+        // Nouveautés des gens suivis : au lancement (compte connecté), à chaque connexion, puis toutes les 30 min.
+        _account.Changed += () => _community.StartWatch(_window.DispatcherQueue);
+        _community.StartWatch(_window.DispatcherQueue);
         // Sauvegarde en ligne commune avec le Mac (raccourcis traduits), suivie par la page Mon compte.
         var backup = new Services.AccountBackupWin(_app, _account);
         _account.Backup = backup;
@@ -443,6 +449,9 @@ internal sealed partial class MainShell
             case "compte": _kind = PageKind.Account; break;
             case "communaute": _kind = PageKind.Community; _community.Demo(detail: false); break;
             case "communaute-fiche": _kind = PageKind.Community; _community.Demo(detail: true); break;
+            case "communaute-abonnements": _kind = PageKind.Community; _community.DemoScreen("abonnements"); break;
+            case "communaute-personne": _kind = PageKind.Community; _community.DemoScreen("personne"); break;
+            case "communaute-note": _kind = PageKind.Community; _community.DemoScreen("note"); break;
             case "recherche": _query = "Zoom"; _search.Text = _query; break;
             case "macros": _kind = PageKind.Macros; break;
             case "macros-createur":
@@ -617,8 +626,23 @@ internal sealed partial class MainShell
             !searching && _kind == PageKind.Custom, () => Choose(PageKind.Custom, _section)));
         _sidebarGroups.Children.Add(custom);
         var share = Group(Loc.T("Partager"));
-        share.Children.Add(SidebarRow("community", CommunityPage.Tint, Loc.T("Communauté"),
-            !searching && _kind == PageKind.Community, () => Choose(PageKind.Community, _section)));
+        var communityRow = SidebarRow("community", CommunityPage.Tint, Loc.T("Communauté"),
+            !searching && _kind == PageKind.Community, () => Choose(PageKind.Community, _section));
+        if (_community.NewFromFollowed > 0)
+        {
+            // 11/11 : point rouge, un partage d'une personne suivie depuis la dernière visite d'« Abonnements ».
+            var dot = new Rectangle
+            {
+                Width = 7, Height = 7, Fill = Brush(Red), IsHitTestVisible = false,
+                HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 12, 0),
+            };
+            share.Children.Add(new Grid { Children = { communityRow, dot } });
+        }
+        else
+        {
+            share.Children.Add(communityRow);
+        }
         _sidebarGroups.Children.Add(share);
         var help = Group(Loc.T("Compte et aide"));
         help.Children.Add(SidebarRow("account", AccountPage.Tint, Loc.T("Mon compte"),
@@ -1212,6 +1236,9 @@ internal sealed partial class MainShell
     private TextBlock _toastText = null!;
     private Button _toastUndo = null!;
     private Action? _undo;
+    private Button _toastAction = null!;
+    private TextBlock _toastActionLabel = null!;
+    private Action? _toastRun;
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _toastTimer;
 
     private void BuildToast()
@@ -1232,9 +1259,26 @@ internal sealed partial class MainShell
             _undo?.Invoke();
             HideToast();
         };
+        _toastActionLabel = Label("", 13, Link, semibold: true);
+        _toastAction = new Button
+        {
+            Style = PlainButton,
+            Content = _toastActionLabel,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Padding = new Thickness(6, 2, 6, 2),
+            CornerRadius = new CornerRadius(0),
+            Visibility = Visibility.Collapsed,
+        };
+        _toastAction.Click += (_, _) =>
+        {
+            var run = _toastRun;
+            HideToast();
+            run?.Invoke();
+        };
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
         row.Children.Add(_toastText);
         row.Children.Add(_toastUndo);
+        row.Children.Add(_toastAction);
         _toast = new Border
         {
             Child = row,
@@ -1250,10 +1294,23 @@ internal sealed partial class MainShell
         };
     }
 
+    /// Le petit message avec un bouton de plus (« Noter » après un ajout de la Communauté, 11/11).
+    private void ShowToastWithAction(string message, Action? undo, string label, Action action)
+    {
+        ShowToast(message, undo);
+        _toastActionLabel.Text = label;
+        _toastRun = action;
+        _toastAction.Visibility = Visibility.Visible;
+        AutomationProperties.SetName(_toastAction, label);
+        _toastTimer!.Interval = TimeSpan.FromSeconds(6);
+    }
+
     private void ShowToast(string message, Action? undo = null)
     {
         _toastText.Text = message;
         _undo = undo;
+        _toastRun = null;
+        _toastAction.Visibility = Visibility.Collapsed;
         _toastUndo.Visibility = undo is null ? Visibility.Collapsed : Visibility.Visible;
         _toast.Visibility = Visibility.Visible;
         AutomationProperties.SetName(_toast, message);

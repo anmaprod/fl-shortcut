@@ -16,12 +16,10 @@ using static FLShortcut.App.MacLook;
 
 namespace FLShortcut.App;
 
-internal sealed class CommunityPage
+internal sealed partial class CommunityPage
 {
     /// Couleur de la page Communauté (comme SidebarItem.community du Mac).
     public static readonly Color Tint = Rgb(0xF5, 0xAD, 0x00);
-
-    private enum Filter { All, Macros, Profiles, Mine }
 
     /// Raisons d'un signalement : le texte français est la valeur envoyée (comme le Mac), affiché traduit.
     private static readonly string[] Reasons =
@@ -40,7 +38,7 @@ internal sealed class CommunityPage
     private readonly Func<string, string, string, bool, Task<bool>> _confirm;
 
     // Liste.
-    private Filter _filter = Filter.All;
+    private CommunityTab _tab = CommunityTab.ForYou;
     private string _search = "";
     private (Guid Id, string Name)? _author;
     private List<Share>? _shares;
@@ -143,6 +141,11 @@ internal sealed class CommunityPage
         _composing = false;
         _author = null;
         _photos.Clear();
+        _followedPreview = new();
+        _topPreview = new();
+        _creators = new();
+        _following = new();
+        SetNew(0);
     }
 
     public FrameworkElement Content(int columns)
@@ -175,13 +178,15 @@ internal sealed class CommunityPage
         try
         {
             var session = await _account.FreshSession() ?? throw new AccountPage.ServerError(Loc.T("Session expirée : reconnecte-toi."), 401);
-            var kind = _filter switch { Filter.Macros => CommunityRules.MacroKind, Filter.Profiles => CommunityRules.ProfileKind, _ => null };
-            Guid? author = _filter == Filter.Mine ? session.UserId : _author?.Id;
-            var body = await AccountPage.Call(CommunityRequests.Shares(HelpPage.Server!, session, kind, _search, author));
+            // 11/11 : l'onglet (ou la page d'une personne) choisit ce qui est lu ; la vitrine à côté (CommunityPageSocial.cs).
+            Guid? author = _tab == CommunityTab.Mine && _author is null ? session.UserId : _author?.Id;
+            var list = await LoadList(session, author);
             if (version != _version) return;
-            _shares = CommunityRequests.DecodeShares(body);
+            _shares = list;
             AppLog.Write("COMMUNITY", $"{_shares.Count} partages lus");
-            _ = LoadPhotos(session, _shares.Select(s => s.AuthorId).Distinct().Where(id => !_photos.ContainsKey(id)).ToList());
+            await LoadSocial(session);
+            if (version != _version) return;
+            _ = LoadPhotos(session, PhotoIds().Where(id => !_photos.ContainsKey(id)).ToList());
         }
         catch (AccountPage.ServerError e)
         {
@@ -207,15 +212,6 @@ internal sealed class CommunityPage
             _render();
         }
         catch (AccountPage.ServerError) { /* serveur sans photos : les initiales restent */ }
-    }
-
-    private void Choose(Filter filter)
-    {
-        _filter = filter;
-        if (filter == Filter.Mine) _author = null;
-        _notice = null;
-        _shares = null;
-        _ = Reload();
     }
 
     // ---------- Liste ----------
@@ -255,46 +251,23 @@ internal sealed class CommunityPage
         search.TextChanged += (_, _) => _search = search.Text;
         search.KeyDown += (_, e) =>
         {
-            if (e.Key == Windows.System.VirtualKey.Enter) Choose(_filter);
+            if (e.Key == Windows.System.VirtualKey.Enter) Refresh();
         };
         top.Children.Add(new Grid { Children = { search, loupe } });
 
-        var filters = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        foreach (var (filter, label) in new[] { (Filter.All, Loc.T("Tout")), (Filter.Macros, Loc.T("Macros")),
-                                                (Filter.Profiles, Loc.T("Raccourcis")), (Filter.Mine, Loc.T("Les miens")) })
-        {
-            // Cases collées (maquette), la choisie pleine d'encre ; les autres pleines du fond.
-            var f = filter;
-            var on = _filter == f && _author is null;
-            var chip = Option(SwissLabel(label, 11, on ? MacLook.WindowColor : Text), Tint, 0, () => Choose(f), on,
-                              minHeight: 36, padding: new Thickness(12, 0, 12, 0));
-            if (!on) chip.Background = Brush(MacLook.WindowColor);
-            chip.BorderBrush = Brush(MacLook.Text);
-            chip.BorderThickness = new Thickness(2);
-            chip.Margin = new Thickness(filters.Children.Count > 0 ? -2 : 0, 0, 0, 0);
-            filters.Children.Add(chip);
-        }
+        // 11/11 : les onglets Pour toi / Abonnements / Les plus ajoutées / Les miens (CommunityPageSocial.cs).
+        var filters = Tabs();
         Grid.SetColumn(filters, 1);
         top.Children.Add(filters);
         var refresh = new Button { Style = PlainButton, Content = Icon("arrow.clockwise", 14, Secondary), Padding = new Thickness(6), VerticalAlignment = VerticalAlignment.Center };
         ToolTipService.SetToolTip(refresh, Loc.T("Actualiser"));
         AutomationProperties.SetName(refresh, Loc.T("Actualiser"));
-        refresh.Click += (_, _) => Choose(_filter);
+        refresh.Click += (_, _) => Refresh();
         Grid.SetColumn(refresh, 2);
         top.Children.Add(refresh);
         var head = new StackPanel { Spacing = 12, Children = { top } };
-        if (_author is { } author)
-        {
-            var everyone = Soft(Loc.F("Tous les partages de @%@", DisplayText.Safe(author.Name, 24)) + "  ✕", () =>
-            {
-                _author = null;
-                Choose(_filter);
-            });
-            ToolTipService.SetToolTip(everyone, Loc.T("Voir tout le monde"));
-            head.Children.Add(everyone);
-        }
         head.Children.Add(Rule(LineColor));
-        page.Children.Add(head);
+        page.Children.Add(IsPersonPage ? PersonHeader() : head);
         if (_notice is not null) page.Children.Add(Paragraph(_notice, 12.5, Text));
 
         if (_loading && _shares is null)
@@ -305,10 +278,21 @@ internal sealed class CommunityPage
         if (_error is not null)
         {
             page.Children.Add(Paragraph(_error, 12.5, Red));
-            page.Children.Add(Soft(Loc.T("Réessayer"), () => Choose(_filter)));
+            page.Children.Add(Soft(Loc.T("Réessayer"), Refresh));
             return page;
         }
         var shares = _shares ?? new List<Share>();
+        // 11/11 : la vitrine « Pour toi », puis les nouveautés.
+        if (Showcase)
+        {
+            page.Children.Add(ShowcaseRows());
+            if (shares.Count > 0 && (_followedPreview.Count > 0 || _creators.Count > 0 || _topPreview.Count > 0))
+            {
+                var news = SwissLabel(Loc.T("Nouveautés"), 11, Text);
+                news.Margin = new Thickness(0, 14, 0, 0);
+                page.Children.Add(new StackPanel { Spacing = 8, Children = { news, Rule(LineColor) } });
+            }
+        }
         if (shares.Count == 0)
         {
             page.Children.Add(Empty());
@@ -339,20 +323,18 @@ internal sealed class CommunityPage
                 Loc.T("Effacer la recherche"), () =>
                 {
                     _search = "";
-                    Choose(_filter);
+                    Refresh();
                 });
         if (_author is { } author)
             return Message(Loc.F("Aucun partage de @%@", DisplayText.Safe(author.Name, 24)),
-                _filter == Filter.All ? Loc.T("Ce membre n'a rien publié pour l'instant.") : Loc.T("Ce membre n'a rien publié pour l'instant de ce genre."),
-                Loc.T("Voir tout le monde"), () =>
-                {
-                    _author = null;
-                    Choose(_filter);
-                });
-        if (_filter is Filter.Macros or Filter.Profiles)
-            return Message(Loc.T("Rien de ce genre pour l'instant"),
-                _filter == Filter.Macros ? Loc.T("Personne n'a encore partagé de macro.") : Loc.T("Personne n'a encore partagé de raccourcis."),
-                Loc.T("Tout afficher"), () => Choose(Filter.All));
+                Loc.T("Ce membre n'a rien publié pour l'instant."),
+                Loc.T("Voir tout le monde"), () => Choose(CommunityTab.ForYou));
+        if (_tab == CommunityTab.Following)
+            return Message(_following.Count == 0 ? Loc.T("Tu ne suis personne.") : Loc.T("Rien de nouveau."),
+                Loc.T("Suis un créateur : ses partages arrivent ici."), Loc.T("Pour toi"), () => Choose(CommunityTab.ForYou));
+        if (_tab == CommunityTab.MostAdded)
+            return Message(Loc.T("Rien d'ajouté pour l'instant."), Loc.T("Les partages ajoutés par les membres arrivent ici."),
+                Loc.T("Pour toi"), () => Choose(CommunityTab.ForYou));
         return Message(Loc.T("Encore aucun partage"),
             Loc.T("Sois le premier : partage une macro qui te fait gagner du temps, avec une petite explication pour les autres."),
             Loc.T("Partager une macro…"), StartComposing);
@@ -379,8 +361,8 @@ internal sealed class CommunityPage
         name.MaxWidth = 150;
         var showAuthor = _author?.Id != share.AuthorId;
         var authorButton = new Button { Style = PlainButton, Content = name, IsEnabled = showAuthor, VerticalAlignment = VerticalAlignment.Center };
-        authorButton.Click += (_, _) => ShowAuthor(share);
-        if (showAuthor) ToolTipService.SetToolTip(authorButton, Loc.F("Voir tout ce que @%@ a publié", DisplayText.Safe(share.AuthorName, 24)));
+        authorButton.Click += (_, _) => OpenPerson(share.AuthorId, share.AuthorName);
+        if (showAuthor) ToolTipService.SetToolTip(authorButton, Loc.F("Voir la page de @%@", DisplayText.Safe(share.AuthorName, 24)));
         Grid.SetColumn(authorButton, 1);
         top.Children.Add(authorButton);
         var day = SwissLabel("· " + share.Day, 11);
@@ -418,7 +400,7 @@ internal sealed class CommunityPage
             ToolTipService.SetToolTip(add, Loc.T("Lire la fiche, puis l'ajouter"));
             actions.Children.Add(add);
         }
-        stack.Children.Add(actions);
+        stack.Children.Add(WithStats(actions, share));       // 11/11 : « ★ 4,6 · Ajoutée 312 fois » à droite
 
         var border = new Border
         {
@@ -440,7 +422,7 @@ internal sealed class CommunityPage
             Open(share);
         };
         var menu = new MenuFlyout();
-        if (showAuthor) menu.Items.Add(MenuItem(Loc.F("Tous les partages de @%@", DisplayText.Safe(share.AuthorName, 24)), () => ShowAuthor(share)));
+        if (showAuthor) menu.Items.Add(MenuItem(Loc.F("Voir la page de @%@", DisplayText.Safe(share.AuthorName, 24)), () => OpenPerson(share.AuthorId, share.AuthorName)));
         if (!mine) menu.Items.Add(MenuItem(Loc.T("Signaler…"), () => Open(share, report: true)));
         if (mine) menu.Items.Add(MenuItem(Loc.T("Supprimer mon partage…"), () => DeleteShare(share)));
         if (menu.Items.Count > 0) border.ContextFlyout = SwissMenu(menu);
@@ -462,14 +444,8 @@ internal sealed class CommunityPage
         return item;
     }
 
-    /// Tous les partages d'un membre (la fiche se ferme).
-    private void ShowAuthor(Share share)
-    {
-        _author = (share.AuthorId, share.AuthorName);
-        Leave();
-        RenderAbove();
-        Choose(_filter == Filter.Mine ? Filter.All : _filter);
-    }
+    /// La page d'un membre (11/11 : sa page, la fiche se ferme).
+    private void ShowAuthor(Share share) => OpenPerson(share.AuthorId, share.AuthorName);
 
     // ---------- Fiche d'un partage ----------
 
@@ -483,7 +459,10 @@ internal sealed class CommunityPage
         _reporting = report;
         _reason = 0;
         _details = "";
+        _canRate = false;
+        _stars = null;
         RenderAbove();
+        _ = LoadRating(share);
         try
         {
             byte[] payload;
@@ -533,9 +512,10 @@ internal sealed class CommunityPage
         title.TextWrapping = TextWrapping.Wrap;
         head.Children.Add(title);
         head.Children.Add(Paragraph(share.Byline, 12));
+        if (CommunityStats.Line(share) is { } stats) head.Children.Add(SwissLabel(stats, 10.5, Text));
         if (_author?.Id != share.AuthorId)
         {
-            head.Children.Add(Link(Loc.F("Tous les partages de @%@", DisplayText.Safe(share.AuthorName, 24)), () => ShowAuthor(share)));
+            head.Children.Add(Link(Loc.F("Voir la page de @%@", DisplayText.Safe(share.AuthorName, 24)), () => ShowAuthor(share)));
         }
 
         page.Children.Add(Part(Loc.F("L'explication de @%@", DisplayText.Safe(share.AuthorName, 24)),
@@ -635,12 +615,20 @@ internal sealed class CommunityPage
         buttons.Children.Add(add);
         buttons.Padding = new Thickness(16);
 
-        var card = new Grid();
-        foreach (var height in new[] { GridLength.Auto, GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto, GridLength.Auto })
-            card.RowDefinitions.Add(new RowDefinition { Height = height });
         var scroll = new ScrollViewer { Content = page, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        var pieces = new List<FrameworkElement> { head, Rule(LineColor), scroll, Rule(LineColor) };
+        // 11/11 : « Ta note », seulement après l'avoir ajouté (jamais le sien).
+        if (StarsRow(share) is { } starsRow)
+        {
+            pieces.Add(starsRow);
+            pieces.Add(Rule(LineColor));
+        }
+        pieces.Add(buttons);
+        var card = new Grid();
+        foreach (var piece in pieces)
+            card.RowDefinitions.Add(new RowDefinition { Height = piece == scroll ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
         var row = 0;
-        foreach (var piece in new FrameworkElement[] { head, Rule(LineColor), scroll, Rule(LineColor), buttons })
+        foreach (var piece in pieces)
         {
             Grid.SetRow(piece, row++);
             card.Children.Add(piece);
@@ -651,6 +639,7 @@ internal sealed class CommunityPage
     private void Add()
     {
         if (_preview is not { } preview) return;
+        var share = _opened;
         Leave();
         RenderAbove();
         if (_demo) return;
@@ -658,7 +647,17 @@ internal sealed class CommunityPage
         doc.Name = _app.Macros.UniqueName(doc.Name);
         _app.Macros.Add(doc);
         AppLog.Write("COMMUNITY", "macro ajoutée depuis un partage");
-        _toast(Loc.F("« %@ » ajoutée à tes macros : choisis-lui un raccourci dans la page Macros", DisplayText.Safe(doc.Name, 40)), null);
+        var text = Loc.F("« %@ » ajoutée à tes macros : choisis-lui un raccourci dans la page Macros", DisplayText.Safe(doc.Name, 40));
+        if (share is { } added)
+        {
+            _ = RecordAdd(added);                         // 11/11 : compté une fois sur le serveur
+            if (_social && !Mine(added) && ToastAction is { } withAction)
+            {
+                withAction(text, null, Loc.T("Noter"), () => Open(added));
+                return;
+            }
+        }
+        _toast(text, null);
     }
 
     /// Une ligne par raccourci : « Ctrl+S → Save · Mixer » (éteints marqués).
@@ -679,7 +678,12 @@ internal sealed class CommunityPage
         var before = _app.ReplaceShortcuts(preview.Shortcuts);
         AppLog.Write("COMMUNITY", $"raccourcis d'un partage en place ({preview.Shortcuts.Count})");
         _render();
-        _toast(Loc.F("Raccourcis de @%@ en place", DisplayText.Safe(share.AuthorName, 24)), () => _app.RestoreShortcuts(before));
+        _ = RecordAdd(share);                             // 11/11 : compté une fois sur le serveur
+        var text = Loc.F("Raccourcis de @%@ en place", DisplayText.Safe(share.AuthorName, 24));
+        if (_social && !Mine(share) && ToastAction is { } withAction)
+            withAction(text, () => _app.RestoreShortcuts(before), Loc.T("Noter"), () => Open(share));
+        else
+            _toast(text, () => _app.RestoreShortcuts(before));
     }
 
     private async void DeleteShare(Share share)
@@ -912,7 +916,7 @@ internal sealed class CommunityPage
             }
             AppLog.Write("COMMUNITY", doc is not null ? "macro partagée" : "raccourcis partagés");
             _composing = false;
-            _filter = Filter.All;
+            _tab = CommunityTab.ForYou;
             _author = null;
             _shares = null;
             _notice = Loc.T("Partage publié.");
@@ -935,16 +939,9 @@ internal sealed class CommunityPage
     {
         _demo = true;
         _composing = false;
-        var author = Guid.Parse("6f1d2c1e-0000-4000-8000-000000000001");
-        _shares = new List<Share>
-        {
-            new(Guid.NewGuid(), author, CommunityRules.MacroKind, "Armer la piste et lancer l'enregistrement",
-                "Clique sur ta piste dans le Mixer, puis lance la macro : la piste est armée et REC démarre.", "0.2.0", "2026-11-02T18:02:11+00:00", "flshortcuts"),
-            new(Guid.NewGuid(), Guid.NewGuid(), CommunityRules.MacroKind, "Export Stems",
-                "Toutes les pistes de la Playlist en WAV séparés, sur la sélection de temps.", "0.2.0", "2026-10-30T09:12:00+00:00", "leo.beats"),
-            new(Guid.NewGuid(), Guid.NewGuid(), CommunityRules.ProfileKind, "Raccourcis du Mixer",
-                "", "0.2.0", "2026-10-28T21:40:00+00:00", "sarah.mix"),
-        };
+        DemoSocial();                                     // 11/11 : vitrine d'exemple
+        _author = null;
+        _shares = DemoShares();
         _opened = null;
         if (detail) Open(_shares[0]);
     }
