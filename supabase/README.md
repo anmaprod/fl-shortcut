@@ -93,6 +93,11 @@ et l'étape 7 (modèles des mails avec le code).
    4. Essaie : dans l'app, Aide › Écrire à l'équipe (la première fois, regarde aussi les spams).
    La clé et l'adresse restent dans le coffre de Supabase (Vault), jamais dans l'app ni dans le dépôt. Si l'envoi du
    mail échoue, le message reste dans **Table Editor › support_requests** comme avant. Peut être recollé sans risque.
+12. **Communauté : suivre des créateurs, « Ajoutée N fois » et étoiles** : **SQL Editor › New query**, colle tout
+   `supabase/communaute-suivre.sql`, puis **Run** (après `schema.sql` et `profil.sql`). Cela ajoute les abonnements
+   (chacun ne voit que les siens ; des autres, seulement leur nombre d'abonnés), le nombre d'ajouts de chaque partage,
+   les notes de 1 à 5 étoiles (seulement après avoir ajouté le partage, jamais le sien) et le classement des
+   créateurs. Sans cette étape, l'app garde la Communauté d'avant. Peut être recollé sans risque.
 
 ## 2. Compiler l'app reliée au serveur (rien à faire)
 

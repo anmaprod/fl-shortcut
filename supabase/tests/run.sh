@@ -17,6 +17,7 @@ sed '/^create extension if not exists pg_net;/d' ../messages-par-mail.sql > "$MA
 for f in supabase-stubs.sql supabase-stubs-mail.sql ../schema.sql ../inscription.sql ../sauvegarde.sql \
          ../corrections-ia.sql ../corrections-ia.sql ../profil.sql ../profil.sql "$MAIL" "$MAIL" policies.sql \
          profil.sql regles-sauvegarde.sql inscription.sql corrections-ia.sql messages-par-mail.sql "$MAIL" \
-         messages-par-mail-recolle.sql; do
+         messages-par-mail-recolle.sql ../communaute-suivre.sql ../communaute-suivre.sql communaute-suivre.sql \
+         ../communaute-suivre.sql communaute-suivre-recolle.sql; do
   psql "$@" -d "$DB" -X -q -v ON_ERROR_STOP=1 -f "$f"
 done
