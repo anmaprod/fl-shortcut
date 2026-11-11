@@ -217,6 +217,10 @@ public sealed record OrganizerOptions
     public bool Rename { get; init; } = true;
     /// Mixer : un bus par famille (les 808 avec les drums), chaque son envoyé seulement à son bus.
     public bool Buses { get; init; } = true;
+    /// Mixer, avec les bus : un pré-master juste à côté du Master (piste 1) ; chaque bus et chaque piste qui allait au
+    /// Master y vont, et seul le pré-master va au Master (demande du propriétaire, 01/11, comme le Mac). Faux ici
+    /// (essais d'avant) ; vrai dans l'app (`OrganizerController`).
+    public bool Premaster { get; init; }
     /// Sons sans aucune note supprimés du Channel rack, leurs pistes du Mixer remises comme neuves.
     public bool DeleteUnused { get; init; } = true;
     /// Playlist : un son par piste ; `MaxSplits` : les premiers seulement (ceux que FL a laissé faire).

@@ -414,6 +414,61 @@ public class OrganizerApplyTests
         Assert.Equal(tracks, link.Channels.Select(c => c.MixerTrack));
     }
 
+    /// 01/11 (Mac), 11/11 (Windows) : un pré-master juste à côté du Master (une piste libre, nommée « Pré-master ») ;
+    /// chaque bus y va, seul lui va au Master ; les sons gardent leur bus, ceux qui envoient déjà ailleurs gardent leurs
+    /// envois. Mêmes nombres que testPremasterNextToTheMasterTakesEveryBus du Mac.
+    [Fact]
+    public void PremasterNextToTheMasterTakesEveryBus()
+    {
+        var kinds = new SoundKind?[] { SoundKind.Lead, SoundKind.Lead, SoundKind.Bass, SoundKind.Bass808, SoundKind.Kick, SoundKind.Clap, null };
+        var tracks = new[] { 1, 2, 4, 5, 6, 7, 8 };
+        var link = new FakeOrganizerLink
+        {
+            Channels = kinds.Select((_, i) => new ChannelInfo(i, 2, tracks[i], Gray, $"Son {i}")).ToList(),
+            Mixer = MixerOf(12, i => i == 0 ? "Master" : i == 3 ? "Melody Bus" : $"Insert {i}"),
+            RoutesMap = new Dictionary<int, List<int>> { [1] = new() { 3 }, [2] = new() { 3 }, [3] = new() { 0 }, [4] = new() { 0 }, [5] = new() { 0 }, [6] = new() { 0 }, [7] = new() { 0 }, [8] = new() { 0 } },
+        };
+        var items = kinds.Select((k, i) => (k, i)).Where(x => x.k is not null).Select(x => new OrganizerItem
+        {
+            Index = x.i, Name = $"Son {x.i}", Family = x.k!.Value.Family(), Confidence = 0.9, MixerTrack = tracks[x.i], Color = Gray, Kind = x.k,
+        }).ToList();
+        var result = new OrganizerResult
+        {
+            Channels = link.Channels.ToList(), Items = items, Mixer = link.Mixer.ToList(),
+            Routes = link.RoutesMap.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()), Unused = new HashSet<int> { 6 },
+        };
+        var mixer = Plan(result, options: new OrganizerOptions { Premaster = true }).Mixer;
+        Assert.Equal(11, mixer.Premaster);                                         // la première piste libre après les bus
+        Assert.Equal(new[] { 11, 1, 2, 3, 4, 9, 5, 6, 7, 10, 8 }, mixer.Final);    // juste à côté du Master
+        Assert.Equal(new[] { "3:11", "4:9", "5:10", "6:10", "7:10", "9:11", "10:11", "11:0" },   // 808 → Drums Bus → Pré-master → Master
+            mixer.Routes.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}:{string.Join(",", kv.Value)}"));
+        Assert.Equal("Pré-master", mixer.Names[11]);
+
+        var originalRoutes = link.RoutesMap.ToDictionary(kv => kv.Key, kv => kv.Value.ToList());
+        var outcome = Apply(link, result, options: new OrganizerOptions { Rack = false, Patterns = false, Playlist = false, Premaster = true, DeleteUnused = false });
+        Assert.Null(outcome.Error);
+        Assert.Equal("Pré-master", link.Mixer[1].Name);
+        Assert.Equal(new[] { 0 }, link.RoutesMap[1]);                               // seul le pré-master va au Master
+        foreach (var bus in new[] { "Melody Bus", "Basse Bus", "Drums Bus" })
+        {
+            var index = link.Mixer.FindIndex(t => t.Name == bus);
+            Assert.True(index > 0, bus);
+            Assert.Equal(new[] { 1 }, link.RoutesMap[index]);                       // bus → Pré-master
+        }
+        Assert.Null(Applier(link).Undo(outcome.Snapshot).Error);
+        Assert.Equal(originalRoutes.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}:{string.Join(",", kv.Value)}"),
+            link.RoutesMap.Where(kv => kv.Value.Count > 0).OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}:{string.Join(",", kv.Value)}"));
+    }
+
+    [Fact]
+    public void PremasterIsRecognizedByItsName()
+    {
+        foreach (var name in new[] { "Pré-master", "Premaster", "PRE MASTER", "pre-master", "Pré master" })
+            Assert.True(OrganizerPlan.IsPremaster(name), name);
+        foreach (var name in new[] { "Master", "Pre", "Insert 1", "Drums Bus" })
+            Assert.False(OrganizerPlan.IsPremaster(name), name);
+    }
+
     [Fact]
     public void TracksAlreadySentElsewhereKeepTheirSends()
     {

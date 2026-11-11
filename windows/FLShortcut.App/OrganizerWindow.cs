@@ -926,6 +926,7 @@ internal sealed class OrganizerWindow : Window
         menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(Toggle(Loc.T("Renommer"), options.Rename, (o, on) => o with { Rename = on }));
         menu.Items.Add(Toggle(Loc.T("Un bus par famille"), options.Buses, (o, on) => o with { Buses = on }, options.Mixer));
+        menu.Items.Add(Toggle(Loc.T("Pré-master"), options.Premaster, (o, on) => o with { Premaster = on }, options.Mixer && options.Buses));
         menu.Items.Add(Toggle(_controller.OrganizesCopy ? Loc.T("Supprimer les sons sans note") : Loc.T("Supprimer les sons sans note, pour de bon"),
             options.DeleteUnused, (o, on) => o with { DeleteUnused = on }));
         menu.Items.Add(new MenuFlyoutSeparator());

@@ -24,6 +24,8 @@ public sealed class OrganizerPlan
         /// Mixer : son envoyé au Master → la piste libre qu'il prend ; pistes des sons supprimés, remises comme neuves.
         public Dictionary<int, int> Links { get; set; } = new();
         public HashSet<int> Resets { get; set; } = new();
+        /// Mixer : la piste d'origine qui devient le pré-master (à côté du Master, seule à y aller).
+        public int? Premaster { get; set; }
 
         public bool IsEmpty => Colors.Count == 0 && Names.Count == 0 && Moves.Count == 0 && Routes.Count == 0 && Links.Count == 0;
     }
@@ -424,6 +426,36 @@ public sealed class OrganizerPlan
                 ? BusLayout(linked, sources, result.Routes, free, SortKey, out_)
                 : GroupedLayout(linked, sources, key, out_);
         }
+        // Pré-master (01/11, comme le Mac) : une piste déjà nommée ainsi, sinon une piste libre ; tout ce qui allait au
+        // seul Master y va (bus, pistes sans bus, à vérifier), lui seul va au Master ; il se met juste à côté du Master.
+        // Une piste qui envoie déjà ailleurs garde ses envois (règle du propriétaire).
+        if (buses && options.Premaster && layout.Count > 0)
+        {
+            int? existing = result.Mixer.FirstOrDefault(t => InRange(t.Index) && IsPremaster(t.Name) && !keptTracks.Contains(t.Index))?.Index;
+            if (existing is { } e) free.Remove(e);
+            int? pre = existing;
+            if (pre is null && free.Count > 0) { pre = free[0]; free.RemoveAt(0); }
+            if (pre is { } p)
+            {
+                var sendsOn = sources.Values.SelectMany(v => v).ToHashSet();
+                foreach (var track in layout)
+                {
+                    if (track == p) continue;
+                    if (out_.Routes.TryGetValue(track, out var planned))
+                    {
+                        if (planned.Count == 1 && planned[0] == 0) out_.Routes[track] = new List<int> { p };
+                    }
+                    else if (!sendsOn.Contains(track)
+                             && (result.Routes.TryGetValue(track, out var before) ? before : new List<int> { 0 }).Distinct().SequenceEqual(new[] { 0 }))
+                    {
+                        out_.Routes[track] = new List<int> { p };
+                    }
+                }
+                out_.Routes[p] = new List<int> { 0 };
+                out_.Premaster = p;
+                layout = new[] { p }.Concat(layout.Where(t => t != p)).ToList();
+            }
+        }
         // Pistes des sons supprimés pas reprises, et pistes nommées sans aucun son ni envoi reçu : comme neuves.
         var idle = cleanup
             ? result.Mixer.Where(t => InRange(t.Index) && !t.HasDefaultName && !everUsed.Contains(t.Index) && !sources.ContainsKey(t.Index))
@@ -433,6 +465,7 @@ public sealed class OrganizerPlan
         // Places choisies dans l'aperçu : d'abord celles des sons (la case de chaque son, comme dans le Channel rack de
         // FL), puis le départ de chaque famille, dans l'ordre des familles (ses pistes à la suite, son bus compris).
         var pins = new List<(int Track, int Slot)>();
+        if (out_.Premaster is { } premaster) pins.Add((premaster, 1));      // toujours à côté du Master
         foreach (var channel in kept.OrderBy(c => Place(c.Index)))
         {
             if (!slots.TryGetValue(channel.Index, out var slot) || verdict(channel.Index) is null) continue;
@@ -480,10 +513,27 @@ public sealed class OrganizerPlan
                 }
             }
             foreach (var (k, v) in Numbered(bases, taken)) out_.Names.TryAdd(k, v);
+            if (out_.Premaster is { } pre) out_.Names[pre] = Loc.T("Pré-master");
             out_.Names = out_.Names.Where(kv => !byIndex.TryGetValue(kv.Key, out var info) || info.Name != kv.Value)
                 .ToDictionary(kv => kv.Key, kv => kv.Value);
         }
+        else if (out_.Premaster is { } pre && (!byIndex.TryGetValue(pre, out var info) || info.HasDefaultName))
+        {
+            out_.Names[pre] = Loc.T("Pré-master");
+        }
         return out_;
+    }
+
+    /// Pur (testé) : une piste du Mixer déjà nommée pré-master (« Pré-master », « Premaster », « PRE MASTER »…).
+    public static bool IsPremaster(string name)
+    {
+        var letters = new System.Text.StringBuilder();
+        foreach (var c in name.Normalize(System.Text.NormalizationForm.FormD))
+        {
+            if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) == System.Globalization.UnicodeCategory.NonSpacingMark) continue;
+            if (char.IsLetter(c)) letters.Append(char.ToLowerInvariant(c));
+        }
+        return letters.ToString() == "premaster";
     }
 
     /// Pur (testé) : la disposition du Mixer (place p → piste d'origine, place 0 = piste 1) avec les places choisies :

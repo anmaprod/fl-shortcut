@@ -155,7 +155,8 @@ public sealed class OrganizerController
     {
         _env = env;
         Styles = env.LoadStyles();
-        Options = new OrganizerOptions { FamilyOrder = OrganizerOptions.CompleteOrder(env.LoadFamilyOrder()) };
+        // Le pré-master est là par défaut dans l'app (01/11, comme le Mac).
+        Options = new OrganizerOptions { Premaster = true, FamilyOrder = OrganizerOptions.CompleteOrder(env.LoadFamilyOrder()) };
     }
 
     /// Le titre seul, comme le Mac (maquette du 28/10).
