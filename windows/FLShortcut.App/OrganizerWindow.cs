@@ -390,7 +390,10 @@ internal sealed class OrganizerWindow : Window
         var targetHeight = (int)Math.Round(height * scale);
         var targetWidth = (int)Math.Round(width * scale);
         if (Math.Abs(targetHeight - AppWindow.ClientSize.Height) <= 2 && Math.Abs(targetWidth - AppWindow.ClientSize.Width) <= 2) return;
+        // Photo de l'aperçu de la CI du 10/11 à 464 × 411 au lieu de 720 : la taille demandée et obtenue, notées.
+        var before = AppWindow.ClientSize;
         AppWindow.ResizeClient(new Windows.Graphics.SizeInt32(targetWidth, targetHeight));
+        Photos.Note($"taille : {before.Width}×{before.Height} → {targetWidth}×{targetHeight} demandé, {AppWindow.ClientSize.Width}×{AppWindow.ClientSize.Height} obtenu (aperçu {preview})");
     }
 
     /// Largeur des écrans de texte (Démarrer, lien, attente, écoute, fin), comme le Mac.

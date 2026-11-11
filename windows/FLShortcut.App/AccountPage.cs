@@ -267,18 +267,59 @@ internal sealed class AccountPage
         var card = _pending is { } pending ? CodeCard(pending.Kind, pending.Email) : SignInCard();
         if (_pending is not null) return new StackPanel { Children = { card }, Padding = new Thickness(26, 18, 26, 32) };
         // 05/11 (comme le Mac) : à gauche ce que donne un compte, à droite le formulaire ; l'un sous l'autre si étroit.
+        // 10/11 (photo de la CI : « your shortc… » coupé) : comme ViewThatFits du Mac, côte à côte seulement si le grand
+        // titre tient en entier à côté de la carte ; sinon l'un sous l'autre.
         var pitch = Pitch();
-        if (columns >= 2)
+        if (columns < 2) return new StackPanel { Spacing = 30, Children = { pitch, card }, Padding = new Thickness(26, 18, 26, 32) };
+        return SideBySideIfItFits(pitch, card);
+    }
+
+    /// Le texte de présentation et la carte côte à côte quand le grand titre tient entier dans sa colonne (au moins
+    /// 280, au plus 400, comme AuthPitch du Mac), l'un sous l'autre sinon. Rien n'est déplacé d'un parent à l'autre :
+    /// seules les places dans la grille changent quand sa largeur change.
+    private static Grid SideBySideIfItFits(FrameworkElement pitch, FrameworkElement card)
+    {
+        const double gap = 44;
+        var grid = new Grid { Padding = new Thickness(26, 18, 26, 32) };
+        var first = new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) };
+        var second = new ColumnDefinition { Width = GridLength.Auto };
+        grid.ColumnDefinitions.Add(first);
+        grid.ColumnDefinitions.Add(second);
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.Children.Add(pitch);
+        grid.Children.Add(card);
+        var wide = new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity);
+        pitch.Measure(wide);
+        card.Measure(wide);
+        var titleWidth = Math.Clamp(PitchTitleWidth(pitch), 280, 400);
+        var cardWidth = card.DesiredSize.Width;
+        bool? side = null;
+        void Place(double width)
         {
-            var grid = new Grid { ColumnSpacing = 44, Padding = new Thickness(26, 18, 26, 32) };
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 400 });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            grid.Children.Add(pitch);
-            Grid.SetColumn(card, 1);
-            grid.Children.Add(card);
-            return grid;
+            var now = width - grid.Padding.Left - grid.Padding.Right >= titleWidth + gap + cardWidth;
+            if (side == now) return;
+            side = now;
+            first.MaxWidth = now ? 400 : double.PositiveInfinity;
+            second.Width = now ? GridLength.Auto : new GridLength(0);
+            grid.ColumnSpacing = now ? gap : 0;
+            grid.RowSpacing = now ? 0 : 30;
+            Grid.SetColumn(card, now ? 1 : 0);
+            Grid.SetRow(card, now ? 0 : 1);
         }
-        return new StackPanel { Spacing = 30, Children = { pitch, card }, Padding = new Thickness(26, 18, 26, 32) };
+        Place(double.PositiveInfinity);
+        grid.SizeChanged += (_, e) => Place(e.NewSize.Width);
+        return grid;
+    }
+
+    /// Largeur du plus long des trois grands titres de la présentation (« tes raccourcis, », point carré compris).
+    private static double PitchTitleWidth(FrameworkElement pitch)
+    {
+        if (pitch is not Panel panel) return 0;
+        double widest = 0;
+        foreach (var child in panel.Children.Take(3).OfType<FrameworkElement>())
+            widest = Math.Max(widest, child.DesiredSize.Width);
+        return widest;
     }
 
     // ---------- Serveur ----------
