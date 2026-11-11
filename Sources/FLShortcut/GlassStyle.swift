@@ -1976,3 +1976,31 @@ struct SixDots: View {
         .accessibilityHidden(true)
     }
 }
+
+/// Page posée au-dessus d'une page (10/11, fiche de la Communauté : « une page au-dessus, mais style suisse », à la
+/// place de la feuille de macOS et de son verre) : la page derrière s'assombrit et ne reçoit plus les clics ; la carte
+/// se pose au milieu, carrée, pleine du fond, bordée d'un trait d'encre fin ; noire sous Orange comme les autres
+/// petites fenêtres. Rien ne se ferme en cliquant à côté (« Fermer », Échap). Aucune animation.
+struct SwissPageAbove<Content: View>: View {
+    private let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        ZStack {
+            Rectangle()
+                .fill(Color.black.opacity(0.55))
+                .contentShape(Rectangle())
+                .onTapGesture {}
+                .accessibilityHidden(true)
+            content
+                .background(Rectangle().fill(Swiss.background))
+                .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
+                .swissInverted()
+                .padding(24)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}

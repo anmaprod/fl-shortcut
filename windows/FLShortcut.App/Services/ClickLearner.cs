@@ -39,6 +39,62 @@ internal static class ClickLearner
 
     private static bool Down(int vk) => (Win32.GetAsyncKeyState(vk) & 0x8000) != 0;
 
+    /// Glisser-déposer montré dans FL (comme startDrag du Mac, 10/11) : FL passe devant, l'appui du bouton gauche puis
+    /// son relâché sont retenus (MacroDrafts.DragTargets) ; le glisser agit aussi dans FL (c'est l'utilisateur qui le
+    /// fait). Un seul apprentissage à la fois ; Échap annule ; une minute au plus.
+    public static bool StartDrag(uint pid, Action<Action> onUi, Action<(ClickTarget From, ClickTarget To)?, string?> done)
+    {
+        if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0) return false;
+        new Thread(() =>
+        {
+            ((ClickTarget From, ClickTarget To)? Shown, string? Why) result;
+            try { result = LearnDrag(pid); }
+            catch (Exception e)
+            {
+                AppLog.Write("MACRO", "learn drag crash " + e.GetType().Name);
+                result = (null, Loc.T("erreur interne"));
+            }
+            finally { Volatile.Write(ref _busy, 0); }
+            onUi(() => done(result.Shown, result.Why));
+        }) { IsBackground = true, Name = "FL Shortcuts – apprendre un glisser" }.Start();
+        return true;
+    }
+
+    private static ((ClickTarget From, ClickTarget To)?, string?) LearnDrag(uint pid)
+    {
+        if (!FlControl.BringForward(pid)) return (null, Loc.T("FL n'a pas pu passer devant : ouvre FL, puis recommence."));
+        var deadline = DateTime.UtcNow.AddMinutes(1);
+        while (Down(LeftButton) && DateTime.UtcNow < deadline) Thread.Sleep(5);      // le clic sur le bouton lui-même
+        // Fenêtres de FL juste avant l'appui (relues toutes les 50 ms) : les deux bouts sont retenus par rapport à elles.
+        var windows = WindowsFlDriver.Enumerate(pid).Select(w => w.Window).ToList();
+        var readAt = DateTime.UtcNow;
+        Win32.POINT? pressed = null;
+        while (DateTime.UtcNow < deadline)
+        {
+            if (Down(Vk.Escape)) return (null, Loc.T("Annulé."));
+            var down = Down(LeftButton);
+            if (pressed is null && down)
+            {
+                Win32.GetCursorPos(out var p);
+                pressed = p;
+            }
+            else if (pressed is { } a && !down)
+            {
+                Win32.GetCursorPos(out var b);
+                var shown = MacroDrafts.DragTargets(a.X, a.Y, b.X, b.Y, windows, out var why);
+                AppLog.Write("MACRO", shown is null ? "learn drag: refused" : "learn drag: kept");
+                return shown is null ? (null, why) : (shown, Loc.T("Glisser-déposer retenu."));
+            }
+            if (pressed is null && (DateTime.UtcNow - readAt).TotalMilliseconds >= 50)
+            {
+                windows = WindowsFlDriver.Enumerate(pid).Select(w => w.Window).ToList();
+                readAt = DateTime.UtcNow;
+            }
+            Thread.Sleep(5);
+        }
+        return (null, Loc.T("aucun glisser dans FL pendant une minute : recommence."));
+    }
+
     private static (ClickTarget?, string?) Learn(uint pid, bool visual)
     {
         if (!FlControl.BringForward(pid)) return (null, Loc.T("FL n'a pas pu passer devant : ouvre FL, puis recommence."));

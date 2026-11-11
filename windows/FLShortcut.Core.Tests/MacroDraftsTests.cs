@@ -23,6 +23,29 @@ public class MacroDraftsTests
         Assert.All(MacroDrafts.Palette(MacroEffectsWindows.Unsupported), p => Assert.NotEmpty(p.Specs));
     }
 
+    /// « À apprendre » comme le Mac : un clic ou un glisser pas encore montré, même dans une boucle ; pas un bloc éteint.
+    [Fact]
+    public void MacroToLearnLikeTheMac()
+    {
+        Assert.False(MacroDrafts.ToLearn(new[] { new Block(new BlockBody.Delay(200)) }));
+        Assert.True(MacroDrafts.ToLearn(new[] { new Block(new BlockBody.Click(new ClickTarget.ToLearn())) }));
+        Assert.True(MacroDrafts.ToLearn(new[] { new Block(new BlockBody.Drag(new ClickTarget.LastClick(0, 0), new ClickTarget.ToLearn())) }));
+        Assert.False(MacroDrafts.ToLearn(new[] { new Block(new BlockBody.Click(new ClickTarget.ToLearn()), enabled: false) }));
+        var loop = new Block(new BlockBody.RepeatCount(2, new List<Block> { new(new BlockBody.Click(new ClickTarget.ToLearn())) }));
+        Assert.True(MacroDrafts.ToLearn(new[] { loop }));
+        Assert.False(MacroDrafts.ToLearn(new[] { new Block(new BlockBody.Click(new ClickTarget.LastClick(0, 0))) }));
+    }
+
+    /// Glisser-déposer dans la palette du créateur (10/11, comme le Mac), posé « à montrer dans FL ».
+    [Fact]
+    public void DragIsInTheCreatorPalette()
+    {
+        var entry = MacroDrafts.CreatorPalette(MacroEffectsWindows.Unsupported, _ => true)
+            .SelectMany(p => p.Entries).Single(e => e.Type == BlockType.Drag);
+        Assert.Equal(BlockCategory.Mouse, entry.Category);
+        Assert.Equal(new BlockBody.Drag(new ClickTarget.ToLearn(), new ClickTarget.ToLearn()), entry.Make());
+    }
+
     [Fact]
     public void CreatorPaletteIsTheMacOne()
     {
@@ -130,6 +153,24 @@ public class MacroDraftsTests
         Assert.Equal(new ClickTarget.FlWindowPoint(Corner.BottomRight, -10, -5, new Size2(500, 400)), MacroDrafts.LearnedTarget(790, 595, windows));
         Assert.Equal(new ClickTarget.FlWindowPoint(Corner.BottomLeft, 5, -10, new Size2(1200, 800)), MacroDrafts.LearnedTarget(5, 790, windows));
         Assert.Null(MacroDrafts.LearnedTarget(1500, 100, windows));
+    }
+
+    /// Glisser montré (comme dragTargets du Mac) : deux bouts retenus comme des clics ; trop court, hors de FL ou dans un
+    /// menu : refusé avec sa raison ; le lâcher ignore la petite fenêtre que FL montre sous la souris.
+    [Fact]
+    public void ShownDragIsKeptLikeTwoClicks()
+    {
+        var main = new FlWin(1, FlWindowRole.Main, 0, 0, 1200, 800);
+        var tip = new FlWin(9, FlWindowRole.Menu, 600, 500, 120, 20);
+        var shown = MacroDrafts.DragTargets(100, 120, 605, 505, new[] { tip, main }, out var why);
+        Assert.Null(why);
+        Assert.Equal(new ClickTarget.FlWindowPoint(Corner.TopLeft, 100, 120, new Size2(1200, 800)), shown!.Value.From);
+        Assert.Equal(new ClickTarget.FlWindowPoint(Corner.BottomRight, -595, -295, new Size2(1200, 800)), shown.Value.To);
+        Assert.Null(MacroDrafts.DragTargets(100, 120, 102, 121, new[] { main }, out why));
+        Assert.Contains("glisser", why);
+        Assert.Null(MacroDrafts.DragTargets(100, 120, 1500, 120, new[] { main }, out why));
+        Assert.Contains("fenêtre de FL", why);
+        Assert.Null(MacroDrafts.DragTargets(610, 505, 100, 100, new[] { tip, main }, out why));
     }
 
     [Fact]

@@ -973,3 +973,11 @@ entrée 1 ≈ 0,5 s.
   branche. Fait : guide Windows identique au Mac (Bienvenue + 4 parties, mêmes textes, « Au quotidien » adapté à
   Windows), montré après l'accueil ou à la 1re ouverture de la fenêtre, « Revoir le guide » dans l'Aide. Puis revue
   page par page avec les photos de la CI des deux côtés.
+- 10/11 (2) : « 1, 2, 3, 4, tu fais… pour la 4, comme sur Mac mais pas le liquid glass, une page au-dessus au style
+  suisse… et 5 on attend la CI. Et t'es sûr qu'il manque rien ? » : cartes de la Communauté Windows comme le Mac ;
+  fiche / Partager / Signaler en page posée au-dessus, style suisse, Mac et Windows ; Glisser-déposer dans le créateur
+  Windows ; page Macros Windows (cartes égales, Importer/Exporter à droite, À apprendre) ; « Désinstaller » à part
+  dans le menu de l'icône Windows. Point 5 : la CI a montré l'aperçu à 720 (photo prise trop tôt avant). Manques
+  trouvés en plus côté Windows (Organiser) : pré-master du Mixer, têtes et groupes de familles dans la Playlist et
+  icônes retirées, icônes de FL des familles, corrections « Pas content ? » des sons rangés par leur nom ; macros :
+  élément de menu de FL enregistré → « Menu de FL › … ». Proposés au propriétaire.

@@ -76,33 +76,38 @@ struct CommunityPage: View {
         }
         .softSwitch(!community.isConfigured ? 0 : community.session == nil ? 1 : 2)
         .task { await community.open() }
-        .sheet(item: $opened) { share in
-            CommunityShareDetail(community: community, store: store, share: share, added: toast,
-                                 report: { reportLater(share) })
-                .swissSheet()
-        }
-        .background {
-            // Feuilles posées sur des vues différentes : une seule par vue, comme le veut SwiftUI.
-            Color.clear
-                .sheet(isPresented: $community.composing) {
+        // 10/11 (« sur Mac, quand tu l'ouvres, ça fait un peu du liquid glass… une page au-dessus, mais style
+        // suisse ») : la fiche, « Partager » et « Signaler » ne sont plus des feuilles de macOS mais des pages posées
+        // au-dessus de la liste (SwissPageAbove), les mêmes que sur Windows.
+        .overlay {
+            if let share = opened {
+                SwissPageAbove {
+                    CommunityShareDetail(community: community, store: store, share: share, added: toast,
+                                         report: { reportLater(share) }, close: { opened = nil })
+                        .id(share.id)
+                }
+            } else if community.composing {
+                SwissPageAbove {
                     CommunityPublishSheet(community: community, library: store.library,
-                                          profile: { try? store.exportData() })
-                        .swissSheet()
+                                          profile: { try? store.exportData() },
+                                          close: { community.composing = false })
                 }
-                .sheet(item: $reporting) { share in
-                    CommunityReportSheet(community: community, share: share)
-                        .swissSheet()
+            } else if let share = reporting {
+                SwissPageAbove {
+                    CommunityReportSheet(community: community, share: share, close: { reporting = nil })
+                        .id(share.id)
                 }
+            }
         }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.community)) { note in
             showCapture(note.object as? String ?? "")
         }
     }
 
-    /// « Signaler… » depuis la fiche : la fiche se ferme, puis la feuille du signalement s'ouvre.
+    /// « Signaler… » depuis la fiche : la fiche laisse sa place au signalement.
     private func reportLater(_ share: Share) {
         opened = nil
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { reporting = share }
+        reporting = share
     }
 
     private func delete(_ share: Share) async {
@@ -620,7 +625,8 @@ private struct CommunityShareDetail: View {
     let share: Share
     let added: (ToastMessage) -> Void
     let report: () -> Void
-    @Environment(\.dismiss) private var dismiss
+    /// Ferme la page posée au-dessus (10/11 : plus de feuille de macOS).
+    let close: () -> Void
     @State private var content = Content.loading
 
     enum Content {
@@ -648,7 +654,7 @@ private struct CommunityShareDetail: View {
                     Text(CommunityText.byline(share)).font(.system(size: 12)).foregroundStyle(.secondary)
                     if community.author?.id != share.authorID {
                         Button("Tous les partages de @\(share.authorName.displaySafe(max: 24))") {
-                            dismiss()
+                            close()
                             Task { await community.showAuthor(of: share) }
                         }
                         .buttonStyle(SwissLinkButtonStyle())
@@ -657,7 +663,7 @@ private struct CommunityShareDetail: View {
                 }
             }
             .padding(20)
-            Divider()
+            Rectangle().fill(Swiss.line).frame(height: 1)
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     part(String(localized: "L'explication de @\(share.authorName.displaySafe(max: 24))")) {
@@ -675,9 +681,13 @@ private struct CommunityShareDetail: View {
                         part(String(localized: "Bon à savoir")) {
                             VStack(alignment: .leading, spacing: 6) {
                                 ForEach(notes, id: \.self) { line in
-                                    Label(line, systemImage: "info.circle")
-                                        .font(.system(size: 12))
-                                        .fixedSize(horizontal: false, vertical: true)
+                                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                        Rectangle().fill(Swiss.text).frame(width: 5, height: 5)
+                                            .alignmentGuide(.firstTextBaseline) { d in d[.bottom] + 3 }
+                                        Text(line)
+                                            .font(.system(size: 12))
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
                                 }
                             }
                         }
@@ -686,7 +696,7 @@ private struct CommunityShareDetail: View {
                 .padding(20)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            Divider()
+            Rectangle().fill(Swiss.line).frame(height: 1)
             HStack {
                 if !mine {
                     Button("Signaler…", action: report)
@@ -694,7 +704,7 @@ private struct CommunityShareDetail: View {
                         .help("Prévenir les administrateurs : partage dangereux, trompeur ou offensant")
                 }
                 Spacer()
-                Button("Fermer") { dismiss() }
+                Button("Fermer") { close() }
                     .secondaryButton()
                     .keyboardShortcut(.cancelAction)
                 Button(share.kind.addLabel) { add() }
@@ -704,13 +714,18 @@ private struct CommunityShareDetail: View {
             }
             .padding(16)
         }
-        .frame(width: 540, height: 580)
+        .frame(width: 540)
+        .frame(maxHeight: 580)
         .task { await load() }
     }
 
+    /// Une partie de la fiche : son titre en petites capitales souligné d'un trait fin (comme Windows), puis le texte.
     private func part<C: View>(_ title: String, @ViewBuilder _ body: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.headline)
+            Text(title).swissLabel(Swiss.text)
+                .padding(.bottom, 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .swissRule(Swiss.line)
             body()
         }
     }
@@ -718,10 +733,7 @@ private struct CommunityShareDetail: View {
     @ViewBuilder private var steps: some View {
         switch content {
         case .loading:
-            HStack(spacing: 8) {
-                ProgressView().controlSize(.small)
-                Text("Lecture du partage…").font(.system(size: 12)).foregroundStyle(.secondary)
-            }
+            Text("Lecture du partage…").font(.system(size: 12)).foregroundStyle(Swiss.gray)
         case .failed(let why):
             SwissWarning(String(localized: "Ce partage ne peut pas être ajouté : \(why)"))
                 .font(.system(size: 12))
@@ -791,7 +803,7 @@ private struct CommunityShareDetail: View {
 
     private func add() {
         guard !community.demo else {                      // mode capture : rien n'est ajouté
-            dismiss()
+            close()
             return
         }
         switch content {
@@ -811,7 +823,7 @@ private struct CommunityShareDetail: View {
         case .loading, .failed:
             return
         }
-        dismiss()
+        close()
     }
 }
 
@@ -1011,7 +1023,8 @@ private struct CommunityPublishSheet: View {
     @ObservedObject var community: CommunityStore
     @ObservedObject var library: MacroLibraryStore
     let profile: () -> Data?
-    @Environment(\.dismiss) private var dismiss
+    /// Ferme la page posée au-dessus (10/11 : plus de feuille de macOS).
+    let close: () -> Void
     @State private var kind = ShareKind.macro
     @State private var macroID: UUID?
     @State private var title = ""
@@ -1093,7 +1106,7 @@ private struct CommunityPublishSheet: View {
             }
             HStack {
                 Spacer()
-                Button("Annuler") { dismiss() }
+                Button("Annuler") { close() }
                     .secondaryButton()
                     .keyboardShortcut(.cancelAction)
                 Button("Publier") { Task { await publish() } }
@@ -1161,7 +1174,7 @@ private struct CommunityPublishSheet: View {
             return
         }
         if await community.publish(kind: kind, title: title, notes: notes, payload: payload) {
-            dismiss()
+            close()
         } else {
             problem = community.error
         }
@@ -1173,7 +1186,8 @@ private struct CommunityPublishSheet: View {
 private struct CommunityReportSheet: View {
     @ObservedObject var community: CommunityStore
     let share: Share
-    @Environment(\.dismiss) private var dismiss
+    /// Ferme la page posée au-dessus (10/11 : plus de feuille de macOS).
+    let close: () -> Void
     @State private var reason = Reason.danger
     @State private var details = ""
 
@@ -1212,13 +1226,13 @@ private struct CommunityReportSheet: View {
                 .swissField()
             HStack {
                 Spacer()
-                Button("Annuler") { dismiss() }
+                Button("Annuler") { close() }
                     .secondaryButton()
                     .keyboardShortcut(.cancelAction)
                 Button("Signaler") {
                     Task {
                         await community.report(share, reason: text)
-                        if community.error == nil { dismiss() }
+                        if community.error == nil { close() }
                     }
                 }
                 .primaryButton()

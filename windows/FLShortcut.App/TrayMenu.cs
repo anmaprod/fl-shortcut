@@ -61,6 +61,7 @@ internal sealed class TrayMenu
         new Entry("keyboard", Blue, Loc.T("Modifier les raccourcis…"), () => { }),
         new Entry("macros", Purple, Loc.T("Macros…"), () => { }),
         new Entry("organize", Indigo, Loc.T("Organiser…"), () => { }),
+        new Entry("trash", Gray, Loc.T("Désinstaller FL Shortcuts…"), () => { }),
     }, () => { }, () => { }, photo: true);
 
     public void Activate() => _window.Show(true);
@@ -94,7 +95,17 @@ internal sealed class TrayMenu
             stack.Children.Add(state);
         }
         stack.Children.Add(Separator());
-        foreach (var entry in entries) stack.Children.Add(Row(entry));
+        // Comme le Mac (maquette du 28/10) : « Désinstaller FL Shortcuts… » à part, sous un trait, en simple texte gris.
+        foreach (var entry in entries.Where(e => e.Icon != "trash")) stack.Children.Add(Row(entry));
+        foreach (var entry in entries.Where(e => e.Icon == "trash"))
+        {
+            stack.Children.Add(Separator());
+            var plain = FooterButton(entry.Title, Secondary, entry.Run);
+            plain.HorizontalAlignment = HorizontalAlignment.Stretch;
+            plain.HorizontalContentAlignment = HorizontalAlignment.Left;
+            plain.Padding = new Thickness(10, 6, 8, 6);
+            stack.Children.Add(plain);
+        }
         stack.Children.Add(Separator());
 
         var footer = new Grid { Margin = new Thickness(0, 2, 0, 0) };

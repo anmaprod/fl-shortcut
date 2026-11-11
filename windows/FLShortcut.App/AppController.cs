@@ -307,6 +307,13 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         return ClickLearner.Start(fl.Pid, visual, OnUi, done) ? null : Loc.T("Un clic est déjà en train d'être appris.");
     }
 
+    /// Glisser-déposer montré dans FL (créateur, bloc « Glisser-déposer ») : renvoie ce qui empêche de commencer, sinon null.
+    public string? LearnDrag(Action<(ClickTarget From, ClickTarget To)?, string?> done)
+    {
+        if (FlControl.Process() is not { } fl) return Loc.T("Ouvre FL Studio, puis recommence.");
+        return ClickLearner.StartDrag(fl.Pid, OnUi, done) ? null : Loc.T("Un clic est déjà en train d'être appris.");
+    }
+
     /// « Enregistrer une macro » : FL passe devant, ses clics et ses touches sont relevés jusqu'au retour dans FL
     /// Shortcuts (MacroRecorder), puis changés en blocs. Renvoie ce qui empêche de commencer, sinon null.
     public string? RecordMacro(Action<ClickSequenceCompiler.Result, string?> done)

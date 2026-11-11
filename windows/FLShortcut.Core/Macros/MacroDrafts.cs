@@ -20,10 +20,10 @@ public static class MacroDrafts
     public static IReadOnlyList<(BlockCategory Category, IReadOnlyList<PaletteEntry> Entries)> CreatorPalette(
         Func<BlockBody, string?>? platform, Func<BlockType, bool> editable)
     {
-        PaletteEntry Item(BlockType type, string? label = null, string? help = null, string? symbol = null)
+        PaletteEntry Item(BlockType type, string? label = null, string? help = null, string? symbol = null, Func<BlockBody>? make = null)
         {
             var spec = BlockRegistry.Spec(type);
-            return new PaletteEntry(type, label ?? spec.Label, help ?? spec.Help, symbol ?? spec.Symbol, spec.Category, spec.Default);
+            return new PaletteEntry(type, label ?? spec.Label, help ?? spec.Help, symbol ?? spec.Symbol, spec.Category, make ?? spec.Default);
         }
         var entries = new[]
         {
@@ -31,7 +31,8 @@ public static class MacroDrafts
             Item(BlockType.FlAction), Item(BlockType.NameColor), Item(BlockType.Organize),
             Item(BlockType.Key), Item(BlockType.MenuKey),
             Item(BlockType.Click, Loc.T("Clic à un endroit appris"), Loc.T("Clic gauche ou droit à un endroit que tu montres une fois dans FL.")),
-            Item(BlockType.Drag),
+            // Comme la palette du Mac : posé « à montrer dans FL » (Attraper, Lâcher).
+            Item(BlockType.Drag, make: () => new BlockBody.Drag(new ClickTarget.ToLearn(), new ClickTarget.ToLearn())),
             Item(BlockType.MouseClick),
             Item(BlockType.WaitWindow, Loc.T("Attendre"), Loc.T("Attend une boîte ou un menu de FL, ou fait une pause."), "clock"),
         };
@@ -123,6 +124,36 @@ public static class MacroDrafts
         ClickTarget.Button b => b.Spot.Place,
         _ => target,
     };
+
+    /// Les deux bouts d'un glisser montré dans FL (comme dragTargets du Mac) : l'appui et le relâché, retenus comme
+    /// des clics montrés par rapport aux fenêtres de FL d'avant l'appui ; le lâcher ignore la petite fenêtre que FL
+    /// montre sous la souris pendant le glisser ; jamais dans un menu. Null et la raison si ce n'est pas un glisser.
+    public static (ClickTarget From, ClickTarget To)? DragTargets(int ax, int ay, int bx, int by, IReadOnlyList<FlWin> windows, out string? why)
+    {
+        why = null;
+        if (Math.Sqrt((double)(bx - ax) * (bx - ax) + (double)(by - ay) * (by - ay)) < 4)
+        {
+            why = Loc.T("Ce n'était pas un glisser : reste cliqué et glisse jusqu'à l'endroit voulu, puis recommence.");
+            return null;
+        }
+        var plain = windows.Where(w => w.Role != FlWindowRole.Menu).ToList();
+        if (LearnedTarget(ax, ay, windows) is not { } from || from is ClickTarget.OpenMenu
+            || LearnedTarget(bx, by, plain) is not { } to || to is ClickTarget.OpenMenu)
+        {
+            why = Loc.T("Le glisser doit commencer et finir dans une fenêtre de FL (pas dans un menu) : recommence.");
+            return null;
+        }
+        return (from, to);
+    }
+
+    /// Une macro « À apprendre » (comme MacroOutline.flags du Mac) : un bloc allumé, même dans un « si » ou une
+    /// boucle, a un clic ou un glisser-déposer pas encore montré dans FL (macro venue de la Communauté ou d'un modèle).
+    public static bool ToLearn(IEnumerable<Block> blocks) => blocks.Any(b => b.Enabled && (b.Body switch
+    {
+        BlockBody.Click { Target: ClickTarget.ToLearn } => true,
+        BlockBody.Drag d => d.From is ClickTarget.ToLearn || d.To is ClickTarget.ToLearn,
+        _ => false,
+    } || b.Body.Children.Any(ToLearn)));
 
     /// Le bouton peut être retrouvé s'il bouge : clic dans une fenêtre de FL (taille retenue), ou déjà suivi.
     public static bool CanFollow(ClickTarget target) =>

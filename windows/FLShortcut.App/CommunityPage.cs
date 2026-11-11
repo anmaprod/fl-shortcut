@@ -84,6 +84,58 @@ internal sealed class CommunityPage
         };
     }
 
+    /// La fiche ou « Partager » ont changé : la fenêtre redessine seulement ce qui est posé au-dessus de la liste (la
+    /// liste derrière garde sa place). Sans fenêtre pour le faire : toute la page.
+    public Action? AboveChanged { get; set; }
+
+    private void RenderAbove()
+    {
+        if (AboveChanged is { } changed) changed();
+        else _render();
+    }
+
+    /// Ce qui se pose au-dessus de la liste (10/11, « une page au-dessus, mais style suisse », comme le Mac) : la
+    /// fiche d'un partage ou « Partager », dans une carte carrée bordée d'un trait d'encre (noire sous Orange) ; null
+    /// sinon.
+    public FrameworkElement? Above()
+    {
+        if (!_composing && _opened is null) return null;
+        using var surface = Theme == AppTheme.Orange ? Inverted() : null;
+        FrameworkElement inner = _composing
+            ? new ScrollViewer { Content = Compose(), HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled }
+            : Detail(_opened!);
+        return new Border
+        {
+            Child = inner,
+            Width = _composing ? 520 : 560,
+            MaxHeight = 620,
+            Margin = new Thickness(24),
+            Background = Brush(MacLook.WindowColor),
+            BorderBrush = Brush(Text),
+            BorderThickness = new Thickness(1),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            RequestedTheme = MacLook.SurfaceTheme,
+        };
+    }
+
+    /// Échap : la fiche ou « Partager » se ferment. Faux s'il n'y avait rien au-dessus.
+    public bool CloseAbove()
+    {
+        if (!_composing && _opened is null) return false;
+        Leave();
+        RenderAbove();
+        return true;
+    }
+
+    /// Une autre page s'ouvre : rien ne reste posé au-dessus pour le retour (comme la page du Mac, refaite à neuf).
+    public void Leave()
+    {
+        _composing = false;
+        _opened = null;
+        _reporting = false;
+    }
+
     private void Forget()
     {
         _shares = null;
@@ -98,8 +150,6 @@ internal sealed class CommunityPage
         if (HelpPage.Server is null && !_demo)
             return Message(Loc.T("Les comptes ne sont pas encore ouverts"), Loc.T("Tes raccourcis et tes macros restent sur ce PC en attendant."), null, null);
         if (_account.Session is null && !_demo) return _account.Content(columns);
-        if (_composing) return Compose();
-        if (_opened is { } share) return Detail(share);
         // Premier passage : la liste est demandée, la page montre le chargement (sans se redessiner pendant sa construction).
         if (_shares is null && !_loading && _error is null)
         {
@@ -180,7 +230,8 @@ internal sealed class CommunityPage
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 420 });
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        // 10/11 (photo de la CI : « Search a macro, shortc ») : plus de 2e colonne souple qui prenait la moitié de la place.
+        top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0) });
         var search = new TextBox
         {
             Text = _search,
@@ -307,66 +358,132 @@ internal sealed class CommunityPage
             Loc.T("Partager une macro…"), StartComposing);
     }
 
-    /// Un partage en carte (maquette du 05/11, comme le Mac) : sa sorte en petites capitales, le titre en grand, deux
-    /// lignes de l'explication, puis la photo ronde et le pseudo de l'auteur ; bordée d'encre au survol.
+    /// Un partage en carte, comme CommunityShareCard du Mac (10/11, « les cartes ne sont pas les mêmes ») : en haut la
+    /// photo ronde, @pseudo (tous ses partages) et la date en petites capitales, la sorte à droite ; le titre en grand,
+    /// deux lignes de l'explication (la place gardée même vide), puis « Voir » et « Ajouter à mes macros » (« Utiliser
+    /// ces raccourcis », ou « Partagé par toi »). Toute la carte ouvre la fiche ; bordée d'encre au survol ; clic droit :
+    /// ses partages, Signaler…, Supprimer. Les cartes d'une même rangée ont la même hauteur.
     private FrameworkElement Card(Share share)
     {
-        var text = new StackPanel { Spacing = 10 };
-        text.Children.Add(SwissLabel(share.IsMacro ? Loc.T("Macro") : Loc.T("Raccourcis"), 11));
+        var mine = Mine(share);
+        var stack = new StackPanel { Spacing = 8 };
+
+        var top = new Grid { ColumnSpacing = 8 };
+        foreach (var width in new[] { GridLength.Auto, GridLength.Auto, GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto })
+            top.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
+        var avatar = AccountPage.Avatar(_photos.GetValueOrDefault(share.AuthorId), share.AuthorName, 18);
+        avatar.VerticalAlignment = VerticalAlignment.Center;
+        top.Children.Add(avatar);
+        var name = Label("@" + DisplayText.Safe(share.AuthorName, 24), 11, Secondary, bold: true);
+        name.CharacterSpacing = 110;
+        name.MaxWidth = 150;
+        var showAuthor = _author?.Id != share.AuthorId;
+        var authorButton = new Button { Style = PlainButton, Content = name, IsEnabled = showAuthor, VerticalAlignment = VerticalAlignment.Center };
+        authorButton.Click += (_, _) => ShowAuthor(share);
+        if (showAuthor) ToolTipService.SetToolTip(authorButton, Loc.F("Voir tout ce que @%@ a publié", DisplayText.Safe(share.AuthorName, 24)));
+        Grid.SetColumn(authorButton, 1);
+        top.Children.Add(authorButton);
+        var day = SwissLabel("· " + share.Day, 11);
+        Grid.SetColumn(day, 2);
+        top.Children.Add(day);
+        var kind = SwissLabel(share.IsMacro ? Loc.T("Macro") : Loc.T("Raccourcis"), 11);
+        Grid.SetColumn(kind, 4);
+        top.Children.Add(kind);
+        stack.Children.Add(top);
+
         var title = Label(DisplayText.Safe(share.Title, 80), 24, Text, bold: true);
-        title.FontFamily = SwissFont;
         title.TextWrapping = TextWrapping.Wrap;
         title.MaxLines = 2;
         title.CharacterSpacing = -30;
-        text.Children.Add(title);
-        if (share.Notes.Trim().Length > 0)
+        stack.Children.Add(title);
+        var notes = Paragraph(share.Notes.Trim().Length > 0 ? share.Notes.Trim() : " ", 12.5, Secondary);
+        notes.MaxLines = 2;
+        notes.MinHeight = 34;                                 // deux lignes gardées, comme le Mac
+        notes.TextTrimming = TextTrimming.CharacterEllipsis;
+        stack.Children.Add(notes);
+
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 0, Margin = new Thickness(0, 4, 0, 0) };
+        var view = Small(Soft(Loc.T("Voir"), () => Open(share)));
+        ToolTipService.SetToolTip(view, Loc.T("Lire l'explication et voir ce que fait ce partage, avant de l'ajouter"));
+        actions.Children.Add(view);
+        if (mine)
         {
-            var notes = Paragraph(share.Notes.Trim(), 13, Secondary);
-            notes.MaxLines = 2;
-            notes.TextTrimming = TextTrimming.CharacterEllipsis;
-            text.Children.Add(notes);
+            var label = SwissLabel(Loc.T("Partagé par toi"), 10.5);
+            label.Margin = new Thickness(12, 0, 0, 0);
+            actions.Children.Add(label);
         }
-        var author = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 4, 0, 0) };
-        author.Children.Add(AccountPage.Avatar(_photos.GetValueOrDefault(share.AuthorId), share.AuthorName, 26));
-        var name = Label("@" + DisplayText.Safe(share.AuthorName, 24), 14, Text, bold: true);
-        name.VerticalAlignment = VerticalAlignment.Center;
-        author.Children.Add(name);
-        text.Children.Add(author);
+        else
+        {
+            var add = Small(Primary(share.IsMacro ? Loc.T("Ajouter à mes macros") : Loc.T("Utiliser ces raccourcis"), () => Open(share)));
+            ToolTipService.SetToolTip(add, Loc.T("Lire la fiche, puis l'ajouter"));
+            actions.Children.Add(add);
+        }
+        stack.Children.Add(actions);
+
         var border = new Border
         {
-            Child = text,
+            Child = stack,
             Padding = new Thickness(20, 18, 20, 18),
             Background = Brush(MacLook.WindowColor),
             BorderBrush = Brush(LineColor),
             BorderThickness = new Thickness(1),
+            VerticalAlignment = VerticalAlignment.Stretch,
         };
-        var button = new Button
+        Color ink = Text, line = LineColor;
+        border.PointerEntered += (_, _) => border.BorderBrush = Brush(ink);
+        border.PointerExited += (_, _) => border.BorderBrush = Brush(line);
+        // Un clic n'importe où sur la carte ouvre la fiche (sauf sur ses boutons, qui font le leur).
+        border.Tapped += (_, e) =>
         {
-            Style = PlainButton,
-            Content = border,
-            Padding = new Thickness(0),
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            for (var d = e.OriginalSource as DependencyObject; d is not null && d != border; d = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(d))
+                if (d is Microsoft.UI.Xaml.Controls.Primitives.ButtonBase) return;
+            Open(share);
         };
-        button.PointerEntered += (_, _) => border.BorderBrush = Brush(Text);
-        button.PointerExited += (_, _) => border.BorderBrush = Brush(LineColor);
-        button.Click += (_, _) => Open(share);
-        AutomationProperties.SetName(button, share.Title);
+        var menu = new MenuFlyout();
+        if (showAuthor) menu.Items.Add(MenuItem(Loc.F("Tous les partages de @%@", DisplayText.Safe(share.AuthorName, 24)), () => ShowAuthor(share)));
+        if (!mine) menu.Items.Add(MenuItem(Loc.T("Signaler…"), () => Open(share, report: true)));
+        if (mine) menu.Items.Add(MenuItem(Loc.T("Supprimer mon partage…"), () => DeleteShare(share)));
+        if (menu.Items.Count > 0) border.ContextFlyout = SwissMenu(menu);
+        AutomationProperties.SetName(border, share.Title);
+        return border;
+    }
+
+    private static Button Small(Button button)
+    {
+        button.MinHeight = 28;
+        button.VerticalAlignment = VerticalAlignment.Center;
         return button;
+    }
+
+    private static MenuFlyoutItem MenuItem(string text, Action click)
+    {
+        var item = new MenuFlyoutItem { Text = text };
+        item.Click += (_, _) => click();
+        return item;
+    }
+
+    /// Tous les partages d'un membre (la fiche se ferme).
+    private void ShowAuthor(Share share)
+    {
+        _author = (share.AuthorId, share.AuthorName);
+        Leave();
+        RenderAbove();
+        Choose(_filter == Filter.Mine ? Filter.All : _filter);
     }
 
     // ---------- Fiche d'un partage ----------
 
-    private async void Open(Share share)
+    private async void Open(Share share, bool report = false)
     {
         _opened = share;
+        _composing = false;
         _preview = null;
         _profilePreview = null;
         _previewError = null;
-        _reporting = false;
+        _reporting = report;
         _reason = 0;
         _details = "";
-        _render();
+        RenderAbove();
         try
         {
             byte[] payload;
@@ -397,7 +514,7 @@ internal sealed class CommunityPage
         {
             if (_opened?.Id == share.Id) _previewError = e.Message;
         }
-        _render();
+        if (_opened?.Id == share.Id) RenderAbove();
     }
 
     private static string Home => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -406,14 +523,10 @@ internal sealed class CommunityPage
 
     private FrameworkElement Detail(Share share)
     {
-        var page = new StackPanel { Spacing = 18, Padding = new Thickness(26, 4, 26, 24), MaxWidth = 760, HorizontalAlignment = HorizontalAlignment.Left };
-        page.Children.Add(Link("← " + Loc.T("Communauté"), () =>
-        {
-            _opened = null;
-            _render();
-        }));
-
-        var head = new StackPanel { Spacing = 4 };
+        // Posée au-dessus de la liste (10/11, comme le Mac) : en-tête, puis ce qui défile, puis les boutons, séparés
+        // par des traits fins.
+        var page = new StackPanel { Spacing = 18, Padding = new Thickness(20) };
+        var head = new StackPanel { Spacing = 4, Padding = new Thickness(20, 20, 20, 16) };
         var title = SwissTitle(26);
         title.Text = DisplayText.Safe(share.Title, 80);
         title.CharacterSpacing = -20;
@@ -422,14 +535,8 @@ internal sealed class CommunityPage
         head.Children.Add(Paragraph(share.Byline, 12));
         if (_author?.Id != share.AuthorId)
         {
-            head.Children.Add(Link(Loc.F("Tous les partages de @%@", DisplayText.Safe(share.AuthorName, 24)), () =>
-            {
-                _author = (share.AuthorId, share.AuthorName);
-                _opened = null;
-                Choose(_filter == Filter.Mine ? Filter.All : _filter);
-            }));
+            head.Children.Add(Link(Loc.F("Tous les partages de @%@", DisplayText.Safe(share.AuthorName, 24)), () => ShowAuthor(share)));
         }
-        page.Children.Add(head);
 
         page.Children.Add(Part(Loc.F("L'explication de @%@", DisplayText.Safe(share.AuthorName, 24)),
             Paragraph(share.Notes.Trim().Length == 0 ? Loc.T("L'auteur n'a pas écrit d'explication.") : share.Notes,
@@ -509,15 +616,15 @@ internal sealed class CommunityPage
             var report = Soft(Loc.T("Signaler…"), () =>
             {
                 _reporting = true;
-                _render();
+                RenderAbove();
             });
             ToolTipService.SetToolTip(report, Loc.T("Prévenir les administrateurs : partage dangereux, trompeur ou offensant"));
             buttons.Children.Add(report);
         }
         var close = Soft(Loc.T("Fermer"), () =>
         {
-            _opened = null;
-            _render();
+            Leave();
+            RenderAbove();
         });
         Grid.SetColumn(close, 2);
         buttons.Children.Add(close);
@@ -526,24 +633,31 @@ internal sealed class CommunityPage
         add.IsEnabled = share.IsMacro ? _preview is not null : _profilePreview is not null;
         Grid.SetColumn(add, 3);
         buttons.Children.Add(add);
-        page.Children.Add(buttons);
-        return page;
+        buttons.Padding = new Thickness(16);
+
+        var card = new Grid();
+        foreach (var height in new[] { GridLength.Auto, GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto, GridLength.Auto })
+            card.RowDefinitions.Add(new RowDefinition { Height = height });
+        var scroll = new ScrollViewer { Content = page, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        var row = 0;
+        foreach (var piece in new FrameworkElement[] { head, Rule(LineColor), scroll, Rule(LineColor), buttons })
+        {
+            Grid.SetRow(piece, row++);
+            card.Children.Add(piece);
+        }
+        return card;
     }
 
     private void Add()
     {
         if (_preview is not { } preview) return;
-        _opened = null;
-        if (_demo)
-        {
-            _render();
-            return;
-        }
+        Leave();
+        RenderAbove();
+        if (_demo) return;
         var doc = preview.Doc;
         doc.Name = _app.Macros.UniqueName(doc.Name);
         _app.Macros.Add(doc);
         AppLog.Write("COMMUNITY", "macro ajoutée depuis un partage");
-        _render();
         _toast(Loc.F("« %@ » ajoutée à tes macros : choisis-lui un raccourci dans la page Macros", DisplayText.Safe(doc.Name, 40)), null);
     }
 
@@ -600,7 +714,7 @@ internal sealed class CommunityPage
             var option = Option(Label(Loc.T(Reasons[i]), 12.5), Tint, 0, () =>
             {
                 _reason = index;
-                _render();
+                RenderAbove();
             }, _reason == index, minHeight: 30, padding: new Thickness(10, 0, 10, 0));
             option.HorizontalAlignment = HorizontalAlignment.Stretch;
             reasons.Children.Add(option);
@@ -624,7 +738,7 @@ internal sealed class CommunityPage
         buttons.Children.Add(Soft(Loc.T("Annuler"), () =>
         {
             _reporting = false;
-            _render();
+            RenderAbove();
         }));
         var send = Primary(Loc.T("Signaler"), () => SendReport(share));
         send.IsEnabled = !_busy;
@@ -646,7 +760,7 @@ internal sealed class CommunityPage
         var reason = Reasons[_reason] + (extra.Length == 0 ? "" : " : " + extra);
         if (reason.Length > 500) reason = reason[..500];
         _busy = true;
-        _render();
+        RenderAbove();
         try
         {
             if (!_demo)
@@ -664,7 +778,7 @@ internal sealed class CommunityPage
         finally
         {
             _busy = false;
-            _render();
+            RenderAbove();
         }
     }
 
@@ -678,14 +792,16 @@ internal sealed class CommunityPage
         _composeTitle = "";
         _composeNotes = "";
         _composeProblem = null;
-        _render();
+        _opened = null;
+        RenderAbove();
     }
 
     private FrameworkElement Compose()
     {
-        var page = new StackPanel { Spacing = 16, Padding = new Thickness(26, 4, 26, 24), MaxWidth = 640, HorizontalAlignment = HorizontalAlignment.Left };
+        var page = new StackPanel { Spacing = 16, Padding = new Thickness(20) };
         var title = SwissTitle(26);
         title.Text = Loc.T("Partager avec la Communauté");
+        title.TextWrapping = TextWrapping.Wrap;
         title.CharacterSpacing = -20;
         page.Children.Add(title);
         page.Children.Add(Paragraph(Loc.T("Les autres pourront lire ton explication, voir chaque étape, puis l'ajouter chez eux."), 12.5));
@@ -698,7 +814,7 @@ internal sealed class CommunityPage
             var chip = Option(Label(label, 12.5, bold: true), Tint, 0, () =>
             {
                 _composeProfile = p;
-                _render();
+                RenderAbove();
             }, _composeProfile == p, minHeight: 32, padding: new Thickness(14, 0, 14, 0));
             chip.BorderBrush = Brush(MacLook.Text);
             chip.BorderThickness = new Thickness(1);
@@ -759,7 +875,7 @@ internal sealed class CommunityPage
         buttons.Children.Add(Soft(Loc.T("Annuler"), () =>
         {
             _composing = false;
-            _render();
+            RenderAbove();
         }));
         var publish = Primary(Loc.T("Publier"), Publish);
         publish.IsEnabled = !_busy && (_composeProfile || macros.Count > 0);
@@ -776,12 +892,12 @@ internal sealed class CommunityPage
         if (!_composeProfile && (_composeMacro is not { } id || (doc = _app.Macros.Doc(id)) is null))
         {
             _composeProblem = Loc.T("Choisis la macro à partager.");
-            _render();
+            RenderAbove();
             return;
         }
         _busy = true;
         _composeProblem = null;
-        _render();
+        RenderAbove();
         try
         {
             // Raccourcis écrits comme sur le Mac (le format des partages) : un Mac les lit tels quels, un PC les traduit.

@@ -446,6 +446,19 @@
   Précédent, Découvrir / Suivant / C'est parti ; Entrée, Échap ; points jamais sous les boutons), `MainShellGuide.cs`
   (après l'accueil sur fond plein, sinon à la 1re ouverture de la fenêtre sur la fenêtre assombrie ; réglage
   `GuideSeen`), « Revoir le guide » dans l'Aide ; photos CI `guide-0/1/4.png`. Pas encore vu sur un PC.
+  Revue Mac / Windows du 10/11 (« 1, 2, 3, 4, tu fais ») : Communauté Windows = cartes du Mac (photo ronde, @pseudo
+  qui mène à ses partages, date, sorte à droite, titre, 2 lignes gardées, « Voir » + « Ajouter à mes macros » /
+  « Utiliser ces raccourcis » / « Partagé par toi », clic droit, même hauteur par rangée ; recherche plus coupée) ;
+  fiche, « Partager » (et « Signaler » sur Mac) = PAGE POSÉE AU-DESSUS de la liste au style suisse (« sur Mac… ça
+  fait du liquid glass… une page au-dessus mais style suisse ») : page assombrie, carte carrée bordée d'un trait
+  d'encre, noire sous Orange, aucune animation, Échap ferme (Mac `SwissPageAbove` dans GlassStyle.swift, plus de
+  `.sheet` dans CommunityPage ; Windows `CommunityPage.Above()`/`AboveChanged`, calque `MainShell._above`) ;
+  créateur Windows : bloc « Glisser-déposer » dans la palette, posé « à montrer », « Montrer dans FL… » apprend
+  l'appui puis le relâché (`MacroDrafts.DragTargets`, `ClickLearner.StartDrag`) ; Macros Windows : 3 grandes cartes
+  de la même hauteur, Importer/Exporter à droite, « À apprendre » (`MacroDrafts.ToLearn`) ; « Désactivée » se voit à
+  l'interrupteur (comme le Mac) ; menu de l'icône : « Désinstaller » à part en texte gris. Mon compte sans compte :
+  côte à côte seulement si le titre tient (`SideBySideIfItFits`). Aperçu de l'Organiser photographié petit le 10/11 :
+  photo prise avant le redimensionnement (journal `taille :` des photos), rien à corriger dans l'app.
 - **Avertissements au style suisse** (08/11, « pas avec un logo, un emoji d'attention… un point orange ») : un carré
   plein #FF3B1F (blanc sous Orange) devant le texte, le texte à l'encre ; plus aucun triangle, cercle « ! » ni octogone
   (Mac : `SwissWarning`, `SwissWarningMark`, `StatusSymbol` dans GlassStyle.swift, pastille carrée dans la barre des

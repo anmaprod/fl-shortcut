@@ -63,6 +63,9 @@ internal sealed partial class MainShell
     private readonly ContentControl _headerAction = new() { VerticalAlignment = VerticalAlignment.Center, IsTabStop = false };
     private readonly StackPanel _notices = new() { Spacing = 8, Margin = new Thickness(26, 0, 26, 0) };
     private readonly ScrollViewer _scroll = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+    /// Page posée au-dessus de la page (10/11, fiche et « Partager » de la Communauté, comme le Mac) : la page derrière
+    /// s'assombrit et ne reçoit plus les clics ; la carte est au milieu. Tab reste dedans.
+    private readonly Grid _above = new() { Visibility = Visibility.Collapsed, TabFocusNavigation = KeyboardNavigationMode.Cycle };
     private readonly MacrosPage _macros;
     private readonly HelpPage _help;
     private readonly AccountPage _account;
@@ -169,7 +172,10 @@ internal sealed partial class MainShell
         // La carte de connexion sert aussi à la page Communauté (sans compte).
         _account = new AccountPage(() => { if (_kind is PageKind.Account or PageKind.Community) RenderPage(); }, ConfirmAsync, _hwnd);
         _account.ThemeCard = () => AccountPage.ThemeChoice(Theme, ChooseTheme);
-        _community = new CommunityPage(_app, _account, () => { if (_kind == PageKind.Community) RenderPage(); }, ShowToast, ConfirmAsync);
+        _community = new CommunityPage(_app, _account, () => { if (_kind == PageKind.Community) RenderPage(); }, ShowToast, ConfirmAsync)
+        {
+            AboveChanged = UpdateAbove,
+        };
         _account.Changed += UpdateAccountButton;
         // Sauvegarde en ligne commune avec le Mac (raccourcis traduits), suivie par la page Mon compte.
         var backup = new Services.AccountBackupWin(_app, _account);
@@ -575,6 +581,9 @@ internal sealed partial class MainShell
         page.Children.Add(_notices);
         Grid.SetRow(_scroll, 2);
         page.Children.Add(_scroll);
+        Grid.SetRow(_above, 1);
+        Grid.SetRowSpan(_above, 2);
+        page.Children.Add(_above);
         _scroll.SizeChanged += (_, e) =>
         {
             var columns = e.NewSize.Width - 52 >= TwoColumnWidth ? 2 : 1;
@@ -658,6 +667,7 @@ internal sealed partial class MainShell
 
     private void Choose(PageKind kind, FlSection section)
     {
+        if (kind != PageKind.Community) _community.Leave();
         _kind = kind;
         _section = section;
         _query = "";
@@ -714,6 +724,11 @@ internal sealed partial class MainShell
     private void OnRootKey(object sender, KeyRoutedEventArgs e)
     {
         if (GuideKey(e)) return;
+        if (e.Key == Windows.System.VirtualKey.Escape && _above.Visibility == Visibility.Visible && _community.CloseAbove())
+        {
+            e.Handled = true;
+            return;
+        }
         if (!_keyListening) return;
         var vk = (ushort)e.Key;
         if (Vk.IsModifier(vk)) return;
@@ -874,9 +889,25 @@ internal sealed partial class MainShell
 
     private sealed record PageCard(string Title, List<FrameworkElement> Rows);
 
+    /// La fiche ou « Partager » de la Communauté, posés au-dessus de la page ; rien sur les autres pages.
+    private void UpdateAbove()
+    {
+        var card = _kind == PageKind.Community && _query.Trim().Length == 0 ? _community.Above() : null;
+        _above.Children.Clear();
+        if (card is null)
+        {
+            _above.Visibility = Visibility.Collapsed;
+            return;
+        }
+        _above.Background = Brush(Color.FromArgb(0x8C, 0, 0, 0));
+        _above.Children.Add(card);
+        _above.Visibility = Visibility.Visible;
+    }
+
     private void RenderPage()
     {
         if (!_app.Onboarded) return;
+        UpdateAbove();
         var (rows, others) = _app.Catalog;
         var q = _query.Trim();
         _capsule.Children.Clear();

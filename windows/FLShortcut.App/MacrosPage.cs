@@ -43,7 +43,7 @@ internal sealed class MacrosPage
         BlockType.Key, BlockType.Delay, BlockType.MenuLetters, BlockType.MenuKey, BlockType.WaitWindow,
         BlockType.WaitWindowClose, BlockType.FlAction, BlockType.OpenPage, BlockType.Organize, BlockType.Stop, BlockType.Comment,
         BlockType.Click, BlockType.MenuBar, BlockType.NameColor, BlockType.PageOption, BlockType.TrackMenu,
-        BlockType.DropFile, BlockType.ChooseFile, BlockType.MouseClick,
+        BlockType.DropFile, BlockType.ChooseFile, BlockType.MouseClick, BlockType.Drag,
     };
 
     /// Carré creux d'un bloc, comme `BlockSquare` du Mac (08/11, « le créateur n'est pas le même ») : creux à l'encre ;
@@ -232,13 +232,16 @@ internal sealed class MacrosPage
         }
         page.Children.Add(actions);
 
-        var heading = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 30, 0, 6) };
+        var heading = new Grid { Margin = new Thickness(0, 30, 0, 6) };
+        var named = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
         var title = SwissLabel(Loc.T("Mes macros"), 11, Text);
         AutomationProperties.SetHeadingLevel(title, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2);
-        heading.Children.Add(title);
-        heading.Children.Add(SwissLabel(_store.Macros.Count.ToString(System.Globalization.CultureInfo.CurrentCulture)));
-        // Importer / Exporter (06/11, comme le Mac) : Documents › FL Shortcuts › Macros › Importer et › Exporter.
-        var exchange = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(18, 0, 0, 0) };
+        named.Children.Add(title);
+        named.Children.Add(SwissLabel(_store.Macros.Count.ToString(System.Globalization.CultureInfo.CurrentCulture)));
+        heading.Children.Add(named);
+        // Importer / Exporter (06/11, comme le Mac) : Documents › FL Shortcuts › Macros › Importer et › Exporter ; à
+        // droite de la ligne (10/11, comme le Mac).
+        var exchange = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
         // Petits boutons en texte comme le Mac (« IMPORTER », « EXPORTER » : petites capitales grises, encre pleine au
         // survol), plus des boutons bordés.
         var import = SmallTextButton(Loc.T("Importer"), ImportMacros);
@@ -326,6 +329,9 @@ internal sealed class MacrosPage
         var button = new Button
         {
             Style = PlainButton,
+            // 10/11 (photo de la CI : « enregistrer une macro » sur deux lignes, plus haute) : les trois de la même
+            // hauteur, titres en bas, comme le Mac.
+            VerticalAlignment = VerticalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             VerticalContentAlignment = VerticalAlignment.Stretch,
             Content = new Grid { Children = { shadow, face } },
@@ -450,7 +456,15 @@ internal sealed class MacrosPage
             top.Children.Add(toggle);
         }
         stack.Children.Add(top);
-        if (Issue(doc) is { } problem)
+        // Comme le Mac : « À apprendre » (un endroit à montrer dans FL) avant « À corriger » ; « Désactivée » se voit à
+        // l'interrupteur.
+        if (MacroDrafts.ToLearn(doc.Blocks))
+        {
+            var badge = SwissLabel(Loc.T("À apprendre"), 10.5, Purple);
+            ToolTipService.SetToolTip(badge, Loc.T("Un endroit est à montrer dans FL."));
+            stack.Children.Add(badge);
+        }
+        else if (Issue(doc) is { } problem)
         {
             var badge = SwissLabel(Loc.T("À corriger"), 10.5, Red);
             ToolTipService.SetToolTip(badge, problem);
@@ -1850,6 +1864,20 @@ internal sealed class MacrosPage
                 }
                 yield return Param(Loc.T("Endroit"), spot);
                 break;
+            case BlockBody.Drag d:
+                // 10/11 (comme le Mac) : où il attrape et où il lâche, puis « Montrer dans FL… » : on le fait une fois.
+                if (d.From is ClickTarget.ToLearn || d.To is ClickTarget.ToLearn)
+                    yield return Paragraph(Loc.T("Pas encore montré."), 12, Text);
+                else
+                {
+                    yield return Param(Loc.T("Attraper"), Label(TargetText(d.From), 12, Text));
+                    yield return Param(Loc.T("Lâcher"), Label(TargetText(d.To), 12, Text));
+                }
+                var teach = Soft(Loc.T("Montrer dans FL…"), () => LearnDrag(shown => set(new BlockBody.Drag(shown.From, shown.To))));
+                teach.HorizontalAlignment = HorizontalAlignment.Left;
+                ToolTipService.SetToolTip(teach, Loc.T("FL passe devant : fais le glisser-déposer une fois (il agit aussi dans FL). Échap annule."));
+                yield return teach;
+                break;
             case BlockBody.MouseClick mc:
                 // 05/11 (comme le Mac) : une case où l'on appuie sur le bouton de sa souris, puis Simple ou Double.
                 yield return Param(Loc.T("Bouton"), MouseButtonCapture(mc.Button, b => set(mc with { Button = b })));
@@ -2035,6 +2063,21 @@ internal sealed class MacrosPage
             _window.Activate();
         }, visual);
         _notice = problem ?? Loc.T("Clique dans FL à l'endroit voulu. Échap annule.");
+        RenderSoon();
+    }
+
+    /// « Montrer dans FL… » d'un glisser-déposer : la page attend l'appui puis le relâché dans FL, puis revient devant.
+    private void LearnDrag(Action<(ClickTarget From, ClickTarget To)> set)
+    {
+        if (_demo) return;
+        var problem = _app.LearnDrag((shown, why) =>
+        {
+            _notice = why ?? Loc.T("Glisser-déposer retenu.");
+            if (shown is { } both) set(both);
+            else RenderSoon();
+            _window.Activate();
+        });
+        _notice = problem ?? Loc.T("FL passe devant : fais le glisser-déposer une fois (il agit aussi dans FL). Échap annule.");
         RenderSoon();
     }
 
