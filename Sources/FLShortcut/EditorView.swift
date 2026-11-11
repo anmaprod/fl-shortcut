@@ -614,6 +614,15 @@ struct EditorView: View {
                     SidebarGroup(Text("Partager")) {
                         sidebarItem(.community, Text("Communauté"))
                             .help(CommunityText.subtitle)
+                            .overlay(alignment: .trailing) {
+                                // 11/11 : point rouge, un partage d'une personne suivie depuis la dernière visite.
+                                if community.newFromFollowed > 0 {
+                                    Rectangle().fill(Swiss.red).frame(width: 7, height: 7)
+                                        .padding(.trailing, 12)
+                                        .accessibilityLabel(String(localized: "Nouveautés"))
+                                        .allowsHitTesting(false)
+                                }
+                            }
                     }
                     SidebarGroup(Text("Compte et aide")) {
                         sidebarItem(.account, Text("Mon compte"))
@@ -2044,6 +2053,8 @@ struct ToastMessage: Identifiable, Equatable {
     let id = UUID()
     let text: String
     let undo: (() -> Void)?
+    /// Un bouton de plus (« Noter » après un ajout de la Communauté, 11/11) ; nil : aucun.
+    var action: (title: String, run: () -> Void)? = nil
 
     static func == (a: ToastMessage, b: ToastMessage) -> Bool { a.id == b.id }
 }
@@ -2061,6 +2072,11 @@ private struct ToastView: View {
             Text(message.text).font(.system(size: 12, weight: .medium))
             if let undo = message.undo {
                 Button("Annuler") { undo(); onClose() }
+                    .controlSize(.small)
+                    .onGlassButton()
+            }
+            if let action = message.action {
+                Button(action.title) { action.run(); onClose() }
                     .controlSize(.small)
                     .onGlassButton()
             }

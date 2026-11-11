@@ -43,6 +43,7 @@
 "%@ Bus" = "%@ Bus";
 "%@ Clique pour l'ajouter, ou glisse-le à sa place dans la liste." = "%@ Clique pour l'ajouter, ou glisse-le à sa place dans la liste.";
 "%@ Si tu te déconnectes maintenant, ils seront perdus." = "%@ Si tu te déconnectes maintenant, ils seront perdus.";
+"%@ abonnés" = "%@ abonnés";
 "%@ au plus" = "%@ au plus";
 "%@ avec la touche" = "%@ avec la touche";
 "%@ du canal %lld" = "%@ du canal %lld";
@@ -71,6 +72,7 @@
 "%lld macros importées, sans raccourci" = "%lld macros importées, sans raccourci";
 "%lld modifiés" = "%lld modifiés";
 "%lld ms" = "%lld ms";
+"%lld nouvelles" = "%lld nouvelles";
 "%lld partages" = "%lld partages";
 "%lld partages trouvés" = "%lld partages trouvés";
 "%lld patterns sans aucune note (rien n'y joue) : chacun sur sa piste, en bas de la Playlist" = "%lld patterns sans aucune note (rien n'y joue) : chacun sur sa piste, en bas de la Playlist";
@@ -90,6 +92,7 @@
 "%lld sorties" = "%lld sorties";
 "%lld touches" = "%lld touches";
 "%lld étapes tapent des touches, cliquent ou ouvrent des fichiers : relis-les dans le créateur." = "%lld étapes tapent des touches, cliquent ou ouvrent des fichiers : relis-les dans le créateur.";
+"%lld étoiles" = "%lld étoiles";
 "%lld/%lld" = "%lld/%lld";
 "(aucune)" = "(aucune)";
 "(autorisation « Enregistrement de l'écran »), " = "(autorisation « Enregistrement de l'écran »), ";
@@ -105,6 +108,7 @@
 ". Les couleurs sont posées." = ". Les couleurs sont posées.";
 "0 (pavé)" = "0 (pavé)";
 "1 (pavé)" = "1 (pavé)";
+"1 abonné" = "1 abonné";
 "1 bloc" = "1 bloc";
 "1 caractère" = "1 caractère";
 "1 clic" = "1 clic";
@@ -112,6 +116,7 @@
 "1 macro" = "1 macro";
 "1 macro exportée" = "1 macro exportée";
 "1 modifié" = "1 modifié";
+"1 nouvelle" = "1 nouvelle";
 "1 partage" = "1 partage";
 "1 partage trouvé" = "1 partage trouvé";
 "1 raccourci" = "1 raccourci";
@@ -120,6 +125,7 @@
 "1 touche" = "1 touche";
 "1 à %lld" = "1 à %lld";
 "1 étape tape des touches, clique ou ouvre un fichier : relis-la dans le créateur." = "1 étape tape des touches, clique ou ouvre un fichier : relis-la dans le créateur.";
+"1 étoile" = "1 étoile";
 "1. Quitte FL (⌘Q), puis rouvre-le.\n2. Dans FL : Options › MIDI Settings.\n3. Règle les 4 cases entourées, avec le même numéro de Port en haut et en bas.\n\nPas de « FL Shortcuts » dans Controller type : le lien est dans %@ ; compare avec Options › File settings › User data folder dans FL." = "1. Quitte FL (⌘Q), puis rouvre-le.\n2. Dans FL : Options › MIDI Settings.\n3. Règle les 4 cases entourées, avec le même numéro de Port en haut et en bas.\n\nPas de « FL Shortcuts » dans Controller type : le lien est dans %@ ; compare avec Options › File settings › User data folder dans FL.";
 "123456" = "123456";
 "2 (pavé)" = "2 (pavé)";
@@ -141,6 +147,9 @@
 "= (pavé)" = "= (pavé)";
 "@%@" = "@%@";
 "Ableton dans FL" = "Ableton dans FL";
+"Abonnements" = "Abonnements";
+"Abonné" = "Abonné";
+"Abonnés" = "Abonnés";
 "Accept" = "Accept";
 "Accès refusé à %@" = "Accès refusé à %@";
 "Action" = "Action";
@@ -206,6 +215,8 @@
 "Ajouter « %@ »" = "Ajouter « %@ »";
 "Ajouter à mes macros" = "Ajouter à mes macros";
 "Ajouté à tes favoris de FL (Add › %@ › %@) pour que la macro le " = "Ajouté à tes favoris de FL (Add › %@ › %@) pour que la macro le ";
+"Ajoutée %lld fois" = "Ajoutée %lld fois";
+"Ajoutée une fois" = "Ajoutée une fois";
 "Ajuster à la zone Performance" = "Ajuster à la zone Performance";
 "Aligne les notes de l'instrument sélectionné" = "Aligne les notes de l'instrument sélectionné";
 "Aller à la Playlist" = "Aller à la Playlist";
@@ -675,6 +686,7 @@
 "Couper tous les sons (panique)" = "Couper tous les sons (panique)";
 "Crash" = "Crash";
 "Créateur de macros" = "Créateur de macros";
+"Créateurs à suivre" = "Créateurs à suivre";
 "Crée ton compte." = "Crée ton compte.";
 "Crée un compte : mail, mot de passe et nom d'utilisateur. Seul ton nom est visible des autres." = "Crée un compte : mail, mot de passe et nom d'utilisateur. Seul ton nom est visible des autres.";
 "Crée un pattern vide et ouvre le Piano Roll" = "Crée un pattern vide et ouvre le Piano Roll";
@@ -708,6 +720,7 @@
 "Dans la fenêtre de macOS, clique « Ouvrir Réglages Système… » (pas de fenêtre ? « Ouvrir les réglages » ci-dessous)." = "Dans la fenêtre de macOS, clique « Ouvrir Réglages Système… » (pas de fenêtre ? « Ouvrir les réglages » ci-dessous).";
 "Dans le menu" = "Dans le menu";
 "Dans une copie, « %@ », à côté de l'original : l'original n'a pas bougé." = "Dans une copie, « %@ », à côté de l'original : l'original n'a pas bougé.";
+"De tes abonnements" = "De tes abonnements";
 "Demande le lien avec FL (Organiser › Installer le lien)." = "Demande le lien avec FL (Organiser › Installer le lien).";
 "Demande le lien avec FL." = "Demande le lien avec FL.";
 "Demande le script MIDI dans FL (désactivé en mode léger)" = "Demande le script MIDI dans FL (désactivé en mode léger)";
@@ -1231,8 +1244,11 @@
 "Les macros et les raccourcis des autres, et les tiens." = "Les macros et les raccourcis des autres, et les tiens.";
 "Les miens" = "Les miens";
 "Les mêmes sur ton Mac et ton PC." = "Les mêmes sur ton Mac et ton PC.";
+"Les partages ajoutés par les membres arrivent ici." = "Les partages ajoutés par les membres arrivent ici.";
 "Les photos et le changement de pseudo ne sont pas encore ouverts : réessaie plus tard." = "Les photos et le changement de pseudo ne sont pas encore ouverts : réessaie plus tard.";
 "Les pistes de la Playlist sont remontées par leur menu (« Move up ») : FL Shortcuts lit alors la fenêtre de FL (autorisation « Enregistrement de l'écran »). Les patterns restent à leur place." = "Les pistes de la Playlist sont remontées par leur menu (« Move up ») : FL Shortcuts lit alors la fenêtre de FL (autorisation « Enregistrement de l'écran »). Les patterns restent à leur place.";
+"Les plus ajoutées" = "Les plus ajoutées";
+"Les plus récentes" = "Les plus récentes";
 "Les raccourcis d'Ableton Live font la même chose dans FL : F9 enregistre, ⌘D duplique, ⌘E découpe, " = "Les raccourcis d'Ableton Live font la même chose dans FL : F9 enregistre, ⌘D duplique, ⌘E découpe, ";
 "Les raccourcis de Logic Pro font la même chose dans FL : Retour revient au début, K métronome, " = "Les raccourcis de Logic Pro font la même chose dans FL : Retour revient au début, K métronome, ";
 "Les raccourcis qu'il contient" = "Les raccourcis qu'il contient";
@@ -1412,6 +1428,7 @@
 "Navigation" = "Navigation";
 "Ne fait pas ce que dit son explication" = "Ne fait pas ce que dit son explication";
 "Ne plus envoyer dans cette piste" = "Ne plus envoyer dans cette piste";
+"Ne plus suivre" = "Ne plus suivre";
 "Ne quitte pas l'app tout de suite." = "Ne quitte pas l'app tout de suite.";
 "Ne touche pas à FL jusqu'à la fin." = "Ne touche pas à FL jusqu'à la fin.";
 "Ne touche pas à FL pendant l'écoute." = "Ne touche pas à FL pendant l'écoute.";
@@ -1431,8 +1448,10 @@
 "Nombre de fois" = "Nombre de fois";
 "Note" = "Note";
 "Note pour toi, ignorée à l'exécution." = "Note pour toi, ignorée à l'exécution.";
+"Noter" = "Noter";
 "Notes : %lld caractères au plus." = "Notes : %lld caractères au plus.";
 "Notes glissées (slide)" = "Notes glissées (slide)";
+"Nouveau" = "Nouveau";
 "Nouveau code envoyé à %@." = "Nouveau code envoyé à %@.";
 "Nouveau compte" = "Nouveau compte";
 "Nouveau mot de passe" = "Nouveau mot de passe";
@@ -1443,6 +1462,7 @@
 "Nouveau raccourci personnalisé…" = "Nouveau raccourci personnalisé…";
 "Nouveau raccourci pour la page « %@ »" = "Nouveau raccourci pour la page « %@ »";
 "Nouveau raccourci…" = "Nouveau raccourci…";
+"Nouveautés" = "Nouveautés";
 "Nouvelle macro" = "Nouvelle macro";
 "Numéro du canal dans le Channel rack (1 = le premier en haut)." = "Numéro du canal dans le Channel rack (1 = le premier en haut).";
 "OK" = "OK";
@@ -1676,6 +1696,7 @@
 "Posée par la fenêtre de FL (F2). La première fois, montre une fois le bouton de l'icône." = "Posée par la fenêtre de FL (F2). La première fois, montre une fois le bouton de l'icône.";
 "Pour l'Organiser : il écoute chaque son pour le ranger" = "Pour l'Organiser : il écoute chaque son pour le ranger";
 "Pour tes raccourcis dans FL." = "Pour tes raccourcis dans FL.";
+"Pour toi" = "Pour toi";
 "Pour toi (facultatif)" = "Pour toi (facultatif)";
 "Pour un bouton qui change de place (une piste du Mixer, le « + » du Channel rack…) : il est " = "Pour un bouton qui change de place (une piste du Mixer, le « + » du Channel rack…) : il est ";
 "Pour écouter tes sons." = "Pour écouter tes sons.";
@@ -1826,12 +1847,14 @@
 "Retrouver ce bouton s'il bouge" = "Retrouver ce bouton s'il bouge";
 "Retrouver mes raccourcis et mes macros sur un autre Mac" = "Retrouver mes raccourcis et mes macros sur un autre Mac";
 "Retrouver ses boutons par leur nom, au moment du clic" = "Retrouver ses boutons par leur nom, au moment du clic";
+"Revenir" = "Revenir";
 "Revenir au menu précédent" = "Revenir au menu précédent";
 "Revenir aux partages de tous les membres" = "Revenir aux partages de tous les membres";
 "Revenir aux raccourcis et aux macros (⌘[)" = "Revenir aux raccourcis et aux macros (⌘[)";
 "Revenir comme avant" = "Revenir comme avant";
 "Revenir dans la dernière macro quittée (⌘])" = "Revenir dans la dernière macro quittée (⌘])";
 "Revenir à : " = "Revenir à : ";
+"Revenir à la Communauté" = "Revenir à la Communauté";
 "Revenir à la couleur de départ" = "Revenir à la couleur de départ";
 "Revient au pattern précédent" = "Revient au pattern précédent";
 "Revoir le guide" = "Revoir le guide";
@@ -1840,7 +1863,9 @@
 "Reçois par mail un code pour choisir un nouveau mot de passe" = "Reçois par mail un code pour choisir un nouveau mot de passe";
 "Reçu un lien au lieu d'un code ?" = "Reçu un lien au lieu d'un code ?";
 "Ride" = "Ride";
+"Rien d'ajouté pour l'instant." = "Rien d'ajouté pour l'instant.";
 "Rien de ce genre pour l'instant" = "Rien de ce genre pour l'instant";
+"Rien de nouveau." = "Rien de nouveau.";
 "Rien de reconnaissable à cet endroit : endroit retenu sans image." = "Rien de reconnaissable à cet endroit : endroit retenu sans image.";
 "Rien n'a été supprimé." = "Rien n'a été supprimé.";
 "Rien n'utilise %@ : ces touches sont libres." = "Rien n'utilise %@ : ces touches sont libres.";
@@ -1969,6 +1994,7 @@
 "Son de FL autorisé : tout est prêt." = "Son de FL autorisé : tout est prêt.";
 "Son icône est près de l'horloge (sous ^ si Windows la cache). Clic : la fenêtre ; clic droit : le menu." = "Son icône est près de l'horloge (sous ^ si Windows la cache). Clic : la fenêtre ; clic droit : le menu.";
 "Son nom, tel qu'il est écrit dans le menu « Arrangement » de FL." = "Son nom, tel qu'il est écrit dans le menu « Arrangement » de FL.";
+"Son travail" = "Son travail";
 "Sortie du Mac : " = "Sortie du Mac : ";
 "Sortie du Mac en ce moment : " = "Sortie du Mac en ce moment : ";
 "Sortie et entrée du Mac : " = "Sortie et entrée du Mac : ";
@@ -1982,7 +2008,10 @@
 "Sub" = "Sub";
 "Suis le petit panneau en bas à droite : clavier, puis fenêtre de FL. C'est détecté tout seul." = "Suis le petit panneau en bas à droite : clavier, puis fenêtre de FL. C'est détecté tout seul.";
 "Suis les étapes : règle les 4 cases entourées, dans l'ordre." = "Suis les étapes : règle les 4 cases entourées, dans l'ordre.";
+"Suis un créateur : ses partages arrivent ici." = "Suis un créateur : ses partages arrivent ici.";
 "Suivant" = "Suivant";
+"Suivre" = "Suivre";
+"Suivre et noter ne sont pas encore ouverts : réessaie plus tard." = "Suivre et noter ne sont pas encore ouverts : réessaie plus tard.";
 "Suppression…" = "Suppression…";
 "Supprimer" = "Supprimer";
 "Supprimer (administrateur)…" = "Supprimer (administrateur)…";
@@ -2026,6 +2055,7 @@
 "Sélectionner toutes les pistes" = "Sélectionner toutes les pistes";
 "Ta Playlist a plus de pistes à remplir que FL n'en a : rien n'a été touché." = "Ta Playlist a plus de pistes à remplir que FL n'en a : rien n'a été touché.";
 "Ta carte son : un autre numéro de Port." = "Ta carte son : un autre numéro de Port.";
+"Ta note" = "Ta note";
 "Ta photo" = "Ta photo";
 "Ta question, le plus précisément possible." = "Ta question, le plus précisément possible.";
 "Ta sauvegarde vient d'une version plus récente de FL Shortcuts : mets l'app à jour." = "Ta sauvegarde vient d'une version plus récente de FL Shortcuts : mets l'app à jour.";
@@ -2134,6 +2164,7 @@
 "Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre et met la nouvelle version à la Corbeille. Aucune lecture de l'écran." = "Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre et met la nouvelle version à la Corbeille. Aucune lecture de l'écran.";
 "Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre. Aucune lecture de l'écran." = "Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre. Aucune lecture de l'écran.";
 "Tout sélectionner" = "Tout sélectionner";
+"Tout voir →" = "Tout voir →";
 "Toutes les macros, un fichier chacune, pour les partager (par défaut dans Documents › FL Shortcuts › Macros)" = "Toutes les macros, un fichier chacune, pour les partager (par défaut dans Documents › FL Shortcuts › Macros)";
 "Toutes les macros, un fichier chacune, pour les partager, dans Documents › FL Shortcuts › Macros › Exporter" = "Toutes les macros, un fichier chacune, pour les partager, dans Documents › FL Shortcuts › Macros › Exporter";
 "Transposer d'une octave vers le bas" = "Transposer d'une octave vers le bas";
@@ -2149,6 +2180,7 @@
 "Trousseau indisponible (%d)." = "Trousseau indisponible (%d).";
 "Tu as déjà signalé cette photo." = "Tu as déjà signalé cette photo.";
 "Tu n'as pas encore de macro : crée-en une dans la page Macros." = "Tu n'as pas encore de macro : crée-en une dans la page Macros.";
+"Tu ne suis personne." = "Tu ne suis personne.";
 "Tu valides : l'ancienne version part à la Corbeille. Tu reviens en arrière : c'est la version organisée qui y part." = "Tu valides : l'ancienne version part à la Corbeille. Tu reviens en arrière : c'est la version organisée qui y part.";
 "Tu valides la version organisée ?" = "Tu valides la version organisée ?";
 "Tu valides, ou pas" = "Tu valides, ou pas";
@@ -2209,7 +2241,9 @@
 "Visible par les autres : ton nom d'utilisateur et ce que tu partages. Jamais : ton mail." = "Visible par les autres : ton nom d'utilisateur et ce que tu partages. Jamais : ton mail.";
 "Voir" = "Voir";
 "Voir ce qui est joint" = "Voir ce qui est joint";
+"Voir la page de @%@" = "Voir la page de @%@";
 "Voir le mot de passe" = "Voir le mot de passe";
+"Voir ses nouveaux partages dans Abonnements" = "Voir ses nouveaux partages dans Abonnements";
 "Voir tout ce que @%@ a publié" = "Voir tout ce que @%@ a publié";
 "Voir tout le monde" = "Voir tout le monde";
 "Voir toute la fenêtre en grand" = "Voir toute la fenêtre en grand";

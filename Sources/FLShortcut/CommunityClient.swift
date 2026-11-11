@@ -51,12 +51,26 @@ struct Share: Codable, Identifiable, Equatable {
     let appVersion: String
     let createdAt: String
     let author: Author?
+    /// Communauté du 11/11 (communaute-suivre.sql) : nombre d'ajouts, somme et nombre des notes (nil : serveur
+    /// d'avant, ou colonnes pas demandées).
+    var addCount: Int? = nil
+    var ratingSum: Int? = nil
+    var ratingCount: Int? = nil
 
     enum CodingKeys: String, CodingKey {
         case id, kind, title, notes, author
         case authorID = "author_id"
         case appVersion = "app_version"
         case createdAt = "created_at"
+        case addCount = "add_count"
+        case ratingSum = "rating_sum"
+        case ratingCount = "rating_count"
+    }
+
+    /// Moyenne des notes (nil : aucune note).
+    var rating: Double? {
+        guard let sum = ratingSum, let count = ratingCount, count > 0 else { return nil }
+        return Double(sum) / Double(count)
     }
 
     var authorName: String { author?.username ?? "?" }
@@ -91,6 +105,8 @@ enum CommunityError: Error, LocalizedError, Equatable {
     case backupConflict
     /// Le serveur n'a pas encore supabase/profil.sql : ni photo, ni changement de pseudo.
     case profileNotReady
+    /// Le serveur n'a pas encore supabase/communaute-suivre.sql : ni Suivre, ni ajouts comptés, ni étoiles.
+    case socialNotReady
 
     var errorDescription: String? {
         switch self {
@@ -103,6 +119,8 @@ enum CommunityError: Error, LocalizedError, Equatable {
         case .backupConflict: return String(localized: "La sauvegarde de ton compte a changé depuis un autre Mac.")
         case .profileNotReady:
             return String(localized: "Les photos et le changement de pseudo ne sont pas encore ouverts : réessaie plus tard.")
+        case .socialNotReady:
+            return String(localized: "Suivre et noter ne sont pas encore ouverts : réessaie plus tard.")
         }
     }
 }
@@ -385,11 +403,16 @@ struct CommunityClient {
 
     static let listColumns = "id,author_id,kind,title,notes,app_version,created_at,author:profiles(username)"
 
-    /// Les 50 partages les plus récents, filtrés par sorte, par texte (titre ou notes) et par auteur.
-    func shares(kind: ShareKind?, search: String, authorID: UUID? = nil,
-                session: CommunitySession) async throws -> [Share] {
-        var query = [URLQueryItem(name: "select", value: Self.listColumns),
-                     URLQueryItem(name: "order", value: "created_at.desc"),
+    /// Colonnes d'un partage avec ses nombres (communaute-suivre.sql).
+    static let socialColumns = listColumns + ",add_count,rating_sum,rating_count"
+
+    /// Les 50 partages les plus récents, filtrés par sorte, par texte (titre ou notes) et par auteur. `social` : avec
+    /// les ajouts et les notes (communaute-suivre.sql ; absent du serveur → `socialNotReady`) ; `order` : ordre du
+    /// serveur (« add_count.desc,created_at.desc » : les plus ajoutés).
+    func shares(kind: ShareKind?, search: String, authorID: UUID? = nil, social: Bool = false,
+                order: String = "created_at.desc", session: CommunitySession) async throws -> [Share] {
+        var query = [URLQueryItem(name: "select", value: social ? Self.socialColumns : Self.listColumns),
+                     URLQueryItem(name: "order", value: order),
                      URLQueryItem(name: "limit", value: "50")]
         if let kind { query.append(URLQueryItem(name: "kind", value: "eq.\(kind.rawValue)")) }
         if let authorID { query.append(URLQueryItem(name: "author_id", value: "eq.\(authorID.uuidString.lowercased())")) }
@@ -397,7 +420,12 @@ struct CommunityClient {
         if !words.isEmpty {
             query.append(URLQueryItem(name: "or", value: "(title.ilike.*\(words)*,notes.ilike.*\(words)*)"))
         }
-        let data = try await call("GET", "rest/v1/shares", query: query, token: session.accessToken)
+        let data: Data
+        if social {
+            data = try await socialCall("GET", "rest/v1/shares", query: query, session: session)
+        } else {
+            data = try await call("GET", "rest/v1/shares", query: query, token: session.accessToken)
+        }
         guard let list = try? JSONDecoder().decode([Share].self, from: data) else { throw CommunityError.badResponse }
         return list
     }
@@ -586,8 +614,8 @@ struct CommunityClient {
         return r
     }
 
-    private func call(_ method: String, _ path: String, query: [URLQueryItem] = [], token: String? = nil,
-                      body: [String: Any]? = nil) async throws -> Data {
+    func call(_ method: String, _ path: String, query: [URLQueryItem] = [], token: String? = nil,
+              body: [String: Any]? = nil) async throws -> Data {
         let (data, status) = try await transport.send(request(method, path, query: query, token: token, body: body))
         guard (200..<300).contains(status) else { throw CommunityError.server(status, Self.message(data, status: status)) }
         return data
@@ -622,6 +650,11 @@ struct CommunityClient {
             return String(localized: """
                 Le mail de confirmation n'a pas pu partir. Réessaie plus tard, ou écris à l'équipe depuis la page Aide.
                 """)
+        }
+        // Messages du serveur déjà en français (schema.sql, sauvegarde.sql, communaute-suivre.sql…) : tels quels.
+        if lower.contains("trop d'abonnements") || lower.contains("trop de notes") || lower.hasPrefix("ajoute-le d'abord")
+            || lower.hasPrefix("tu ne peux pas noter") || lower.hasPrefix("une note de 1 à 5") {
+            return raw
         }
         if lower.contains("trop de partages") || lower.contains("trop de messages") || lower.hasPrefix("sauvegarde plus récente")
             || lower.hasPrefix("attends ") || lower.hasPrefix("réservé aux administrateurs") {

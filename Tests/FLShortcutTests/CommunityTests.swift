@@ -476,4 +476,126 @@ final class CommunityTests: XCTestCase {
         XCTAssertTrue(server.requests.isEmpty)
         XCTAssertNil(keychain.load())
     }
+
+    // MARK: Communauté du 11/11 (suivre, ajouts, étoiles)
+
+    /// « ★ 4,6 · Ajoutée 312 fois » : jamais « Ajoutée 0 fois », pas d'étoile sans note, moyenne à une décimale.
+    func testStatsLine() {
+        let fr = Locale(identifier: "fr_FR"), en = Locale(identifier: "en_US")
+        var share = Share(id: UUID(), authorID: UUID(), kind: .macro, title: "Armer", notes: "", appVersion: "",
+                          createdAt: "2026-11-11T10:00:00Z", author: nil)
+        XCTAssertNil(CommunityStats.line(share, locale: fr), "serveur d'avant : rien")
+        share.addCount = 0
+        share.ratingSum = 0
+        share.ratingCount = 0
+        XCTAssertNil(CommunityStats.line(share, locale: fr), "jamais « Ajoutée 0 fois »")
+        share.addCount = 312
+        share.ratingSum = 1435
+        share.ratingCount = 312
+        XCTAssertEqual(CommunityStats.rating(1435.0 / 312, locale: fr), "4,6")
+        XCTAssertEqual(CommunityStats.rating(1435.0 / 312, locale: en), "4.6")
+        XCTAssertEqual(CommunityStats.line(share, locale: fr), "★ 4,6 · " + CommunityStats.added(312)!)
+        XCTAssertNil(CommunityStats.added(0))
+        XCTAssertNotEqual(CommunityStats.added(1), CommunityStats.added(2))
+        XCTAssertEqual(CommunityStats.number(1284, locale: en), "1,284")
+    }
+
+    /// Un serveur sans communaute-suivre.sql (colonne, table ou fonction absente) : la Communauté d'avant, sans erreur.
+    func testServerWithoutTheSocialFileFallsBack() async throws {
+        XCTAssertTrue(CommunityClient.isMissingSocial(status: 400, message: "Erreur du serveur : column shares.add_count does not exist"))
+        XCTAssertTrue(CommunityClient.isMissingSocial(status: 404, message: "Could not find the function public.record_add"))
+        XCTAssertFalse(CommunityClient.isMissingSocial(status: 400, message: "Ajoute-le d'abord, puis note-le."))
+        XCTAssertFalse(CommunityClient.isMissingSocial(status: 500, message: "column add_count does not exist"))
+
+        let missing = FakeServer([(400, #"{"code":"42703","message":"column shares.add_count does not exist"}"#)])
+        do {
+            _ = try await client(missing).shares(kind: nil, search: "", social: true, session: session)
+            XCTFail("colonne absente non reconnue")
+        } catch CommunityError.socialNotReady {}
+        XCTAssertEqual(missing.query(0)["select"], CommunityClient.socialColumns)
+
+        let old = FakeServer([(200, "[]")])
+        _ = try await client(old).shares(kind: nil, search: "", session: session)
+        XCTAssertEqual(old.query(0)["select"], CommunityClient.listColumns, "sans `social` : les colonnes d'avant")
+    }
+
+    /// Nombres lus avec le partage ; ajout compté, note envoyée, abonnements, par les bonnes adresses du serveur.
+    func testSocialRequests() async throws {
+        let id = UUID(), author = UUID()
+        let row = """
+        [{"id":"\(id.uuidString)","author_id":"\(author.uuidString)","kind":"macro","title":"Armer vite","notes":"",
+          "app_version":"0.1.0","created_at":"2026-11-11T10:00:00+00:00","author":{"username":"leo.beats"},
+          "add_count":312,"rating_sum":1435,"rating_count":312}]
+        """
+        let server = FakeServer([(200, row), (200, "313"), (200, #"[{"rating_sum":1440,"rating_count":313}]"#),
+                                 (201, ""), (200, #"[{"followee_id":"\#(author.uuidString)"}]"#), (204, ""),
+                                 (200, #"[{"id":"\#(author.uuidString)","username":"leo.beats","follower_count":1284}]"#)])
+        let c = client(server)
+        let list = try await c.followedShares(limit: 3, session: session)
+        XCTAssertEqual(list.first?.addCount, 312)
+        XCTAssertEqual(list.first?.rating ?? 0, 1435.0 / 312, accuracy: 0.001)
+        XCTAssertEqual(server.requests[0].url?.path, "/rest/v1/rpc/followed_shares")
+        XCTAssertEqual(server.query(0)["select"], CommunityClient.socialColumns)
+        XCTAssertEqual(server.body(0)["p_limit"] as? Int, 3)
+
+        let count = try await c.recordAdd(id, session: session)
+        XCTAssertEqual(count, 313)
+        XCTAssertEqual(server.requests[1].url?.path, "/rest/v1/rpc/record_add")
+        XCTAssertEqual(server.body(1)["p_share"] as? String, id.uuidString.lowercased())
+
+        let rated = try await c.rate(id, stars: 5, session: session)
+        XCTAssertEqual(rated.sum, 1440)
+        XCTAssertEqual(rated.count, 313)
+        XCTAssertEqual(server.body(2)["p_stars"] as? Int, 5)
+
+        try await c.follow(author, session: session)
+        XCTAssertEqual(server.requests[3].url?.path, "/rest/v1/follows")
+        XCTAssertEqual(server.body(3)["followee_id"] as? String, author.uuidString.lowercased())
+        let mine = try await c.following(session: session)
+        XCTAssertEqual(mine, [author])
+        try await c.unfollow(author, session: session)
+        XCTAssertEqual(server.requests[5].httpMethod, "DELETE")
+        XCTAssertEqual(server.query(5)["followee_id"], "eq.\(author.uuidString.lowercased())")
+        let person = try await c.person(author, session: session)
+        XCTAssertEqual(person?.followerCount, 1284)
+    }
+
+    /// Point rouge : seuls les partages plus récents que la dernière ouverture d'« Abonnements » comptent.
+    func testNewFromFollowedCount() {
+        func share(_ day: String) -> Share {
+            Share(id: UUID(), authorID: UUID(), kind: .macro, title: "Armer", notes: "", appVersion: "",
+                  createdAt: day + "T10:00:00+00:00", author: nil)
+        }
+        let seen = CommunityText.date("2026-11-10T12:00:00+00:00")!
+        XCTAssertEqual(CommunityStats.newCount([share("2026-11-11"), share("2026-11-09"), share("2026-11-12")], since: seen), 2)
+        XCTAssertEqual(CommunityStats.newCount([], since: seen), 0)
+    }
+
+    /// Mode capture : vitrine, onglets, page d'une personne et Suivre, sans jamais appeler le serveur.
+    @MainActor
+    func testDemoShowcaseNeverUsesServer() async {
+        let server = FakeServer([])
+        let keychain = CommunitySessionKeychain(service: "app.flshortcut.tests.\(UUID().uuidString)")
+        defer { keychain.delete() }
+        let store = CommunityStore(config: config, keychain: keychain, transport: server)
+        store.showDemo(signedIn: true)
+        XCTAssertFalse(store.followedPreview.isEmpty)
+        XCTAssertFalse(store.creators.isEmpty)
+        XCTAssertEqual(store.topPreview.map(\.authorName).first, "prod.nina", "le plus ajouté d'abord")
+        await store.choose(.mostAdded)
+        XCTAssertEqual(store.shares.map { $0.addCount ?? 0 }, store.shares.map { $0.addCount ?? 0 }.sorted(by: >))
+        await store.choose(.following)
+        XCTAssertEqual(store.newFromFollowed, 0, "ouvrir Abonnements éteint le point rouge")
+        XCTAssertTrue(store.shares.allSatisfy { store.following.contains($0.authorID) })
+        let nina = store.creators[0]
+        await store.openPerson(CommunityMember(id: nina.id, username: nina.username, shareCount: 0))
+        XCTAssertTrue(store.isPersonPage)
+        XCTAssertEqual(store.personFollowers, CommunityStore.demoFollowers)
+        await store.follow(nina.id)
+        XCTAssertTrue(store.following.contains(nina.id))
+        XCTAssertEqual(store.personFollowers, CommunityStore.demoFollowers + 1)
+        await store.unfollow(nina.id)
+        XCTAssertFalse(store.following.contains(nina.id))
+        XCTAssertTrue(server.requests.isEmpty)
+    }
 }

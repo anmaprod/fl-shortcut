@@ -32,7 +32,7 @@ final class CommunityStore: ObservableObject {
         // Thèmes seulement avec un compte (07/11) : connexion, déconnexion, session oubliée. Pas pour les exemples.
         didSet { if !demo { AppTheme.accountChanged(signedIn: session != nil) } }
     }
-    @Published private(set) var shares: [Share] = []
+    @Published var shares: [Share] = []
     @Published private(set) var busy = false
     @Published private(set) var isAdmin = false
     @Published var error: String?
@@ -40,9 +40,9 @@ final class CommunityStore: ObservableObject {
     @Published var kind: ShareKind?
     @Published var search = ""
     /// Membres dont le nom correspond à la recherche (parmi ceux qui ont publié).
-    @Published private(set) var members: [CommunityMember] = []
+    @Published var members: [CommunityMember] = []
     /// Membre dont on regarde les partages (choisi dans la recherche ou depuis un partage) ; nil : tout le monde.
-    @Published private(set) var author: CommunityMember?
+    @Published var author: CommunityMember?
     /// Feuille « Partager » ouverte (bouton de la page ou « + » de la barre d'outils).
     @Published var composing = false
     /// Écran de connexion : « Créer un compte » plutôt que « J'ai déjà un compte ».
@@ -66,6 +66,23 @@ final class CommunityStore: ObservableObject {
     private var photoVersions: [UUID: String] = [:]
     /// Feuille « Modifier le profil » ouverte (page Mon compte, photo de la barre d'outils).
     @Published var editingProfile = false
+
+    // Communauté du 11/11 (communaute-suivre.sql, CommunitySocial.swift) : onglets, abonnements, ajouts, étoiles.
+    @Published var tab: CommunityTab = .forYou
+    /// Le serveur a communaute-suivre.sql (faux : la Communauté d'avant, ni Suivre ni étoiles, sans erreur).
+    @Published var social = true
+    /// Vitrine (« Pour toi ») : les derniers partages des gens suivis, les plus ajoutés, les créateurs à suivre.
+    @Published var followedPreview: [Share] = []
+    @Published var topPreview: [Share] = []
+    @Published var creators: [CommunityCreator] = []
+    /// Les gens que l'on suit (seulement les siens : jamais la liste des autres).
+    @Published var following: Set<UUID> = []
+    /// Page d'une personne : son nombre d'abonnés (nil : pas encore lu) et l'ordre de son travail.
+    @Published var personFollowers: Int?
+    @Published var personSort: PersonSort = .mostAdded
+    /// Point rouge : partages des gens suivis plus récents que la dernière ouverture d'« Abonnements ».
+    @Published var newFromFollowed = 0
+    var newCheck: Task<Void, Never>?
 
     /// Un pseudo vérifié au fil de la frappe (inscription, « Modifier le profil »).
     enum NameCheck: Equatable {
@@ -284,8 +301,8 @@ final class CommunityStore: ObservableObject {
     func reload() async {
         guard !demo else { return }
         await authed { client, session in
-            self.shares = try await client.shares(kind: self.kind, search: self.search, authorID: self.author?.id,
-                                                  session: session)
+            // L'onglet (ou la page d'une personne) choisit ce qui est lu ; la vitrine à côté (CommunitySocial.swift).
+            self.shares = try await self.loadShares(client, session)
             // Membres : seulement pour une recherche sur tout le monde ; s'ils ne se chargent pas, les partages restent.
             if self.author == nil {
                 self.members = (try? await client.members(matching: self.search, session: session)) ?? []
@@ -293,8 +310,10 @@ final class CommunityStore: ObservableObject {
                 self.members = []
             }
         }
+        if search.trimmingCharacters(in: .whitespaces).isEmpty, author == nil, tab == .forYou { await loadShowcase() }
         // Photos des auteurs affichés (sans attendre : la liste est déjà là).
         let ids = shares.map(\.authorID) + members.map(\.id) + (author.map { [$0.id] } ?? [])
+            + followedPreview.map(\.authorID) + topPreview.map(\.authorID) + creators.map(\.id)
         if !ids.isEmpty { Task { await loadPhotos(for: ids) } }
     }
 
@@ -494,9 +513,17 @@ final class CommunityStore: ObservableObject {
         guard changedUser else { return }
         isAdmin = false
         editingProfile = false
+        following = []
+        followedPreview = []
+        topPreview = []
+        creators = []
+        newFromFollowed = 0
+        newCheck?.cancel()
+        newCheck = nil
         if let new, let client {
             Task { self.isAdmin = await client.isAdmin(session: new) }
             Task { await self.loadPhotos(for: [new.userID]) }
+            startFollowedWatch()                          // point rouge : au lancement, puis toutes les 30 min
         }
     }
 
@@ -520,7 +547,7 @@ final class CommunityStore: ObservableObject {
 
     /// Une action qui demande un compte : jeton rafraîchi s'il expire dans la minute ; session expirée, retour
     /// à l'écran de connexion.
-    private func authed(_ body: (CommunityClient, CommunitySession) async throws -> Void) async {
+    func authed(_ body: (CommunityClient, CommunitySession) async throws -> Void) async {
         await run { client in try await body(client, try await self.validSession()) }
     }
 
@@ -540,12 +567,43 @@ final class CommunityStore: ObservableObject {
         author = nil
         search = ""
         editingProfile = false
+        // Communauté du 11/11 : vitrine d'exemple (abonné à leo.beats et sarah.mix, deux nouveautés).
+        tab = .forYou
+        social = true
+        personFollowers = nil
+        following = signedIn && !empty ? [Self.demoID(201), Self.demoID(202)] : []
+        followedPreview = signedIn && !empty ? Self.demoShares.filter { following.contains($0.authorID) } : []
+        topPreview = signedIn && !empty ? Array(Self.demoShares.filter { ($0.addCount ?? 0) > 0 }
+            .sorted { ($0.addCount ?? 0) > ($1.addCount ?? 0) }.prefix(3)) : []
+        creators = signedIn && !empty ? Self.demoCreators : []
+        newFromFollowed = signedIn && !empty ? 2 : 0
         // Photos d'exemple : FLShortcuts et prod.nina en ont une, les autres gardent leur initiale.
         photos = signedIn ? [Self.demoUser: ProfilePhoto.sample((.systemOrange, .systemPink)),
                              Self.demoID(204): ProfilePhoto.sample((.systemTeal, .systemBlue))] : [:]
     }
 
     private static func demoID(_ n: Int) -> UUID { UUID(uuidString: "00000000-0000-0000-0000-000000000\(n)")! }
+
+    /// Abonnés d'une personne d'exemple (sa page).
+    static let demoFollowers = 1284
+
+    private static let demoCreators: [CommunityCreator] = [
+        CommunityCreator(id: demoID(204), username: "prod.nina", followerCount: 1284),
+        CommunityCreator(id: demoID(205), username: "kbeats", followerCount: 312),
+        CommunityCreator(id: demoID(206), username: "mixdown.ana", followerCount: 96),
+        CommunityCreator(id: demoID(207), username: "loopfactory", followerCount: 41),
+        CommunityCreator(id: demoID(208), username: "sam.808", followerCount: 7),
+    ]
+
+    /// Mode capture : l'onglet choisi, avec les exemples.
+    func showDemoTab() {
+        switch tab {
+        case .forYou: shares = Self.demoShares
+        case .following: shares = Self.demoShares.filter { following.contains($0.authorID) }
+        case .mostAdded: shares = Self.demoShares.filter { ($0.addCount ?? 0) > 0 }.sorted { ($0.addCount ?? 0) > ($1.addCount ?? 0) }
+        case .mine: shares = Self.demoShares.filter { $0.authorID == Self.demoUser }
+        }
+    }
 
     /// Exemple d'une recherche qui trouve des membres (« le ») : leurs noms, puis les partages qui en parlent.
     func showDemoMemberSearch(_ text: String) {
@@ -560,25 +618,26 @@ final class CommunityStore: ObservableObject {
     private static let demoUser = UUID(uuidString: "00000000-0000-0000-0000-00000000000A")!
 
     private static func demoShare(_ n: Int, _ author: String, mine: Bool = false, _ kind: ShareKind, _ title: String,
-                                  _ notes: String, _ day: String) -> Share {
+                                  _ notes: String, _ day: String, adds: Int = 0, stars: (sum: Int, count: Int) = (0, 0)) -> Share {
         Share(id: UUID(uuidString: "00000000-0000-0000-0000-00000000010\(n)")!,
               authorID: mine ? demoUser : UUID(uuidString: "00000000-0000-0000-0000-00000000020\(n)")!,
               kind: kind, title: title, notes: notes, appVersion: "0.1.0", createdAt: day + "T18:02:11Z",
-              author: Share.Author(username: author))
+              author: Share.Author(username: author), addCount: adds, ratingSum: stars.sum, ratingCount: stars.count)
     }
 
-    private static let demoShares: [Share] = [
+    static let demoShares: [Share] = [
         demoShare(1, "leo.beats", .macro, "Armer la piste et lancer l'enregistrement",
                   "Clique sur ta piste dans le Mixer, puis lance la macro : elle arme la piste et démarre le REC. "
-                  + "Parfait pour enregistrer une voix sans chercher dans les menus.", "2026-10-15"),
+                  + "Parfait pour enregistrer une voix sans chercher dans les menus.", "2026-10-15",
+                  adds: 312, stars: (1435, 312)),
         demoShare(2, "sarah.mix", .profile, "Raccourcis façon Ableton",
                   "Espace pour lecture, ⌘E pour couper, ⌘D pour dupliquer… Pour ceux qui viennent d'Ableton et "
-                  + "ne veulent pas réapprendre.", "2026-10-14"),
+                  + "ne veulent pas réapprendre.", "2026-10-14", adds: 88, stars: (370, 88)),
         demoShare(3, "flshortcuts", mine: true, .macro, "Nommer et colorer la piste en vert",
-                  "Renomme la piste choisie en « Lead » et la passe en vert.", "2026-10-13"),
+                  "Renomme la piste choisie en « Lead » et la passe en vert.", "2026-10-13", adds: 1),
         demoShare(4, "prod.nina", .macro, "Choisir l'interface USB dans les réglages audio",
                   "Ouvre Options › Audio settings et choisit ta carte son USB. À lancer quand FL a perdu ta carte.",
-                  "2026-10-11"),
+                  "2026-10-11", adds: 1204, stars: (5538, 1204)),
     ]
 
     private static func demoPayload(_ kind: ShareKind) -> Data? {

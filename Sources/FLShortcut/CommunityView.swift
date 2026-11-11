@@ -83,7 +83,8 @@ struct CommunityPage: View {
             if let share = opened {
                 SwissPageAbove {
                     CommunityShareDetail(community: community, store: store, share: share, added: toast,
-                                         report: { reportLater(share) }, close: { opened = nil })
+                                         report: { reportLater(share) }, close: { opened = nil },
+                                         rateLater: { opened = share })
                         .id(share.id)
                 }
             } else if community.composing {
@@ -139,12 +140,22 @@ struct CommunityPage: View {
             reporting = community.shares.first
         case "membres":
             community.showDemoMemberSearch("le")
-        case "auteur":
+        case "auteur", "personne":
             community.showDemo(signedIn: true)
-            // prod.nina : un membre avec une photo (« Signaler la photo… » visible).
+            // prod.nina : une personne avec une photo, 1 284 abonnés (page du 11/11).
             if let share = community.shares.first(where: { $0.authorName == "prod.nina" }) ?? community.shares.first {
-                Task { await community.showAuthor(of: share) }
+                Task { await community.openPerson(of: share) }
             }
+        case "abonnements":
+            community.showDemo(signedIn: true)
+            Task { await community.choose(.following) }
+        case "plus-ajoutees":
+            community.showDemo(signedIn: true)
+            Task { await community.choose(.mostAdded) }
+        case "note":
+            // Fiche d'un partage ajouté : « Ta note » et ses étoiles.
+            community.showDemo(signedIn: true)
+            opened = community.shares.first
         default:
             community.showDemo(signedIn: true)
         }
@@ -208,25 +219,25 @@ private struct CommunityBrowse: View {
 
     /// Maquette validée le 30/10 : la recherche et les filtres sur une ligne, puis les partages en cartes sur deux
     /// colonnes. Plus de « Comment ça marche » ni de « Connecté en tant que » (le compte est dans l'en-tête).
+    /// Vitrine du 11/11 (« Pour toi ») : seulement sans recherche, sur tout le monde, avec le serveur du 11/11.
+    private var showcase: Bool {
+        community.social && community.tab == .forYou && community.author == nil
+            && community.search.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
     var body: some View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 16) {
-                CommunityFilters(community: community)
-                CommunityStatus(community: community)
-                if let author = community.author, author.id != community.session?.userID {
-                    Button {
-                        Task { await community.showEveryone() }
-                    } label: {
-                        Label("Tous les partages", systemImage: "chevron.left")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(Swiss.text)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Revenir aux partages de tous les membres")
-                    CommunityAuthorHeader(community: community, author: author)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 18)
-                        .background(MockPlate(cornerRadius: 14)).swissCard()
+                if let author = community.author, community.isPersonPage {
+                    // Page d'une personne (11/11) : elle prend la place de la liste, ← pour revenir.
+                    CommunityPersonHeader(community: community, author: author)
+                    CommunityStatus(community: community)
+                } else {
+                    CommunityFilters(community: community)
+                    CommunityStatus(community: community)
+                }
+                if community.isPersonPage {
+                    EmptyView()
                 } else if !community.members.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Membres")
@@ -237,7 +248,7 @@ private struct CommunityBrowse: View {
                         VStack(spacing: 0) {
                             ForEach(community.members) { member in
                                 CommunityMemberRow(member: member, photo: community.photos[member.id]) {
-                                    Task { await community.showAuthor(member) }
+                                    Task { await community.openPerson(member) }
                                 }
                                     .padding(.horizontal, 4)
                                     .padding(.vertical, 6)
@@ -247,6 +258,18 @@ private struct CommunityBrowse: View {
                         }
                         .padding(2)
                         .background(MockPlate(cornerRadius: 14)).swissCard()
+                    }
+                }
+                if showcase {
+                    CommunityShowcase(community: community, open: open)
+                    if !community.shares.isEmpty,
+                       !(community.followedPreview.isEmpty && community.creators.isEmpty && community.topPreview.isEmpty) {
+                        Text("Nouveautés")
+                            .swissLabel(Swiss.text)
+                            .padding(.bottom, 8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .swissRule(Swiss.line)
+                            .padding(.top, 14)
                     }
                 }
                 if community.shares.isEmpty {
@@ -260,7 +283,7 @@ private struct CommunityBrowse: View {
                                                mine: community.isMine(share),
                                                canDelete: community.canDelete(share),
                                                showAuthor: community.author?.id == share.authorID ? nil : {
-                                                   Task { await community.showAuthor(of: share) }
+                                                   Task { await community.openPerson(of: share) }
                                                },
                                                open: { open(share) }, report: { report(share) }, delete: { delete(share) })
                         }
@@ -298,6 +321,22 @@ private struct CommunityBrowse: View {
                              button: String(localized: "Effacer la recherche")) {
                 community.search = ""
                 Task { await community.reload() }
+            }
+        } else if community.author == nil, community.tab == .following {
+            // Onglet « Abonnements » (11/11) : personne de suivi, ou rien de neuf.
+            CommunityMessage(symbol: "person.2",
+                             title: community.following.isEmpty ? String(localized: "Tu ne suis personne.")
+                                 : String(localized: "Rien de nouveau."),
+                             text: String(localized: "Suis un créateur : ses partages arrivent ici."),
+                             button: String(localized: "Pour toi")) {
+                Task { await community.choose(.forYou) }
+            }
+        } else if community.author == nil, community.tab == .mostAdded {
+            CommunityMessage(symbol: "star",
+                             title: String(localized: "Rien d'ajouté pour l'instant."),
+                             text: String(localized: "Les partages ajoutés par les membres arrivent ici."),
+                             button: String(localized: "Pour toi")) {
+                Task { await community.choose(.forYou) }
             }
         } else if let author = community.author {
             CommunityMessage(symbol: "person.crop.circle",
@@ -355,82 +394,10 @@ private struct CommunityMemberRow: View {
     }
 }
 
-/// Partages d'un seul membre (maquette du 30/10) : sa photo en grand, son nom, combien ; sa photo peut être signalée
-/// (pas la sienne) et retirée par un administrateur.
-private struct CommunityAuthorHeader: View {
-    @ObservedObject var community: CommunityStore
-    let author: CommunityMember
-
-    private var count: Int { community.shares.count }
-    private var photo: NSImage? { community.photos[author.id] }
-
-    var body: some View {
-        HStack(spacing: 16) {
-            AvatarView(photo: photo, username: author.username, size: 64)
-            VStack(alignment: .leading, spacing: 3) {
-                Text("@\(author.username.displaySafe(max: 24))").font(Swiss.title(19)).tracking(Swiss.titleTracking(19)).lineLimit(1)
-                Text(community.busy ? String(localized: "Chargement…") : count == 1 ? String(localized: "1 partage")
-                     : count >= 50 ? String(localized: "50 partages les plus récents")
-                     : String(localized: "\(count) partages"))
-                    .font(.system(size: 12.5)).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 8)
-            if photo != nil {
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 8) { buttons }
-                    VStack(alignment: .trailing, spacing: 6) { buttons }
-                }
-            }
-        }
-    }
-
-    @ViewBuilder private var buttons: some View {
-        Button { report() } label: {
-            Label("Signaler la photo…", systemImage: "flag")
-        }
-        .secondaryButton()
-        .help("Cette photo est choquante ou n'a rien à faire ici : l'équipe la regarde")
-        if community.isAdmin {
-            Button { remove() } label: {
-                Text("Retirer la photo").foregroundStyle(Color.red)
-            }
-            .secondaryButton()
-            .help("Administrateur : retirer cette photo pour tout le monde")
-        }
-    }
-
-    private func report() {
-        guard Dialogs.confirm(String(localized: "Signaler la photo de @\(author.username.displaySafe(max: 24)) ?"),
-                              String(localized: "L'équipe la regarde et la retire si elle n'a rien à faire ici. Le membre ne sait pas qui l'a signalée."))
-        else { return }
-        Task { await community.reportPhoto(of: author) }
-    }
-
-    private func remove() {
-        guard Dialogs.confirm(String(localized: "Retirer la photo de @\(author.username.displaySafe(max: 24)) ?"),
-                              String(localized: "Elle disparaît pour tout le monde ; son initiale la remplace. Ses signalements sont traités."))
-        else { return }
-        Task { await community.removePhoto(of: author) }
-    }
-}
-
-/// Recherche (au fil de la frappe) dans une capsule, puis Tout / Macros / Raccourcis / Les miens, et actualiser.
+/// Recherche (au fil de la frappe) dans une capsule, puis les onglets du 11/11, et actualiser.
 private struct CommunityFilters: View {
     @ObservedObject var community: CommunityStore
     @State private var searchTask: Task<Void, Never>?
-
-    private enum Filter: CaseIterable {
-        case all, macros, shortcuts, mine
-    }
-
-    private var current: Filter {
-        if let me = community.session?.userID, community.author?.id == me { return .mine }
-        switch community.kind {
-        case .macro?: return .macros
-        case .profile?: return .shortcuts
-        case nil: return .all
-        }
-    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -457,12 +424,9 @@ private struct CommunityFilters: View {
             .frame(height: 44)
             .background(Rectangle().fill(Swiss.background))
             .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 2))
-            HStack(spacing: -2) {
-                ForEach(Filter.allCases, id: \.self) { filter in
-                    pill(filter)
-                }
-            }
-            .fixedSize()
+            // Onglets du 11/11 (Pour toi, Abonnements, Les plus ajoutées, Les miens) à la place de Tout / Macros /
+            // Raccourcis / Les miens.
+            CommunityTabs(community: community)
             Button {
                 Task { await community.reload() }
             } label: {
@@ -474,54 +438,6 @@ private struct CommunityFilters: View {
             .accessibilityLabel("Actualiser")
         }
         .disabled(community.busy)
-    }
-
-    private func title(_ filter: Filter) -> String {
-        switch filter {
-        case .all: return String(localized: "Tout")
-        case .macros: return String(localized: "Macros")
-        case .shortcuts: return String(localized: "Raccourcis")
-        case .mine: return String(localized: "Les miens")
-        }
-    }
-
-    private func pill(_ filter: Filter) -> some View {
-        let on = current == filter
-        return Button {
-            choose(filter)
-        } label: {
-            Text(title(filter))
-                .font(Swiss.font(11.5)).tracking(1.2).textCase(.uppercase)
-                .foregroundStyle(on ? Swiss.background : Swiss.text)
-                .padding(.horizontal, 14)
-                .frame(height: 44)
-                .background(Rectangle().fill(on ? Swiss.text : Swiss.background))
-                .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 2))
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
-    }
-
-    private func choose(_ filter: Filter) {
-        switch filter {
-        case .mine:
-            guard let session = community.session else { return }
-            community.kind = nil
-            let me = CommunityMember(id: session.userID, username: session.username, shareCount: 0)
-            Task { await community.showAuthor(me) }
-        case .all, .macros, .shortcuts:
-            let kind: ShareKind?
-            switch filter {
-            case .macros: kind = .macro
-            case .shortcuts: kind = .profile
-            default: kind = nil
-            }
-            community.kind = kind
-            Task {
-                if community.author != nil { await community.showEveryone() } else { await community.reload() }
-            }
-        }
     }
 }
 
@@ -585,7 +501,11 @@ private struct CommunityShareCard: View {
                         .controlSize(.small)
                         .help("Lire la fiche, puis l'ajouter")
                 }
-                Spacer(minLength: 0)
+                Spacer(minLength: 8)
+                // 11/11 : « ★ 4,6 · Ajoutée 312 fois » (rien sans ajout ni note).
+                if let stats = CommunityStats.line(share) {
+                    Text(stats).swissLabel(Swiss.text, size: 10.5).lineLimit(1)
+                }
             }
             .padding(.top, 4)
         }
@@ -601,7 +521,7 @@ private struct CommunityShareCard: View {
         .swissContextMenu {
             var items: [RightClickMenu.Item?] = []
             if let showAuthor {
-                items.append(RightClickMenu.Item(title: String(localized: "Tous les partages de @\(share.authorName.displaySafe(max: 24))"),
+                items.append(RightClickMenu.Item(title: String(localized: "Voir la page de @\(share.authorName.displaySafe(max: 24))"),
                                                  action: showAuthor))
             }
             if !mine { items.append(RightClickMenu.Item(title: String(localized: "Signaler…"), action: report)) }
@@ -627,7 +547,12 @@ private struct CommunityShareDetail: View {
     let report: () -> Void
     /// Ferme la page posée au-dessus (10/11 : plus de feuille de macOS).
     let close: () -> Void
+    /// Rouvre la fiche (« Noter » du message qui suit l'ajout, 11/11).
+    var rateLater: () -> Void = {}
     @State private var content = Content.loading
+    /// Étoiles (11/11) : seulement si je l'ai ajouté et que ce n'est pas le mien ; ma note (nil : pas notée).
+    @State private var canRate = false
+    @State private var stars: Int?
 
     enum Content {
         case loading
@@ -652,10 +577,13 @@ private struct CommunityShareDetail: View {
                     Text(share.title.displaySafe(max: 80)).font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
                         .fixedSize(horizontal: false, vertical: true)
                     Text(CommunityText.byline(share)).font(.system(size: 12)).foregroundStyle(.secondary)
+                    if let stats = CommunityStats.line(share) {
+                        Text(stats).swissLabel(Swiss.text, size: 10.5).padding(.top, 2)
+                    }
                     if community.author?.id != share.authorID {
-                        Button("Tous les partages de @\(share.authorName.displaySafe(max: 24))") {
+                        Button("Voir la page de @\(share.authorName.displaySafe(max: 24))") {
                             close()
-                            Task { await community.showAuthor(of: share) }
+                            Task { await community.openPerson(of: share) }
                         }
                         .buttonStyle(SwissLinkButtonStyle())
                         .font(.system(size: 12))
@@ -697,6 +625,20 @@ private struct CommunityShareDetail: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             Rectangle().fill(Swiss.line).frame(height: 1)
+            // 11/11 : « Ta note », seulement après l'avoir ajouté (jamais le sien).
+            if canRate {
+                CommunityStarsRow(stars: stars) { n in
+                    let before = stars
+                    stars = n
+                    Task {
+                        let sent = await community.rate(share, stars: n)
+                        if !sent { stars = before }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                Rectangle().fill(Swiss.line).frame(height: 1)
+            }
             HStack {
                 if !mine {
                     Button("Signaler…", action: report)
@@ -716,7 +658,13 @@ private struct CommunityShareDetail: View {
         }
         .frame(width: 540)
         .frame(maxHeight: 580)
-        .task { await load() }
+        .task {
+            await load()
+            if let rating = await community.myRating(of: share) {
+                canRate = rating.added
+                stars = rating.stars
+            }
+        }
     }
 
     /// Une partie de la fiche : son titre en petites capitales souligné d'un trait fin (comme Windows), puis le texte.
@@ -806,6 +754,9 @@ private struct CommunityShareDetail: View {
             close()
             return
         }
+        // 11/11 : l'ajout compte une fois sur le serveur, et le message propose « Noter » (rouvre la fiche, étoiles).
+        let rate: (title: String, run: () -> Void)? = community.social && !mine
+            ? (String(localized: "Noter"), rateLater) : nil
         switch content {
         case .macro(let preview):
             var doc = preview.doc
@@ -814,15 +765,17 @@ private struct CommunityShareDetail: View {
             added(ToastMessage(text: String(localized: """
                 « \(doc.name.displaySafe(max: 40)) » ajoutée à tes macros : choisis-lui un raccourci \
                 dans la page Macros
-                """), undo: nil))
+                """), undo: nil, action: rate))
         case .profile(let preview):
             let model = store
             model.applyImport(preview)
             added(ToastMessage(text: String(localized: "Raccourcis de @\(share.authorName.displaySafe(max: 24)) en place"),
-                               undo: { model.undoReplace() }))
+                               undo: { model.undoReplace() }, action: rate))
         case .loading, .failed:
             return
         }
+        let counted = share
+        Task { await community.recordAdd(counted) }
         close()
     }
 }
