@@ -117,7 +117,10 @@ internal static class MacroRecorder
         var rightWas = Down(RightButton);
         (int X, int Y, List<FlWin> Windows)? pressed = null;                          // bouton gauche appuyé dans FL
         FlScreen.Shot? pressedShot = null;
+        List<(FlWin Window, IReadOnlyList<TextItem>? Items, FlScreen.Shot? Image)>? pressedMenus = null;
         var shots = new List<(int Index, FlScreen.Shot Shot, int X, int Y)>();       // lus à la fin (nom du bouton)
+        // Clics dans un menu de FL : les menus ouverts copiés au clic, lus à la fin (SmartClicks, comme le Mac).
+        var menus = new List<(int Index, List<(FlWin Window, IReadOnlyList<TextItem>? Items, FlScreen.Shot? Image)> Open, int X, int Y)>();
         var ignored = 0;
         string? why = null;
         while (!_stop)
@@ -142,6 +145,7 @@ internal static class MacroRecorder
                 {
                     pressed = (p.X, p.Y, windows);
                     pressedShot = ShotAt(p.X, p.Y, windows);
+                    pressedMenus = MenusAt(p.X, p.Y, windows);
                 }
                 else if (!isUs(RootAt(p))) ignored++;
             }
@@ -153,8 +157,10 @@ internal static class MacroRecorder
                 inputs.Add(new RecordedInput.Click(down.X, down.Y, false, down.Windows, release));
                 Interlocked.Increment(ref _count);
                 if (pressedShot is { } shot) shots.Add((inputs.Count - 1, shot, down.X, down.Y));
+                if (pressedMenus is { } open && release is null) menus.Add((inputs.Count - 1, open, down.X, down.Y));
                 pressed = null;
                 pressedShot = null;
+                pressedMenus = null;
             }
             leftWas = left;
             var right = Down(RightButton);
@@ -197,9 +203,43 @@ internal static class MacroRecorder
             inputs[index] = click with { Named = name };
             named++;
         }
-        AppLog.Write("MACRO", $"record: {inputs.Count} inputs, {named} named button(s), {ignored} outside FL, "
+        // Chemin de chaque clic dans un menu de FL, lu dans les menus copiés au clic (jamais journalisé).
+        var paths = 0;
+        foreach (var (index, open, x, y) in menus)
+        {
+            if (inputs[index] is not RecordedInput.Click click) continue;
+            var levels = new List<MenuSnapshot>();
+            foreach (var (w, items, image) in open)
+            {
+                var read = items ?? (image is { } shot ? FlScreen.ReadShot(shot) : null);
+                if (read is null) break;
+                levels.Add(new MenuSnapshot(w.X, w.Y, w.Width, w.Height, read));
+            }
+            if (levels.Count != open.Count || SmartClicks.MenuPath(levels, x, y) is not { } path) continue;
+            inputs[index] = click with { MenuPath = path };
+            paths++;
+        }
+        AppLog.Write("MACRO", $"record: {inputs.Count} inputs, {named} named button(s), {paths} menu path(s), {ignored} outside FL, "
                               + $"{(DateTime.UtcNow - start).TotalSeconds:0} s");
         return why;
+    }
+
+    /// Clic dans un menu de FL : les menus ouverts, du premier niveau au dernier, lus ou copiés tout de suite ; null :
+    /// pas un clic dans un menu.
+    private static List<(FlWin Window, IReadOnlyList<TextItem>? Items, FlScreen.Shot? Image)>? MenusAt(int x, int y, List<FlWin> windows)
+    {
+        var w = windows.FirstOrDefault(w => x >= w.X && x < w.X + w.Width && y >= w.Y && y < w.Y + w.Height);
+        if (w.Id == 0 || w.Role != FlWindowRole.Menu) return null;
+        var open = new List<(FlWin, IReadOnlyList<TextItem>?, FlScreen.Shot?)>();
+        // De l'arrière vers l'avant : le premier menu ouvert d'abord, celui du clic en dernier.
+        var levels = windows.Where(m => m.Role == FlWindowRole.Menu).Reverse().ToList();
+        var last = levels.FindIndex(m => m.Id == w.Id);
+        foreach (var menu in levels.Take(last + 1))
+        {
+            if (FlScreen.MenuNow((IntPtr)menu.Id) is not { } now) return null;
+            open.Add((menu, now.Items, now.Image));
+        }
+        return open;
     }
 
     /// Zone autour d'un clic dans une fenêtre de FL (pas un menu), copiée tout de suite ; null : pas une fenêtre de FL.

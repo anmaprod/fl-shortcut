@@ -6,8 +6,9 @@
 //   FL, ou le coin le plus proche d'une fenêtre de FL et sa taille. Bouton gauche relâché loin de l'appui : glisser.
 // - Bouton qui porte un nom (lu dans la fenêtre de FL au moment du clic) : retenu par ce nom, retrouvé même s'il bouge
 //   (MacroDrafts.Named, comme le Mac) ; sa place reste le repli.
+// - Titre des menus de FL (FILE, EDIT…) ou bouton « Arrangement », puis un élément de son menu : « Menu de FL › … », son
+//   raccourci ou l'option de « Cliquer sur… » (SmartClicks, comme le Mac, 11/11).
 // - Hors de FL : ignoré. Pur et testé ; l'enregistreur de l'app (Services/MacroRecorder.cs) relève les entrées.
-// Pas encore comme le Mac : un élément de menu de FL enregistré devient « Menu de FL › … » (SmartClicks).
 namespace FLShortcut.Core.Macros;
 
 /// Fin d'un glisser : où le bouton a été relâché, et les fenêtres de FL à ce moment.
@@ -18,8 +19,9 @@ public abstract record RecordedInput
 {
     /// Clic dans FL (coordonnées de l'écran), avec les fenêtres de FL juste avant lui (un menu qui se ferme au clic y est
     /// encore), de l'avant vers l'arrière. `Named` : nom du bouton cliqué, lu au moment du clic (null : pas de nom).
+    /// `MenuPath` : clic dans un menu de FL, les éléments choisis dans les menus ouverts (SmartClicks.MenuPath).
     public sealed record Click(int X, int Y, bool Right, IReadOnlyList<FlWin> Windows, RecordedRelease? Release = null,
-                               NamedHit? Named = null) : RecordedInput;
+                               NamedHit? Named = null, IReadOnlyList<string>? MenuPath = null) : RecordedInput;
 
     /// Touche tapée dans FL (jamais journalisée) ; `MenuOpen` : un menu de FL était ouvert à ce moment.
     public sealed record Key(KeyCombo Combo, bool MenuOpen) : RecordedInput;
@@ -69,8 +71,17 @@ public static class ClickSequenceCompiler
     {
         var blocks = new List<BlockBody>();
         var ignored = 0;
-        foreach (var input in inputs)
+        for (var index = 0; index < inputs.Count; index++)
         {
+            var input = inputs[index];
+            // Titre d'un menu de FL (ou « Arrangement »), puis un élément de son menu : le bloc le plus précis (Mac pareil).
+            if (input is RecordedInput.Click { Right: false, Release: null, Named: { } named } title && !SmartClicks.InMenu(title)
+                && SmartClicks.Menu(named.Label, inputs.Skip(index + 1).ToList()) is { } smart)
+            {
+                SmartClicks.Append(smart.Block, blocks);
+                index += smart.Used;
+                continue;
+            }
             switch (input)
             {
                 case RecordedInput.Key k:

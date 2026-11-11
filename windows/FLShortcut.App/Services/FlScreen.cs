@@ -71,6 +71,26 @@ internal static class FlScreen
         return read;
     }
 
+    /// Un menu ouvert de FL au moment d'un clic enregistré (SmartClicks) : ses éléments tout de suite s'il est un menu
+    /// standard de Windows, sinon son image copiée tout de suite (lue plus tard par `ReadShot`, avant qu'il se ferme) ;
+    /// null : illisible. Rien n'est gardé ni journalisé.
+    public static (IReadOnlyList<TextItem>? Items, Shot? Image)? MenuNow(IntPtr window)
+    {
+        if (ClassOf(window) == "#32768"
+            && Win32.SendMessageTimeoutW(window, Win32.MN_GETHMENU, UIntPtr.Zero, IntPtr.Zero, Win32.SMTO_ABORTIFHUNG, 100,
+                out var result) != IntPtr.Zero
+            && result != UIntPtr.Zero
+            && StandardItems((IntPtr)(long)result.ToUInt64(), IntPtr.Zero) is { Count: > 0 } standard)
+            return (standard, null);
+        if (!Win32.GetWindowRect(window, out var r) || r.Right - r.Left < 8 || r.Bottom - r.Top < 8) return null;
+        var scale = Math.Max(1.0, Win32.GetDpiForWindow(window) / 96.0);
+        return Capture(r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top) is { } pixels
+            ? (null, new Shot(r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top, pixels, scale)) : null;
+    }
+
+    /// Textes lus dans une image copiée plus tôt (`MenuNow`).
+    public static IReadOnlyList<TextItem>? ReadShot(Shot shot) => Recognize(shot.Pixels, shot.X, shot.Y, shot.Width, shot.Height);
+
     /// Textes de toute une fenêtre de FL (bouton retrouvé à son nom).
     public static IReadOnlyList<TextItem>? ReadWindow(IntPtr window)
     {
