@@ -36,11 +36,27 @@ et l'étape 7 (modèles des mails avec le code).
    (`eyJ…`) ; les deux marchent. Cette clé est publique par conception (elle est dans l'app) : ce sont les règles
    de `schema.sql` qui protègent les données. Ne mets JAMAIS la clé secrète (`sb_secret_…` ou `service_role`) dans
    l'app.
-6. **Mails (obligatoire avant d'ouvrir à tout le monde)** : sans serveur de mail à toi, Supabase n'envoie les mails
-   de confirmation et de mot de passe oublié qu'aux membres de ton organisation Supabase, et 2 par heure au plus.
-   **Authentication › Emails › SMTP Settings** : active « Custom SMTP » avec l'adresse de l'équipe (Gmail :
-   `smtp.gmail.com`, port 465, identifiant = l'adresse, mot de passe = un « mot de passe d'application » Google,
-   validation en deux étapes requise), puis **Authentication › Rate Limits** : mails par heure à ton goût.
+6. **Mails (obligatoire avant d'ouvrir à tout le monde)** : sans serveur de mail à toi, Supabase envoie 2 mails par
+   heure au plus (codes d'inscription et de mot de passe oublié), donc 2 inscriptions par heure. Avec ton serveur de
+   mail : 30 par heure au départ, et tu choisis. 10 minutes, une seule fois.
+   **Aujourd'hui, sans nom de domaine : une adresse Gmail rien que pour l'app** (gratuit, environ 500 mails par jour ;
+   jamais ton adresse perso : chaque inscrit la verrait) :
+   1. Crée un compte Gmail pour l'app (par exemple `flshortcuts.app@gmail.com`).
+   2. Dans ce compte : <https://myaccount.google.com/security> › **Validation en deux étapes** : active-la.
+   3. <https://myaccount.google.com/apppasswords> : crée un mot de passe d'application nommé `Supabase` et copie
+      les 16 lettres, sans les espaces.
+   4. Supabase, **Authentication › Emails › SMTP Settings** : active **Enable Custom SMTP**, puis :
+      Sender email = l'adresse Gmail de l'app ; Sender name = `FL Shortcuts` ; Host = `smtp.gmail.com` ;
+      Port = `465` ; Username = l'adresse Gmail de l'app ; Password = les 16 lettres. **Save changes**.
+   5. **Authentication › Rate Limits** : « Rate limit for sending emails » = `60` par heure (Gmail s'arrête vers 500
+      par jour). **Save changes**.
+   6. Fais tout de suite l'étape 7 (mails en français avec le code), puis essaie : crée un compte dans l'app avec une
+      autre adresse ; le code arrive en quelques secondes (la première fois, regarde aussi les spams).
+   **Plus tard, avec le nom de domaine du site** : le même compte Brevo que le site (domaine déjà validé dans Brevo,
+   voir le README du site), l'adresse d'envoi sur ton domaine. Seules ces cases changent : Sender email =
+   l'adresse sur ton domaine ; Host = `smtp-relay.brevo.com` ; Port = `587` ; Username et Password = l'identifiant
+   et la clé de **Brevo › SMTP & API › SMTP** (pas la clé API). 300 mails par jour pour le site et l'app ensemble.
+   Si Google bloque l'adresse Gmail avant, passe à Brevo de la même façon.
 7. **Mails en français, au nom de FL Shortcuts, avec un code** (après l'étape 6 : sans serveur de mail à soi, les
    nouveaux projets gratuits ne peuvent pas modifier les modèles). **Authentication › Emails › Templates** :
    - « Confirm signup » : sujet `Ton code FL Shortcuts : {{ .Token }}`, message : tout `supabase/mails/confirmation.html` ;

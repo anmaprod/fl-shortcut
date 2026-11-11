@@ -981,3 +981,15 @@ entrée 1 ≈ 0,5 s.
   trouvés en plus côté Windows (Organiser) : pré-master du Mixer, têtes et groupes de familles dans la Playlist et
   icônes retirées, icônes de FL des familles, corrections « Pas content ? » des sons rangés par leur nom ; macros :
   élément de menu de FL enregistré → « Menu de FL › … ». Proposés au propriétaire.
+- 11/11 : nouvelle Communauté (suivre des gens, page d'une personne, « Ajoutée N fois », étoiles par macro) en
+  conception : écrans et serveur validés, l'app à valider. Bêta avec limites (« une version bêta… je veux pas que ça
+  devienne payant pour moi… ça bloque les créations de comptes… un compte sur un seul ordinateur ») MISE DE CÔTÉ par le
+  propriétaire (« mets ce que je viens de te dire de côté et continue la communauté »). Choix déjà faits, pour plus
+  tard : 1 000 comptes au plus (le plan gratuit de Supabase se bloque, il ne facture jamais ; téléchargements de GitHub
+  illimités), puis liste d'attente ; garde-fou vers 450 Mo de base ; un compte = un ordinateur, changement
+  d'ordinateur sans limite ; photos gardées sur l'ordinateur (ce qui pèse le plus en envoi) ; serveur de mail à soi
+  d'abord.
+- 11/11 (2) : « seulement… deux envois de mail par heure, ça faudrait qu'on règle » : limite de Supabase sans serveur
+  de mail à soi (2 inscriptions par heure). Rien à changer dans l'app : étape 6 de `supabase/README.md` réécrite pas à
+  pas (adresse Gmail rien que pour l'app, mot de passe d'application, 60 mails par heure ; plus tard Brevo avec le
+  domaine du site, 300 par jour). À FAIRE PAR LE PROPRIÉTAIRE dans Supabase.

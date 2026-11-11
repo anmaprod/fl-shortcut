@@ -783,6 +783,9 @@
   (99 €/an) → notarisation, plus de « Ouvrir quand même » (build.sh est prêt : SIGN_IDENTITY, NOTARY_*).
 - Aussi : « Nouvelle version disponible » dans l'app, page de téléchargement à jour (`site/index.html` dit encore
   « n'utilise pas le réseau ») avec guide en images pour « Ouvrir quand même ».
+- Mails du compte : 2 par heure (donc 2 inscriptions) tant que le propriétaire n'a pas fait l'étape 6 de
+  `supabase/README.md` (11/11 : Gmail rien que pour l'app, 60 par heure ; plus tard Brevo avec le domaine du site).
+  Bêta limitée (1 000 comptes, un compte = un ordinateur) mise de côté le 11/11 : choix dans HISTORIQUE.
 
 ## Pas encore vérifié sur le vrai FL
 - Lien seulement pendant l'Organiser (01/11) : FL voit-il « FL Shortcuts Link » apparaître après « Démarrer » et y
