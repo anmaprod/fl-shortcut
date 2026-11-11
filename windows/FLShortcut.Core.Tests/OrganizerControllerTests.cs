@@ -308,7 +308,9 @@ public sealed class OrganizerControllerTests
         };
         var controller = new OrganizerController(env);
         controller.Start();
-        Assert.Equal(new[] { 1, 2 }, controller.Correctable.Select(i => i.Index));
+        // Tous les sons (comme le Mac) : les écoutés (1, 2) et ceux qui ne l'ont pas été (3, 4 : retenus par leur nom).
+        Assert.Equal(new[] { 1, 2, 3, 4 }, controller.Correctable.Select(i => i.Index));
+        Assert.Null(controller.Correctable.Single(i => i.Index == 3).SoundPrint);
         controller.SetKind(2, SoundKind.Bass808);
         controller.Apply();
         Assert.Equal(1, controller.Learned);
@@ -320,8 +322,10 @@ public sealed class OrganizerControllerTests
         feedback.Reasons.Add(OrganizerFeedback.Reason.Kind);
         feedback.Reasons.Add(OrganizerFeedback.Reason.Playlist);
         feedback.Fixes[1] = new OrganizerFeedback.Fix(SoundFamily.Drums, SoundKind.Snare);
+        feedback.Fixes[3] = new OrganizerFeedback.Fix(SoundFamily.Fx, null);          // pas écouté : retenu par son nom
         controller.SubmitFeedback(feedback);
-        Assert.Equal(2, controller.Learned);
+        Assert.Equal(3, controller.Learned);
+        Assert.Equal(SoundFamily.Fx, store.ChercheNom("Son 3")?.Famille);
         Assert.True(store.Partage);
         Assert.False(controller.CanGiveFeedback);
         var body = Assert.Single(shared);

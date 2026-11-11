@@ -10,6 +10,10 @@ namespace FLShortcut.Core.Organizer;
 /// Un son corrigé, gardé sur ce PC : son empreinte et la bonne réponse.
 public sealed record CorrectionIA(float[] Empreinte, SoundFamily Famille, SoundKind? Sorte, DateTimeOffset Date);
 
+/// Un son rangé d'après son nom puis corrigé (« Pas content ? ») : son nom codé (empreinte SHA-256, jamais le nom) et
+/// la bonne réponse ; gardé sur ce PC seulement, jamais envoyé (règle « corrige-nom », comme le Mac).
+public sealed record CorrectionNom(string Cle, SoundFamily Famille, SoundKind? Sorte, DateTimeOffset Date);
+
 public sealed class CorrectionsIA
 {
     /// Ressemblance (cosinus des empreintes) à partir de laquelle c'est le même son (ou presque).
@@ -24,13 +28,18 @@ public sealed class CorrectionsIA
     private readonly Action<bool?> _setShare;
     private readonly Action<string, byte[]> _write;
     private readonly Func<string, byte[]?> _read;
+    private readonly string _pathNoms;
     private readonly object _gate = new();
     private List<CorrectionIA>? _cache;
+    private List<CorrectionNom>? _cacheNoms;
 
-    /// `write` : écriture sûre (fichier 0600, atomique) ; `read` : lecture bornée ; `share` : l'accord gardé.
-    public CorrectionsIA(string path, Func<bool?> getShare, Action<bool?> setShare, Action<string, byte[]> write, Func<string, byte[]?> read)
+    /// `write` : écriture sûre (fichier 0600, atomique) ; `read` : lecture bornée ; `share` : l'accord gardé ;
+    /// `noms` : le fichier des corrections par nom (par défaut « corrections-noms.json » à côté de `path`).
+    public CorrectionsIA(string path, Func<bool?> getShare, Action<bool?> setShare, Action<string, byte[]> write, Func<string, byte[]?> read,
+        string? noms = null)
     {
         _path = path;
+        _pathNoms = noms ?? Path.Combine(Path.GetDirectoryName(path) ?? "", "corrections-noms.json");
         _getShare = getShare;
         _setShare = setShare;
         _write = write;
@@ -65,6 +74,87 @@ public sealed class CorrectionsIA
             try { _write(_path, System.Text.Encoding.UTF8.GetBytes(Encode(toutes))); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
         }
+    }
+
+    /// La correction d'un son rangé d'après ce nom, s'il y en a une.
+    public CorrectionNom? ChercheNom(string nom)
+    {
+        if (Cle(nom) is not { } cle) return null;
+        lock (_gate) return ListeNoms().LastOrDefault(c => c.Cle == cle);
+    }
+
+    /// Un son rangé d'après son nom, corrigé : gardé sur ce PC (son nom codé) ; le même nom prend la nouvelle réponse.
+    /// Faux si le nom ne peut pas servir (vide, ou un nom que l'Organiser a donné : « Mélodie 3 »), ou « À vérifier ».
+    public bool AjouteNom(string nom, SoundFamily famille, SoundKind? sorte)
+    {
+        if (Cle(nom) is not { } cle || famille == SoundFamily.Unsure) return false;
+        lock (_gate)
+        {
+            var toutes = ListeNoms().Where(c => c.Cle != cle).ToList();
+            toutes.Add(new CorrectionNom(cle, famille, sorte, DateTimeOffset.UtcNow));
+            if (toutes.Count > Maximum) toutes.RemoveRange(0, toutes.Count - Maximum);
+            _cacheNoms = toutes;
+            try { _write(_pathNoms, System.Text.Encoding.UTF8.GetBytes(EncodeNoms(toutes))); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+        }
+        return true;
+    }
+
+    /// Pur (testé) : le nom codé (majuscules et espaces en trop ignorés), le même que le Mac ; null pour un nom vide ou
+    /// donné par l'Organiser.
+    public static string? Cle(string nom)
+    {
+        var propre = string.Join(' ', nom.ToLowerInvariant().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        if (propre.Length == 0 || SoundNames.IsGenerated(nom)) return null;
+        var hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("fls-nom:" + propre));
+        return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private List<CorrectionNom> ListeNoms()
+    {
+        if (_cacheNoms is not null) return _cacheNoms;
+        List<CorrectionNom> lues;
+        try { lues = _read(_pathNoms) is { } data ? DecodeNoms(System.Text.Encoding.UTF8.GetString(data)) : new List<CorrectionNom>(); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { lues = new List<CorrectionNom>(); }
+        _cacheNoms = lues;
+        return lues;
+    }
+
+    /// Même forme que le fichier du Mac : [{"cle": "…", "famille": "drums", "sorte": "kick", "date": …}].
+    public static string EncodeNoms(IEnumerable<CorrectionNom> list)
+    {
+        var array = new JsonArray();
+        foreach (var c in list)
+        {
+            var o = new JsonObject
+            {
+                ["cle"] = c.Cle,
+                ["famille"] = c.Famille.Raw(),
+                ["date"] = (c.Date - new DateTimeOffset(2001, 1, 1, 0, 0, 0, TimeSpan.Zero)).TotalSeconds,
+            };
+            if (c.Sorte is { } s) o["sorte"] = s.Raw();
+            array.Add(o);
+        }
+        return array.ToJsonString();
+    }
+
+    public static List<CorrectionNom> DecodeNoms(string json)
+    {
+        var out_ = new List<CorrectionNom>();
+        try
+        {
+            if (JsonNode.Parse(json) is not JsonArray array) return out_;
+            foreach (var node in array)
+            {
+                if (node is not JsonObject o || o["cle"]?.GetValue<string>() is not { Length: > 0 } cle) continue;
+                if (o["famille"]?.GetValue<string>() is not { } f || SoundFamilies.FamilyFromRaw(f) is not { } famille) continue;
+                var sorte = o["sorte"]?.GetValue<string>() is { } s ? SoundKinds.KindFromRaw(s) : null;
+                var seconds = o["date"]?.GetValue<double>() ?? 0;
+                out_.Add(new CorrectionNom(cle, famille, sorte, new DateTimeOffset(2001, 1, 1, 0, 0, 0, TimeSpan.Zero).AddSeconds(seconds)));
+            }
+        }
+        catch (Exception x) when (x is System.Text.Json.JsonException or InvalidOperationException or FormatException) { }
+        return out_;
     }
 
     private List<CorrectionIA> Liste()

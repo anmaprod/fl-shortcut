@@ -69,6 +69,8 @@ public sealed class OrganizerSession
     private readonly Action<double> _sleep;
     private readonly Func<bool> _escape;
     private readonly Action<int, int> _progress;
+    /// Un son de ce nom déjà corrigé avec « Pas content ? » (CorrectionsIA.ChercheNom) : sa famille et sa sorte.
+    private readonly Func<string, (SoundFamily Family, SoundKind? Kind)?>? _namedFix;
     private readonly object _gate = new();
     private bool _stopped;
     private readonly OrganizerDiagnostics _diag = new();
@@ -80,8 +82,9 @@ public sealed class OrganizerSession
     public OrganizerSession(IOrganizerLink link, IAudioSource audio, Classify classify, ProjectFileAccess files,
         NameDrum? nameDrum = null, NameMelody? nameMelody = null, NameKind? nameKind = null, Fingerprint? fingerprint = null,
         Timing? timing = null, Action<double>? sleep = null, Func<bool>? escape = null, SoundFile? soundFile = null,
-        Action<int, int>? progress = null)
+        Action<int, int>? progress = null, Func<string, (SoundFamily Family, SoundKind? Kind)?>? namedFix = null)
     {
+        _namedFix = namedFix;
         _link = link;
         _audio = audio;
         _classify = classify;
@@ -272,6 +275,17 @@ public sealed class OrganizerSession
         var toListen = new List<ChannelInfo>();
         foreach (var channel in targets)
         {
+            // Un son de ce nom déjà corrigé (« Pas content ? ») : rangé comme la personne l'a dit, avant tout le reste.
+            if (_namedFix?.Invoke(channel.Name) is { } fix)
+            {
+                byIndex[channel.Index] = new OrganizerItem
+                {
+                    Index = channel.Index, Name = channel.Name, Family = fix.Family, Confidence = NameConfidence, TestNotes = false,
+                    MixerTrack = channel.MixerTrack, Color = channel.Color, Kind = fix.Kind, ByName = true,
+                };
+                Note(d => d.Rules.Add($"c{channel.Index}:corrige-nom"));
+                continue;
+            }
             // Le nom du canal, sinon celui de son fichier de son.
             var named = SoundNames.IsGenerated(channel.Name) ? null : SoundNames.KindOf(channel.Name);
             var kind = named ?? (hints.TryGetValue(channel.Index, out var hint) ? SoundNames.KindOf(hint) : null);

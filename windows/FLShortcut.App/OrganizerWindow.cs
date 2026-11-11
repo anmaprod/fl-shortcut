@@ -1284,16 +1284,12 @@ internal sealed class OrganizerWindow : Window
         if (await dialog.ShowAsync() == ContentDialogResult.Primary) _controller.SubmitFeedback(feedback);
     }
 
-    /// Les sons écoutés : pour chacun mal rangé, sa bonne famille ou sorte (mêmes choix que l'aperçu).
+    /// Tous les sons (comme le Mac) : pour chacun mal rangé, sa bonne famille ou sorte (mêmes choix que l'aperçu).
     private void FeedbackSounds(StackPanel body, OrganizerFeedback feedback, System.Action rebuild)
     {
         body.Children.Add(Label(Loc.T("Quels sons étaient mal rangés ?"), 13, Text, semibold: true));
         var correctable = _controller.Correctable;
-        if (correctable.Count == 0)
-        {
-            body.Children.Add(Paragraph(Loc.T("Aucun son n'a été écouté : tous ont été rangés d'après leur nom. Change leur nom dans FL."), 12));
-            return;
-        }
+        if (correctable.Count == 0) return;
         foreach (var item in correctable)
         {
             var chosen = feedback.Fixes.TryGetValue(item.Index, out var fix) ? fix : (OrganizerFeedback.Fix?)null;
@@ -1332,7 +1328,7 @@ internal sealed class OrganizerWindow : Window
             row.Children.Add(mark);
             body.Children.Add(row);
         }
-        body.Children.Add(Note(Loc.T("Les sons rangés d'après leur nom n'y sont pas : l'IA ne les a pas écoutés.")));
+        body.Children.Add(Note(Loc.T("Un son rangé d'après son nom : ta réponse est retenue pour ce nom, sur ce PC.")));
     }
 
     // ---------- Fichier et dossier montrés ----------

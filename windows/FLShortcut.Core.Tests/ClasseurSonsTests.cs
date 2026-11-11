@@ -243,6 +243,30 @@ public class ClasseurSonsTests
         return v.Select(x => x / MathF.Sqrt(2)).ToArray();
     }
 
+    /// Un son rangé d'après son nom puis corrigé (« Pas content ? », comme le Mac) : retenu par son nom codé (jamais en
+    /// clair dans le fichier, la même clé que le Mac), majuscules et espaces en trop ignorés ; jamais un nom donné par
+    /// l'Organiser, un nom vide ni « À vérifier » ; le même nom prend la dernière réponse.
+    [Fact]
+    public void CorrectionsParNom()
+    {
+        using var m = new Magasin();
+        var store = m.Ouvrir();
+        Assert.True(store.AjouteNom("art kick - a31", SoundFamily.Drums, SoundKind.Kick));
+        Assert.Equal(SoundKind.Kick, store.ChercheNom("Art  Kick - A31 ")?.Sorte);
+        Assert.Null(store.ChercheNom("art kick - a32"));
+        Assert.False(store.AjouteNom(SoundKind.Snare.Name() + " 3", SoundFamily.Drums, SoundKind.Snare));   // nom donné par l'Organiser
+        Assert.False(store.AjouteNom("  ", SoundFamily.Melody, null));
+        Assert.False(store.AjouteNom("Mystere", SoundFamily.Unsure, null));
+        store.AjouteNom("art kick - a31", SoundFamily.Fx, null);
+        Assert.Equal(SoundFamily.Fx, m.Ouvrir().ChercheNom("art kick - a31")?.Famille);      // gardée dans le fichier, la dernière
+        var texte = File.ReadAllText(Path.Combine(m.Dossier, "corrections-noms.json"));
+        Assert.DoesNotContain("kick", texte.ToLowerInvariant());                              // jamais le nom en clair
+        Assert.Equal(CorrectionsIA.Cle("A  b"), CorrectionsIA.Cle("a b"));
+        Assert.NotEqual(CorrectionsIA.Cle("a b"), CorrectionsIA.Cle("a c"));
+        // La même clé que le Mac (SHA-256 de « fls-nom: » + le nom propre) : un fichier passe de l'un à l'autre.
+        Assert.Equal("0c8ab48177c3c2b1aeb6c82151b413a0253179d9d1bf0bbe7e5ad1c21995cdc3", CorrectionsIA.Cle("Art Kick - A31"));
+    }
+
     /// Les corrections restent sur ce PC (relues au lancement suivant) ; seul un son presque identique est retrouvé ; un
     /// même son corrigé deux fois garde la dernière réponse ; 500 au plus.
     [Fact]

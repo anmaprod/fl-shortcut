@@ -242,7 +242,11 @@ public sealed class OrganizerController
             (done, total) => _env.Post(() =>
             {
                 if (_runToken == token) Listening(done, total);
-            }));
+            }),
+            // Un son de ce nom déjà corrigé avec « Pas content ? » : rangé comme la personne l'a dit (comme le Mac).
+            _env.Corrections() is { } store
+                ? name => store.ChercheNom(name) is { } fix ? (fix.Famille, fix.Sorte) : null
+                : null);
         _link = link;
         _session = session;
         if (!quiet) SetPhase(new OrganizerPhase.Listening(0, 0));
@@ -720,8 +724,9 @@ public sealed class OrganizerController
 
     // ---------- L'IA apprend de ses erreurs ----------
 
-    /// Sons écoutés que l'on peut corriger (ceux classés d'après leur nom n'ont pas été écoutés).
-    public List<OrganizerItem> Correctable => (Result?.Items ?? new List<OrganizerItem>()).Where(i => i.SoundPrint is not null).ToList();
+    /// Tous les sons (comme le Mac, vidéo du 30/10 : « il devrait y avoir la liste de tous les sons ») : un son écouté
+    /// est retenu par son empreinte, un son rangé d'après son nom par son nom (codé, jamais envoyé).
+    public List<OrganizerItem> Correctable => Result?.Items.ToList() ?? new List<OrganizerItem>();
 
     /// « Pas content ? » : après l'application, une fois.
     public bool CanGiveFeedback => Phase is OrganizerPhase.Applied && Result is not null && !FeedbackSent;
@@ -734,7 +739,13 @@ public sealed class OrganizerController
         var count = 0;
         foreach (var item in result.Items)
         {
-            if (!fixes.TryGetValue(item.Index, out var fix) || fix.Family == SoundFamily.Unsure || item.SoundPrint is not { } heard) continue;
+            if (!fixes.TryGetValue(item.Index, out var fix) || fix.Family == SoundFamily.Unsure) continue;
+            if (item.SoundPrint is not { } heard)
+            {
+                // Pas écouté (rangé d'après son nom, ou muet) : retenu d'après son nom, sur ce PC seulement.
+                if (store.AjouteNom(item.Name, fix.Family, fix.Kind)) count++;
+                continue;
+            }
             store.Ajoute(new CorrectionIA(heard.Empreinte, fix.Family, fix.Kind, DateTimeOffset.UtcNow));
             count++;
             if (store.Partage == true
