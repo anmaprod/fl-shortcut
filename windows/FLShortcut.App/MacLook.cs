@@ -344,6 +344,7 @@ internal static class MacLook
         "doc.text.fill" => new[] { new Part("M3.5,1.5 H9 L12.5,5 V14.5 H3.5 Z"), new Part("M5.6,8 H10.4 M5.6,10.6 H10.4", false, 1.1, true) },
         "line.3.horizontal" => new[] { new Part("M2.5,4.5 H13.5 M2.5,8 H13.5 M2.5,11.5 H13.5", false, 1.6) },
         "arrow.right" => new[] { new Part("M2.5,8 H13 M9,4 L13,8 L9,12", false, 1.6) },
+        "arrow.left" => new[] { new Part("M13.5,8 H3 M7,4 L3,8 L7,12", false, 1.6) },
         "chevron.down" => new[] { new Part("M3.5,6 L8,10.5 L12.5,6", false, 1.8) },
         "chevron.right" => new[] { new Part("M6,3.5 L10.5,8 L6,12.5", false, 1.8) },
         "music.note" => new[] { new Part("M6.5,12 V2.6 L13,1.6 V10.4", false, 1.4), new Part(Circle(4.6, 12.2, 2)), new Part(Circle(11.1, 10.6, 2)) },

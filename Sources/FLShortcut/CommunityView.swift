@@ -488,6 +488,10 @@ private struct CommunityShareCard: View {
                 .font(.system(size: 12.5))
                 .foregroundStyle(Swiss.soft)
                 .lineLimit(2, reservesSpace: true)
+            // 11/11 : « ★ 4,6 · Ajoutée 312 fois » sur sa ligne (rien sans ajout ni note ; à côté des boutons, il était coupé).
+            if let stats = CommunityStats.line(share) {
+                Text(stats).swissLabel(Swiss.text, size: 10.5).lineLimit(1)
+            }
             HStack(spacing: 0) {
                 Button("Voir", action: open)
                     .secondaryButton()
@@ -501,11 +505,7 @@ private struct CommunityShareCard: View {
                         .controlSize(.small)
                         .help("Lire la fiche, puis l'ajouter")
                 }
-                Spacer(minLength: 8)
-                // 11/11 : « ★ 4,6 · Ajoutée 312 fois » (rien sans ajout ni note).
-                if let stats = CommunityStats.line(share) {
-                    Text(stats).swissLabel(Swiss.text, size: 10.5).lineLimit(1)
-                }
+                Spacer(minLength: 0)
             }
             .padding(.top, 4)
         }

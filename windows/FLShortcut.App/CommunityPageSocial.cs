@@ -672,20 +672,15 @@ internal sealed partial class CommunityPage
         return row;
     }
 
-    /// Bas d'une carte : « Voir » et l'action à gauche, « ★ 4,6 · Ajoutée 312 fois » à droite.
+    /// Bas d'une carte : « ★ 4,6 · Ajoutée 312 fois » sur sa ligne, puis « Voir » et l'action (à côté des boutons, il
+    /// était coupé dans une carte étroite ; comme le Mac).
     private static FrameworkElement WithStats(FrameworkElement actions, Share share)
     {
         if (CommunityStats.Line(share) is not { } stats) return actions;
-        var bottom = new Grid { ColumnSpacing = 8, Margin = actions.Margin };
+        var bottom = new StackPanel { Spacing = 10, Margin = actions.Margin };
         actions.Margin = new Thickness(0);
-        bottom.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        bottom.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        bottom.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        bottom.Children.Add(SwissLabel(stats, 10.5, Text));
         bottom.Children.Add(actions);
-        var label = SwissLabel(stats, 10.5, Text);
-        label.VerticalAlignment = VerticalAlignment.Center;
-        Grid.SetColumn(label, 2);
-        bottom.Children.Add(label);
         return bottom;
     }
 
