@@ -753,8 +753,16 @@ public class OrganizerApplyTests
         var layout = plan.Layout!;
         Assert.Empty(plan.Splits);
         Assert.Empty(plan.Playlist.Moves);
-        Assert.Equal(5, layout.Count);
-        Assert.Equal(new Dictionary<int, int> { [0] = 0, [4] = 0, [2] = 1, [6] = 1, [7] = 2, [1] = 3, [5] = 3, [3] = 4 }, layout.Tracks);
+        // Une piste de tête par famille (02/11, comme le Mac), à son nom, ses pistes groupées dessous : Mélodies, Basse,
+        // Drums (Kick, Snare), puis le pattern vide en bas.
+        Assert.Equal(8, layout.Count);
+        Assert.Equal(new Dictionary<int, int> { [0] = 1, [4] = 1, [2] = 3, [6] = 3, [7] = 5, [1] = 6, [5] = 6, [3] = 7 }, layout.Tracks);
+        Assert.Equal(new[] { 0, 2, 4 }, layout.Headers.Keys.OrderBy(t => t));
+        Assert.Equal(new[] { 1, 3, 5, 6 }, layout.Grouped.OrderBy(t => t));
+        Assert.Equal(SoundFamily.Melody.Label(), plan.Playlist.Names[0]);
+        Assert.Equal(SoundFamily.Bass.Label(), plan.Playlist.Names[2]);
+        Assert.Equal(SoundFamily.Drums.Label(), plan.Playlist.Names[4]);
+        Assert.Equal(plan.Playlist.Colors[4], plan.Playlist.Colors[5]);             // la tête à la couleur de sa famille
 
         var outcome = applier.Apply(plan, result, Initial());
         Assert.Null(outcome.Error);
@@ -814,12 +822,12 @@ public class OrganizerApplyTests
             Project = ProjectFile.Snapshot(project, "C:/projets/Voix.flp", new HashSet<int>()),
         };
         var layout = Plan(result, options: new OrganizerOptions { Rack = false, Patterns = false, Mixer = false }).Layout!;
-        Assert.Equal(new Dictionary<int, int> { [3] = 0, [0] = 1, [1] = 1, [2] = 2, [4] = 3, [5] = 3 }, layout.Tracks);
-        Assert.Equal(4, layout.Count);
-        Assert.Equal(new[] { 3 }, layout.Sounds[0]);
-        Assert.Equal(new[] { 0, 1 }, layout.Sounds[1].OrderBy(x => x));
+        Assert.Equal(new Dictionary<int, int> { [3] = 1, [0] = 2, [1] = 2, [2] = 3, [4] = 5, [5] = 5 }, layout.Tracks);
+        Assert.Equal(6, layout.Count);                                            // une piste de tête pour les voix, une pour les guitares
+        Assert.Equal(new[] { 3 }, layout.Sounds[1]);
         Assert.Equal(new[] { 0, 1 }, layout.Sounds[2].OrderBy(x => x));
-        Assert.Equal(new[] { 2, 4 }, layout.Sounds[3].OrderBy(x => x));
+        Assert.Equal(new[] { 0, 1 }, layout.Sounds[3].OrderBy(x => x));
+        Assert.Equal(new[] { 2, 4 }, layout.Sounds[5].OrderBy(x => x));
     }
 
     /// Le projet a changé depuis l'analyse, ou FL n'ouvre pas la copie : rien n'est touché dans FL.

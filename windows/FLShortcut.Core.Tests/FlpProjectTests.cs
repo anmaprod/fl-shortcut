@@ -217,12 +217,55 @@ public class FlpProjectTests
         var project = new FlpProject(Sample());
         var melody = new HashSet<int> { 2 };
         var layout = PlaylistLayout.Make(project.Clips, Group(project), s => (s.IsSubsetOf(melody) ? 0 : 1, 0, s.Min()), project.TrackCount)!;
-        Assert.Equal(new Dictionary<int, int> { [0] = 0, [2] = 0, [1] = 2, [3] = 2, [5] = 1, [4] = 3 }, layout.Tracks);
-        Assert.Equal(new[] { 0, 1, 2 }, layout.Sounds.Keys.OrderBy(k => k));
-        Assert.Equal(new[] { 2 }, layout.Sounds[0]);
-        Assert.Equal(new[] { 1 }, layout.Sounds[1]);
-        Assert.Equal(new[] { 3, 4 }, layout.Sounds[2].OrderBy(x => x));
-        Assert.Equal(4, layout.Count);
+        // 02/11 (comme le Mac) : une piste de tête vide par famille (0 : mélodie, 2 : drums), ses pistes groupées dessous.
+        Assert.Equal(new Dictionary<int, int> { [0] = 0, [2] = 1 }, layout.Headers);
+        Assert.Equal(new Dictionary<int, int> { [0] = 1, [2] = 1, [1] = 4, [3] = 4, [5] = 3, [4] = 5 }, layout.Tracks);
+        Assert.Equal(new[] { 1, 3, 4 }, layout.Sounds.Keys.OrderBy(k => k));
+        Assert.Equal(new[] { 2 }, layout.Sounds[1]);
+        Assert.Equal(new[] { 1 }, layout.Sounds[3]);
+        Assert.Equal(new[] { 3, 4 }, layout.Sounds[4].OrderBy(x => x));
+        Assert.Equal(6, layout.Count);
+        Assert.Equal(new[] { 1, 3, 4 }, layout.Grouped.OrderBy(t => t));      // le pattern vide à part
+    }
+
+    /// 02/11 (comme le Mac) : la piste de tête est remise à neuf dans la copie comme les pistes des clips : plus
+    /// l'ancien nom, la couleur ni l'icône ; plus aucune icône nulle part dans la Playlist rangée.
+    [Fact]
+    public void HeaderTrackIsResetInTheCopy()
+    {
+        var file = Sample(trackNames: new Dictionary<int, string> { [6] = "Vieux nom" });
+        var tracks = Enumerable.Range(0, file.Events.Count).Where(i => file.Events[i].Id == 238).ToList();
+        var old = Track(7, color: 0x00FF00);
+        FlpBytes.Put(12u, old.Bytes, FlpProject.TrackIcon, 4);
+        file.Events[tracks[6]] = old;
+        var empty = Track(11);                                                    // une piste vide du bas, avec icône
+        FlpBytes.Put(5u, empty.Bytes, FlpProject.TrackIcon, 4);
+        file.Events[tracks[10]] = empty;
+        var project = new FlpProject(file);
+        var copy = project.Rearranged(file, new Dictionary<int, int>(), headers: new HashSet<int> { 6 });
+        var header = copy.Events.Where(e => e.Id == 238).ElementAt(6);
+        Assert.Equal(0x404040u, FlpBytes.UInt(header.Bytes, 4, 4));
+        Assert.Equal(0u, FlpBytes.UInt(header.Bytes, FlpProject.TrackIcon, 4));
+        Assert.Equal(new uint[] { 0 }, copy.Events.Where(e => e.Id == 238).Select(e => FlpBytes.UInt(e.Bytes, FlpProject.TrackIcon, 4)).Distinct());
+        Assert.DoesNotContain(copy.Events, e => e.Id == 239 && e.Text == "Vieux nom");
+        Assert.Equal("clips", Fails(() => project.Rearranged(file, new Dictionary<int, int>(), headers: new HashSet<int> { 12 })).What);
+    }
+
+    /// 01/11 (comme le Mac) : un groupe (la flèche de FL) par famille, jamais les groupes de l'ancien projet ; une piste
+    /// « à vérifier » n'est jamais groupée ni sous une piste de tête.
+    [Fact]
+    public void EachFamilyIsGroupedUnderItsFirstTrack()
+    {
+        var file = Sample();
+        var tracks = Enumerable.Range(0, file.Events.Count).Where(i => file.Events[i].Id == 238).ToList();
+        foreach (var old in new[] { 1, 5, 9 }) file.Events[tracks[old]].Bytes[FlpProject.TrackGrouped] = 1;   // groupes d'avant
+        var project = new FlpProject(file);
+        var copy = project.Rearranged(file, new Dictionary<int, int> { [0] = 0, [2] = 0, [1] = 2, [3] = 2, [5] = 1, [4] = 3 },
+            grouped: new HashSet<int> { 2 });
+        Assert.Equal(new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, copy.Events.Where(e => e.Id == 238).Select(e => e.Bytes[FlpProject.TrackGrouped]));
+        var unsure = PlaylistLayout.Make(project.Clips, Group(project), _ => (int.MaxValue, 0, 0), project.TrackCount)!;
+        Assert.Empty(unsure.Grouped);
+        Assert.Empty(unsure.Headers);
     }
 
     [Fact]
@@ -231,10 +274,10 @@ public class FlpProjectTests
         var clips = new List<ClipSpec> { P(1, 0, 1, bars: 8), P(1, 3, 5), P(1, 2, 9), P(3, 1, 1) };
         var project = new FlpProject(Sample(clips: clips));
         var layout = PlaylistLayout.Make(project.Clips, Group(project), s => (0, 0, s.Min()), project.TrackCount)!;
-        Assert.Equal(new Dictionary<int, int> { [3] = 0, [0] = 1, [2] = 1, [1] = 2 }, layout.Tracks);
-        Assert.Equal(new[] { 1 }, layout.Sounds[0]);
-        Assert.Equal(new[] { 2 }, layout.Sounds[1]);
+        Assert.Equal(new Dictionary<int, int> { [3] = 1, [0] = 2, [2] = 2, [1] = 3 }, layout.Tracks);   // celui qui chevauche passe dessous
+        Assert.Equal(new[] { 1 }, layout.Sounds[1]);
         Assert.Equal(new[] { 2 }, layout.Sounds[2]);
+        Assert.Equal(new[] { 2 }, layout.Sounds[3]);
         Assert.Null(PlaylistLayout.Make(project.Clips, Group(project), s => (0, 0, s.Min()), 2));
     }
 

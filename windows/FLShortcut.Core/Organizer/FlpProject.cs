@@ -59,8 +59,13 @@ public sealed class FlpProject
     public static readonly int[] ItemSizes = { 88, 60, 32 };
     /// Écrit dans chaque clip devant son numéro : au-delà, un pattern ; en dessous, un canal.
     public const int PatternBase = 0x5000;
+    /// Dans une piste (238) : son icône (4 octets, 0 = aucune ; `icon` de PyFLP).
+    public const int TrackIcon = 8;
     /// Dans une piste (238) : 1 à cette place si elle joue, 0 si elle est coupée.
     public const int TrackEnabled = 12;
+    /// Dans une piste (238) : 1 à cette place si elle est groupée avec la piste du dessus (« Group with above track »
+    /// de FL, la flèche qui replie le groupe ; `grouped` de PyFLP).
+    public const int TrackGrouped = 46;
     /// Type d'un layer dans le fichier.
     public const int LayerType = 3;
 
@@ -365,10 +370,17 @@ public sealed class FlpProject
 
     /// La copie rangée : chaque clip sur sa nouvelle piste (`tracks` : rang du clip → piste, 0 = piste 1). Les pistes
     /// où il y a des clips, avant ou après, perdent leur nom, reprennent la couleur des pistes jamais touchées et
-    /// jouent. Un clip sur une piste coupée arrête tout (il se mettrait à jouer). Tout le reste est recopié octet pour
-    /// octet.
-    public FlpFile Rearranged(FlpFile file, IReadOnlyDictionary<int, int> tracks)
+    /// jouent. Un clip sur une piste coupée arrête tout (il se mettrait à jouer). Groupes de la Playlist (comme le
+    /// Mac, 01/11) : seules les pistes de `grouped` sont groupées avec celle du dessus, toutes les autres plus. Pistes
+    /// de tête des familles (`headers`, 02/11) : remises à neuf elles aussi. Icônes (02/11, « si aucune icône n'est
+    /// mise et qu'il y en a déjà dans la Playlist, il faut les enlever ») : celle de `icons` sur sa piste, aucune
+    /// ailleurs. Tout le reste est recopié octet pour octet.
+    public FlpFile Rearranged(FlpFile file, IReadOnlyDictionary<int, int> tracks, ISet<int>? grouped = null,
+        ISet<int>? headers = null, IReadOnlyDictionary<int, uint>? icons = null)
     {
+        grouped ??= new HashSet<int>();
+        headers ??= new HashSet<int>();
+        icons ??= new Dictionary<int, uint>();
         var out_ = ShowingAll(file);
         if (PlaylistEvent is not { } playlistEvent) return out_;
         if (!Clips.All(c => !MutedTracks.Contains(c.Track))) throw FlpException.Unsupported("piste coupée");
@@ -380,8 +392,9 @@ public sealed class FlpProject
         }
         out_.Events[playlistEvent] = out_.Events[playlistEvent].With(bytes);
 
+        if (headers.Any(t => t < 0 || t >= TrackCount)) throw FlpException.Unsupported("clips");
         var touched = Clips.Select(c => c.Track).Concat(Clips.Select(c => tracks.TryGetValue(c.Item, out var t) ? t : c.Track))
-            .ToHashSet();
+            .Concat(headers).ToHashSet();
         var counts = new Dictionary<uint, int>();
         foreach (var index in TrackEvents)
         {
@@ -405,6 +418,16 @@ public sealed class FlpProject
                 if (out_.Events[next].Id == Ev.TrackName) removed.Add(next);
                 next++;
             }
+        }
+        for (var track = 0; track < TrackEvents.Count; track++)
+        {
+            var index = TrackEvents[track];
+            if (out_.Events[index].Bytes.Length <= TrackGrouped) continue;
+            var data = (byte[])out_.Events[index].Bytes.Clone();
+            data[TrackGrouped] = grouped.Contains(track) ? (byte)1 : (byte)0;
+            // Plus aucune icône de l'ancien projet : elles restaient sur leur piste, même vide, quand les clips bougeaient.
+            FlpBytes.Put(icons.TryGetValue(track, out var icon) ? icon : 0u, data, TrackIcon, 4);
+            out_.Events[index] = out_.Events[index].With(data);
         }
         foreach (var index in removed.OrderByDescending(i => i)) out_.Events.RemoveAt(index);
         return out_;
@@ -460,6 +483,11 @@ public static class PlaylistLayout
         public Dictionary<int, HashSet<int>> Sounds { get; } = new();
         /// Pistes utilisées (les premières).
         public int Count { get; set; }
+        /// Pistes groupées avec celle du dessus : chaque famille sous sa piste de tête (la flèche de FL la replie).
+        public HashSet<int> Grouped { get; } = new();
+        /// Pistes de tête (02/11 : « la famille Voix, et dans Voix il y a Adlib, Voix, Voix 2 ») : une piste vide au
+        /// début de chaque famille, au nom de la famille → la famille (premier nombre de `key`).
+        public Dictionary<int, int> Headers { get; } = new();
     }
 
     /// Pur (testé) : chaque groupe a sa piste, les groupes de sons dans l'ordre de `key` (familles, sortes, place dans
@@ -495,8 +523,14 @@ public static class PlaylistLayout
         var order = members.Keys.Select(g => (Group: g, Rank: Rank(g))).ToList();
         order.Sort((a, b) => Lexicographic(a.Rank, b.Rank));
         var out_ = new Result();
+        int? above = null;                                  // famille de la piste du dessus
         foreach (var (g, _) in order)
         {
+            // Les pistes d'une même famille (`int.MaxValue` : à vérifier, jamais groupé) se suivent, sous une piste de
+            // tête vide (à son nom) qui les groupe.
+            int? family = null;
+            if (g.Kind == PlaylistGroup.GroupKind.Sounds && g.Sounds.Count > 0 && key(g.SoundSet).Item1 != int.MaxValue)
+                family = key(g.SoundSet).Item1;
             var lanes = new List<List<FlpClip>>();
             foreach (var clip in Sorted(g))
             {
@@ -505,10 +539,18 @@ public static class PlaylistLayout
             }
             foreach (var lane in lanes)
             {
+                if (family is { } f && f != above)
+                {
+                    out_.Headers[out_.Count] = f;
+                    out_.Count++;
+                    above = f;
+                }
                 var track = out_.Count;
                 out_.Count++;
                 foreach (var clip in lane) out_.Tracks[clip.Item] = track;
                 if (g.Kind == PlaylistGroup.GroupKind.Sounds && g.Sounds.Count > 0) out_.Sounds[track] = g.SoundSet;
+                if (family is { } same && same == above) out_.Grouped.Add(track);
+                above = family;
             }
         }
         return out_.Count <= trackCount ? out_ : null;

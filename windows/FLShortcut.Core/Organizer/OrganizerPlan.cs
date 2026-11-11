@@ -203,12 +203,26 @@ public sealed class OrganizerPlan
                 if (GroupVerdict(sounds.OrderBy(s => s).Select(VerdictOf).OfType<Verdict>().ToList()) is { } v) heardTracks[track] = v;
             foreach (var item in res.TrackItems)
                 if (!heardTracks.ContainsKey(item.Index)) heardTracks[item.Index] = new Verdict(item.Family, item.Kind);
+            // Pistes de tête des familles (02/11, comme le Mac) : au nom et à la couleur de leur famille, jamais
+            // numérotées avec les pistes des sons.
+            var headers = new Dictionary<int, SoundFamily>();
+            foreach (var (track, rank) in plan.Layout?.Headers ?? new Dictionary<int, int>())
+            {
+                foreach (var family in Enum.GetValues<SoundFamily>())
+                    if (options.FamilyRank(family) == rank) { headers[track] = family; break; }
+            }
             var verdicts = new Dictionary<int, Verdict?>();
             var renamable = new HashSet<int>();
             var current = new Dictionary<int, string>();
             var fix = new Dictionary<int, string>();
             foreach (var track in res.Playlist)
             {
+                if (headers.TryGetValue(track.Index, out var headerFamily))
+                {
+                    verdicts[track.Index] = new Verdict(headerFamily, null);
+                    current[track.Index] = track.Name;
+                    continue;
+                }
                 Verdict? heard = heardTracks.TryGetValue(track.Index, out var h) ? h : null;
                 var v = Named(track.Name, heard);
                 verdicts[track.Index] = v;
@@ -218,7 +232,19 @@ public sealed class OrganizerPlan
                 current[track.Index] = track.Name;
             }
             var order = PlaylistOrder(res, verdicts, rackPlace, options);
+            // Chaque piste de tête juste avant les pistes de sa famille (couleur : la première du dégradé).
+            if (headers.Count > 0)
+            {
+                order = order.Where(t => !headers.ContainsKey(t)).ToList();
+                foreach (var (track, family) in headers.OrderBy(kv => kv.Key))
+                {
+                    var at = order.FindIndex(t => verdicts.TryGetValue(t, out var v) && v?.Family == family);
+                    order.Insert(at < 0 ? order.Count : at, track);
+                }
+            }
             plan.Playlist = MakeArea(verdicts, order, current, styles, options.Rename, renamable, fix);
+            foreach (var (track, family) in headers)
+                if (current.GetValueOrDefault(track) != family.Label()) plan.Playlist.Names[track] = family.Label();
             var indices = res.Playlist.Select(t => t.Index).OrderBy(i => i).ToList();
             if (res.Project is null && !order.SequenceEqual(indices) && indices.Count > 0)
             {

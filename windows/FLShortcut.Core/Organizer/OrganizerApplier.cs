@@ -182,7 +182,9 @@ public sealed class OrganizerApplier
         FlpFile copy;
         try
         {
-            copy = layout is not null ? split.Project.Rearranged(split.File, layout.Tracks) : split.Project.ShowingAll(split.File);
+            copy = layout is not null
+                ? split.Project.Rearranged(split.File, layout.Tracks, layout.Grouped, layout.Headers.Keys.ToHashSet())
+                : split.Project.ShowingAll(split.File);
         }
         catch (FlpException)
         {
