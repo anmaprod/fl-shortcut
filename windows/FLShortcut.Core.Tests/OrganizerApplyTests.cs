@@ -193,8 +193,15 @@ public class OrganizerApplyTests
         Assert.Equal(new[] { "0:6-0", "2:7-4" }, placed);
         var (other, otherResult) = Rack(new SoundFamily?[] { SoundFamily.Melody, SoundFamily.Drums, SoundFamily.Bass });
         var missed = Applier(other, _ => OrganizerError.Failed("Icône non posée.")).Apply(Plan(otherResult, styles, RackOnly), otherResult, styles);
-        Assert.Equal(OrganizerError.Failed("Icône non posée."), missed.Error);
+        // 12/11, comme le Mac : une icône ratée n'arrête que les icônes ; la fin le dit.
+        Assert.Null(missed.Error);
+        Assert.Equal(OrganizerError.Failed("Icône non posée."), missed.IconsMissed);
+        Assert.Contains("icônes non posées", missed.Trace);
         Assert.Equal(new[] { 0, 2, 1 }, missed.Snapshot.Rack?.Arrangement);
+        // Échap pendant une icône : tout s'arrête.
+        var (third, thirdResult) = Rack(new SoundFamily?[] { SoundFamily.Melody, SoundFamily.Drums, SoundFamily.Bass });
+        var stopped = Applier(third, _ => OrganizerError.Interrupted).Apply(Plan(thirdResult, styles, RackOnly), thirdResult, styles);
+        Assert.Equal(OrganizerError.Interrupted, stopped.Error);
     }
 
     /// La page qui n'est plus devant est remise devant et le rangement continue ; arrêt seulement si elle ne revient pas.
@@ -216,6 +223,34 @@ public class OrganizerApplyTests
         Assert.Contains("page remise 1", outcome.Trace);
     }
 
+    /// Diagnostic du propriétaire (12/11, « appliqué-interrupted… page remise 5 ») : la page part après CHAQUE
+    /// déplacement et revient à chaque fois. Les accrocs se comptent de suite : le rangement va au bout.
+    [Fact]
+    public void PageThatKeepsLeavingButComesBackIsFinished()
+    {
+        var (link, result) = Rack(new SoundFamily?[] { SoundFamily.Fx, SoundFamily.Drums, SoundFamily.Bass, SoundFamily.Melody, SoundFamily.Vocals });
+        var flaky = new OrganizerApplier(link, count =>
+        {
+            var done = link.MoveSelectedUp(Math.Min(count, 1));
+            link.Window = FlWindow.Playlist;
+            return done;
+        }, wait: _ => { });
+        var outcome = flaky.Apply(Plan(result, options: RackOnly), result, Initial());
+        Assert.Null(outcome.Error);
+        Assert.Empty(outcome.Unordered);
+        Assert.Equal(new[] { "Son 4", "Son 3", "Son 2", "Son 1", "Son 0" }, Names(link.Channels));
+        var restored = outcome.Trace.Where(t => t.StartsWith("page remise ")).Select(t => int.Parse(t["page remise ".Length..])).FirstOrDefault();
+        Assert.True(restored > OrganizerApplier.PageRetries, string.Join(" | ", outcome.Trace));
+    }
+
+    [Fact]
+    public void CountedCauses()
+    {
+        Assert.Equal("rack FL derrière 2, rack fenêtre plugin 1",
+            OrganizerApplier.CountedCauses(new[] { "rack FL derrière", "rack fenêtre plugin", "rack FL derrière" }));
+        Assert.Equal("", OrganizerApplier.CountedCauses(Array.Empty<string>()));
+    }
+
     [Fact]
     public void StopsWhenPageChanges()
     {
@@ -229,7 +264,10 @@ public class OrganizerApplyTests
             return done;
         }, wait: _ => { });
         var outcome = leaving.Apply(Plan(result, options: RackOnly), result, Initial());
-        Assert.Equal(OrganizerError.Interrupted, outcome.Error);
+        // 12/11 : seul le rangement du Channel rack s'arrête (le reste continue) ; la fin le dit, le diagnostic dit pourquoi.
+        Assert.Null(outcome.Error);
+        Assert.Equal(new[] { FlWindow.ChannelRack }, outcome.Unordered);
+        Assert.Contains("remise rack fenêtre playlist 5", outcome.Trace);
         Assert.Equal(new[] { 2, 0, 1 }, outcome.Snapshot.Rack?.Arrangement);
         Assert.Equal(new[] { "Son 2", "Son 0", "Son 1" }, Names(link.Channels));
         link.KeptWindow = null;
@@ -242,7 +280,9 @@ public class OrganizerApplyTests
         var calls = 0;
         var partial = new OrganizerApplier(half, _ => { calls++; return calls == 1 ? half.MoveSelectedUp(1) : 0; }, wait: _ => { })
             .Apply(Plan(halfResult, options: RackOnly), halfResult, Initial());
-        Assert.Equal(OrganizerError.Interrupted, partial.Error);
+        Assert.Null(partial.Error);
+        Assert.Equal(new[] { FlWindow.ChannelRack }, partial.Unordered);
+        Assert.Contains("remise rack touche sans effet 5", partial.Trace);
         Assert.Equal(new[] { 0, 2, 1 }, partial.Snapshot.Rack?.Arrangement);
         Assert.Null(Applier(half).Undo(partial.Snapshot).Error);
         Assert.Equal(halfOriginal, half.Channels);

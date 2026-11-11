@@ -484,6 +484,7 @@
 "Channel rack" = "Channel rack";
 "Channel rack : %lld sons regroupés et colorés, %lld renommés" = "Channel rack: %lld sounds grouped and colored, %lld renamed";
 "Channel rack illisible : instrument ouvert par le menu." = "Channel rack couldn't be read: instrument opened from the menu.";
+"Channel rack pas entièrement rangé : FL n'est pas resté devant. Couleurs et noms sont posés." = "Channel rack not fully arranged: FL didn't stay in front. Colors and names are set.";
 "Chaque macro devient un fichier .flsmacro. Les endroits appris (clics montrés dans FL) ne sont pas exportés." = "Each macro becomes a .flsmacro file. Learned spots (clicks shown in FL) aren't exported.";
 "Chaque raccourci que tu changes arrive ici, avec ceux que tu crées. Les macros ont leur page." = "Every shortcut you change shows up here, along with the ones you create. Macros have their own page.";
 "Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, 808… pour le changer : tout le projet suit (Channel rack, patterns, Mixer, Playlist)." = "Each sound is sorted by its name (“BEAM KICK”: Kick), otherwise by listening to it. Click Kick, 808… to change it: the whole project follows (Channel rack, patterns, Mixer, Playlist).";
@@ -1366,6 +1367,7 @@
 "Mixer : %lld pistes dans l'ordre du Channel rack, %lld bus (un par famille), %lld renommées" = "Mixer: %lld tracks in Channel rack order, %lld buses (one per family), %lld renamed";
 "Mixer : %lld pistes dans l'ordre du Channel rack, %lld renommées" = "Mixer: %lld tracks in Channel rack order, %lld renamed";
 "Mixer : tire le numéro d'un son ou d'une famille, comme dans FL." = "Mixer: drag the number of a sound or a family, like in FL.";
+"Mixer pas entièrement rangé : FL n'est pas resté devant. Couleurs et noms sont posés." = "Mixer not fully arranged: FL didn't stay in front. Colors and names are set.";
 "Mixer →" = "Mixer →";
 "Mode Performance" = "Performance mode";
 "Mode Step Edit" = "Step Edit mode";

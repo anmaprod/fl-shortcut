@@ -1014,3 +1014,9 @@ entrée 1 ≈ 0,5 s.
   voyaient pas PostgREST : essai `communaute-relations.sql` (sa règle, appliquée au catalogue), rouge sur la base du
   11/11 puis vert. Correction : `id` + `*_une_fois`, appliquée par le fichier recollé, lignes gardées. Téléchargement
   de PostgREST pour le vérifier en vrai refusé ici (code venu de l'extérieur).
+- 12/11 (2) : « les icônes ne fonctionnent pas… il ne change pas les couleurs sur ceux qui ont déjà des couleurs » +
+  diagnostic `appliqué-interrupted`, `page remise 5`. Le code ne garde aucune couleur ; l'application s'arrêtait
+  entièrement au 5e accroc du Channel rack (compté sur toute la page) : patterns, Mixer, Playlist, icônes jamais
+  faits. Contraire au choix du 07/11 (un accroc n'arrête que les icônes). Maintenant : page seule arrêtée, accrocs
+  de suite, causes dans le diagnostic ; Mac et Windows, essais `PageThatKeepsLeavingButComesBackIsFinished`.
+  Pourquoi FL ne restait pas devant chez lui : à lire dans son prochain diagnostic (ligne `remise …`).

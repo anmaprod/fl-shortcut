@@ -21,6 +21,12 @@ public sealed class OrganizerApplier
     private readonly Action<string> _report;
     /// Fois où une page de FL a été remise devant pendant les déplacements (diagnostic).
     private int _restored;
+    /// Pourquoi, à chaque fois (12/11, comme le Mac : FL derrière, autre fenêtre de FL devant, touche sans effet).
+    private readonly List<string> _restoreCauses = new();
+    /// Pages dont FL n'a pas laissé finir le rangement (12/11) : le reste a continué.
+    private readonly List<FlWindow> _unordered = new();
+    /// Première icône pas posée : plus d'autre icône essayée, le reste continue (comme le Mac, 07/11).
+    private OrganizerError? _iconMiss;
     /// Boîtes de FL répondues pendant l'ouverture de la copie (4 au plus : jamais Entrée sans fin).
     private int _dialogAnswers;
 
@@ -66,6 +72,9 @@ public sealed class OrganizerApplier
         var outcome = new ApplyOutcome();
         var verified = true;
         _restored = 0;
+        _restoreCauses.Clear();
+        _unordered.Clear();
+        _iconMiss = null;
         try
         {
             if (result.Project is { } project)
@@ -153,7 +162,49 @@ public sealed class OrganizerApplier
             if (outcome.Error.Is(OrganizerError.Kinds.Refused) && _link.LastRefusal is { } refusal) outcome.Trace.Add($"refus {refusal}");
         }
         if (_restored > 0) outcome.Trace.Add($"page remise {_restored}");
+        if (_restoreCauses.Count > 0) outcome.Trace.Add("remise " + CountedCauses(_restoreCauses));
+        outcome.Unordered = _unordered.ToList();
+        if (_unordered.Count > 0) outcome.Trace.Add("pas rangé " + string.Join(",", _unordered.Select(PageName)));
+        outcome.IconsMissed = _iconMiss;
+        if (_iconMiss is not null) outcome.Trace.Add("icônes non posées");
         return outcome;
+    }
+
+    /// Pur (testé) : les causes dans l'ordre où elles sont apparues, chacune avec son nombre (« rack FL derrière 3,
+    /// mixer fenêtre plugin 1 »).
+    public static string CountedCauses(IEnumerable<string> causes)
+    {
+        var order = new List<string>();
+        var counts = new Dictionary<string, int>();
+        foreach (var cause in causes)
+        {
+            if (!counts.ContainsKey(cause)) order.Add(cause);
+            counts[cause] = counts.GetValueOrDefault(cause) + 1;
+        }
+        return string.Join(", ", order.Select(c => $"{c} {counts[c]}"));
+    }
+
+    private static string PageName(FlWindow page) => page switch
+    {
+        FlWindow.ChannelRack => "rack",
+        FlWindow.Mixer => "mixer",
+        FlWindow.Playlist => "playlist",
+        FlWindow.PianoRoll => "pianoroll",
+        FlWindow.Browser => "browser",
+        FlWindow.Plugin => "plugin",
+        _ => "inconnue",
+    };
+
+    /// Icônes d'une page : une icône pas posée n'arrête que les icônes (comme le Mac) ; seul un arrêt demandé
+    /// (Échap, Arrêter) arrête tout.
+    private void PlaceIconsQuietly(Dictionary<int, FlIcon> icons, ItemKind kind, Func<int, int?> place)
+    {
+        if (icons.Count == 0 || _iconMiss is not null) return;
+        try { PlaceIcons(icons, kind, place); }
+        catch (OrganizerError e) when (!e.Is(OrganizerError.Kinds.Cancelled) && !e.Is(OrganizerError.Kinds.Interrupted))
+        {
+            _iconMiss = e;
+        }
     }
 
     /// FL ouvre la copie rangée attendue : un nom de pattern posé pour ça dans la copie, lu par le script (au plus
@@ -475,9 +526,17 @@ public sealed class OrganizerApplier
         _link.SetNames(ItemKind.Channels, NamePairs(area.Names));
         // Noms tels qu'ils sont maintenant dans FL, par index d'origine : pour relire l'ordre.
         var names = channels.Select(c => area.Names.GetValueOrDefault(c.Index) ?? c.Name).ToList();
+        // 12/11 (diagnostic du Mac « appliqué-interrupted… page remise 5 » : patterns, Mixer, Playlist et icônes jamais
+        // faits) : une page que FL ne laisse pas finir de ranger n'arrête plus que son rangement ; le reste continue,
+        // c'est dit à la fin. Seul un arrêt demandé (Échap, Arrêter) arrête tout.
+        var stopped = false;
         try
         {
             MoveAll(area.Moves, snap, FlWindow.ChannelRack, ItemKind.Channels, 0, _moveUp);
+        }
+        catch (OrganizerError e) when (e.Is(OrganizerError.Kinds.Interrupted))
+        {
+            stopped = true;
         }
         catch (Exception)
         {
@@ -492,22 +551,31 @@ public sealed class OrganizerApplier
         var listed = _link.ListChannels();
         // L'ordre que FL montre vraiment (une touche Alt+↑ perdue) : une seconde passe depuis cet ordre.
         var regrouped = true;
-        if (Arrangement(listed.Select(c => c.Name).ToList(), names) is { } first && !first.SequenceEqual(area.Final) && area.Final.Count > 0)
+        if (!stopped && Arrangement(listed.Select(c => c.Name).ToList(), names) is { } first && !first.SequenceEqual(area.Final) && area.Final.Count > 0)
         {
             snap.Arrangement = first;
-            MoveAll(RegroupPlan.Moves(first, area.Final), snap, FlWindow.ChannelRack, ItemKind.Channels, 0, _moveUp);
+            try
+            {
+                MoveAll(RegroupPlan.Moves(first, area.Final), snap, FlWindow.ChannelRack, ItemKind.Channels, 0, _moveUp);
+            }
+            catch (OrganizerError e) when (e.Is(OrganizerError.Kinds.Interrupted))
+            {
+                stopped = true;
+            }
             listed = _link.ListChannels();
         }
+        // L'ordre relu dans FL (aussi après un arrêt en route) : « Revenir comme avant » et les icônes le suivent.
         if (Arrangement(listed.Select(c => c.Name).ToList(), names) is { } after)
         {
             regrouped = area.Final.Count == 0 || after.SequenceEqual(area.Final);
             snap.Arrangement = after;
         }
+        if (stopped) _unordered.Add(FlWindow.ChannelRack);
         var now = listed.Select(c => (RgbColor?)c.Color).ToList();
         var expected = snap.Arrangement.Select(i => (RgbColor?)(area.Colors.TryGetValue(i, out var c) ? c : channels[i].Color)).ToList();
-        if (!regrouped || !now.SequenceEqual(expected)) return false;
+        if (!(regrouped || stopped) || !now.SequenceEqual(expected)) return false;
         var arrangement = snap.Arrangement;
-        PlaceIcons(icons, ItemKind.Channels, i => { var at = arrangement.IndexOf(i); return at < 0 ? null : at; });
+        PlaceIconsQuietly(icons, ItemKind.Channels, i => { var at = arrangement.IndexOf(i); return at < 0 ? null : at; });
         return true;
     }
 
@@ -565,9 +633,15 @@ public sealed class OrganizerApplier
         if (area.Moves.Count > 0 || icons.Count > 0) _link.Show(FlWindow.Mixer);
         List<string> Tracks(IEnumerable<MixerTrackInfo> listed) =>
             listed.Where(t => t.Index >= 1 && t.Index <= span).OrderBy(t => t.Index).Select(t => t.Name).ToList();
+        // Comme le Channel rack (12/11) : un rangement que FL ne laisse pas finir n'arrête que lui.
+        var stopped = false;
         try
         {
             MoveAll(area.Moves, snap, FlWindow.Mixer, ItemKind.Mixer, 1, _moveLeft);
+        }
+        catch (OrganizerError e) when (e.Is(OrganizerError.Kinds.Interrupted))
+        {
+            stopped = true;
         }
         catch (Exception)
         {
@@ -580,12 +654,20 @@ public sealed class OrganizerApplier
         }
         var listedMixer = _link.ListMixer();
         // Seconde passe depuis l'ordre que FL montre, s'il n'est pas celui prévu (une touche Alt+← perdue).
-        if (span > 0 && Arrangement(Tracks(listedMixer), names) is { } first && !first.Select(x => x + 1).SequenceEqual(area.Final))
+        if (!stopped && span > 0 && Arrangement(Tracks(listedMixer), names) is { } first && !first.Select(x => x + 1).SequenceEqual(area.Final))
         {
             snap.Arrangement = first.Select(x => x + 1).ToList();
-            MoveAll(RegroupPlan.Moves(snap.Arrangement, area.Final), snap, FlWindow.Mixer, ItemKind.Mixer, 1, _moveLeft);
+            try
+            {
+                MoveAll(RegroupPlan.Moves(snap.Arrangement, area.Final), snap, FlWindow.Mixer, ItemKind.Mixer, 1, _moveLeft);
+            }
+            catch (OrganizerError e) when (e.Is(OrganizerError.Kinds.Interrupted))
+            {
+                stopped = true;
+            }
             listedMixer = _link.ListMixer();
         }
+        if (stopped) _unordered.Add(FlWindow.Mixer);
         var now = listedMixer.ToDictionary(t => t.Index);
         var regrouped = true;
         if (span > 0 && Arrangement(Tracks(listedMixer), names) is { } seenAfter)
@@ -607,8 +689,8 @@ public sealed class OrganizerApplier
             var after = _link.ListMixer().ToDictionary(t => t.Index);
             resetOk = resets.All(r => after.TryGetValue(Place(r), out var t) && t.HasDefaultName);
         }
-        if (!regrouped || !colorsOk || !routesOk || !resetOk || !NamesMatch(named, read)) return false;
-        PlaceIcons(icons, ItemKind.Mixer, i => Place(i));
+        if (!(regrouped || stopped) || !colorsOk || !routesOk || !resetOk || !NamesMatch(named, read)) return false;
+        PlaceIconsQuietly(icons, ItemKind.Mixer, i => Place(i));
         return true;
     }
 
@@ -713,9 +795,20 @@ public sealed class OrganizerApplier
         foreach (var index in icons.Keys.OrderBy(k => k))
         {
             if (place(index) is not { } at) continue;
-            if (_link.Window != page) throw OrganizerError.Interrupted;
+            if (_link.Window != page)
+            {
+                // Page de FL qui a changé : plus d'icônes, le reste continue (comme le Mac).
+                _iconMiss = OrganizerError.Failed(Loc.T("Icônes non posées : la page de FL a changé."));
+                return;
+            }
             _link.SelectOne(kind, at);
-            if (_placeIcon(icons[index]) is { } error) throw error;
+            if (_placeIcon(icons[index]) is { } error)
+            {
+                // Échap pendant une icône : tout s'arrête ; tout autre accroc n'arrête que les icônes.
+                if (error.Is(OrganizerError.Kinds.Interrupted) || error.Is(OrganizerError.Kinds.Cancelled)) throw error;
+                _iconMiss = error;
+                return;
+            }
         }
     }
 
@@ -739,10 +832,11 @@ public sealed class OrganizerApplier
     private void MoveAll(List<Move> moves, AreaSnapshot snap, FlWindow page, ItemKind kind, int offset, Func<int, int> key)
     {
         var retries = 0;
-        void Restore()
+        void Restore(string cause)
         {
             retries++;
             _restored++;
+            _restoreCauses.Add($"{PageName(page)} {cause}");
             if (retries > PageRetries) throw OrganizerError.Interrupted;
             try { _link.Show(page); } catch (OrganizerError) { }
             _wait(0.5);
@@ -757,17 +851,22 @@ public sealed class OrganizerApplier
                 var left = step.Up;
                 while (left > 0)
                 {
-                    if (_link.Window != page)
+                    var shown = _link.Window;
+                    if (shown != page)
                     {
-                        Restore();
+                        Restore($"fenêtre {PageName(shown)}");
                         continue;
                     }
                     _link.SelectOne(kind, place + offset);
-                    var done = Math.Min(Math.Max(key(left), 0), left);
+                    // Négatif : FL n'était pas au premier plan (aucune touche envoyée).
+                    var sent = key(left);
+                    var done = Math.Min(Math.Max(sent, 0), left);
                     arrangement = RegroupPlan.Applying(new Move(place, done), arrangement);
                     place -= done;
                     left -= done;
-                    if (done == 0) Restore();
+                    // Les accrocs se comptent de suite (12/11) : un déplacement réussi remet le compte à zéro.
+                    if (done == 0) Restore(sent < 0 ? "FL derrière" : "touche sans effet");
+                    else retries = 0;
                 }
             }
         }

@@ -428,6 +428,11 @@ public sealed class ApplyOutcome
     public int NotDeleted { get; set; }
     /// Pistes de la Playlist pas rangées (FL n'a pas laissé faire) : noms et couleurs sont posés.
     public bool PlaylistUnordered { get; set; }
+    /// Channel rack ou Mixer dont FL n'a pas laissé finir le rangement (page qui ne restait pas devant) : couleurs et
+    /// noms y sont posés, et tout le reste a continué (12/11, comme le Mac).
+    public List<FlWindow> Unordered { get; set; } = new();
+    /// Icônes pas posées (la raison) : tout le reste est fait (comme le Mac, `iconsMissed`).
+    public OrganizerError? IconsMissed { get; set; }
     /// Patterns descendus chacun sur sa piste ; d'autres prévus, que FL n'a pas laissé descendre.
     public int Split { get; set; }
     public bool PlaylistMixed { get; set; }

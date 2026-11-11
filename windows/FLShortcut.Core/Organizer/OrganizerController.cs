@@ -667,6 +667,13 @@ public sealed class OrganizerController
                 if (outcome.NotDeleted > 0)
                     lines.Add(Loc.F("%lld sons sans note pas supprimés : supprime-les dans FL.", outcome.NotDeleted));
                 if (outcome.Split > 0) lines.Add(Loc.F("Playlist : %lld sons qui partageaient une piste ont chacun la leur.", outcome.Split));
+                // Icônes pas posées : juste sous la première ligne, comme le Mac.
+                if (outcome.IconsMissed is { } missed) lines.Insert(Math.Min(1, lines.Count), missed.UserMessage);
+                // 12/11 : une page que FL n'a pas laissé finir de ranger (le reste a continué).
+                if (outcome.Unordered.Contains(FlWindow.ChannelRack))
+                    lines.Add(Loc.T("Channel rack pas entièrement rangé : FL n'est pas resté devant. Couleurs et noms sont posés."));
+                if (outcome.Unordered.Contains(FlWindow.Mixer))
+                    lines.Add(Loc.T("Mixer pas entièrement rangé : FL n'est pas resté devant. Couleurs et noms sont posés."));
             }
             if (Learned > 0)
                 lines.Add(Loc.F("L'IA retient %lld sons corrigés.", Learned));

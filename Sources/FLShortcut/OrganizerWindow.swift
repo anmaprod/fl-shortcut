@@ -499,7 +499,8 @@ struct OrganizerEnvironment {
             done += 1
             Thread.sleep(forTimeInterval: 0.015)
         }
-        return done
+        // -1 : FL n'était pas au premier plan, aucune touche envoyée (diagnostic « FL derrière », 12/11).
+        return done == 0 && EventTap.shared.currentConfig.frontmostPID != pid ? -1 : done
     }
 }
 
@@ -1201,6 +1202,12 @@ final class OrganizerController: ObservableObject {
             }
             if outcome.playlistMixed {
                 lines.append(String(localized: "Playlist : des pistes gardent deux sons, FL n'a pas laissé descendre leurs clips sur une piste à eux (dans FL, « Typing keyboard to piano keyboard » doit être éteint)."))
+            }
+            if outcome.unordered.contains(.channelRack) {
+                lines.append(String(localized: "Channel rack pas entièrement rangé : FL n'est pas resté devant. Couleurs et noms sont posés."))
+            }
+            if outcome.unordered.contains(.mixer) {
+                lines.append(String(localized: "Mixer pas entièrement rangé : FL n'est pas resté devant. Couleurs et noms sont posés."))
             }
             if outcome.playlistUnordered {
                 lines.append(ScreenLook.allowed

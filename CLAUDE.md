@@ -801,6 +801,15 @@
   (à RECOLLER par le propriétaire) ; essais `supabase/tests/communaute-relations.sql` (règle de PostgREST) sur sa
   base du 11/11 (`communaute-suivre-11-11.sql`, copie exacte) et sur une base neuve. JAMAIS de clé primaire faite
   de deux références vers des tables déjà reliées.
+- **Organiser interrompu** (12/11, diagnostic `étape=appliqué-interrupted … page remise 5` : couleurs des patterns/
+  Mixer/Playlist et icônes jamais posées, « ne change pas les couleurs », « les icônes ne fonctionnent pas ») : une
+  page que FL ne laisse pas finir de ranger (Channel rack, Mixer) n'arrête plus que SON rangement (`unordered`,
+  « Channel rack pas entièrement rangé : FL n'est pas resté devant… ») ; accrocs comptés DE SUITE (un déplacement
+  réussi remet à zéro) ; cause de chaque remise dans le diagnostic (`remise rack FL derrière 3, rack fenêtre
+  plugin 2`, `liveMove`/`Move` renvoient -1 si FL n'est pas devant) ; seul Échap/Arrêter arrête tout. Windows
+  pareil (+ une icône ratée n'arrête plus rien, `IconsMissed`). CAUSE des remises chez lui : PAS ENCORE CONNUE
+  (attendre son diagnostic suivant). Ouvrir FL Shortcuts AVANT FL : FL ne trouve pas « FL Shortcuts » dans MIDI
+  (12/11) : à comprendre avec son macro.log (lignes MIDI) ; ne pas remettre les ports permanents sur Mac.
 - Mails du compte : 2 par heure (donc 2 inscriptions) tant que le propriétaire n'a pas fait l'étape 6 de
   `supabase/README.md` (11/11 : Gmail rien que pour l'app, 60 par heure ; plus tard Brevo avec le domaine du site).
   Bêta limitée (1 000 comptes, un compte = un ordinateur) mise de côté le 11/11 : choix dans HISTORIQUE.

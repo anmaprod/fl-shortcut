@@ -219,6 +219,9 @@ struct ApplyOutcome: Equatable {
     var notDeleted = 0
     /// Pistes de la Playlist pas rangées (FL n'a pas montré leur menu) : noms et couleurs sont posés.
     var playlistUnordered = false
+    /// Channel rack ou Mixer dont FL n'a pas laissé finir le rangement (page qui ne restait pas devant) : couleurs et
+    /// noms y sont posés, et tout le reste (autres pages, icônes) a continué (12/11).
+    var unordered: [FLWindow] = []
     /// Patterns descendus chacun sur sa piste ; d'autres prévus, que FL n'a pas laissé descendre (pistes qui gardent
     /// deux sons).
     var split = 0
@@ -294,6 +297,11 @@ final class OrganizerApplier {
     private let report: (String) -> Void
     /// Fois où une page de FL a été remise devant pendant les déplacements (diagnostic).
     private var restored = 0
+    /// Pourquoi, à chaque fois (diagnostic du 12/11 : « page remise 5 » ne disait pas si FL était passé derrière, si
+    /// une autre fenêtre de FL était devant ou si la touche n'avait rien fait). Des mots et des nombres seulement.
+    private var restoreCauses: [String] = []
+    /// Pages dont FL n'a pas laissé finir le rangement (12/11) : le reste a continué.
+    private var unordered: [FLWindow] = []
     /// Première icône manquée : les suivantes ne sont plus essayées, le reste du rangement continue.
     private var iconMiss: OrganizerError?
     /// Icônes prévues, posées à la toute fin (07/11, « dès que je veux mettre des icônes… ça oublie les couleurs des
@@ -421,6 +429,8 @@ final class OrganizerApplier {
         var plan = plan
         var result = result
         restored = 0
+        restoreCauses = []
+        unordered = []
         iconMiss = nil
         pendingIcons = []
         placedRack = []
@@ -518,6 +528,9 @@ final class OrganizerApplier {
             if case .refused? = outcome.error, let refusal = link.lastRefusal { outcome.trace.append("refus \(refusal)") }
         }
         if restored > 0 { outcome.trace.append("page remise \(restored)") }
+        if !restoreCauses.isEmpty { outcome.trace.append("remise " + Self.countedCauses(restoreCauses)) }
+        outcome.unordered = unordered
+        if !unordered.isEmpty { outcome.trace.append("pas rangé " + unordered.map { "\($0)" }.joined(separator: ",")) }
         if let iconMiss {
             // Dite après « Icônes non posées : » : la raison telle quelle, sans majuscule.
             if case .failed(let why) = iconMiss { outcome.iconsMissed = why } else { outcome.iconsMissed = iconMiss.message }
@@ -841,8 +854,15 @@ final class OrganizerApplier {
         try link.setNames(.channels, Self.namePairs(area.names))
         // Noms tels qu'ils sont maintenant dans FL, par index d'origine : pour relire l'ordre.
         let names = channels.map { area.names[$0.index] ?? $0.name }
+        // 12/11 (diagnostic du propriétaire « appliqué-interrupted… page remise 5 » : couleurs des patterns, du Mixer
+        // et de la Playlist jamais posées, icônes non plus) : une page que FL ne laisse pas finir de ranger n'arrête
+        // plus que son rangement ; le reste continue, et c'est dit à la fin. Seul un arrêt demandé (Échap, Arrêter)
+        // arrête tout.
+        var stopped = false
         do {
             try move(area.moves, &snap.arrangement, page: .channelRack, kind: .channels, offset: 0, key: moveUp)
+        } catch OrganizerError.interrupted {
+            stopped = true
         } catch {
             // Arrêt en route : l'ordre relu dans FL, pour que « Revenir comme avant » remette chaque chose à sa place.
             if let listed = try? link.listChannels(),
@@ -855,20 +875,26 @@ final class OrganizerApplier {
         // L'ordre que FL montre vraiment (une touche ⌥↑ perdue) : une seconde passe depuis cet ordre ; s'il reste un
         // écart, « Revenir comme avant » remet chaque couleur sur son son, et le regroupement manqué est dit.
         var regrouped = true
-        if let seen = Self.arrangement(names: listed.map { $0.name }, original: names), seen != area.final,
+        if !stopped, let seen = Self.arrangement(names: listed.map { $0.name }, original: names), seen != area.final,
            !area.final.isEmpty {
             snap.arrangement = seen
-            try move(RegroupPlan.moves(from: seen, to: area.final), &snap.arrangement, page: .channelRack,
-                     kind: .channels, offset: 0, key: moveUp)
+            do {
+                try move(RegroupPlan.moves(from: seen, to: area.final), &snap.arrangement, page: .channelRack,
+                         kind: .channels, offset: 0, key: moveUp)
+            } catch OrganizerError.interrupted {
+                stopped = true
+            }
             listed = try link.listChannels()
         }
+        // L'ordre relu dans FL (aussi après un arrêt en route) : « Revenir comme avant » et les icônes le suivent.
         if let seen = Self.arrangement(names: listed.map { $0.name }, original: names) {
             regrouped = area.final.isEmpty || seen == area.final
             snap.arrangement = seen
         }
+        if stopped { unordered.append(.channelRack) }
         let now: [RGBColor?] = listed.map { $0.color }
         let expected: [RGBColor?] = snap.arrangement.map { area.colors[$0] ?? channels[$0].color }
-        guard regrouped, now == expected else { return false }
+        guard regrouped || stopped, now == expected else { return false }
         let arrangement = snap.arrangement
         var places: [Int: Int] = [:]
         for index in icons.keys { if let at = arrangement.firstIndex(of: index) { places[index] = at } }
@@ -926,8 +952,12 @@ final class OrganizerApplier {
         let names: [String] = span > 0 ? (1...span).map { named[$0] ?? byIndex[$0]?.name ?? "" } : []
         let icons = Self.plannedIcons(families: area.verdicts.mapValues { $0.family }, styles: styles)
         if !area.moves.isEmpty || !icons.isEmpty { try link.show(.mixer) }
+        // Comme le Channel rack (12/11) : un rangement que FL ne laisse pas finir n'arrête que lui.
+        var stopped = false
         do {
             try move(area.moves, &snap.arrangement, page: .mixer, kind: .mixer, offset: 1, key: moveLeft)
+        } catch OrganizerError.interrupted {
+            stopped = true
         } catch {
             if span > 0, let listed = try? link.listMixer(),
                let seen = Self.arrangement(names: Self.tracks(listed, 1...span).map { $0.name }, original: names) {
@@ -937,14 +967,20 @@ final class OrganizerApplier {
         }
         var listed = try link.listMixer()
         // Seconde passe depuis l'ordre que FL montre, s'il n'est pas celui prévu (une touche ⌥← perdue).
-        if span > 0, let seen = Self.arrangement(names: Self.tracks(listed, 1...span).map { $0.name }, original: names),
+        if !stopped, span > 0,
+           let seen = Self.arrangement(names: Self.tracks(listed, 1...span).map { $0.name }, original: names),
            seen.map({ $0 + 1 }) != area.final {
             let start = seen.map { $0 + 1 }
             snap.arrangement = start
-            try move(RegroupPlan.moves(from: start, to: area.final), &snap.arrangement, page: .mixer,
-                     kind: .mixer, offset: 1, key: moveLeft)
+            do {
+                try move(RegroupPlan.moves(from: start, to: area.final), &snap.arrangement, page: .mixer,
+                         kind: .mixer, offset: 1, key: moveLeft)
+            } catch OrganizerError.interrupted {
+                stopped = true
+            }
             listed = try link.listMixer()
         }
+        if stopped { unordered.append(.mixer) }
         var now: [Int: MixerTrackInfo] = [:]
         for track in listed { now[track.index] = track }
         var regrouped = true
@@ -969,7 +1005,7 @@ final class OrganizerApplier {
             for track in try link.listMixer() { after[track.index] = track }
             resetOK = resets.allSatisfy { after[place($0)]?.hasDefaultName == true }
         }
-        guard regrouped, colorsOK, routesOK, resetOK, Self.namesMatch(named, read) else { return false }
+        guard regrouped || stopped, colorsOK, routesOK, resetOK, Self.namesMatch(named, read) else { return false }
         var places: [Int: Int] = [:]
         for index in icons.keys { places[index] = place(index) }
         if !icons.isEmpty { pendingIcons.append((icons: icons, kind: .mixer, places: places)) }
@@ -1193,8 +1229,33 @@ final class OrganizerApplier {
 
     /// Une page de FL qui n'est plus devant pendant les déplacements (FL qui finit d'ouvrir la copie, une fenêtre de
     /// plugin : capture du propriétaire, Channel rack à moitié rangé) est remise devant ; arrêt si elle repart encore
-    /// après `pageRetries` fois.
+    /// `pageRetries` fois DE SUITE (12/11 : comptées sur tout le rangement d'une page, cinq accrocs réparés un à un
+    /// arrêtaient tout ; un déplacement réussi remet le compte à zéro).
     static let pageRetries = 4
+
+    /// Pur (testé) : les causes dans l'ordre où elles sont apparues, chacune avec son nombre (« rack FL derrière 3,
+    /// mixer fenêtre plugin 1 »).
+    static func countedCauses(_ causes: [String]) -> String {
+        var order: [String] = []
+        var counts: [String: Int] = [:]
+        for cause in causes {
+            if counts[cause] == nil { order.append(cause) }
+            counts[cause, default: 0] += 1
+        }
+        return order.map { "\($0) \(counts[$0] ?? 0)" }.joined(separator: ", ")
+    }
+
+    private static func pageName(_ page: FLWindow) -> String {
+        switch page {
+        case .channelRack: return "rack"
+        case .mixer: return "mixer"
+        case .playlist: return "playlist"
+        case .pianoRoll: return "pianoroll"
+        case .browser: return "browser"
+        case .plugin: return "plugin"
+        case .unknown: return "inconnue"
+        }
+    }
 
     /// Déplacements un par un (élément sélectionné puis touches) ; la disposition suit ce qui a vraiment été fait.
     /// `offset` : index FL de la place 0 (Mixer : 1, le Master ne bouge pas). Page plus devant ou touches perdues :
@@ -1202,9 +1263,10 @@ final class OrganizerApplier {
     private func move(_ moves: [Move], _ arrangement: inout [Int], page: FLWindow, kind: ItemKind, offset: Int,
                       key: (Int) -> Int) throws {
         var retries = 0
-        func restore() throws {
+        func restore(_ cause: String) throws {
             retries += 1
             restored += 1
+            restoreCauses.append("\(Self.pageName(page)) \(cause)")
             guard retries <= Self.pageRetries else { throw OrganizerError.interrupted }
             try? link.show(page)
             wait(0.5)
@@ -1213,16 +1275,19 @@ final class OrganizerApplier {
             var place = step.from
             var left = step.up
             while left > 0 {
-                guard link.window == page else {
-                    try restore()
+                let shown = link.window
+                guard shown == page else {
+                    try restore("fenêtre \(Self.pageName(shown))")
                     continue
                 }
                 try link.selectOne(kind, place + offset)
-                let done = min(max(key(left), 0), left)
+                // Négatif : FL n'était pas au premier plan (aucune touche envoyée).
+                let sent = key(left)
+                let done = min(max(sent, 0), left)
                 arrangement = RegroupPlan.applying(Move(from: place, up: done), to: arrangement)
                 place -= done
                 left -= done
-                if done == 0 { try restore() }
+                if done == 0 { try restore(sent < 0 ? "FL derrière" : "touche sans effet") } else { retries = 0 }
             }
         }
     }

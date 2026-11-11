@@ -279,6 +279,30 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertTrue(outcome.trace.contains("page remise 1"), "\(outcome.trace)")
     }
 
+    /// Diagnostic du propriétaire (12/11, « appliqué-interrupted… page remise 5 ») : la page part après CHAQUE
+    /// déplacement et revient à chaque fois. Les accrocs se comptent de suite : le rangement va au bout.
+    func testPageThatKeepsLeavingButComesBackIsFinished() {
+        let (link, result) = rack([.fx, .drums, .bass, .melody, .vocals])
+        let flaky = OrganizerApplier(link: link, moveUp: { count in
+            let done = link.moveSelectedUp(min(count, 1))
+            link.window = .playlist
+            return done
+        }, wait: { _ in })
+        let outcome = flaky.apply(plan(result, options: rackOnly), result: result, styles: FamilyStyles.initial)
+        XCTAssertNil(outcome.error)
+        XCTAssertEqual(outcome.unordered, [])
+        XCTAssertEqual(link.channels.map(\.name), ["Son 4", "Son 3", "Son 2", "Son 1", "Son 0"],
+                       "Voix, Mélodies, Basse, Drums, FX")
+        let restored = outcome.trace.first { $0.hasPrefix("page remise ") }.flatMap { Int($0.dropFirst(12)) } ?? 0
+        XCTAssertGreaterThan(restored, OrganizerApplier.pageRetries, "\(outcome.trace)")
+    }
+
+    func testCountedCauses() {
+        XCTAssertEqual(OrganizerApplier.countedCauses(["rack FL derrière", "rack fenêtre plugin", "rack FL derrière"]),
+                       "rack FL derrière 2, rack fenêtre plugin 1")
+        XCTAssertEqual(OrganizerApplier.countedCauses([]), "")
+    }
+
     func testStopsWhenPageChanges() {
         // La Playlist passe devant après le premier déplacement (deux sont prévus) et y reste.
         let (link, result) = rack([.drums, .melody, .vocals])
@@ -290,7 +314,11 @@ final class OrganizerApplyTests: XCTestCase {
             return done
         }, wait: { _ in })
         let outcome = leaving.apply(plan(result, options: rackOnly), result: result, styles: FamilyStyles.initial)
-        XCTAssertEqual(outcome.error, .interrupted)
+        // 12/11 : seul le rangement du Channel rack s'arrête (le reste continue) ; la fin le dit, le diagnostic dit
+        // pourquoi.
+        XCTAssertNil(outcome.error)
+        XCTAssertEqual(outcome.unordered, [.channelRack])
+        XCTAssertTrue(outcome.trace.contains("remise rack fenêtre playlist 5"), "\(outcome.trace)")
         XCTAssertEqual(outcome.snapshot.rack?.arrangement, [2, 0, 1])
         XCTAssertEqual(link.channels.map(\.name), ["Son 2", "Son 0", "Son 1"])
         link.keptWindow = nil
@@ -307,7 +335,9 @@ final class OrganizerApplyTests: XCTestCase {
             return calls == 1 ? half.moveSelectedUp(1) : 0
         }, wait: { _ in })
             .apply(plan(halfResult, options: rackOnly), result: halfResult, styles: FamilyStyles.initial)
-        XCTAssertEqual(partial.error, .interrupted)
+        XCTAssertNil(partial.error)
+        XCTAssertEqual(partial.unordered, [.channelRack])
+        XCTAssertTrue(partial.trace.contains("remise rack touche sans effet 5"), "\(partial.trace)")
         XCTAssertEqual(partial.snapshot.rack?.arrangement, [0, 2, 1])
         XCTAssertNil(applier(half).undo(partial.snapshot).error)
         XCTAssertEqual(half.channels, halfOriginal)

@@ -208,7 +208,9 @@ internal static class OrganizerLive
     /// n'est plus au premier plan. La page devant est demandée à FL une fois (une requête), pas à chaque touche.
     private static int Move(int count, KeyCombo key, FlWindow page, IOrganizerLink link)
     {
-        if (count <= 0 || FlControl.Process() is not { } fl || !FlControl.BringForward(fl.Pid)) return 0;
+        if (count <= 0 || FlControl.Process() is not { } fl) return 0;
+        // -1 : FL pas au premier plan, aucune touche envoyée (diagnostic « FL derrière », 12/11, comme le Mac).
+        if (!FlControl.BringForward(fl.Pid)) return -1;
         if (link.Window != page) return 0;
         var done = 0;
         while (done < count && FlControl.Send(fl.Pid, key))
@@ -216,7 +218,7 @@ internal static class OrganizerLive
             done++;
             Thread.Sleep(15);
         }
-        return done;
+        return done == 0 ? -1 : done;
     }
 
     /// « Delete selected » du Channel rack comme le ferait l'utilisateur : Alt + Suppr, FL devant, le Channel rack
