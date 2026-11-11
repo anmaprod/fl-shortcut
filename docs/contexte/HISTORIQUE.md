@@ -1007,3 +1007,10 @@ entrée 1 ≈ 0,5 s.
   communauté et enlever communauté » : page d'une personne, son pseudo à la place du titre « communauté. » (Mac et
   Windows), plus la ligne « ← encadrée + nom » ; flèche seule sans cadre devant le titre, « Communauté » de la barre
   de gauche ramène aussi à la liste ; Suivre à droite de la photo et des abonnés.
+- 12/11 : capture de la Communauté « Erreur du serveur : Could not embed because more than one relationship was found
+  for 'shares' and 'profiles' » après le collage de communaute-suivre.sql. Cause : adds et ratings avaient la clé
+  (share_id, user_id) ; PostgREST prend une telle table pour un lien direct (plusieurs-à-plusieurs) entre partages et
+  profils, donc 3 liens et « author:profiles(username) » refusé, pour toutes les versions de l'app. Les essais SQL ne
+  voyaient pas PostgREST : essai `communaute-relations.sql` (sa règle, appliquée au catalogue), rouge sur la base du
+  11/11 puis vert. Correction : `id` + `*_une_fois`, appliquée par le fichier recollé, lignes gardées. Téléchargement
+  de PostgREST pour le vérifier en vrai refusé ici (code venu de l'extérieur).

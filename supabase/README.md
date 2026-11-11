@@ -98,6 +98,8 @@ et l'étape 7 (modèles des mails avec le code).
    (chacun ne voit que les siens ; des autres, seulement leur nombre d'abonnés), le nombre d'ajouts de chaque partage,
    les notes de 1 à 5 étoiles (seulement après avoir ajouté le partage, jamais le sien) et le classement des
    créateurs. Sans cette étape, l'app garde la Communauté d'avant. Peut être recollé sans risque.
+   **12/11 : recolle-le** si tu l'avais collé le 11/11 (la Communauté affichait « more than one relationship was
+   found for 'shares' and 'profiles' ») : il répare les tables des ajouts et des notes sans rien perdre.
 
 ## 2. Compiler l'app reliée au serveur (rien à faire)
 

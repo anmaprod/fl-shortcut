@@ -795,6 +795,12 @@
   `-plus-ajoutees`, `-personne`, `-note`. Page d'une personne (11/11, « j'aime pas le carré à côté du nom… le nom à
   la place de communauté ») : son pseudo EST le titre de la fenêtre, flèche ← seule sans cadre devant, « Communauté »
   de la barre de gauche y ramène aussi ; Suivre à droite de la photo (`personName`/`leavePerson`, `PersonName`).
+  12/11 (capture : « more than one relationship was found for 'shares' and 'profiles' », Communauté vide pour TOUS,
+  anciennes versions comprises) : adds/ratings à clé (share_id, user_id) = « tables de jonction » pour PostgREST
+  → 3 liens partages↔profils. Maintenant un `id` + unique `*_une_fois` (comme reports), réparation dans le fichier
+  (à RECOLLER par le propriétaire) ; essais `supabase/tests/communaute-relations.sql` (règle de PostgREST) sur sa
+  base du 11/11 (`communaute-suivre-11-11.sql`, copie exacte) et sur une base neuve. JAMAIS de clé primaire faite
+  de deux références vers des tables déjà reliées.
 - Mails du compte : 2 par heure (donc 2 inscriptions) tant que le propriétaire n'a pas fait l'étape 6 de
   `supabase/README.md` (11/11 : Gmail rien que pour l'app, 60 par heure ; plus tard Brevo avec le domaine du site).
   Bêta limitée (1 000 comptes, un compte = un ordinateur) mise de côté le 11/11 : choix dans HISTORIQUE.

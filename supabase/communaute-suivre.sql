@@ -70,11 +70,14 @@ create trigger follows_count after insert or delete on public.follows
 -- ---------- Ajouts (« Ajoutée N fois ») ----------
 
 -- Un ajout par personne et par partage, jamais pour son propre partage ; seulement par record_add.
+-- Un numéro à elle et « une fois » à part (comme reports) : une clé (share_id, user_id) ferait d'adds un lien direct
+-- entre partages et profils pour le serveur web, et la Communauté entière tomberait (12/11, voir plus bas).
 create table if not exists public.adds (
+  id uuid primary key default gen_random_uuid(),
   share_id uuid not null references public.shares (id) on delete cascade,
   user_id uuid not null default auth.uid() references public.profiles (id) on delete cascade,
   created_at timestamptz not null default now(),
-  primary key (share_id, user_id)
+  constraint adds_une_fois unique (share_id, user_id)
 );
 create index if not exists adds_user on public.adds (user_id);
 alter table public.adds enable row level security;
@@ -121,13 +124,43 @@ grant execute on function public.record_add(uuid) to authenticated;
 
 -- Une note par personne et par partage, modifiable ; seulement par rate_share.
 create table if not exists public.ratings (
+  id uuid primary key default gen_random_uuid(),
   share_id uuid not null references public.shares (id) on delete cascade,
   user_id uuid not null default auth.uid() references public.profiles (id) on delete cascade,
   stars smallint not null check (stars between 1 and 5),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  primary key (share_id, user_id)
+  constraint ratings_une_fois unique (share_id, user_id)
 );
+
+-- 12/11 (capture : « Could not embed because more than one relationship was found for 'shares' and 'profiles' »,
+-- Communauté vide pour tout le monde) : les tables collées le 11/11 avaient la clé (share_id, user_id), que le serveur
+-- web de Supabase (PostgREST) prend pour un lien direct entre partages et profils ; « author:profiles(username) » de
+-- l'app en trouvait alors trois. Ici elles prennent la forme d'au-dessus, sans rien perdre : un numéro à chaque ligne,
+-- « une fois par personne » posé avant que l'ancienne clé parte. Sans effet sur une base déjà à la bonne forme.
+do $$
+declare
+  t text;
+  old_key name;
+begin
+  foreach t in array array['adds', 'ratings'] loop
+    execute format('alter table public.%I add column if not exists id uuid not null default gen_random_uuid()', t);
+    if not exists (select 1 from pg_constraint where conrelid = format('public.%I', t)::regclass
+                     and conname = t || '_une_fois') then
+      execute format('alter table public.%I add constraint %I unique (share_id, user_id)', t, t || '_une_fois');
+    end if;
+    select c.conname into old_key
+      from pg_constraint c
+     where c.conrelid = format('public.%I', t)::regclass and c.contype = 'p'
+       and c.conkey <> array[(select a.attnum from pg_attribute a where a.attrelid = c.conrelid and a.attname = 'id')];
+    if old_key is not null then
+      execute format('alter table public.%I drop constraint %I', t, old_key);
+    end if;
+    if not exists (select 1 from pg_constraint where conrelid = format('public.%I', t)::regclass and contype = 'p') then
+      execute format('alter table public.%I add primary key (id)', t);
+    end if;
+  end loop;
+end $$;
 create index if not exists ratings_user on public.ratings (user_id, updated_at desc);
 alter table public.ratings enable row level security;
 drop policy if exists "chacun lit ses notes" on public.ratings;
