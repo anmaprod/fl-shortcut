@@ -5,8 +5,8 @@
 - Branche la plus récente : **`claude/great-hopper-qihaiy`** (en avance de 138 commits sur `claude/relaxed-mayer-ndguzv`).
   Pas de nouvelle PR sans demande (anmaprod/fl-shortcut#1 existe). Un push lance la CI ; ne pas la relancer à la main
   sans demande. Derniers tests Mac verts : commit 1843b87 (502 tests, lancés par le propriétaire sur son Mac) ; CI
-  entièrement verte sur 8ba1b2c (12/11 : 665 essais Mac, 473 Windows ; relance de FL, icônes après un écart) ; avant, sur
-  3883bc0 (659 essais Mac) puis a82dee2 (04/11 : 617 essais Mac, 384 Windows, logo A, clic intelligent Windows ; Mac macOS 26
+  entièrement verte sur 40ce8e1 (12/11 : 671 essais Mac, 475 Windows ; icônes écrites dans la copie, apprentissage des
+  icônes) ; avant, sur 8ba1b2c (665 essais Mac) puis a82dee2 (04/11 : 617 essais Mac, 384 Windows, logo A, clic intelligent Windows ; Mac macOS 26
   obtenu après 8 refus de GitHub à 15 min, relancé à sa demande « jusqu'à que ça fonctionne ») ; avant, sur 8861883 (plugins par « More plugins… », preset déposé sur Windows, tous les essais PASS ;
   lancée à la main avec `mac_runner=macos-15-intel` à sa demande : le 28/10 GitHub n'a donné aucun Mac arm64 en 15 min,
   deux fois). La lecture de GitHub (CI, artefacts, images) marche : vérifier chaque push dessus. Les essais de macro
@@ -849,7 +849,7 @@
   12/11 (10) (« oui stp… c'est juste pour moi… on le fait une fois et ça fonctionnera partout ») : « Apprendre les
   icônes de FL » sur l'écran Démarrer de l'Organiser (Mac, `OrganizerIconLearner`) : projet VIDE seulement, les 123
   cases posées 8 sons à la fois, ⌘S, numéros relus ; Channel rack puis Mixer ; « Copier la table » → à mettre dans
-  l'app (Mac par défaut + `FlIconIds` Windows). Pas encore d'essais Swift de l'apprentissage. CI : .pkg publié dès
+  l'app (Mac par défaut + `FlIconIds` Windows). Essais `OrganizerIconLearnerTests`. CI : .pkg publié dès
   la compilation (artefact `FLShortcuts-mac-rapide`).
 - Mails du compte : 2 par heure (donc 2 inscriptions) tant que le propriétaire n'a pas fait l'étape 6 de
   `supabase/README.md` (11/11 : Gmail rien que pour l'app, 60 par heure ; plus tard Brevo avec le domaine du site).
