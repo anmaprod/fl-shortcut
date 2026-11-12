@@ -202,6 +202,24 @@ public class OrganizerApplyTests
         var (third, thirdResult) = Rack(new SoundFamily?[] { SoundFamily.Melody, SoundFamily.Drums, SoundFamily.Bass });
         var stopped = Applier(third, _ => OrganizerError.Interrupted).Apply(Plan(thirdResult, styles, RackOnly), thirdResult, styles);
         Assert.Equal(OrganizerError.Interrupted, stopped.Error);
+        // 12/11 (icônes sur Basse, Basse 2, Clap, Clap 2 puis plus rien : Perc avait raté) : le premier rate, le
+        // suivant est posé quand même.
+        var (skip, skipResult) = Rack(new SoundFamily?[] { SoundFamily.Melody, SoundFamily.Drums, SoundFamily.Bass });
+        var skipPlaced = new List<string>();
+        var firstTry = true;
+        var skipped = Applier(skip, icon =>
+        {
+            if (firstTry)
+            {
+                firstTry = false;
+                return OrganizerError.Failed("nom du son introuvable");
+            }
+            skipPlaced.Add($"{skip.Selected ?? -1}:{icon.Code}");
+            return null;
+        }).Apply(Plan(skipResult, styles, RackOnly), skipResult, styles);
+        Assert.Null(skipped.Error);
+        Assert.Equal(OrganizerError.Failed("nom du son introuvable"), skipped.IconsMissed);
+        Assert.Equal(new[] { "2:7-4" }, skipPlaced);
     }
 
     /// La page qui n'est plus devant est remise devant et le rangement continue ; arrêt seulement si elle ne revient pas.

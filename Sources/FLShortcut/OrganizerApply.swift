@@ -302,6 +302,9 @@ final class OrganizerApplier {
     private var restoreCauses: [String] = []
     /// Pages dont FL n'a pas laissé finir le rangement (12/11) : le reste a continué.
     private var unordered: [FLWindow] = []
+    /// Icônes ratées (sautées, les suivantes continuent) et leur trace pour le diagnostic.
+    private var iconsMissedCount = 0
+    private var iconTrace: [String] = []
     /// Première icône manquée : les suivantes ne sont plus essayées, le reste du rangement continue.
     private var iconMiss: OrganizerError?
     /// Icônes prévues, posées à la toute fin (07/11, « dès que je veux mettre des icônes… ça oublie les couleurs des
@@ -431,6 +434,8 @@ final class OrganizerApplier {
         restored = 0
         restoreCauses = []
         unordered = []
+        iconsMissedCount = 0
+        iconTrace = []
         iconMiss = nil
         pendingIcons = []
         placedRack = []
@@ -531,6 +536,7 @@ final class OrganizerApplier {
         if !restoreCauses.isEmpty { outcome.trace.append("remise " + Self.countedCauses(restoreCauses)) }
         outcome.unordered = unordered
         if !unordered.isEmpty { outcome.trace.append("pas rangé " + unordered.map { "\($0)" }.joined(separator: ",")) }
+        outcome.trace.append(contentsOf: iconTrace)
         if let iconMiss {
             // Dite après « Icônes non posées : » : la raison telle quelle, sans majuscule.
             if case .failed(let why) = iconMiss { outcome.iconsMissed = why } else { outcome.iconsMissed = iconMiss.message }
@@ -1179,41 +1185,59 @@ final class OrganizerApplier {
     private func placePendingIcons() throws {
         let jobs = pendingIcons
         pendingIcons = []
-        for job in jobs where iconMiss == nil {
+        // 12/11 : le Mixer passe même si le Channel rack a raté des icônes.
+        for job in jobs {
             do {
                 try placeIcons(job.icons, kind: job.kind) { job.places[$0] }
             } catch OrganizerError.interrupted {
                 throw OrganizerError.interrupted
             } catch {
-                iconMiss = Self.failure(error)
+                if iconMiss == nil { iconMiss = Self.failure(error) }
             }
         }
+        if iconsMissedCount > 0 { iconTrace.append("icônes ratées \(iconsMissedCount)") }
     }
+
+    /// Ratés de suite après lesquels une page laisse ses icônes (FL ne laisse plus faire : inutile d'attendre).
+    static let iconFailuresInARow = 3
 
     /// Icônes en dernier (FL ne dit pas lesquelles étaient là : « Revenir comme avant » ne les retire pas). Chaque
     /// élément est sélectionné seul, puis la pose passe par la fenêtre de FL (son nom y est retrouvé d'après les
     /// noms relus dans l'ordre de FL) ; la page est remise devant si elle ne l'est plus. Une icône manquée n'arrête
     /// que les icônes (capture du 31/10 : le Mixer n'était plus rangé) ; Échap arrête tout.
+    /// 12/11 (capture du propriétaire : icônes sur Basse, Basse 2, Clap, Clap 2, puis plus rien ni dans le Mixer : Perc
+    /// avait raté et tout s'arrêtait) : un élément raté est sauté et les suivants continuent, du haut vers le bas de la
+    /// page ; la page s'arrête après `iconFailuresInARow` ratés de suite. La première raison est dite à la fin ; seul
+    /// Échap arrête tout.
     private func placeIcons(_ icons: [Int: FLIcon], kind: ItemKind, place: (Int) -> Int?) throws {
-        guard !icons.isEmpty, iconMiss == nil else { return }
+        guard !icons.isEmpty else { return }
         let page: FLWindow = kind == .channels ? .channelRack : .mixer
         if link.window != page { try link.show(page) }
         let names = kind == .channels ? IconTarget.channelNames(try link.listChannels())
                                       : IconTarget.mixerNames(try link.listMixer())
-        for index in icons.keys.sorted() {
-            guard let icon = icons[index], let at = place(index) else { continue }
+        let order = icons.keys.compactMap { index in place(index).map { (index: index, at: $0) } }
+            .sorted { $0.at < $1.at }
+        var inARow = 0
+        for (index, at) in order {
+            guard let icon = icons[index] else { continue }
             if link.window != page { try link.show(page) }
-            guard link.window == page else {
-                iconMiss = .failed(String(localized: "la page de FL a changé pendant les icônes"))
-                return
+            let failure: OrganizerError?
+            if link.window != page {
+                failure = .failed(String(localized: "la page de FL a changé pendant les icônes"))
+            } else {
+                try link.selectOne(kind, at)
+                failure = placeIcon(icon, IconTarget(kind: kind, place: at, names: names))
             }
-            try link.selectOne(kind, at)
-            if let error = placeIcon(icon, IconTarget(kind: kind, place: at, names: names)) {
-                if error == .interrupted { throw error }
-                iconMiss = error
-                return
+            guard let failure else {
+                inARow = 0
+                if kind == .channels { placedRack.append((icon: icon, place: at)) }
+                continue
             }
-            if kind == .channels { placedRack.append((icon: icon, place: at)) }
+            if failure == .interrupted { throw failure }
+            if iconMiss == nil { iconMiss = failure }
+            iconsMissedCount += 1
+            inARow += 1
+            if inARow >= Self.iconFailuresInARow { return }
         }
     }
 

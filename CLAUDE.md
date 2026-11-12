@@ -820,6 +820,13 @@
   pareil (+ une icône ratée n'arrête plus rien, `IconsMissed`). CAUSE des remises chez lui : PAS ENCORE CONNUE
   (attendre son diagnostic suivant). Ouvrir FL Shortcuts AVANT FL : FL ne trouve pas « FL Shortcuts » dans MIDI
   (12/11) : à comprendre avec son macro.log (lignes MIDI) ; ne pas remettre les ports permanents sur Mac.
+- **Icônes de l'Organiser** (12/11, captures : icônes seulement sur Basse, Basse 2, Clap, Clap 2 du Channel rack, rien
+  dans le Mixer ni la Playlist, « très long… il faut que ce soit à l'instant T ») : un raté (Perc) arrêtait TOUTES les
+  icônes → maintenant sauté, les suivantes continuent (du haut vers le bas), une page abandonne après 3 ratés de
+  suite, le Mixer passe même si le Channel rack a raté (`iconFailuresInARow`, trace `icônes ratées N` ; Windows
+  pareil). Playlist : icônes écrites dans la copie seulement pour les numéros déjà APPRIS (au rangement suivant).
+  À FAIRE pour « à l'instant T » : écrire les icônes connues dans la copie aussi pour le Channel rack (événement 155)
+  et le Mixer — attendre un vrai .flp de son projet de test pour voir la forme exacte (jamais à l'aveugle).
 - Mails du compte : 2 par heure (donc 2 inscriptions) tant que le propriétaire n'a pas fait l'étape 6 de
   `supabase/README.md` (11/11 : Gmail rien que pour l'app, 60 par heure ; plus tard Brevo avec le domaine du site).
   Bêta limitée (1 000 comptes, un compte = un ordinateur) mise de côté le 11/11 : choix dans HISTORIQUE.

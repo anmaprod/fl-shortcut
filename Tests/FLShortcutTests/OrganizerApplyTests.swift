@@ -207,8 +207,9 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertEqual(targets, [IconTarget(kind: .channels, place: 0, names: ["Son 0", "Son 2", "Son 1"]),
                                  IconTarget(kind: .channels, place: 2, names: ["Son 0", "Son 2", "Son 1"])])
 
-        // Capture du 31/10 : une icône manquée n'arrête que les icônes (les suivantes ne sont plus essayées), le
-        // rangement va au bout et la raison est dite à la fin.
+        // Capture du 31/10 : une icône manquée n'arrête jamais le rangement, qui va au bout ; la raison est dite à la
+        // fin. 12/11 (icônes sur Basse, Basse 2, Clap, Clap 2 puis plus rien : Perc avait raté) : les suivantes sont
+        // essayées quand même ; la page n'abandonne qu'après `iconFailuresInARow` ratés de suite.
         let (other, otherResult) = rack([.melody, .drums, .bass])
         var tries = 0
         let missed = applier(other, placeIcon: { _, _ in
@@ -217,9 +218,26 @@ final class OrganizerApplyTests: XCTestCase {
         }).apply(plan(otherResult, styles: styles, options: rackOnly), result: otherResult, styles: styles)
         XCTAssertNil(missed.error)
         XCTAssertEqual(missed.iconsMissed, "autorisation absente")
-        XCTAssertEqual(tries, 1)
+        XCTAssertEqual(tries, 2, "les deux icônes sont essayées")
         XCTAssertEqual(missed.snapshot.rack?.arrangement, [0, 2, 1])
         XCTAssertTrue(missed.trace.contains("icônes non posées"))
+        XCTAssertTrue(missed.trace.contains("icônes ratées 2"), "\(missed.trace)")
+
+        // Le premier élément rate (Perc), le suivant est posé quand même.
+        let (skip, skipResult) = rack([.melody, .drums, .bass])
+        var skipPlaced: [String] = []
+        var first = true
+        let skipped = applier(skip, placeIcon: { icon, _ in
+            if first {
+                first = false
+                return .failed("nom du son introuvable")
+            }
+            skipPlaced.append("\(skip.selected ?? -1):\(icon.code)")
+            return nil
+        }).apply(plan(skipResult, styles: styles, options: rackOnly), result: skipResult, styles: styles)
+        XCTAssertNil(skipped.error)
+        XCTAssertEqual(skipped.iconsMissed, "nom du son introuvable")
+        XCTAssertEqual(skipPlaced, ["2:7-4"], "Drums posé après le raté de Mélodies")
 
         // Échap pendant une icône : tout s'arrête, comme avant.
         let (third, thirdResult) = rack([.melody, .drums, .bass])

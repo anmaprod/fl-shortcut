@@ -199,13 +199,17 @@ public sealed class OrganizerApplier
     /// (Échap, Arrêter) arrête tout.
     private void PlaceIconsQuietly(Dictionary<int, FlIcon> icons, ItemKind kind, Func<int, int?> place)
     {
-        if (icons.Count == 0 || _iconMiss is not null) return;
+        // 12/11, comme le Mac : le Mixer passe même si le Channel rack a raté des icônes.
+        if (icons.Count == 0) return;
         try { PlaceIcons(icons, kind, place); }
         catch (OrganizerError e) when (!e.Is(OrganizerError.Kinds.Cancelled) && !e.Is(OrganizerError.Kinds.Interrupted))
         {
-            _iconMiss = e;
+            _iconMiss ??= e;
         }
     }
+
+    /// Ratés de suite après lesquels une page laisse ses icônes (comme le Mac).
+    public const int IconFailuresInARow = 3;
 
     /// FL ouvre la copie rangée attendue : un nom de pattern posé pour ça dans la copie, lu par le script (au plus
     /// `OpenChecks` fois, toutes les demi-secondes, 3 minutes : un gros projet charge ses plugins).
@@ -791,24 +795,34 @@ public sealed class OrganizerApplier
     /// Icônes en dernier (FL ne dit pas lesquelles étaient là : « Revenir comme avant » ne les retire pas).
     private void PlaceIcons(Dictionary<int, FlIcon> icons, ItemKind kind, Func<int, int?> place)
     {
+        // 12/11, comme le Mac : un élément raté est sauté et les suivants continuent, du haut vers le bas ; la page
+        // s'arrête après `IconFailuresInARow` ratés de suite ; seul Échap arrête tout.
         var page = kind == ItemKind.Channels ? FlWindow.ChannelRack : FlWindow.Mixer;
-        foreach (var index in icons.Keys.OrderBy(k => k))
+        var order = icons.Keys.Select(i => (Index: i, At: place(i))).Where(p => p.At is not null)
+            .OrderBy(p => p.At!.Value).ToList();
+        var inARow = 0;
+        foreach (var (index, atOrNull) in order)
         {
-            if (place(index) is not { } at) continue;
+            var at = atOrNull!.Value;
+            OrganizerError? failure = null;
             if (_link.Window != page)
             {
-                // Page de FL qui a changé : plus d'icônes, le reste continue (comme le Mac).
-                _iconMiss = OrganizerError.Failed(Loc.T("Icônes non posées : la page de FL a changé."));
-                return;
+                failure = OrganizerError.Failed(Loc.T("Icônes non posées : la page de FL a changé."));
             }
-            _link.SelectOne(kind, at);
-            if (_placeIcon(icons[index]) is { } error)
+            else
             {
-                // Échap pendant une icône : tout s'arrête ; tout autre accroc n'arrête que les icônes.
-                if (error.Is(OrganizerError.Kinds.Interrupted) || error.Is(OrganizerError.Kinds.Cancelled)) throw error;
-                _iconMiss = error;
-                return;
+                _link.SelectOne(kind, at);
+                failure = _placeIcon(icons[index]);
             }
+            if (failure is null)
+            {
+                inARow = 0;
+                continue;
+            }
+            // Échap pendant une icône : tout s'arrête ; tout autre accroc n'arrête que cette icône.
+            if (failure.Is(OrganizerError.Kinds.Interrupted) || failure.Is(OrganizerError.Kinds.Cancelled)) throw failure;
+            _iconMiss ??= failure;
+            if (++inARow >= IconFailuresInARow) return;
         }
     }
 
