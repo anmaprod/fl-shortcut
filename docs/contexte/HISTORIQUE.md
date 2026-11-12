@@ -1035,3 +1035,14 @@ entrée 1 ≈ 0,5 s.
   `kill(pid, 0)`) et la règle `FLRelaunchPlan` (5 min pour « Enregistrer ? », lancé 1 s après le départ, relancé
   s'il n'apparaît pas en 20 s, 3 fois au plus, erreur → 2 s) ; Windows pareil (`FlRelaunchPlan`, FL lancé depuis son
   dossier). Journal `RESTART` (nombres). Cause exacte chez lui pas prouvée : lire `RESTART` s'il recommence.
+- 12/11 (7) : « ça saute 1 sur 2… même dans Playlist, dans Channel rack, ça n'a pas marché… à l'instant T, c'est du
+  bidon » + crash_out_3.flp + diagnostic `appliqué-mismatch` (Baby On Quoi 2). Trouvé : (a) une page relue avec le
+  moindre écart (ordre, une couleur) sortait AVANT de prévoir ses icônes → rien posé, rien appris, donc jamais
+  d'icône écrite dans la copie ni dans la Playlist (« des fois ça marche, des fois non ») ; (b) dans crash out 3,
+  Mixer : icônes une piste sur deux (Mélodie, Kick, Clap, Drums Bus), Channel rack : Arp et Mélodie ratés ;
+  (c) drums = 75 dans le Channel rack mais 105 dans le Mixer : numéros du Mixer appris À PART ; (d) FL écrit l'icône
+  d'une piste du Mixer avant son nom (149, 42, 95, 204). Forum d'Image-Line : aucune table des numéros (~500
+  icônes, sans lien avec la grille) → toujours appris au 1er usage. Fait (Mac et Windows) : icônes posées d'après
+  l'ordre relu même après un écart, 2e essai après 0,8 s, « écart rack couleurs 1/3 »… dans le diagnostic ; Mac :
+  `organizerMixerIconIDs`, `learnMixerIconIDs`, `FLPProject.insertIcons`. Couleurs « pas changées » : cause pas
+  encore vue (lire la ligne `écart` de son prochain diagnostic).

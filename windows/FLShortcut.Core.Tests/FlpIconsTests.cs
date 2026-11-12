@@ -13,8 +13,8 @@ public class FlpIconsTests
         var out_ = new List<FlpEvent>();
         if (color) out_.Add(Ev(149, 0x1F3BFF));
         out_.Add(Ev(42, 0));
-        if (name is not null) out_.Add(Text(204, name));
         if (icon is { } i) out_.Add(Ev(95, i));
+        if (name is not null) out_.Add(Text(204, name));
         out_.AddRange(new[] { Text(236, ""), Ev(98, 0), Text(235, ""), Ev(154, 0), Ev(147, 0) });
         return out_;
     }
@@ -50,9 +50,9 @@ public class FlpIconsTests
             var output = Enumerable.Range(starts[k - 1], starts[k] - starts[k - 1]).Last(i => events[i].Id == 147);
             return events.Skip(output + 1).Take(starts[k] - output - 1).Select(e => e.Id).ToList();
         }
-        Assert.Equal(new byte[] { 149, 42, 204, 95 }, Before(1));
+        Assert.Equal(new byte[] { 149, 42, 95, 204 }, Before(1));   // juste avant le nom, comme FL
         Assert.Equal(new byte[] { 42 }, Before(2));
-        Assert.Equal(new byte[] { 149, 42, 204, 95 }, Before(3));
+        Assert.Equal(new byte[] { 149, 42, 95, 204 }, Before(3));
         Assert.Equal(new uint[] { 2, 4 }, events.Where(e => e.Id == 95).Select(e => e.Value));
         Assert.Equal((2, 2), FlpIcons.IconCounts(written.File));
         // L'original n'a pas bougé.

@@ -3,7 +3,8 @@
 // - chaque son du Channel rack a TOUJOURS son événement 155 (l'icône, 4 octets, 0 = aucune) : rempli, jamais ajouté ;
 // - chaque piste du Mixer commence par un 236 et finit par un 147 (sa sortie) ; sa couleur (149) et son nom (204) sont
 //   écrits JUSTE AVANT son 236, après le 147 de la piste d'avant. L'icône (95, 2 octets) y va aussi : remplie si elle
-//   y est, sinon ajoutée juste avant le 236. Un Mixer d'une autre forme : rien n'y est écrit.
+//   y est, sinon ajoutée juste avant le nom, comme FL l'écrit (crash out 3 : 149, 42, 95, 204), ou avant le 236 sans
+//   nom. Un Mixer d'une autre forme : rien n'y est écrit.
 namespace FLShortcut.Core.Organizer;
 
 public static class FlpIcons
@@ -12,6 +13,7 @@ public static class FlpIcons
     public const byte InsertStart = 236;
     public const byte InsertOutput = 147;
     public const byte InsertIcon = 95;
+    public const byte InsertName = 204;
 
     /// `channels` : numéro de canal → numéro d'icône de FL ; `inserts` : piste du Mixer (Master = 0) → numéro d'icône.
     /// Renvoie la copie et ce qui y a vraiment été écrit.
@@ -65,8 +67,17 @@ public static class FlpIcons
             var existing = -1;
             for (var i = range.From; i < range.To; i++)
                 if (events[i].Id == InsertIcon) { existing = i; break; }
-            if (existing >= 0) outEvents[existing] = new FlpEvent(InsertIcon, bytes);
-            else outEvents.Insert(range.To, new FlpEvent(InsertIcon, bytes));
+            if (existing >= 0)
+            {
+                outEvents[existing] = new FlpEvent(InsertIcon, bytes);
+            }
+            else
+            {
+                var at = range.To;
+                for (var i = range.From; i < range.To; i++)
+                    if (events[i].Id == InsertName) { at = i; break; }
+                outEvents.Insert(at, new FlpEvent(InsertIcon, bytes));
+            }
             doneInserts.Add(insert);
         }
         return (Copy(file, outEvents), doneChannels, doneInserts);

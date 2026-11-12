@@ -66,6 +66,9 @@ struct OrganizerEnvironment {
     /// Numéros d'icône de FL appris (code de la grille → numéro), pour les pistes de la Playlist (07/11 au soir).
     var loadIconIDs: () -> [String: UInt32] = { [:] }
     var saveIconIDs: ([String: UInt32]) -> Void = { _ in }
+    /// Les numéros du Mixer, appris et gardés à part (12/11 : ils peuvent différer de ceux du Channel rack).
+    var loadMixerIconIDs: () -> [String: UInt32] = { [:] }
+    var saveMixerIconIDs: ([String: UInt32]) -> Void = { _ in }
     /// « Quitter et rouvrir FL » (07/11) : FL quitté comme par ⌘Q (il demande d'enregistrer s'il le faut), puis
     /// relancé dès qu'il est parti.
     var restartFL: () -> Void = {}
@@ -161,6 +164,8 @@ struct OrganizerEnvironment {
             },
             loadIconIDs: { OrganizerEnvironment.storedIconIDs() },
             saveIconIDs: { OrganizerEnvironment.storeIconIDs($0) },
+            loadMixerIconIDs: { OrganizerEnvironment.storedIconIDs(key: OrganizerEnvironment.mixerIconIDsKey) },
+            saveMixerIconIDs: { OrganizerEnvironment.storeIconIDs($0, key: OrganizerEnvironment.mixerIconIDsKey) },
             // Une relance à la fois ; FL relancé dès qu'il est parti, puis relancé s'il n'apparaît pas (FLRelauncher,
             // 12/11 : « il ne rouvre pas automatiquement FL Studio »).
             restartFL: { _ = FLRelauncher.shared.restart() },
@@ -383,9 +388,11 @@ struct OrganizerEnvironment {
     /// Numéros d'icône appris, gardés dans les réglages (rien de sensible : une mauvaise valeur ne change qu'une
     /// icône de la Playlist ; seuls des codes de la grille et des nombres sont lus).
     static let iconIDsKey = "organizerIconIDs"
+    /// Ceux du Mixer (12/11).
+    static let mixerIconIDsKey = "organizerMixerIconIDs"
 
-    static func storedIconIDs() -> [String: UInt32] {
-        let raw = UserDefaults.standard.dictionary(forKey: iconIDsKey) ?? [:]
+    static func storedIconIDs(key: String = OrganizerEnvironment.iconIDsKey) -> [String: UInt32] {
+        let raw = UserDefaults.standard.dictionary(forKey: key) ?? [:]
         var out: [String: UInt32] = [:]
         for (code, value) in raw {
             guard FLIcon(code: code) != nil, let n = value as? Int, (1...0xFFFF).contains(n) else { continue }
@@ -394,11 +401,11 @@ struct OrganizerEnvironment {
         return out
     }
 
-    static func storeIconIDs(_ learned: [String: UInt32]) {
+    static func storeIconIDs(_ learned: [String: UInt32], key: String = OrganizerEnvironment.iconIDsKey) {
         guard !learned.isEmpty else { return }
-        var all = storedIconIDs()
+        var all = storedIconIDs(key: key)
         for (code, id) in learned { all[code] = id }
-        UserDefaults.standard.set(all.mapValues { Int($0) }, forKey: iconIDsKey)
+        UserDefaults.standard.set(all.mapValues { Int($0) }, forKey: key)
     }
 
     /// Mêmes étapes et garde-fous que le bloc « Nom et couleur » (FL au premier plan, Échap) ; le clic droit sur le
@@ -1222,6 +1229,7 @@ final class OrganizerController: ObservableObject {
                                        readClips: env.readClips(link), moveClip: env.moveClip(link),
                                        wait: env.sleep, listen: env.timing.trackListen, files: env.projectFiles(),
                                        iconIDs: env.loadIconIDs(),
+                                       mixerIconIDs: env.loadMixerIconIDs(),
                                        report: { [weak self] text in
                                            DispatchQueue.main.async { self?.applyStep = text }
                                        })
@@ -1230,6 +1238,7 @@ final class OrganizerController: ObservableObject {
             let outcome = applier.apply(plan, result: result, styles: styles)
             DispatchQueue.main.async {
                 self?.env.saveIconIDs(outcome.learnedIconIDs)
+                self?.env.saveMixerIconIDs(outcome.learnedMixerIconIDs)
                 self?.snapshot = outcome.snapshot
                 self?.lastApply = outcome
                 self?.phase = .applied(outcome.error)

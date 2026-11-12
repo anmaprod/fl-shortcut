@@ -202,24 +202,48 @@ public class OrganizerApplyTests
         var (third, thirdResult) = Rack(new SoundFamily?[] { SoundFamily.Melody, SoundFamily.Drums, SoundFamily.Bass });
         var stopped = Applier(third, _ => OrganizerError.Interrupted).Apply(Plan(thirdResult, styles, RackOnly), thirdResult, styles);
         Assert.Equal(OrganizerError.Interrupted, stopped.Error);
-        // 12/11 (icônes sur Basse, Basse 2, Clap, Clap 2 puis plus rien : Perc avait raté) : le premier rate, le
-        // suivant est posé quand même.
+        // 12/11 (icônes sur Basse, Basse 2, Clap, Clap 2 puis plus rien : Perc avait raté) : le premier rate deux
+        // fois, le suivant est posé quand même.
         var (skip, skipResult) = Rack(new SoundFamily?[] { SoundFamily.Melody, SoundFamily.Drums, SoundFamily.Bass });
         var skipPlaced = new List<string>();
-        var firstTry = true;
         var skipped = Applier(skip, icon =>
         {
-            if (firstTry)
-            {
-                firstTry = false;
-                return OrganizerError.Failed("nom du son introuvable");
-            }
+            if (icon.Code == "6-0") return OrganizerError.Failed("nom du son introuvable");
             skipPlaced.Add($"{skip.Selected ?? -1}:{icon.Code}");
             return null;
         }).Apply(Plan(skipResult, styles, RackOnly), skipResult, styles);
         Assert.Null(skipped.Error);
         Assert.Equal(OrganizerError.Failed("nom du son introuvable"), skipped.IconsMissed);
         Assert.Equal(new[] { "2:7-4" }, skipPlaced);
+        // 12/11 (« ça en saute 1 sur 2… peut-être que c'est trop rapide »), comme le Mac : une icône ratée une fois est
+        // posée au second essai ; rien n'est dit manquant.
+        var (again, againResult) = Rack(new SoundFamily?[] { SoundFamily.Melody, SoundFamily.Drums, SoundFamily.Bass });
+        var againPlaced = new List<string>();
+        var failedOnce = false;
+        var retried = Applier(again, icon =>
+        {
+            if (!failedOnce)
+            {
+                failedOnce = true;
+                return OrganizerError.Failed("menu de FL pas encore ouvert");
+            }
+            againPlaced.Add($"{again.Selected ?? -1}:{icon.Code}");
+            return null;
+        }).Apply(Plan(againResult, styles, RackOnly), againResult, styles);
+        Assert.Null(retried.Error);
+        Assert.Null(retried.IconsMissed);
+        Assert.Equal(new[] { "0:6-0", "2:7-4" }, againPlaced);
+        Assert.Contains("icônes au 2e essai 1", retried.Trace);
+        // 12/11 (« des fois ça marche, des fois ça marche pas ») : une couleur que FL ne prend pas rend la page « pas
+        // tout pris », mais ses icônes sont posées quand même (ordre relu connu) ; le diagnostic dit l'écart.
+        var (grey, greyResult) = Rack(new SoundFamily?[] { SoundFamily.Melody, SoundFamily.Drums, SoundFamily.Bass });
+        grey.IgnoredColors = new HashSet<int> { 1 };
+        var greyPlaced = new List<string>();
+        var partly = Applier(grey, icon => { greyPlaced.Add($"{grey.Selected ?? -1}:{icon.Code}"); return null; })
+            .Apply(Plan(greyResult, styles, RackOnly), greyResult, styles);
+        Assert.Equal(OrganizerError.Mismatch, partly.Error);
+        Assert.Equal(new[] { "0:6-0", "2:7-4" }, greyPlaced);
+        Assert.Contains("écart rack couleurs 1/3", partly.Trace);
     }
 
     /// La page qui n'est plus devant est remise devant et le rangement continue ; arrêt seulement si elle ne revient pas.

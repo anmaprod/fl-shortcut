@@ -237,6 +237,8 @@ struct ApplyOutcome: Equatable {
     /// Numéros d'icône de FL appris dans la copie enregistrée (code de la grille → numéro) : la Playlist les reçoit
     /// au rangement suivant (07/11 au soir).
     var learnedIconIDs: [String: UInt32] = [:]
+    /// Pareil pour le Mixer, appris à part (12/11 : ses numéros peuvent différer de ceux du Channel rack).
+    var learnedMixerIconIDs: [String: UInt32] = [:]
     /// Étapes de l'application en mots et nombres (diagnostic : jamais un nom).
     var trace: [String] = []
 }
@@ -319,6 +321,15 @@ final class OrganizerApplier {
     private var placedRack: [(icon: FLIcon, place: Int)] = []
     /// Numéro de FL de chaque icône de la grille, appris des rangements précédents (code → numéro).
     private let iconIDs: [String: UInt32]
+    /// Icônes posées dans le Mixer (piste finale) et numéros du Mixer appris de même (12/11 : dans crash out 3, les
+    /// drums ont 75 dans le Channel rack et 105 dans le Mixer ; jamais un numéro de l'un écrit dans l'autre).
+    private var placedMixer: [(icon: FLIcon, place: Int)] = []
+    private let mixerIconIDs: [String: UInt32]
+    /// En quoi une page relue n'était pas comme prévu (diagnostic, 12/11 : « appliqué-mismatch » ne disait pas
+    /// laquelle). Des mots et des nombres seulement.
+    private var checks: [String] = []
+    /// Icônes posées au second essai (12/11, « ça en saute 1 sur 2… peut-être que c'est trop rapide »).
+    private var iconRetries = 0
     /// Boîtes de FL répondues pendant l'ouverture de la copie (4 au plus : jamais Entrée sans fin).
     private var dialogAnswers = 0
 
@@ -341,10 +352,12 @@ final class OrganizerApplier {
          listen: TimeInterval = 1.5,
          files: ProjectFileAccess? = nil,
          iconIDs: [String: UInt32] = [:],
+         mixerIconIDs: [String: UInt32] = [:],
          marker: String = ProjectFile.marker(Int.random(in: 1000...9999)),
          report: @escaping (String) -> Void = { _ in }) {
         self.files = files
         self.iconIDs = iconIDs
+        self.mixerIconIDs = mixerIconIDs
         self.marker = marker
         self.report = report
         self.link = link
@@ -451,6 +464,9 @@ final class OrganizerApplier {
         iconMiss = nil
         pendingIcons = []
         placedRack = []
+        placedMixer = []
+        checks = []
+        iconRetries = 0
         do {
             if let project = result.project {
                 // Toujours dans une copie (son Channel rack sur « All ») ; la Playlist n'y est rangée que si on l'a
@@ -476,7 +492,10 @@ final class OrganizerApplier {
             if !plan.mixer.links.isEmpty {
                 outcome.snapshot.links = [:]
                 let ok = try applyLinks(plan.mixer.links, result, &outcome.snapshot.links!)
-                if !ok { verified = false }
+                if !ok {
+                    verified = false
+                    checks.append("liens")
+                }
             }
             if !plan.rack.isEmpty {
                 outcome.snapshot.rack = AreaSnapshot()
@@ -486,7 +505,10 @@ final class OrganizerApplier {
             if !plan.patterns.isEmpty {
                 outcome.snapshot.patterns = AreaSnapshot()
                 let ok = try applyPatterns(plan.patterns, result, &outcome.snapshot.patterns!)
-                if !ok { verified = false }
+                if !ok {
+                    verified = false
+                    checks.append("patterns")
+                }
             }
             if !plan.mixer.isEmpty {
                 outcome.snapshot.mixer = AreaSnapshot()
@@ -519,7 +541,10 @@ final class OrganizerApplier {
                 outcome.snapshot.playlist = AreaSnapshot()
                 let ok = try applyPlaylist(plan.playlist, result, &outcome.snapshot.playlist!,
                                            unordered: &outcome.playlistUnordered)
-                if !ok { verified = false }
+                if !ok {
+                    verified = false
+                    checks.append("playlist")
+                }
             }
             // Tout le reste est fait : les icônes maintenant (une icône ratée ne défait et n'arrête plus rien).
             try placePendingIcons()
@@ -534,12 +559,17 @@ final class OrganizerApplier {
             if let copy = outcome.copy, let files, case .failure = files.save(copy) {
                 // La copie rangée n'a pas été enregistrée par FL : l'utilisateur le fera (⌘S).
                 outcome.copyNotSaved = true
-            } else if let copy = outcome.copy, let files, !placedRack.isEmpty || iconsWrittenInCopy > 0 {
+            } else if let copy = outcome.copy, let files,
+                      !placedRack.isEmpty || !placedMixer.isEmpty || iconsWrittenInCopy > 0 {
                 let saved = try? files.read(copy)
                 // Le numéro que FL donne à chaque icône posée (relu dans la copie enregistrée) : la Playlist le
                 // recevra au rangement suivant (aucun numéro deviné : jamais une mauvaise icône).
                 outcome.learnedIconIDs = Self.learnIconIDs(placedRack, in: saved.flatMap { try? FLPProject($0) })
                 if !outcome.learnedIconIDs.isEmpty { outcome.trace.append("icônes apprises \(outcome.learnedIconIDs.count)") }
+                outcome.learnedMixerIconIDs = Self.learnMixerIconIDs(placedMixer, in: saved)
+                if !outcome.learnedMixerIconIDs.isEmpty {
+                    outcome.trace.append("icônes apprises mixer \(outcome.learnedMixerIconIDs.count)")
+                }
                 // Icônes écrites dans la copie : celles que FL a gardées en l'enregistrant (diagnostic, 12/11).
                 if iconsWrittenInCopy > 0, let saved {
                     let kept = FLPProject.iconCounts(saved)
@@ -554,6 +584,7 @@ final class OrganizerApplier {
         if !restoreCauses.isEmpty { outcome.trace.append("remise " + Self.countedCauses(restoreCauses)) }
         outcome.unordered = unordered
         if !unordered.isEmpty { outcome.trace.append("pas rangé " + unordered.map { "\($0)" }.joined(separator: ",")) }
+        if !checks.isEmpty { outcome.trace.append("écart " + checks.joined(separator: ", ")) }
         outcome.trace.append(contentsOf: iconTrace)
         if let iconMiss {
             // Dite après « Icônes non posées : » : la raison telle quelle, sans majuscule.
@@ -613,11 +644,13 @@ final class OrganizerApplier {
         let rackIcons = Self.knownIcons(Self.plannedIcons(families: plan.rack.verdicts.mapValues { $0.family },
                                                           styles: styles), ids: iconIDs)
         let mixerIcons = Self.knownIcons(Self.plannedIcons(families: plan.mixer.verdicts.mapValues { $0.family },
-                                                           styles: styles), ids: iconIDs)
-        if !iconIDs.isEmpty {
+                                                           styles: styles), ids: mixerIconIDs)
+        if !iconIDs.isEmpty || !mixerIconIDs.isEmpty {
             // Case de la grille = numéro de FL (des nombres seulement) : la même table servira à Windows.
-            outcome.trace.append("icônes connues " + iconIDs.sorted { $0.key < $1.key }
-                .map { "\($0.key)=\($0.value)" }.joined(separator: " "))
+            func table(_ ids: [String: UInt32]) -> String {
+                ids.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: " ")
+            }
+            outcome.trace.append("icônes connues rack \(table(iconIDs)) mixer \(table(mixerIconIDs))")
         }
         if !rackIcons.isEmpty || !mixerIcons.isEmpty {
             let written = FLPProject.withIcons(copy, channels: rackIcons, inserts: mixerIcons)
@@ -932,21 +965,30 @@ final class OrganizerApplier {
             listed = try link.listChannels()
         }
         // L'ordre relu dans FL (aussi après un arrêt en route) : « Revenir comme avant » et les icônes le suivent.
+        var orderRead = false
         if let seen = Self.arrangement(names: listed.map { $0.name }, original: names) {
             regrouped = area.final.isEmpty || seen == area.final
             snap.arrangement = seen
+            orderRead = true
         }
         if stopped { unordered.append(.channelRack) }
         let now: [RGBColor?] = listed.map { $0.color }
         let expected: [RGBColor?] = snap.arrangement.map { area.colors[$0] ?? channels[$0].color }
-        guard regrouped || stopped, now == expected else { return false }
+        let wrongColors = zip(now, expected).filter { pair in pair.0 != pair.1 }.count + abs(now.count - expected.count)
+        if !(regrouped || stopped) { checks.append("rack ordre") }
+        if wrongColors > 0 { checks.append("rack couleurs \(wrongColors)/\(expected.count)") }
+        let verifiedPage = (regrouped || stopped) && wrongColors == 0
+        // 12/11 (« les icônes… des fois ça marche et des fois ça marche pas ») : un écart relu (l'ordre, une couleur)
+        // laissait aussi les icônes de la page, donc aucun numéro appris ni d'icône dans la Playlist la fois suivante.
+        // Elles suivent l'ordre relu dans FL ; sans ordre relu seulement, elles restent de côté (jamais sur un autre son).
+        guard verifiedPage || orderRead else { return false }
         let arrangement = snap.arrangement
         var places: [Int: Int] = [:]
         for index in icons.keys { if let at = arrangement.firstIndex(of: index) { places[index] = at } }
         // Celles déjà écrites dans la copie (numéro connu) ne passent plus par la fenêtre de FL (12/11).
         let byHand = rackIconsInCopy ? icons.filter { iconIDs[$0.value.code] == nil } : icons
         if !byHand.isEmpty { pendingIcons.append((icons: byHand, kind: .channels, places: places)) }
-        return true
+        return verifiedPage
     }
 
     /// Patterns : couleurs et noms, puis relecture.
@@ -1031,10 +1073,12 @@ final class OrganizerApplier {
         var now: [Int: MixerTrackInfo] = [:]
         for track in listed { now[track.index] = track }
         var regrouped = true
+        var orderRead = span == 0
         if span > 0, let seen = Self.arrangement(names: Self.tracks(listed, 1...span).map { $0.name }, original: names) {
             let tracks = seen.map { $0 + 1 }
             regrouped = tracks == area.final
             snap.arrangement = tracks
+            orderRead = true
         }
         // Chaque piste d'origine est maintenant à la place où l'ordre relu la met.
         let arrangement = snap.arrangement
@@ -1042,7 +1086,8 @@ final class OrganizerApplier {
             guard let at = arrangement.firstIndex(of: original) else { return original }
             return at + 1
         }
-        let colorsOK = area.colors.allSatisfy { now[place($0.key)]?.color == $0.value }
+        let wrongColors = area.colors.filter { now[place($0.key)]?.color != $0.value }.count
+        let colorsOK = wrongColors == 0
         var read: [Int: String] = [:]
         for index in named.keys { if let t = now[place(index)] { read[index] = t.name } }
         var resetOK = true
@@ -1052,12 +1097,20 @@ final class OrganizerApplier {
             for track in try link.listMixer() { after[track.index] = track }
             resetOK = resets.allSatisfy { after[place($0)]?.hasDefaultName == true }
         }
-        guard regrouped || stopped, colorsOK, routesOK, resetOK, Self.namesMatch(named, read) else { return false }
+        let namesOK = Self.namesMatch(named, read)
+        if !(regrouped || stopped) { checks.append("mixer ordre") }
+        if !colorsOK { checks.append("mixer couleurs \(wrongColors)/\(area.colors.count)") }
+        if !routesOK { checks.append("mixer envois") }
+        if !resetOK { checks.append("mixer remises") }
+        if !namesOK { checks.append("mixer noms") }
+        let verifiedPage = (regrouped || stopped) && colorsOK && routesOK && resetOK && namesOK
+        // Comme le Channel rack (12/11) : un écart relu ne laisse plus les icônes, posées d'après l'ordre relu.
+        guard verifiedPage || orderRead else { return false }
         var places: [Int: Int] = [:]
         for index in icons.keys { places[index] = place(index) }
-        let byHand = mixerIconsInCopy ? icons.filter { iconIDs[$0.value.code] == nil } : icons
+        let byHand = mixerIconsInCopy ? icons.filter { mixerIconIDs[$0.value.code] == nil } : icons
         if !byHand.isEmpty { pendingIcons.append((icons: byHand, kind: .mixer, places: places)) }
-        return true
+        return verifiedPage
     }
 
     /// Pur (testé) : le numéro de FL de chaque icône posée, relu sur le canal à sa place dans la copie enregistrée.
@@ -1067,6 +1120,16 @@ final class OrganizerApplier {
         for (icon, place) in placed where project.channels.indices.contains(place) {
             if let id = project.channels[place].icon, id != 0 { out[icon.code] = id }
         }
+        return out
+    }
+
+    /// Pur (testé) : le numéro que FL a donné à chaque icône posée dans le Mixer, relu piste par piste dans la copie
+    /// enregistrée (`place` : la piste du Mixer, Master = 0).
+    static func learnMixerIconIDs(_ placed: [(icon: FLIcon, place: Int)], in file: FLPFile?) -> [String: UInt32] {
+        guard let file else { return [:] }
+        let icons = FLPProject.insertIcons(file)
+        var out: [String: UInt32] = [:]
+        for (icon, place) in placed { if let id = icons[place] { out[icon.code] = id } }
         return out
     }
 
@@ -1237,11 +1300,14 @@ final class OrganizerApplier {
                 if iconMiss == nil { iconMiss = Self.failure(error) }
             }
         }
+        if iconRetries > 0 { iconTrace.append("icônes au 2e essai \(iconRetries)") }
         if iconsMissedCount > 0 { iconTrace.append("icônes ratées \(iconsMissedCount)") }
     }
 
     /// Ratés de suite après lesquels une page laisse ses icônes (FL ne laisse plus faire : inutile d'attendre).
     static let iconFailuresInARow = 3
+    /// Pause avant le second essai d'une icône ratée.
+    static let iconRetryPause: TimeInterval = 0.8
 
     /// Icônes en dernier (FL ne dit pas lesquelles étaient là : « Revenir comme avant » ne les retire pas). Chaque
     /// élément est sélectionné seul, puis la pose passe par la fenêtre de FL (son nom y est retrouvé d'après les
@@ -1259,20 +1325,32 @@ final class OrganizerApplier {
                                       : IconTarget.mixerNames(try link.listMixer())
         let order = icons.keys.compactMap { index in place(index).map { (index: index, at: $0) } }
             .sorted { $0.at < $1.at }
+        func attempt(_ icon: FLIcon, at: Int) throws -> OrganizerError? {
+            if link.window != page { try link.show(page) }
+            guard link.window == page else {
+                return .failed(String(localized: "la page de FL a changé pendant les icônes"))
+            }
+            try link.selectOne(kind, at)
+            return placeIcon(icon, IconTarget(kind: kind, place: at, names: names))
+        }
         var inARow = 0
         for (index, at) in order {
             guard let icon = icons[index] else { continue }
-            if link.window != page { try link.show(page) }
-            let failure: OrganizerError?
-            if link.window != page {
-                failure = .failed(String(localized: "la page de FL a changé pendant les icônes"))
-            } else {
-                try link.selectOne(kind, at)
-                failure = placeIcon(icon, IconTarget(kind: kind, place: at, names: names))
+            var failure = try attempt(icon, at: at)
+            // 12/11 (« ça en saute 1 sur 2… peut-être que c'est trop rapide ») : une icône ratée est réessayée une
+            // fois, après avoir laissé FL souffler un instant.
+            if let first = failure, first != .interrupted {
+                wait(Self.iconRetryPause)
+                failure = try attempt(icon, at: at)
+                if failure == nil { iconRetries += 1 }
             }
             guard let failure else {
                 inARow = 0
-                if kind == .channels { placedRack.append((icon: icon, place: at)) }
+                if kind == .channels {
+                    placedRack.append((icon: icon, place: at))
+                } else {
+                    placedMixer.append((icon: icon, place: at))
+                }
                 continue
             }
             if failure == .interrupted { throw failure }

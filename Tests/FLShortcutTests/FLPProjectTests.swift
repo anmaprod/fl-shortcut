@@ -278,8 +278,9 @@ final class FLPProjectTests: XCTestCase {
     }
 
     /// 12/11 (« il faut que ça soit à l'instant T… pas dans Mixer ») : les icônes connues écrites dans la copie, à la
-    /// forme vue dans le projet du propriétaire (FL 26.1) : le 155 de chaque son rempli ; le 95 d'une piste du Mixer
-    /// juste avant son 236, après sa couleur et son nom ; jamais le Master ; un Mixer d'une autre forme : rien.
+    /// forme vue dans les projets du propriétaire (FL 26.1) : le 155 de chaque son rempli ; le 95 d'une piste du Mixer
+    /// avant son 236, juste avant son nom comme FL l'écrit (crash out 3 : 149, 42, 95, 204) ; jamais le Master ; un
+    /// Mixer d'une autre forme : rien.
     func testKnownIconsAreWrittenInTheCopy() throws {
         var file = FLPSample.sample()
         for start in file.events.indices.filter({ file.events[$0].id == 21 }).reversed() {
@@ -289,8 +290,8 @@ final class FLPProjectTests: XCTestCase {
         func insert(_ name: String?, color: Bool, icon: Int? = nil) -> [FLPEvent] {
             var out: [FLPEvent] = color ? [FLPSample.ev(149, 0x1F3BFF)] : []
             out.append(FLPSample.ev(42, 0))
-            if let name { out.append(FLPSample.text(204, name)) }
             if let icon { out.append(FLPSample.ev(95, icon)) }
+            if let name { out.append(FLPSample.text(204, name)) }
             return out + [FLPSample.text(236, ""), FLPSample.ev(98, 0), FLPSample.text(235, ""), FLPSample.ev(154, 0),
                           FLPSample.ev(147, 0)]
         }
@@ -312,10 +313,17 @@ final class FLPProjectTests: XCTestCase {
             if let found = events[starts[k - 1]..<starts[k]].lastIndex(where: { $0.id == 147 }) { output = found }
             return events[(output + 1)..<starts[k]].map(\.id)
         }
-        XCTAssertEqual(before(1), [149, 42, 204, 95])
+        XCTAssertEqual(before(1), [149, 42, 95, 204], "juste avant le nom, comme FL")
         XCTAssertEqual(before(2), [42])
-        XCTAssertEqual(before(3), [149, 42, 204, 95], "l'icône déjà là est remplacée, pas doublée")
+        XCTAssertEqual(before(3), [149, 42, 95, 204], "l'icône déjà là est remplacée, pas doublée")
         XCTAssertEqual(events.filter { $0.id == 95 }.map(\.value), [2, 4])
+        XCTAssertEqual(FLPProject.insertIcons(written.file), [1: 2, 3: 4], "relues piste par piste (numéros du Mixer)")
+        XCTAssertEqual(FLPProject.insertIcons(file), [3: 7])
+        // Numéros du Mixer appris de la copie enregistrée, piste par piste (jamais ceux du Channel rack).
+        let placedMixer = [(icon: try XCTUnwrap(FLIcon(code: "7-4")), place: 3),
+                           (icon: try XCTUnwrap(FLIcon(code: "6-0")), place: 2)]
+        XCTAssertEqual(OrganizerApplier.learnMixerIconIDs(placedMixer, in: file), ["7-4": 7], "sans icône : rien appris")
+        XCTAssertEqual(OrganizerApplier.learnMixerIconIDs(placedMixer, in: nil), [:])
         let counts = FLPProject.iconCounts(written.file)
         XCTAssertEqual(counts.channels, 2)
         XCTAssertEqual(counts.inserts, 2)

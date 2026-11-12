@@ -829,11 +829,16 @@
   « À l'instant T » (12/11, ses 2 projets .flp reçus) : icônes au numéro APPRIS écrites dans la copie, plus aucun clic
   pour elles : Channel rack = le 155 de chaque son (FL l'écrit TOUJOURS, à 0) rempli ; Mixer = 95 (2 octets) juste
   avant le 236 de la piste, là où FL range sa couleur 149 et son nom 204 (après le 147 de la piste d'avant ; vérifié
-  sur son projet : le nom avant le k-ième 236 = piste k du Channel rack) ; forme inattendue → rien, clics comme avant
+  sur son projet : le nom avant le k-ième 236 = piste k du Channel rack ; FL range l'icône juste AVANT le nom : 149, 42,
+  95, 204) ; forme inattendue → rien, clics comme avant
   (`FLPProject.withIcons`/`iconCounts`, `OrganizerApplier.knownIcons`, Windows `FlpIcons`). Diagnostic : `icônes
   connues 7-4=4 …` (table case → numéro, à reprendre pour Windows), `icônes copie rack a/b mixer c/d`, `icônes relues
   rack x mixer y` (ce que FL a gardé). Chez lui : guitare = 2, batterie = 4. FL garde-t-il le 95 du Mixer ? À LIRE dans
-  son prochain diagnostic (`icônes relues … mixer`).
+  son prochain diagnostic (`icônes relues … mixer`). 12/11 (7) (« ça saute 1 sur 2… à l'instant T c'est du bidon ») :
+  un écart relu (ordre, couleur) empêchait TOUTES les icônes de la page (donc rien appris) → posées d'après l'ordre
+  relu ; 2e essai après 0,8 s (`iconRetryPause`) ; numéros du Mixer appris À PART (`organizerMixerIconIDs` : drums 75
+  au Channel rack, 105 au Mixer dans crash out 3) ; diagnostic `écart rack couleurs 1/3`, `icônes au 2e essai N`,
+  `icônes connues rack … mixer …`. Aucune table des numéros chez Image-Line : toujours appris au 1er usage.
 - Mails du compte : 2 par heure (donc 2 inscriptions) tant que le propriétaire n'a pas fait l'étape 6 de
   `supabase/README.md` (11/11 : Gmail rien que pour l'app, 60 par heure ; plus tard Brevo avec le domaine du site).
   Bêta limitée (1 000 comptes, un compte = un ordinateur) mise de côté le 11/11 : choix dans HISTORIQUE.

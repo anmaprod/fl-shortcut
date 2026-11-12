@@ -516,18 +516,7 @@ extension FLPProject {
             doneChannels.insert(channel)
         }
         // Mixer : chaque 236 et le 147 qui le précède (piste d'avant) ; une forme inattendue n'écrit rien.
-        let starts = events.indices.filter { events[$0].id == insertStart }
-        guard let first = starts.first,
-              events[first...].filter({ $0.id == insertOutput }).count == starts.count else {
-            return (out, doneChannels, [])
-        }
-        var prefix: [Int: Range<Int>] = [:]
-        for (k, start) in starts.enumerated() where k > 0 {
-            guard let output = (starts[k - 1]..<start).last(where: { events[$0].id == insertOutput }) else {
-                return (out, doneChannels, [])
-            }
-            prefix[k] = (output + 1)..<start
-        }
+        guard let prefix = insertPrefixes(events) else { return (out, doneChannels, []) }
         var doneInserts = Set<Int>()
         // Du bas vers le haut : un événement ajouté ne décale pas les pistes pas encore faites.
         for (insert, id) in inserts.sorted(by: { $0.key > $1.key }) {
@@ -536,11 +525,44 @@ extension FLPProject {
             if let existing = range.first(where: { events[$0].id == insertIcon }) {
                 out.events[existing].bytes = bytes
             } else {
-                out.events.insert(FLPEvent(id: insertIcon, bytes: bytes), at: range.upperBound)
+                // À la place où FL l'écrit lui-même (crash out 3, 12/11 : couleur 149, 42, icône 95, nom 204) : juste
+                // avant le nom, sinon juste avant le 236.
+                let at = range.first(where: { events[$0].id == insertName }) ?? range.upperBound
+                out.events.insert(FLPEvent(id: insertIcon, bytes: bytes), at: at)
             }
             doneInserts.insert(insert)
         }
         return (out, doneChannels, doneInserts)
+    }
+
+    static let insertName: UInt8 = 204
+
+    /// Ce qui est écrit avant le 236 de chaque piste k ≥ 1 du Mixer (après le 147 de la piste d'avant) ; nil si le
+    /// Mixer n'a pas la forme vue dans les projets du propriétaire (autant de 147 que de 236).
+    static func insertPrefixes(_ events: [FLPEvent]) -> [Int: Range<Int>]? {
+        let starts = events.indices.filter { events[$0].id == insertStart }
+        guard let first = starts.first,
+              events[first...].filter({ $0.id == insertOutput }).count == starts.count else { return nil }
+        var prefix: [Int: Range<Int>] = [:]
+        for (k, start) in starts.enumerated() where k > 0 {
+            guard let output = (starts[k - 1]..<start).last(where: { events[$0].id == insertOutput }) else { return nil }
+            prefix[k] = (output + 1)..<start
+        }
+        return prefix
+    }
+
+    /// Le numéro d'icône de chaque piste du Mixer qui en a une (piste → numéro), pour apprendre ceux du Mixer
+    /// (12/11 : dans crash out 3, les drums ont 75 dans le Channel rack et 105 dans le Mixer).
+    static func insertIcons(_ file: FLPFile) -> [Int: UInt32] {
+        let events = file.events
+        guard let prefix = insertPrefixes(events) else { return [:] }
+        var out: [Int: UInt32] = [:]
+        for (insert, range) in prefix {
+            if let at = range.first(where: { events[$0].id == insertIcon }), events[at].value != 0 {
+                out[insert] = UInt32(events[at].value)
+            }
+        }
+        return out
     }
 
     /// Combien de sons et de pistes du Mixer ont une icône dans ce fichier (diagnostic : FL a-t-il gardé celles écrites

@@ -218,26 +218,54 @@ final class OrganizerApplyTests: XCTestCase {
         }).apply(plan(otherResult, styles: styles, options: rackOnly), result: otherResult, styles: styles)
         XCTAssertNil(missed.error)
         XCTAssertEqual(missed.iconsMissed, "autorisation absente")
-        XCTAssertEqual(tries, 2, "les deux icônes sont essayées")
+        XCTAssertEqual(tries, 4, "les deux icônes sont essayées, deux fois chacune (12/11 : « 1 sur 2 »)")
         XCTAssertEqual(missed.snapshot.rack?.arrangement, [0, 2, 1])
         XCTAssertTrue(missed.trace.contains("icônes non posées"))
         XCTAssertTrue(missed.trace.contains("icônes ratées 2"), "\(missed.trace)")
 
-        // Le premier élément rate (Perc), le suivant est posé quand même.
+        // Le premier élément rate deux fois (Perc), le suivant est posé quand même.
         let (skip, skipResult) = rack([.melody, .drums, .bass])
         var skipPlaced: [String] = []
-        var first = true
         let skipped = applier(skip, placeIcon: { icon, _ in
-            if first {
-                first = false
-                return .failed("nom du son introuvable")
-            }
+            if icon.code == "6-0" { return .failed("nom du son introuvable") }
             skipPlaced.append("\(skip.selected ?? -1):\(icon.code)")
             return nil
         }).apply(plan(skipResult, styles: styles, options: rackOnly), result: skipResult, styles: styles)
         XCTAssertNil(skipped.error)
         XCTAssertEqual(skipped.iconsMissed, "nom du son introuvable")
         XCTAssertEqual(skipPlaced, ["2:7-4"], "Drums posé après le raté de Mélodies")
+
+        // 12/11 (« ça en saute 1 sur 2… peut-être que c'est trop rapide ») : une icône ratée une fois est posée au
+        // second essai ; rien n'est dit manquant.
+        let (again, againResult) = rack([.melody, .drums, .bass])
+        var againPlaced: [String] = []
+        var failedOnce = false
+        let retried = applier(again, placeIcon: { icon, _ in
+            if !failedOnce {
+                failedOnce = true
+                return .failed("menu de FL pas encore ouvert")
+            }
+            againPlaced.append("\(again.selected ?? -1):\(icon.code)")
+            return nil
+        }).apply(plan(againResult, styles: styles, options: rackOnly), result: againResult, styles: styles)
+        XCTAssertNil(retried.error)
+        XCTAssertNil(retried.iconsMissed)
+        XCTAssertEqual(againPlaced, ["0:6-0", "2:7-4"])
+        XCTAssertTrue(retried.trace.contains("icônes au 2e essai 1"), "\(retried.trace)")
+
+        // 12/11 (« des fois ça marche, des fois ça marche pas ») : une couleur que FL ne prend pas rend la page
+        // « pas tout pris », mais ses icônes sont posées quand même (l'ordre relu dans FL est connu) ; le diagnostic
+        // dit l'écart.
+        let (grey, greyResult) = rack([.melody, .drums, .bass])
+        grey.ignoredColors = [1]
+        var greyPlaced: [String] = []
+        let partly = applier(grey, placeIcon: { icon, _ in
+            greyPlaced.append("\(grey.selected ?? -1):\(icon.code)")
+            return nil
+        }).apply(plan(greyResult, styles: styles, options: rackOnly), result: greyResult, styles: styles)
+        XCTAssertEqual(partly.error, .mismatch)
+        XCTAssertEqual(greyPlaced, ["0:6-0", "2:7-4"])
+        XCTAssertTrue(partly.trace.contains("écart rack couleurs 1/3"), "\(partly.trace)")
 
         // Échap pendant une icône : tout s'arrête, comme avant.
         let (third, thirdResult) = rack([.melody, .drums, .bass])

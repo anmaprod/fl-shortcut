@@ -23,6 +23,11 @@ public sealed class OrganizerApplier
     private int _restored;
     /// Pourquoi, à chaque fois (12/11, comme le Mac : FL derrière, autre fenêtre de FL devant, touche sans effet).
     private readonly List<string> _restoreCauses = new();
+    /// En quoi une page relue n'était pas comme prévu (diagnostic, 12/11, comme le Mac : « appliqué-mismatch » ne disait
+    /// pas laquelle). Des mots et des nombres seulement.
+    private readonly List<string> _checks = new();
+    /// Icônes posées au second essai (12/11, « ça en saute 1 sur 2… peut-être que c'est trop rapide »).
+    private int _iconRetries;
     /// Pages dont FL n'a pas laissé finir le rangement (12/11) : le reste a continué.
     private readonly List<FlWindow> _unordered = new();
     /// Première icône pas posée : plus d'autre icône essayée, le reste continue (comme le Mac, 07/11).
@@ -74,6 +79,8 @@ public sealed class OrganizerApplier
         _restored = 0;
         _restoreCauses.Clear();
         _unordered.Clear();
+        _checks.Clear();
+        _iconRetries = 0;
         _iconMiss = null;
         try
         {
@@ -102,7 +109,7 @@ public sealed class OrganizerApplier
             if (plan.Mixer.Links.Count > 0)
             {
                 outcome.Snapshot.Links = new Dictionary<int, int>();
-                if (!ApplyLinks(plan.Mixer.Links, result, outcome.Snapshot.Links)) verified = false;
+                if (!ApplyLinks(plan.Mixer.Links, result, outcome.Snapshot.Links)) { verified = false; _checks.Add("liens"); }
             }
             if (!plan.Rack.IsEmpty)
             {
@@ -112,7 +119,7 @@ public sealed class OrganizerApplier
             if (!plan.Patterns.IsEmpty)
             {
                 outcome.Snapshot.Patterns = new AreaSnapshot();
-                if (!ApplyPatterns(plan.Patterns, result, outcome.Snapshot.Patterns)) verified = false;
+                if (!ApplyPatterns(plan.Patterns, result, outcome.Snapshot.Patterns)) { verified = false; _checks.Add("patterns"); }
             }
             if (!plan.Mixer.IsEmpty)
             {
@@ -138,7 +145,7 @@ public sealed class OrganizerApplier
             if (!plan.Playlist.IsEmpty)
             {
                 outcome.Snapshot.Playlist = new AreaSnapshot();
-                if (!ApplyPlaylist(plan.Playlist, result, outcome.Snapshot.Playlist, outcome)) verified = false;
+                if (!ApplyPlaylist(plan.Playlist, result, outcome.Snapshot.Playlist, outcome)) { verified = false; _checks.Add("playlist"); }
             }
             if (outcome.NotDeleted > 0)
             {
@@ -165,6 +172,8 @@ public sealed class OrganizerApplier
         if (_restoreCauses.Count > 0) outcome.Trace.Add("remise " + CountedCauses(_restoreCauses));
         outcome.Unordered = _unordered.ToList();
         if (_unordered.Count > 0) outcome.Trace.Add("pas rangé " + string.Join(",", _unordered.Select(PageName)));
+        if (_checks.Count > 0) outcome.Trace.Add("écart " + string.Join(", ", _checks));
+        if (_iconRetries > 0) outcome.Trace.Add($"icônes au 2e essai {_iconRetries}");
         outcome.IconsMissed = _iconMiss;
         if (_iconMiss is not null) outcome.Trace.Add("icônes non posées");
         return outcome;
@@ -210,6 +219,8 @@ public sealed class OrganizerApplier
 
     /// Ratés de suite après lesquels une page laisse ses icônes (comme le Mac).
     public const int IconFailuresInARow = 3;
+    /// Pause avant le second essai d'une icône ratée (comme le Mac).
+    public const double IconRetryPause = 0.8;
 
     /// FL ouvre la copie rangée attendue : un nom de pattern posé pour ça dans la copie, lu par le script (au plus
     /// `OpenChecks` fois, toutes les demi-secondes, 3 minutes : un gros projet charge ses plugins).
@@ -569,18 +580,27 @@ public sealed class OrganizerApplier
             listed = _link.ListChannels();
         }
         // L'ordre relu dans FL (aussi après un arrêt en route) : « Revenir comme avant » et les icônes le suivent.
+        var orderRead = false;
         if (Arrangement(listed.Select(c => c.Name).ToList(), names) is { } after)
         {
             regrouped = area.Final.Count == 0 || after.SequenceEqual(area.Final);
             snap.Arrangement = after;
+            orderRead = true;
         }
         if (stopped) _unordered.Add(FlWindow.ChannelRack);
         var now = listed.Select(c => (RgbColor?)c.Color).ToList();
         var expected = snap.Arrangement.Select(i => (RgbColor?)(area.Colors.TryGetValue(i, out var c) ? c : channels[i].Color)).ToList();
-        if (!(regrouped || stopped) || !now.SequenceEqual(expected)) return false;
+        var wrongColors = now.Zip(expected).Count(p => p.First != p.Second) + Math.Abs(now.Count - expected.Count);
+        if (!(regrouped || stopped)) _checks.Add("rack ordre");
+        if (wrongColors > 0) _checks.Add($"rack couleurs {wrongColors}/{expected.Count}");
+        var verifiedPage = (regrouped || stopped) && wrongColors == 0;
+        // 12/11 (« les icônes… des fois ça marche, des fois ça marche pas »), comme le Mac : un écart relu (l'ordre, une
+        // couleur) laissait aussi les icônes de la page. Elles suivent l'ordre relu dans FL ; sans ordre relu seulement,
+        // elles restent de côté (jamais sur un autre son).
+        if (!verifiedPage && !orderRead) return false;
         var arrangement = snap.Arrangement;
         PlaceIconsQuietly(icons, ItemKind.Channels, i => { var at = arrangement.IndexOf(i); return at < 0 ? null : at; });
-        return true;
+        return verifiedPage;
     }
 
     /// Patterns : couleurs et noms, puis relecture.
@@ -674,16 +694,19 @@ public sealed class OrganizerApplier
         if (stopped) _unordered.Add(FlWindow.Mixer);
         var now = listedMixer.ToDictionary(t => t.Index);
         var regrouped = true;
+        var orderRead = span == 0;
         if (span > 0 && Arrangement(Tracks(listedMixer), names) is { } seenAfter)
         {
             var tracks = seenAfter.Select(x => x + 1).ToList();
             regrouped = tracks.SequenceEqual(area.Final);
             snap.Arrangement = tracks;
+            orderRead = true;
         }
         // Chaque piste d'origine est maintenant à la place où l'ordre relu la met.
         var arrangement = snap.Arrangement;
         int Place(int original) { var at = arrangement.IndexOf(original); return at < 0 ? original : at + 1; }
-        var colorsOk = area.Colors.All(kv => now.TryGetValue(Place(kv.Key), out var t) && t.Color == kv.Value);
+        var wrongColors = area.Colors.Count(kv => !(now.TryGetValue(Place(kv.Key), out var t) && t.Color == kv.Value));
+        var colorsOk = wrongColors == 0;
         var read = new Dictionary<int, string>();
         foreach (var index in named.Keys) if (now.TryGetValue(Place(index), out var t)) read[index] = t.Name;
         var resetOk = true;
@@ -693,9 +716,17 @@ public sealed class OrganizerApplier
             var after = _link.ListMixer().ToDictionary(t => t.Index);
             resetOk = resets.All(r => after.TryGetValue(Place(r), out var t) && t.HasDefaultName);
         }
-        if (!(regrouped || stopped) || !colorsOk || !routesOk || !resetOk || !NamesMatch(named, read)) return false;
+        var namesOk = NamesMatch(named, read);
+        if (!(regrouped || stopped)) _checks.Add("mixer ordre");
+        if (!colorsOk) _checks.Add($"mixer couleurs {wrongColors}/{area.Colors.Count}");
+        if (!routesOk) _checks.Add("mixer envois");
+        if (!resetOk) _checks.Add("mixer remises");
+        if (!namesOk) _checks.Add("mixer noms");
+        var verifiedPage = (regrouped || stopped) && colorsOk && routesOk && resetOk && namesOk;
+        // Comme le Channel rack (12/11) : un écart relu ne laisse plus les icônes, posées d'après l'ordre relu.
+        if (!verifiedPage && !orderRead) return false;
         PlaceIconsQuietly(icons, ItemKind.Mixer, i => Place(i));
-        return true;
+        return verifiedPage;
     }
 
     /// Playlist : couleurs et noms (pistes d'origine), vérifiés sur les pistes touchées ; puis, sans fichier, les
@@ -800,19 +831,24 @@ public sealed class OrganizerApplier
         var page = kind == ItemKind.Channels ? FlWindow.ChannelRack : FlWindow.Mixer;
         var order = icons.Keys.Select(i => (Index: i, At: place(i))).Where(p => p.At is not null)
             .OrderBy(p => p.At!.Value).ToList();
+        OrganizerError? Attempt(FlIcon icon, int at)
+        {
+            if (_link.Window != page) return OrganizerError.Failed(Loc.T("Icônes non posées : la page de FL a changé."));
+            _link.SelectOne(kind, at);
+            return _placeIcon(icon);
+        }
         var inARow = 0;
         foreach (var (index, atOrNull) in order)
         {
             var at = atOrNull!.Value;
-            OrganizerError? failure = null;
-            if (_link.Window != page)
+            var failure = Attempt(icons[index], at);
+            // 12/11 (« ça en saute 1 sur 2… peut-être que c'est trop rapide »), comme le Mac : une icône ratée est
+            // réessayée une fois, après avoir laissé FL souffler un instant.
+            if (failure is not null && !failure.Is(OrganizerError.Kinds.Interrupted) && !failure.Is(OrganizerError.Kinds.Cancelled))
             {
-                failure = OrganizerError.Failed(Loc.T("Icônes non posées : la page de FL a changé."));
-            }
-            else
-            {
-                _link.SelectOne(kind, at);
-                failure = _placeIcon(icons[index]);
+                _wait(IconRetryPause);
+                failure = Attempt(icons[index], at);
+                if (failure is null) _iconRetries++;
             }
             if (failure is null)
             {
