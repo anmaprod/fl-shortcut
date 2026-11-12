@@ -236,14 +236,13 @@ internal sealed partial class MainShell
         var rows = new StackPanel();
         rows.Children.Add(WelcomeRow(Loc.T("Clavier"), Loc.T("Pour tes raccourcis dans FL."), Done(Loc.T("Autorisé"))));
         rows.Children.Add(Rule(Faint));
-        UIElement portsState = ok
-            ? Done(Loc.T("Prêts"))
-            : ToDo(Loc.T("Installer loopMIDI"), () =>
-            {
-                // La page de téléchargement de loopMIDI dans le navigateur (gratuit) ; l'app crée ensuite les ports.
-                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(LoopMidiPage) { UseShellExecute = true }); }
-                catch (Exception e) { AppLog.Write("STATUS", "page loopMIDI non ouverte (" + e.GetType().Name + ")"); }
-            });
+        static void OpenLoopMidiPage()
+        {
+            // La page de téléchargement de loopMIDI dans le navigateur (gratuit) ; l'app crée ensuite les ports.
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(LoopMidiPage) { UseShellExecute = true }); }
+            catch (Exception e) { AppLog.Write("STATUS", "page loopMIDI non ouverte (" + e.GetType().Name + ")"); }
+        }
+        UIElement portsState = ok ? Done(Loc.T("Prêts")) : ToDo(Loc.T("Installer loopMIDI"), OpenLoopMidiPage);
         // 08/11 (« il faut bien guider parce que dans loopMIDI après on sait pas quoi faire ») : rien à faire dedans,
         // c'est dit ; la ligne passe toute seule à « Prêts » dès que loopMIDI est installé.
         rows.Children.Add(WelcomeRow(Loc.T("Ports MIDI"), restart ? Loc.T("Relance FL Studio : il voit les ports seulement à son ouverture.")
@@ -251,9 +250,15 @@ internal sealed partial class MainShell
                                                              : Loc.T("Installe loopMIDI, puis ferme-le : rien à faire dedans."), portsState));
         _welcomeContent.Children.Add(WelcomeCard(rows));
 
-        // Mode léger : loopMIDI ne sert qu'à l'Organiser et aux actions de FL ; on peut continuer sans lui.
-        var next = Primary(ok || light ? Loc.T("Continuer") : Loc.T("Crée d'abord les deux ports MIDI"), () =>
+        // 12/11, comme le Mac (« il faut que le deuxième aussi soit autorisé pour qu'on puisse rentrer ») : on n'entre
+        // qu'avec les ports prêts ; avant, le grand bouton fait ce qui manque (la page de loopMIDI).
+        var next = Primary(ok ? Loc.T("Continuer") : Loc.T("Installer loopMIDI"), () =>
         {
+            if (!ok)
+            {
+                OpenLoopMidiPage();
+                return;
+            }
             if (light)
             {
                 _app.LoopMidiSeen();
@@ -264,8 +269,6 @@ internal sealed partial class MainShell
             _linkStep = _app.Linked ? LinkStep.Linked : LinkStep.Idle;
             ShowWelcomeLink(null);
         });
-        next.IsEnabled = ok || light;
-        next.Opacity = ok || light ? 1 : 0.45;
         next.HorizontalAlignment = HorizontalAlignment.Right;
         next.MinWidth = 260;
         next.MinHeight = 44;

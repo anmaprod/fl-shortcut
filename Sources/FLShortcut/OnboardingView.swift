@@ -275,8 +275,11 @@ struct OnboardingView: View {
 
             Spacer(minLength: 0)
 
+            // 12/11 (« tout en bas, faut qu'il y ait un bouton à autoriser au lieu de continuer… même s'il y en a un des
+            // deux qui est autorisé, il faut que le deuxième aussi soit autorisé pour qu'on puisse rentrer ») : on n'entre
+            // qu'avec toutes les autorisations ; avant, le grand bouton demande celle qui manque (plus de « Plus tard »).
             VStack(alignment: .trailing, spacing: 10) {
-                if accessOK {
+                if allAllowed {
                     Button { advance() } label: {
                         Text("Continuer").frame(minWidth: 220)
                     }
@@ -285,19 +288,13 @@ struct OnboardingView: View {
                     .keyboardShortcut(.defaultAction)
                     .transition(Motion.pageMorph)
                 } else {
-                    Button {
-                        askedPermission = true
-                        AccessibilityGuide.start(panel: false)      // seule la page de réglages s'ouvre
-                    } label: {
-                        Text("Tout autoriser…").frame(minWidth: 220)
+                    Button { askNext() } label: {
+                        Text("Autoriser").frame(minWidth: 220)
                     }
                     .primaryButton()
                     .heroControlSize()
                     .keyboardShortcut(.defaultAction)
                     .transition(Motion.pageMorph)
-                    Button("Plus tard") { advance() }
-                        .buttonStyle(.plain)
-                        .swissLabel()
                 }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
@@ -305,7 +302,17 @@ struct OnboardingView: View {
         }
         // Clavier autorisé : les états et les boutons changent en fondu.
         .motion(Motion.morph, value: accessOK)
+        .motion(Motion.morph, value: allAllowed)
         .motion(Motion.morph, value: askedPermission)
+    }
+
+    /// Toutes les autorisations de la carte sont données : on peut entrer (12/11).
+    private var allAllowed: Bool { permissionItems.allSatisfy { $0.state == .allowed } }
+
+    /// « Autoriser » du bas : la première autorisation qui manque, dans l'ordre de la carte (le clavier, puis le son).
+    private func askNext() {
+        guard let missing = permissionItems.first(where: { $0.state != .allowed }) else { return }
+        ask(missing.id)
     }
 
     /// « À autoriser » d'une ligne : le clavier (avec la suite, comme « Tout autoriser… »), ou le son de FL seul.

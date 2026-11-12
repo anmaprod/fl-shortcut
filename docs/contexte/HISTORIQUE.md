@@ -1023,3 +1023,5 @@ entrée 1 ≈ 0,5 s.
 - 12/11 (3) : téléchargement Mac, 2e « Autoriser » (son de FL) : la petite fenêtre de macOS et la page des Réglages
   s'ouvraient ensemble, et les Réglages restaient ouverts après « Quitter et rouvrir ». Déjà dans la liste : la page
   seule, devant ; une fois donné : Réglages refermés, l'app devant. Pas vu sur son Mac.
+- 12/11 (4) : accueil, « faut qu'il y ait un bouton à autoriser au lieu de continuer… le deuxième aussi » : on n'entre
+  qu'avec les deux autorisations (Mac) ou les ports prêts (Windows) ; le grand bouton fait ce qui manque.

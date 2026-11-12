@@ -79,6 +79,10 @@
   premier lancement : la demande de macOS reste (seule à ajouter l'app à la liste). Autorisation donnée, avec ou
   sans « Quitter et rouvrir » : Réglages refermés, l'app revient devant (`PermissionRelaunchWait.closeSettingsIfGiven`,
   appelé au lancement avec `asking`). Windows : aucune autorisation de ce genre.
+  12/11 (« tout en bas, faut qu'il y ait un bouton à autoriser au lieu de continuer… il faut que le deuxième aussi
+  soit autorisé pour qu'on puisse rentrer ») : accueil = « Autoriser » (demande la 1re qui manque) tant que les DEUX
+  ne sont pas données, « Continuer » ensuite ; plus de « Plus tard » (`OnboardingView.allAllowed/askNext`). Windows :
+  « Installer loopMIDI » tant que les ports ne sont pas prêts, puis « Continuer » (`ShowWelcomePorts`).
 - Fenêtre principale sans bande sous la barre d'outils ; accueil remontré si l'autorisation clavier manque.
 - **Organiser v5** (`Sources/FLShortcut/Organizer*.swift`, `SoundFeatures.swift`, `SoundFamilies.swift`, script FL v16) :
   - analyse sur le fichier du projet (PROTOCOL.md §9, `FLP*.swift`, `OrganizerProject*.swift`) : FL enregistre (⌘S),
