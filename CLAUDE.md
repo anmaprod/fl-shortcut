@@ -846,6 +846,11 @@
   `icônes fichier rack a mixer b playlist c rouverte N s`). Windows (aucun clic d'icône possible, il n'apprend rien) :
   icônes écrites dans la copie d'après la table `FlIconIds` (Rack/Mixer, VIDE : à remplir avec la ligne `icônes
   connues rack … mixer …` du prochain diagnostic du Mac), Playlist comprise (`FlpIcons.PlaylistIcons`).
+  12/11 (10) (« oui stp… c'est juste pour moi… on le fait une fois et ça fonctionnera partout ») : « Apprendre les
+  icônes de FL » sur l'écran Démarrer de l'Organiser (Mac, `OrganizerIconLearner`) : projet VIDE seulement, les 123
+  cases posées 8 sons à la fois, ⌘S, numéros relus ; Channel rack puis Mixer ; « Copier la table » → à mettre dans
+  l'app (Mac par défaut + `FlIconIds` Windows). Pas encore d'essais Swift de l'apprentissage. CI : .pkg publié dès
+  la compilation (artefact `FLShortcuts-mac-rapide`).
 - Mails du compte : 2 par heure (donc 2 inscriptions) tant que le propriétaire n'a pas fait l'étape 6 de
   `supabase/README.md` (11/11 : Gmail rien que pour l'app, 60 par heure ; plus tard Brevo avec le domaine du site).
   Bêta limitée (1 000 comptes, un compte = un ordinateur) mise de côté le 11/11 : choix dans HISTORIQUE.

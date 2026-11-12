@@ -342,6 +342,13 @@ jobs:
           fi
           chmod +x build.sh
           ./build.sh
+      # 12/11 (« donne-moi le lien de téléchargement ici ») : le .pkg publié dès la compilation, sans attendre les essais
+      # en anglais, la mesure ni les captures (un quart d'heure de plus) ; le téléchargement complet reste à la fin.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: FLShortcuts-mac-rapide
+          path: dist/FLShortcuts.pkg
+          if-no-files-found: error
       - name: Textes en anglais (textes de l'app comparés à en.lproj)
         id: anglais
         # Un texte sans anglais rend la CI rouge à la fin du job (un Mac réglé dans une autre langue que le français

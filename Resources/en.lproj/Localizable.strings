@@ -242,6 +242,7 @@
 "Aperçu du dégradé" = "Gradient preview";
 "Application dans FL… Ne touche pas à FL." = "Applying in FL… Don't touch FL.";
 "Apprendre" = "Learn";
+"Apprendre les icônes de FL" = "Learn FL's icons";
 "Apprise au premier passage" = "Learned on the first run";
 "Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait." = "Press a shortcut you know: the search shows what it does.";
 "Appuie sur les touches…" = "Press the keys…";
@@ -448,6 +449,7 @@
 "Ce n'était pas un glisser : reste cliqué et glisse jusqu'à l'endroit voulu, puis recommence." = "That wasn't a drag: hold the click and drag to the spot you want. Try again.";
 "Ce nom d'utilisateur est déjà pris." = "This username is already taken.";
 "Ce partage ne peut pas être ajouté : %@" = "This post can't be added: %@";
+"Ce projet n'a aucun son où poser les icônes : ouvre un nouveau projet dans FL (File › New)." = "This project has no sound to put the icons on: open a new project in FL (File › New).";
 "Ce pseudo est déjà pris." = "This username is already taken.";
 "Ce qu'est vraiment ce son" = "What this sound really is";
 "Ce que fait la macro, étape par étape" = "What the macro does, step by step";
@@ -665,8 +667,10 @@
 "Controller type : FL Shortcuts." = "Controller type: FL Shortcuts.";
 "Contrôle" = "Control";
 "Copie de l'ancien profil : %@." = "Copy of the old profile: %@.";
+"Copie la table et envoie-la à l'équipe : les icônes seront écrites directement, pour tout le monde." = "Copy the table and send it to the team: icons will be written directly, for everyone.";
 "Copie un court texte technique (versions, autorisations, ce que l'écoute a reçu), sans aucun nom de son ni de piste : colle-le dans ton message pour qu'on trouve ce qui bloque." = "Copies a short technical text (versions, permissions, what listening picked up), with no sound or track names: paste it into your message so we can find what's wrong.";
 "Copier" = "Copy";
+"Copier la table" = "Copy the table";
 "Copier le diagnostic" = "Copy diagnostics";
 "Copier le message, pour le coller où tu veux" = "Copy the message to paste it anywhere";
 "Copier les pas / la partition" = "Copy steps / score";
@@ -1086,6 +1090,8 @@
 "Icône de FL" = "FL icon";
 "Icône de FL de la famille, sur ses sons et ses pistes du Mixer (posée par la fenêtre de FL, F2 ; « Revenir comme avant » ne la retire pas)" = "The family's FL icon, on its sounds and Mixer tracks (set through FL's window, F2; “Undo changes” doesn't remove it)";
 "Icônes : autorise « Enregistrement de l'écran »." = "Icons: allow “Screen Recording”.";
+"Icônes apprises : %lld sur %lld dans le Channel rack, %lld sur %lld dans le Mixer." = "Icons learned: %lld of %lld in the Channel rack, %lld of %lld in the Mixer.";
+"Icônes de FL : %lld sur %lld" = "FL icons: %lld of %lld";
 "Icônes non posées : %@." = "Icons not set: %@.";
 "Il faut encore : %@." = "Still needed: %@.";
 "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? Retire-le avec « – », puis ajoute-le avec « + » (dossier Applications)." = "Not in the list, or already on but nothing works? Remove it with “–”, then add it again with “+” (Applications folder).";
@@ -1436,6 +1442,7 @@
 "Ne touche pas à FL jusqu'à la fin." = "Don't touch FL until it's done.";
 "Ne touche pas à FL pendant l'écoute." = "Don't touch FL while it listens.";
 "Ne touche pas à FL." = "Don't touch FL.";
+"Ne touche pas à FL. Échap arrête." = "Don't touch FL. Esc stops.";
 "Noir" = "Black";
 "Nom" = "Name";
 "Nom automatique" = "Automatic name";
@@ -1537,6 +1544,7 @@
 "Ouvre ton projet dans FL" = "Open your project in FL";
 "Ouvre un VST" = "Open a VST";
 "Ouvre un partage pour lire son explication et chaque étape, puis « Ajouter à mes macros »." = "Open a post to read its explanation and each step, then “Add to my macros”.";
+"Ouvre un projet vide dans FL (File › New), enregistre-le, puis recommence : l'apprentissage pose des icônes sur ses sons." = "Open an empty project in FL (File › New), save it, then try again: learning puts icons on its sounds.";
 "Ouvrir FL Shortcuts" = "Open FL Shortcuts";
 "Ouvrir FL Studio" = "Open FL Studio";
 "Ouvrir Mon compte" = "Open My account";
@@ -1800,6 +1808,7 @@
 "Refusé : %@ n'est pas un fichier ordinaire." = "Refused: %@ isn't a regular file.";
 "Refusés par sécurité : %@" = "Blocked for safety: %@";
 "Regarde dans les courriers indésirables. Le code arrive en une minute environ ; sinon, « Renvoyer le code ». Il sert à confirmer ton compte, ou à choisir un nouveau mot de passe (« Mot de passe oublié ? »). Toujours rien ? Écris à l'équipe ci-dessous." = "Check your spam folder. The code arrives in about a minute; if not, “Resend code”. It's used to confirm your account, or to choose a new password (“Forgot password?”). Still nothing? Write to the team below.";
+"Relance l'apprentissage pour finir les autres." = "Run the learning again to finish the others.";
 "Relier FL Studio" = "Link FL Studio";
 "Relire la liste dans FL (plugins ajoutés depuis) : le menu Add s'ouvre un instant s'il le faut" = "Reload the list from FL (plugins added since): the Add menu opens briefly if needed";
 "Relire les cartes branchées" = "Reload connected sound cards";

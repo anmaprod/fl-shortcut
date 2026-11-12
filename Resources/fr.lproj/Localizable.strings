@@ -242,6 +242,7 @@
 "Aperçu du dégradé" = "Aperçu du dégradé";
 "Application dans FL… Ne touche pas à FL." = "Application dans FL… Ne touche pas à FL.";
 "Apprendre" = "Apprendre";
+"Apprendre les icônes de FL" = "Apprendre les icônes de FL";
 "Apprise au premier passage" = "Apprise au premier passage";
 "Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait." = "Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait.";
 "Appuie sur les touches…" = "Appuie sur les touches…";
@@ -448,6 +449,7 @@
 "Ce n'était pas un glisser : reste cliqué et glisse jusqu'à l'endroit voulu, puis recommence." = "Ce n'était pas un glisser : reste cliqué et glisse jusqu'à l'endroit voulu, puis recommence.";
 "Ce nom d'utilisateur est déjà pris." = "Ce nom d'utilisateur est déjà pris.";
 "Ce partage ne peut pas être ajouté : %@" = "Ce partage ne peut pas être ajouté : %@";
+"Ce projet n'a aucun son où poser les icônes : ouvre un nouveau projet dans FL (File › New)." = "Ce projet n'a aucun son où poser les icônes : ouvre un nouveau projet dans FL (File › New).";
 "Ce pseudo est déjà pris." = "Ce pseudo est déjà pris.";
 "Ce qu'est vraiment ce son" = "Ce qu'est vraiment ce son";
 "Ce que fait la macro, étape par étape" = "Ce que fait la macro, étape par étape";
@@ -665,8 +667,10 @@
 "Controller type : FL Shortcuts." = "Controller type : FL Shortcuts.";
 "Contrôle" = "Contrôle";
 "Copie de l'ancien profil : %@." = "Copie de l'ancien profil : %@.";
+"Copie la table et envoie-la à l'équipe : les icônes seront écrites directement, pour tout le monde." = "Copie la table et envoie-la à l'équipe : les icônes seront écrites directement, pour tout le monde.";
 "Copie un court texte technique (versions, autorisations, ce que l'écoute a reçu), sans aucun nom de son ni de piste : colle-le dans ton message pour qu'on trouve ce qui bloque." = "Copie un court texte technique (versions, autorisations, ce que l'écoute a reçu), sans aucun nom de son ni de piste : colle-le dans ton message pour qu'on trouve ce qui bloque.";
 "Copier" = "Copier";
+"Copier la table" = "Copier la table";
 "Copier le diagnostic" = "Copier le diagnostic";
 "Copier le message, pour le coller où tu veux" = "Copier le message, pour le coller où tu veux";
 "Copier les pas / la partition" = "Copier les pas / la partition";
@@ -1086,6 +1090,8 @@
 "Icône de FL" = "Icône de FL";
 "Icône de FL de la famille, sur ses sons et ses pistes du Mixer (posée par la fenêtre de FL, F2 ; « Revenir comme avant » ne la retire pas)" = "Icône de FL de la famille, sur ses sons et ses pistes du Mixer (posée par la fenêtre de FL, F2 ; « Revenir comme avant » ne la retire pas)";
 "Icônes : autorise « Enregistrement de l'écran »." = "Icônes : autorise « Enregistrement de l'écran ».";
+"Icônes apprises : %lld sur %lld dans le Channel rack, %lld sur %lld dans le Mixer." = "Icônes apprises : %lld sur %lld dans le Channel rack, %lld sur %lld dans le Mixer.";
+"Icônes de FL : %lld sur %lld" = "Icônes de FL : %lld sur %lld";
 "Icônes non posées : %@." = "Icônes non posées : %@.";
 "Il faut encore : %@." = "Il faut encore : %@.";
 "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? Retire-le avec « – », puis ajoute-le avec « + » (dossier Applications)." = "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? Retire-le avec « – », puis ajoute-le avec « + » (dossier Applications).";
@@ -1436,6 +1442,7 @@
 "Ne touche pas à FL jusqu'à la fin." = "Ne touche pas à FL jusqu'à la fin.";
 "Ne touche pas à FL pendant l'écoute." = "Ne touche pas à FL pendant l'écoute.";
 "Ne touche pas à FL." = "Ne touche pas à FL.";
+"Ne touche pas à FL. Échap arrête." = "Ne touche pas à FL. Échap arrête.";
 "Noir" = "Noir";
 "Nom" = "Nom";
 "Nom automatique" = "Nom automatique";
@@ -1537,6 +1544,7 @@
 "Ouvre ton projet dans FL" = "Ouvre ton projet dans FL";
 "Ouvre un VST" = "Ouvre un VST";
 "Ouvre un partage pour lire son explication et chaque étape, puis « Ajouter à mes macros »." = "Ouvre un partage pour lire son explication et chaque étape, puis « Ajouter à mes macros ».";
+"Ouvre un projet vide dans FL (File › New), enregistre-le, puis recommence : l'apprentissage pose des icônes sur ses sons." = "Ouvre un projet vide dans FL (File › New), enregistre-le, puis recommence : l'apprentissage pose des icônes sur ses sons.";
 "Ouvrir FL Shortcuts" = "Ouvrir FL Shortcuts";
 "Ouvrir FL Studio" = "Ouvrir FL Studio";
 "Ouvrir Mon compte" = "Ouvrir Mon compte";
@@ -1800,6 +1808,7 @@
 "Refusé : %@ n'est pas un fichier ordinaire." = "Refusé : %@ n'est pas un fichier ordinaire.";
 "Refusés par sécurité : %@" = "Refusés par sécurité : %@";
 "Regarde dans les courriers indésirables. Le code arrive en une minute environ ; sinon, « Renvoyer le code ». Il sert à confirmer ton compte, ou à choisir un nouveau mot de passe (« Mot de passe oublié ? »). Toujours rien ? Écris à l'équipe ci-dessous." = "Regarde dans les courriers indésirables. Le code arrive en une minute environ ; sinon, « Renvoyer le code ». Il sert à confirmer ton compte, ou à choisir un nouveau mot de passe (« Mot de passe oublié ? »). Toujours rien ? Écris à l'équipe ci-dessous.";
+"Relance l'apprentissage pour finir les autres." = "Relance l'apprentissage pour finir les autres.";
 "Relier FL Studio" = "Relier FL Studio";
 "Relire la liste dans FL (plugins ajoutés depuis) : le menu Add s'ouvre un instant s'il le faut" = "Relire la liste dans FL (plugins ajoutés depuis) : le menu Add s'ouvre un instant s'il le faut";
 "Relire les cartes branchées" = "Relire les cartes branchées";

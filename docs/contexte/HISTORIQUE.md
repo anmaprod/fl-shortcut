@@ -1059,3 +1059,9 @@ entrée 1 ≈ 0,5 s.
   Windows »), donc n'apprend rien ; il écrit dans la copie les icônes dont le numéro est dans `FlIconIds` (Channel
   rack, Mixer à part, Playlist par `FlpIcons.PlaylistIcons`), sans clic. Table VIDE : à remplir avec la ligne
   « icônes connues rack … mixer … » du prochain diagnostic du Mac.
+- 12/11 (10) : « tu vois tes 500 icônes ? moi j'ai que ça » (capture de la grille : 123 cases sans la croix ni la
+  colonne Channel ; les 500 du forum = toutes les icônes internes de FL). Proposé puis accepté (« oui stp… c'est juste
+  pour moi… on le fait une fois ») : apprentissage unique des 123 numéros sur un projet vide (`OrganizerIconLearner`,
+  bouton « Apprendre les icônes de FL » de l'écran Démarrer), table copiée puis mise dans l'app pour tous (Mac et
+  Windows). « Ne traduis pas » : plus de traductions pour cet outil. CI : `.pkg` publié juste après la compilation
+  (« donne-moi le lien ici »).

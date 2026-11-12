@@ -542,6 +542,9 @@ final class OrganizerController: ObservableObject {
         case undoing
         case undone(OrganizerError?)
         case failed(String)
+        /// « Apprendre les icônes de FL » (12/11) : cases faites sur toutes (Channel rack puis Mixer).
+        case learningIcons(done: Int, total: Int)
+        case iconsLearned(OrganizerIconLearner.Outcome)
     }
 
     @Published private(set) var phase: Phase = .ready {
@@ -628,6 +631,71 @@ final class OrganizerController: ObservableObject {
         begin(quiet: false)
     }
 
+    /// « Apprendre les icônes de FL » (12/11, « oui stp ») : le même lien que « Démarrer », puis, sur le projet vide
+    /// ouvert dans FL, chaque case de la grille posée et son numéro relu dans le fichier (`OrganizerIconLearner`).
+    private var learningIcons = false
+
+    func learnIcons() {
+        guard phase == .ready, !closed else { return }
+        learningIcons = true
+        phase = .starting
+        begin(quiet: false)
+    }
+
+    private func runLearning(warmUp: TimeInterval, quiet: Bool) {
+        guard let files = env.projectFiles() else {
+            phase = .failed(String(localized: "Le fichier de ton projet n'est pas accessible : rien n'a été touché."))
+            return
+        }
+        if !quiet { env.focusFL() }
+        runToken += 1
+        let token = runToken
+        let link = env.link()
+        self.link = link
+        let escape = env.escapePressed
+        let learner = OrganizerIconLearner(link: link, placeIcon: env.placeIcon, files: files, wait: env.sleep,
+                                           stop: { [weak self] in (self?.closed ?? true) || escape() },
+                                           progress: { [weak self] done, total in
+                                               DispatchQueue.main.async {
+                                                   guard self?.runToken == token else { return }
+                                                   self?.phase = .learningIcons(done: done, total: total)
+                                               }
+                                           })
+        phase = .learningIcons(done: 0, total: FLIconGrid.pickable.count * 2)
+        let sleep = env.sleep
+        queue.async { [weak self] in
+            if warmUp > 0 { sleep(warmUp) }
+            let outcome = learner.run()
+            DispatchQueue.main.async {
+                guard let self else { return }
+                // Ce qui est appris est gardé, même arrêté en route.
+                self.env.saveIconIDs(outcome.rack)
+                self.env.saveMixerIconIDs(outcome.mixer)
+                self.learningIcons = false
+                guard self.runToken == token, !self.closed else { return }
+                self.phase = .iconsLearned(outcome)
+                self.dropLink()
+            }
+        }
+    }
+
+    /// Fin de l'apprentissage, en une phrase ou deux (des nombres seulement).
+    static func learnedText(_ outcome: OrganizerIconLearner.Outcome) -> String {
+        let total = FLIconGrid.pickable.count
+        var text = String(localized: "Icônes apprises : \(outcome.rack.count) sur \(total) dans le Channel rack, \(outcome.mixer.count) sur \(total) dans le Mixer.")
+        if let error = outcome.error {
+            text += "\n" + error.message
+        } else if outcome.rack.count < total || outcome.mixer.count < total {
+            text += "\n" + String(localized: "Relance l'apprentissage pour finir les autres.")
+        }
+        return text + "\n" + String(localized: "Copie la table et envoie-la à l'équipe : les icônes seront écrites directement, pour tout le monde.")
+    }
+
+    func copyIconTable(_ outcome: OrganizerIconLearner.Outcome) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(OrganizerIconLearner.tableText(outcome), forType: .string)
+    }
+
     /// Montre le tuto (première ouverture, ou « Revoir le tuto ») ; rien n'est lancé à sa fin.
     func showTutorial() {
         tutorial = true
@@ -656,6 +724,10 @@ final class OrganizerController: ObservableObject {
         case .ready(let delay):
             warmUp = delay
             linkDropped = false
+        }
+        if learningIcons {
+            runLearning(warmUp: warmUp, quiet: quiet)
+            return
         }
         // « Audio du système » : sans elle, macOS donne du silence (chaque son finissait « À vérifier »). Pas encore
         // demandée : la fenêtre de macOS, une fois, avant l'écoute ; refusée : Organiser attend qu'elle soit donnée.
@@ -825,6 +897,8 @@ final class OrganizerController: ObservableObject {
         case .undoing: return "retour"
         case .undone(let error): return "revenu" + (error.map { "-\($0)" } ?? "")
         case .failed: return "échec"
+        case .learningIcons(let done, let total): return "icônes-\(done)/\(total)"
+        case .iconsLearned: return "icônes-apprises"
         }
     }
 
@@ -1662,6 +1736,8 @@ struct OrganizerView: View {
         case .undoing: return "undoing"
         case .undone: return "undone"
         case .failed(let message): return "failed:" + message
+        case .learningIcons: return "learningIcons"
+        case .iconsLearned: return "iconsLearned"
         }
     }
 
@@ -1782,6 +1858,46 @@ struct OrganizerView: View {
             }
         case .preview:
             preview
+        case .learningIcons(let done, let total):
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(String(localized: "Icônes de FL : \(min(done, total)) sur \(total)"))
+                            .font(.system(size: 13, weight: .semibold))
+                        Spacer()
+                        Text("\(Int((Double(done) / Double(max(total, 1)) * 100).rounded())) %")
+                            .font(.system(size: 12).monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                    SwissProgress(value: Double(done) / Double(max(total, 1)))
+                }
+                .padding(14)
+                .organizerCard()
+                Text(String(localized: "Ne touche pas à FL. Échap arrête."))
+                    .swissLabel()
+                HStack {
+                    Spacer()
+                    Button("Arrêter") { controller.close() }
+                        .secondaryButton()
+                        .keyboardShortcut(.cancelAction)
+                }
+            }
+        case .iconsLearned(let outcome):
+            VStack(alignment: .leading, spacing: 14) {
+                Text(OrganizerController.learnedText(outcome))
+                    .font(.system(size: 13))
+                    .foregroundStyle(Swiss.text)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 12) {
+                    Spacer()
+                    Button(String(localized: "Copier la table")) { controller.copyIconTable(outcome) }
+                        .secondaryButton()
+                    Button(String(localized: "Fermer")) { controller.close() }
+                        .primaryButton()
+                        .keyboardShortcut(.defaultAction)
+                }
+                .controlSize(.large)
+            }
         case .applying:
             working(applyingText)
         case .undoing:
@@ -2008,6 +2124,9 @@ struct OrganizerView: View {
             .padding(.vertical, 10)
             .morphIn(1)
             HStack(spacing: 12) {
+                // 12/11 : une fois pour toutes, sur un projet vide (les numéros des icônes de FL).
+                Button(String(localized: "Apprendre les icônes de FL")) { controller.learnIcons() }
+                    .buttonStyle(SwissLinkButtonStyle())
                 Spacer()
                 Button(String(localized: "Fermer")) { controller.close() }
                     .secondaryButton()
