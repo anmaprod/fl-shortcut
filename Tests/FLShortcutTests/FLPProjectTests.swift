@@ -308,7 +308,8 @@ final class FLPProjectTests: XCTestCase {
         let events = written.file.events
         let starts = events.indices.filter { events[$0].id == 236 }
         func before(_ k: Int) -> [UInt8] {
-            let output = events[starts[k - 1]..<starts[k]].lastIndex { $0.id == 147 } ?? starts[k - 1]
+            var output = starts[k - 1]
+            if let found = events[starts[k - 1]..<starts[k]].lastIndex(where: { $0.id == 147 }) { output = found }
             return events[(output + 1)..<starts[k]].map(\.id)
         }
         XCTAssertEqual(before(1), [149, 42, 204, 95])
