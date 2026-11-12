@@ -636,7 +636,8 @@
   rangement du Mixer « oubliés ». Étapes du lien : plus « Un clic, une seule fois », plus « ⌘Q » ; étape 2 = bouton
   « Quitter et rouvrir FL » (Mac `env.restartFL` : terminate puis relance ; Windows `OrganizerLive.RestartFl` :
   CloseMainWindow puis relance) ; ⌘Q tapé dans FL Shortcuts à l'étape 2 relance FL au lieu de fermer l'app
-  (`applicationShouldTerminate`, c'était le « crash » de l'étape 2). Écran « Démarrer » : la consigne seule, en grand,
+  (`applicationShouldTerminate`, c'était le « crash » de l'étape 2) ; 12/11 (« il ne rouvre pas automatiquement FL ») :
+  relance par `FLRelauncher` / `FlRelaunchPlan` (FL regardé toutes les 0,5 s, relancé s'il n'apparaît pas, journal `RESTART`). Écran « Démarrer » : la consigne seule, en grand,
   sous le trait blanc. Menu « Options » = menu suisse avec coches (`RightClickMenu.Item.checked/enabled` ; Windows
   `SwissMenu` sur le flyout). Écrans de texte : 480 de large, taille fixe ; aperçu seul redimensionnable (min 440 ×
   420) avec curseurs ↔ ↕ sur ses bords (`EdgeResizeCursors`). Image MIDI Settings : découpes recadrées (pastilles

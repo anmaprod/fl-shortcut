@@ -1029,3 +1029,9 @@ entrée 1 ≈ 0,5 s.
   2e essai (numéros appris au 1er). Channel rack : un raté (Perc) arrêtait tout → sauté. Ses 2 projets lus : chaque
   son a toujours son 155 ; nom/couleur d'une piste du Mixer juste avant son 236 → icônes connues écrites dans la
   copie (son, Mixer), vérifié en Python sur son vrai projet (9 sons, 9 pistes, Pré-master et bus non touchés).
+- 12/11 (6) : « le bouton quitter et rouvrir… il ne rouvre pas automatiquement FL Studio ». Mac : un fil
+  d'arrière-plan attendait `isTerminated` d'une app gardée (mis à jour seulement aux tours du fil principal) et lançait
+  FL une fois, sans vérifier ni journal. Maintenant `FLRelauncher` (fil principal, toutes les 0,5 s, liste relue +
+  `kill(pid, 0)`) et la règle `FLRelaunchPlan` (5 min pour « Enregistrer ? », lancé 1 s après le départ, relancé
+  s'il n'apparaît pas en 20 s, 3 fois au plus, erreur → 2 s) ; Windows pareil (`FlRelaunchPlan`, FL lancé depuis son
+  dossier). Journal `RESTART` (nombres). Cause exacte chez lui pas prouvée : lire `RESTART` s'il recommence.

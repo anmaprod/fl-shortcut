@@ -67,25 +67,43 @@ internal static class OrganizerLive
         catch (ArgumentException) { Volatile.Write(ref _restarting, 0); return; }
         var path = fl.Path;
         _lastFlPath = path;
-        try { process.CloseMainWindow(); }
-        catch (InvalidOperationException) { Volatile.Write(ref _restarting, 0); return; }
+        bool asked;
+        try { asked = process.CloseMainWindow(); }
+        catch (InvalidOperationException) { process.Dispose(); Volatile.Write(ref _restarting, 0); return; }
+        process.Dispose();
+        AppLog.Write("RESTART", "FL quit asked: " + (asked ? "yes" : "no main window"));
+        // 12/11 (« il ne rouvre pas automatiquement FL Studio ») : FL regardé toutes les 0,5 s, lancé dès qu'il est
+        // parti, relancé s'il n'apparaît pas (FlRelaunchPlan, mêmes règles que le Mac).
+        var oldPid = (int)fl.Pid;
         _ = Task.Run(() =>
         {
             try
             {
-                using (process)
+                var clock = Stopwatch.StartNew();
+                var plan = new FlRelaunchPlan(oldPid, 0);
+                while (true)
                 {
-                    try
+                    Thread.Sleep(500);
+                    var now = clock.Elapsed.TotalSeconds;
+                    var running = FlPresence.RunningInstance() is { } r ? new[] { (int)r.Pid } : Array.Empty<int>();
+                    switch (plan.Next(now, running))
                     {
-                        if (!process.WaitForExit(TimeSpan.FromMinutes(2))) return;
+                        case FlRelaunchPlan.Step.Launch:
+                            var started = Start(path, "");
+                            if (!started) plan.LaunchFailed(now);
+                            AppLog.Write("RESTART", $"FL gone after {plan.GoneAt:0.0} s, launch {plan.Launches}: "
+                                + (started ? "started" : "failed") + $" at {now:0.0} s");
+                            break;
+                        case FlRelaunchPlan.Step.Done:
+                            AppLog.Write("RESTART", $"FL back after {now:0.0} s ({plan.Launches} launch(es))");
+                            return;
+                        case FlRelaunchPlan.Step.GiveUp:
+                            AppLog.Write("RESTART", plan.GoneAt is null
+                                ? $"FL still running after {now:0} s: nothing launched"
+                                : $"FL not back after {plan.Launches} launch(es), {now:0} s");
+                            return;
                     }
-                    catch (InvalidOperationException) { }
                 }
-                Thread.Sleep(1000);
-                // Un FL déjà rouvert (à la main) : on n'en lance pas un second.
-                if (FlPresence.RunningInstance() is null) Start(path, "");
-                // Le temps que le nouveau FL apparaisse : un clic de plus ne relance rien.
-                for (var i = 0; i < 30 && FlPresence.RunningInstance() is null; i++) Thread.Sleep(1000);
             }
             finally { Volatile.Write(ref _restarting, 0); }
         });
@@ -339,10 +357,21 @@ internal static class OrganizerLive
     private static string AppVersion() =>
         typeof(OrganizerLive).Assembly.GetName().Version?.ToString(3) ?? "?";
 
-    private static void Start(string file, string arguments)
+    /// Lancé depuis son propre dossier (comme par l'Explorateur) ; faux si Windows n'a rien lancé.
+    private static bool Start(string file, string arguments)
     {
-        try { using var _ = Process.Start(new ProcessStartInfo(file, arguments) { UseShellExecute = false }); }
-        catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException) { }
+        try
+        {
+            var info = new ProcessStartInfo(file, arguments) { UseShellExecute = false };
+            if (Path.GetDirectoryName(file) is { Length: > 0 } folder) info.WorkingDirectory = folder;
+            using var started = Process.Start(info);
+            return started is not null;
+        }
+        catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            AppLog.Write("RESTART", "launch error " + (e is System.ComponentModel.Win32Exception w ? w.NativeErrorCode : -1));
+            return false;
+        }
     }
 
     /// Un travail long à la fois, hors du fil de l'interface (dans l'ordre).
