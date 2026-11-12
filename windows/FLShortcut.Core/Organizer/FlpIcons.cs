@@ -110,6 +110,38 @@ public static class FlpIcons
     public static Dictionary<int, uint> KnownIcons(IReadOnlyDictionary<int, FlIcon> icons, IReadOnlyDictionary<string, uint> ids) =>
         icons.Where(kv => ids.ContainsKey(kv.Value.Code)).ToDictionary(kv => kv.Key, kv => ids[kv.Value.Code]);
 
+    /// Pur (testé), comme le Mac (`playlistIcons`) : l'icône de chaque piste de la Playlist rangée, celle de sa famille
+    /// sur sa piste de tête et sur les pistes groupées dessous, seulement si son numéro est connu.
+    public static Dictionary<int, uint> PlaylistIcons(PlaylistLayout.Result layout,
+        IReadOnlyDictionary<SoundFamily, FamilyStyle> styles, IReadOnlyDictionary<string, uint> ids, Func<int, SoundFamily?> family)
+    {
+        var out_ = new Dictionary<int, uint>();
+        if (ids.Count == 0) return out_;
+        uint? current = null;
+        var last = Math.Max(layout.Count, (layout.Headers.Count == 0 ? -1 : layout.Headers.Keys.Max()) + 1);
+        for (var track = 0; track < last; track++)
+        {
+            if (layout.Headers.TryGetValue(track, out var rank))
+            {
+                current = null;
+                var style = family(rank) is { } f
+                    ? styles.TryGetValue(f, out var chosen) ? chosen : FamilyStyles.Initial.GetValueOrDefault(f)
+                    : null;
+                if (style?.Icon is { } icon && !icon.IsReset && ids.TryGetValue(icon.Code, out var id)) current = id;
+                if (current is { } c) out_[track] = c;
+            }
+            else if (layout.Grouped.Contains(track))
+            {
+                if (current is { } c) out_[track] = c;
+            }
+            else
+            {
+                current = null;
+            }
+        }
+        return out_;
+    }
+
     private static FlpFile Copy(FlpFile file, List<FlpEvent> events) =>
         new(file.ChannelCount, file.Ppq, events, file.Format) { HeaderExtra = file.HeaderExtra, Trailer = file.Trailer };
 }

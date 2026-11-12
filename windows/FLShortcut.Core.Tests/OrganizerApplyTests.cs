@@ -823,6 +823,35 @@ public class OrganizerApplyTests
 
     private static readonly OrganizerOptions FileOptions = new() { Rack = false, Mixer = false, DeleteUnused = false };
 
+    /// 12/11 (comme le Mac) : les icônes dont le numéro de FL est connu (`FlIconIds`, relevés par le Mac) sont écrites
+    /// dans la copie rangée, Channel rack et Playlist, sans aucun clic.
+    [Fact]
+    public void KnownIconsAreWrittenInTheCopyWithoutClicks()
+    {
+        var disk = new FakeDisk();
+        var original = FlpSample.Sample();
+        var types = Enumerable.Range(0, original.Events.Count).Where(i => original.Events[i].Id == 21).Reverse().ToList();
+        foreach (var at in types) original.Events.Insert(at + 1, FlpSample.Ev(155, 0));   // FL l'écrit toujours, à 0
+        disk.Files[disk.Original] = original;
+        var (link, result) = FileProject(disk);
+        var styles = Initial();
+        styles[SoundFamily.Drums] = styles[SoundFamily.Drums] with { Icon = FlIcon.FromCode("7-4") };
+        var clicks = 0;
+        var options = new OrganizerOptions { Mixer = false, DeleteUnused = false };
+        var outcome = new OrganizerApplier(link, link.MoveSelectedUp, placeIcon: _ => { clicks++; return null; }, wait: _ => { },
+                listen: 0, files: disk.Access, marker: "FL Shortcuts 1234", iconIds: new Dictionary<string, uint> { ["7-4"] = 75 })
+            .Apply(Plan(result, styles, options), result, styles);
+        Assert.Null(outcome.Error);
+        Assert.Equal(0, clicks);
+        var copyPath = Path.Combine(Path.GetDirectoryName(disk.Original)!, "Mon son_2.flp");
+        var file = disk.Files[copyPath];
+        Assert.Equal(2, FlpIcons.IconCounts(file).Channels);                                   // Kick et Snare
+        var project = new FlpProject(file);
+        Assert.Contains(project.TrackEvents, i => FlpBytes.UInt(file.Events[i].Bytes, FlpProject.TrackIcon, 4) == 75);
+        Assert.Contains("icônes copie rack 2/2 mixer 0/0", outcome.Trace);
+        Assert.Contains(outcome.Trace, t => t.StartsWith("icônes playlist "));
+    }
+
     /// FL enregistre le projet, la copie rangée est écrite à côté et FL l'ouvre ; le reste se fait dans la copie, que FL
     /// enregistre ; « Revenir comme avant » rouvre l'original, qui n'a pas bougé.
     [Fact]

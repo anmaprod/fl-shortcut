@@ -843,7 +843,9 @@
   12/11 (8) (« Arp oublié, Mélodie oubliée, rien dans la Playlist ») : Mac, dans la copie, UN clic par icône et par page
   pour apprendre son numéro, puis TOUTES les icônes écrites dans la copie enregistrée (rack, Mixer, Playlist),
   réécrite sous `_N+1`, rouverte par FL, l'ancienne à la Corbeille (`finishIcons`, `iconsToWrite`, diagnostic
-  `icônes fichier rack a mixer b playlist c rouverte N s`). Windows : pas encore.
+  `icônes fichier rack a mixer b playlist c rouverte N s`). Windows (aucun clic d'icône possible, il n'apprend rien) :
+  icônes écrites dans la copie d'après la table `FlIconIds` (Rack/Mixer, VIDE : à remplir avec la ligne `icônes
+  connues rack … mixer …` du prochain diagnostic du Mac), Playlist comprise (`FlpIcons.PlaylistIcons`).
 - Mails du compte : 2 par heure (donc 2 inscriptions) tant que le propriétaire n'a pas fait l'étape 6 de
   `supabase/README.md` (11/11 : Gmail rien que pour l'app, 60 par heure ; plus tard Brevo avec le domaine du site).
   Bêta limitée (1 000 comptes, un compte = un ordinateur) mise de côté le 11/11 : choix dans HISTORIQUE.

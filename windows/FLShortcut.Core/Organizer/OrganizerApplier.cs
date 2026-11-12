@@ -34,6 +34,12 @@ public sealed class OrganizerApplier
     private OrganizerError? _iconMiss;
     /// Boîtes de FL répondues pendant l'ouverture de la copie (4 au plus : jamais Entrée sans fin).
     private int _dialogAnswers;
+    /// Numéro de FL de chaque case de la grille (Channel rack et Playlist ; Mixer à part), relevés par le Mac
+    /// (`FlIconIds`) : les icônes connues sont écrites dans la copie rangée, sans aucun clic (12/11).
+    private readonly IReadOnlyDictionary<string, uint> _iconIds;
+    private readonly IReadOnlyDictionary<string, uint> _mixerIconIds;
+    /// La copie rangée est ouverte dans FL : les icônes connues y sont déjà, seules les autres passent par FL.
+    private bool _organizingCopy;
 
     /// `moveUp(n)` envoie Alt+↑ n fois à FL seul (Channel rack devant), `moveLeft(n)` Alt+← (Mixer devant) ; chacun
     /// renvoie le nombre de pas faits. `placeIcon` pose une icône sur l'élément sélectionné ; null si c'est fait.
@@ -43,8 +49,11 @@ public sealed class OrganizerApplier
     public OrganizerApplier(IOrganizerLink link, Func<int, int> moveUp, Func<int, int>? moveLeft = null,
         Func<FlIcon, OrganizerError?>? placeIcon = null, Func<bool>? deleteSelected = null,
         Func<int, int, int>? moveTrack = null, Func<int?, int, int>? moveClips = null, Action<double>? wait = null,
-        double listen = 1.5, ProjectFileAccess? files = null, string? marker = null, Action<string>? report = null)
+        double listen = 1.5, ProjectFileAccess? files = null, string? marker = null, Action<string>? report = null,
+        IReadOnlyDictionary<string, uint>? iconIds = null, IReadOnlyDictionary<string, uint>? mixerIconIds = null)
     {
+        _iconIds = iconIds ?? new Dictionary<string, uint>();
+        _mixerIconIds = mixerIconIds ?? new Dictionary<string, uint>();
         _link = link;
         _moveUp = moveUp;
         _moveLeft = moveLeft ?? (_ => 0);
@@ -82,6 +91,7 @@ public sealed class OrganizerApplier
         _checks.Clear();
         _iconRetries = 0;
         _iconMiss = null;
+        _organizingCopy = false;
         try
         {
             if (result.Project is { } project)
@@ -248,13 +258,29 @@ public sealed class OrganizerApplier
         FlpFile copy;
         try
         {
+            // Icônes de la Playlist dont le numéro est connu (comme le Mac) : celle de chaque famille sur sa piste de
+            // tête et ses pistes groupées.
+            var options = plan.Source?.Options;
+            var playlistIcons = layout is null ? new Dictionary<int, uint>()
+                : FlpIcons.PlaylistIcons(layout, styles, _iconIds, rank =>
+                    Enum.GetValues<SoundFamily>().Cast<SoundFamily?>().FirstOrDefault(f => options?.FamilyRank(f!.Value) == rank));
+            if (playlistIcons.Count > 0) outcome.Trace.Add($"icônes playlist {playlistIcons.Count}");
             copy = layout is not null
-                ? split.Project.Rearranged(split.File, layout.Tracks, layout.Grouped, layout.Headers.Keys.ToHashSet())
+                ? split.Project.Rearranged(split.File, layout.Tracks, layout.Grouped, layout.Headers.Keys.ToHashSet(), playlistIcons)
                 : split.Project.ShowingAll(split.File);
         }
         catch (FlpException)
         {
             throw OrganizerError.Failed(Loc.F("Projet pas encore rangeable sans risque : %@.", "clips"));
+        }
+        // 12/11 (comme le Mac) : les icônes connues du Channel rack et du Mixer écrites dans la copie, sans aucun clic.
+        var rackIcons = FlpIcons.KnownIcons(Organize.PlannedIcons(plan.Rack.Verdicts.ToDictionary(kv => kv.Key, kv => kv.Value.Family), styles), _iconIds);
+        var mixerIcons = FlpIcons.KnownIcons(Organize.PlannedIcons(plan.Mixer.Verdicts.ToDictionary(kv => kv.Key, kv => kv.Value.Family), styles), _mixerIconIds);
+        if (rackIcons.Count > 0 || mixerIcons.Count > 0)
+        {
+            var written = FlpIcons.WithIcons(copy, rackIcons, mixerIcons);
+            copy = written.File;
+            outcome.Trace.Add($"icônes copie rack {written.Channels.Count}/{rackIcons.Count} mixer {written.Inserts.Count}/{mixerIcons.Count}");
         }
         if (ProjectFile.Marking(copy, _marker) is not { } marked)
             throw OrganizerError.Failed(Loc.F("Projet pas encore rangeable sans risque : %@.", "patterns"));
@@ -280,6 +306,7 @@ public sealed class OrganizerApplier
             throw OrganizerError.Failed(Loc.T("FL n'a pas ouvert la copie : ouvre-la dans FL."));
         outcome.Copy = path;
         outcome.Snapshot.Original = read.Path;
+        _organizingCopy = true;
         AppLog.Write("ORGANIZE", $"organized copy written ({project.Clips.Count} clips, {layout?.Count ?? 0} tracks), opening");
         // FL l'a ouverte quand le script lit la marque, ou quand sa fenêtre porte le nom de la copie.
         _report(Loc.T("FL ouvre la copie rangée…"));
@@ -599,7 +626,9 @@ public sealed class OrganizerApplier
         // elles restent de côté (jamais sur un autre son).
         if (!verifiedPage && !orderRead) return false;
         var arrangement = snap.Arrangement;
-        PlaceIconsQuietly(icons, ItemKind.Channels, i => { var at = arrangement.IndexOf(i); return at < 0 ? null : at; });
+        // Dans la copie, les icônes connues y sont déjà écrites : seules les autres passent par FL (12/11).
+        var byHand = _organizingCopy ? icons.Where(kv => !_iconIds.ContainsKey(kv.Value.Code)).ToDictionary(kv => kv.Key, kv => kv.Value) : icons;
+        PlaceIconsQuietly(byHand, ItemKind.Channels, i => { var at = arrangement.IndexOf(i); return at < 0 ? null : at; });
         return verifiedPage;
     }
 
@@ -725,7 +754,8 @@ public sealed class OrganizerApplier
         var verifiedPage = (regrouped || stopped) && colorsOk && routesOk && resetOk && namesOk;
         // Comme le Channel rack (12/11) : un écart relu ne laisse plus les icônes, posées d'après l'ordre relu.
         if (!verifiedPage && !orderRead) return false;
-        PlaceIconsQuietly(icons, ItemKind.Mixer, i => Place(i));
+        var byHand = _organizingCopy ? icons.Where(kv => !_mixerIconIds.ContainsKey(kv.Value.Code)).ToDictionary(kv => kv.Key, kv => kv.Value) : icons;
+        PlaceIconsQuietly(byHand, ItemKind.Mixer, i => Place(i));
         return verifiedPage;
     }
 

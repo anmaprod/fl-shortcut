@@ -66,6 +66,25 @@ public class FlpIconsTests
         Assert.Empty(written.Inserts);
     }
 
+    /// Comme le Mac (`playlistIcons`) : l'icône de la famille sur sa piste de tête et ses pistes groupées ; rien sans
+    /// numéro connu, rien hors d'une famille.
+    [Fact]
+    public void PlaylistIconsFollowTheFamilyHeaders()
+    {
+        var layout = new PlaylistLayout.Result { Count = 6 };
+        layout.Headers[0] = 1;                       // Drums : têtes 0, groupées 1 et 2
+        layout.Grouped.Add(1);
+        layout.Grouped.Add(2);
+        layout.Headers[3] = 2;                       // Basse : sans icône choisie
+        layout.Grouped.Add(4);
+        var styles = FamilyStyles.Initial.ToDictionary(kv => kv.Key, kv => kv.Value);
+        styles[SoundFamily.Drums] = styles[SoundFamily.Drums] with { Icon = FlIcon.FromCode("7-4") };
+        SoundFamily? Family(int rank) => rank == 1 ? SoundFamily.Drums : rank == 2 ? SoundFamily.Bass : null;
+        Assert.Equal(new Dictionary<int, uint> { [0] = 75, [1] = 75, [2] = 75 },
+            FlpIcons.PlaylistIcons(layout, styles, new Dictionary<string, uint> { ["7-4"] = 75 }, Family));
+        Assert.Empty(FlpIcons.PlaylistIcons(layout, styles, new Dictionary<string, uint>(), Family));
+    }
+
     [Fact]
     public void OnlyKnownNumbersAreWritten()
     {

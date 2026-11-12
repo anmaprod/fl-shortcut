@@ -1055,3 +1055,7 @@ entrée 1 ≈ 0,5 s.
   l'ouverture, nom remis d'après ce que FL montrait), enregistrée, l'ancienne `_N` à la Corbeille
   (`ProjectFileAccess.trash`) ; rien à écrire = rien de rouvert. Diagnostic `icônes fichier rack a mixer b playlist c
   rouverte N s`. Windows : à faire (il pose encore toutes ses icônes par clics, sans rien apprendre).
+- 12/11 (9) : Windows, même rangement par le fichier : il ne pose aucune icône par clics (« pas encore posées sur
+  Windows »), donc n'apprend rien ; il écrit dans la copie les icônes dont le numéro est dans `FlIconIds` (Channel
+  rack, Mixer à part, Playlist par `FlpIcons.PlaylistIcons`), sans clic. Table VIDE : à remplir avec la ligne
+  « icônes connues rack … mixer … » du prochain diagnostic du Mac.

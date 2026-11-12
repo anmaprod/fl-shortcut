@@ -695,6 +695,7 @@ public sealed class OrganizerController
         SetPhase(new OrganizerPhase.Applying());
         var applier = new OrganizerApplier(link, _env.MoveUp(link), _env.MoveLeft(link), _env.PlaceIcon, _env.DeleteSelected(link),
             wait: _env.Sleep, listen: _env.Timing.TrackListen, files: _env.ProjectFiles(),
+            iconIds: FlIconIds.Rack, mixerIconIds: FlIconIds.Mixer,
             report: text => _env.Post(() =>
             {
                 ApplyStep = text;
