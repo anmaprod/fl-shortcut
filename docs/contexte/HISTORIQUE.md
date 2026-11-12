@@ -1025,3 +1025,7 @@ entrée 1 ≈ 0,5 s.
   seule, devant ; une fois donné : Réglages refermés, l'app devant. Pas vu sur son Mac.
 - 12/11 (4) : accueil, « faut qu'il y ait un bouton à autoriser au lieu de continuer… le deuxième aussi » : on n'entre
   qu'avec les deux autorisations (Mac) ou les ports prêts (Windows) ; le grand bouton fait ce qui manque.
+- 12/11 (5) : icônes de l'Organiser « très long… à l'instant T… pas dans Mixer ni Playlist ». Playlist : marchait au
+  2e essai (numéros appris au 1er). Channel rack : un raté (Perc) arrêtait tout → sauté. Ses 2 projets lus : chaque
+  son a toujours son 155 ; nom/couleur d'une piste du Mixer juste avant son 236 → icônes connues écrites dans la
+  copie (son, Mixer), vérifié en Python sur son vrai projet (9 sons, 9 pistes, Pré-master et bus non touchés).

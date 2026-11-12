@@ -305,6 +305,10 @@ final class OrganizerApplier {
     /// Icônes ratées (sautées, les suivantes continuent) et leur trace pour le diagnostic.
     private var iconsMissedCount = 0
     private var iconTrace: [String] = []
+    /// Icônes connues déjà écrites dans la copie (12/11) : celles-là ne passent plus par la fenêtre de FL.
+    private var rackIconsInCopy = false
+    private var mixerIconsInCopy = false
+    private var iconsWrittenInCopy = 0
     /// Première icône manquée : les suivantes ne sont plus essayées, le reste du rangement continue.
     private var iconMiss: OrganizerError?
     /// Icônes prévues, posées à la toute fin (07/11, « dès que je veux mettre des icônes… ça oublie les couleurs des
@@ -388,6 +392,11 @@ final class OrganizerApplier {
     }
 
     /// Icône de chaque élément : celle de sa famille ; aucune si la famille n'en a pas.
+    /// Pur (testé) : les icônes prévues dont le numéro de FL est appris (jamais deviné), par élément.
+    static func knownIcons(_ icons: [Int: FLIcon], ids: [String: UInt32]) -> [Int: UInt32] {
+        icons.compactMapValues { ids[$0.code] }
+    }
+
     static func plannedIcons(families: [Int: SoundFamily], styles: [SoundFamily: FamilyStyle]) -> [Int: FLIcon] {
         var out: [Int: FLIcon] = [:]
         for (index, family) in families {
@@ -436,6 +445,9 @@ final class OrganizerApplier {
         unordered = []
         iconsMissedCount = 0
         iconTrace = []
+        rackIconsInCopy = false
+        mixerIconsInCopy = false
+        iconsWrittenInCopy = 0
         iconMiss = nil
         pendingIcons = []
         placedRack = []
@@ -522,11 +534,17 @@ final class OrganizerApplier {
             if let copy = outcome.copy, let files, case .failure = files.save(copy) {
                 // La copie rangée n'a pas été enregistrée par FL : l'utilisateur le fera (⌘S).
                 outcome.copyNotSaved = true
-            } else if let copy = outcome.copy, let files, !placedRack.isEmpty {
+            } else if let copy = outcome.copy, let files, !placedRack.isEmpty || iconsWrittenInCopy > 0 {
+                let saved = try? files.read(copy)
                 // Le numéro que FL donne à chaque icône posée (relu dans la copie enregistrée) : la Playlist le
                 // recevra au rangement suivant (aucun numéro deviné : jamais une mauvaise icône).
-                outcome.learnedIconIDs = Self.learnIconIDs(placedRack, in: (try? files.read(copy)).flatMap { try? FLPProject($0) })
+                outcome.learnedIconIDs = Self.learnIconIDs(placedRack, in: saved.flatMap { try? FLPProject($0) })
                 if !outcome.learnedIconIDs.isEmpty { outcome.trace.append("icônes apprises \(outcome.learnedIconIDs.count)") }
+                // Icônes écrites dans la copie : celles que FL a gardées en l'enregistrant (diagnostic, 12/11).
+                if iconsWrittenInCopy > 0, let saved {
+                    let kept = FLPProject.iconCounts(saved)
+                    outcome.trace.append("icônes relues rack \(kept.channels) mixer \(kept.inserts)")
+                }
             }
         } catch {
             outcome.error = Self.failure(error)
@@ -574,7 +592,7 @@ final class OrganizerApplier {
               ProjectFile.sounds(split.project, notSounds: notSounds).patterns == result.patternSounds else {
             throw OrganizerError.failed(String(localized: "Ton projet a changé depuis l'analyse : rien n'a été touché. Ferme l'Organiser, puis relance-le."))
         }
-        let copy: FLPFile
+        var copy: FLPFile
         do {
             copy = try layout.map { layout in
                 let icons = Self.playlistIcons(layout, styles: styles, ids: iconIDs) { rank in
@@ -588,6 +606,27 @@ final class OrganizerApplier {
         } catch {
             let what = "clips"
             throw OrganizerError.failed(String(localized: "L'Organiser ne sait pas encore ranger ce projet sans risque (\(what)) : rien n'a été touché."))
+        }
+        // 12/11 (« il faut que ça soit beaucoup plus rapide… à l'instant T… pas dans Mixer ») : les icônes dont le
+        // numéro de FL est déjà appris sont écrites dans la copie (Channel rack et Mixer) ; seules les autres passent
+        // encore par la fenêtre de FL, à la fin.
+        let rackIcons = Self.knownIcons(Self.plannedIcons(families: plan.rack.verdicts.mapValues { $0.family },
+                                                          styles: styles), ids: iconIDs)
+        let mixerIcons = Self.knownIcons(Self.plannedIcons(families: plan.mixer.verdicts.mapValues { $0.family },
+                                                           styles: styles), ids: iconIDs)
+        if !iconIDs.isEmpty {
+            // Case de la grille = numéro de FL (des nombres seulement) : la même table servira à Windows.
+            outcome.trace.append("icônes connues " + iconIDs.sorted { $0.key < $1.key }
+                .map { "\($0.key)=\($0.value)" }.joined(separator: " "))
+        }
+        if !rackIcons.isEmpty || !mixerIcons.isEmpty {
+            let written = FLPProject.withIcons(copy, channels: rackIcons, inserts: mixerIcons)
+            copy = written.file
+            rackIconsInCopy = !rackIcons.isEmpty && written.channels.count == rackIcons.count
+            mixerIconsInCopy = !mixerIcons.isEmpty && written.inserts.count == mixerIcons.count
+            iconsWrittenInCopy = written.channels.count + written.inserts.count
+            outcome.trace.append("icônes copie rack \(written.channels.count)/\(rackIcons.count) "
+                                 + "mixer \(written.inserts.count)/\(mixerIcons.count)")
         }
         guard var marked = ProjectFile.marking(copy, marker: marker) else {
             let what = "patterns"
@@ -904,7 +943,9 @@ final class OrganizerApplier {
         let arrangement = snap.arrangement
         var places: [Int: Int] = [:]
         for index in icons.keys { if let at = arrangement.firstIndex(of: index) { places[index] = at } }
-        if !icons.isEmpty { pendingIcons.append((icons: icons, kind: .channels, places: places)) }
+        // Celles déjà écrites dans la copie (numéro connu) ne passent plus par la fenêtre de FL (12/11).
+        let byHand = rackIconsInCopy ? icons.filter { iconIDs[$0.value.code] == nil } : icons
+        if !byHand.isEmpty { pendingIcons.append((icons: byHand, kind: .channels, places: places)) }
         return true
     }
 
@@ -1014,7 +1055,8 @@ final class OrganizerApplier {
         guard regrouped || stopped, colorsOK, routesOK, resetOK, Self.namesMatch(named, read) else { return false }
         var places: [Int: Int] = [:]
         for index in icons.keys { places[index] = place(index) }
-        if !icons.isEmpty { pendingIcons.append((icons: icons, kind: .mixer, places: places)) }
+        let byHand = mixerIconsInCopy ? icons.filter { iconIDs[$0.value.code] == nil } : icons
+        if !byHand.isEmpty { pendingIcons.append((icons: byHand, kind: .mixer, places: places)) }
         return true
     }
 

@@ -825,8 +825,14 @@
   icônes → maintenant sauté, les suivantes continuent (du haut vers le bas), une page abandonne après 3 ratés de
   suite, le Mixer passe même si le Channel rack a raté (`iconFailuresInARow`, trace `icônes ratées N` ; Windows
   pareil). Playlist : icônes écrites dans la copie seulement pour les numéros déjà APPRIS (au rangement suivant).
-  À FAIRE pour « à l'instant T » : écrire les icônes connues dans la copie aussi pour le Channel rack (événement 155)
-  et le Mixer — attendre un vrai .flp de son projet de test pour voir la forme exacte (jamais à l'aveugle).
+  « À l'instant T » (12/11, ses 2 projets .flp reçus) : icônes au numéro APPRIS écrites dans la copie, plus aucun clic
+  pour elles : Channel rack = le 155 de chaque son (FL l'écrit TOUJOURS, à 0) rempli ; Mixer = 95 (2 octets) juste
+  avant le 236 de la piste, là où FL range sa couleur 149 et son nom 204 (après le 147 de la piste d'avant ; vérifié
+  sur son projet : le nom avant le k-ième 236 = piste k du Channel rack) ; forme inattendue → rien, clics comme avant
+  (`FLPProject.withIcons`/`iconCounts`, `OrganizerApplier.knownIcons`, Windows `FlpIcons`). Diagnostic : `icônes
+  connues 7-4=4 …` (table case → numéro, à reprendre pour Windows), `icônes copie rack a/b mixer c/d`, `icônes relues
+  rack x mixer y` (ce que FL a gardé). Chez lui : guitare = 2, batterie = 4. FL garde-t-il le 95 du Mixer ? À LIRE dans
+  son prochain diagnostic (`icônes relues … mixer`).
 - Mails du compte : 2 par heure (donc 2 inscriptions) tant que le propriétaire n'a pas fait l'étape 6 de
   `supabase/README.md` (11/11 : Gmail rien que pour l'app, 60 par heure ; plus tard Brevo avec le domaine du site).
   Bêta limitée (1 000 comptes, un compte = un ordinateur) mise de côté le 11/11 : choix dans HISTORIQUE.

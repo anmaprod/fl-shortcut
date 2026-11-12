@@ -475,3 +475,94 @@ enum PlaylistLayout {
         return out.count <= trackCount ? out : nil
     }
 }
+
+/// Icônes écrites directement dans la copie rangée (12/11, « il faut que ça soit beaucoup plus rapide… à l'instant T…
+/// il a pas mis ça dans Mixer ») : plus aucun clic dans FL pour une icône dont le numéro est déjà appris. Forme vue dans
+/// le projet du propriétaire (FL 26.1) :
+/// - chaque son du Channel rack a TOUJOURS son événement 155 (l'icône, 4 octets, 0 = aucune), juste après son nom : il
+///   est rempli tel quel, jamais ajouté ;
+/// - chaque piste du Mixer commence par un 236 et finit par un 147 (sa sortie) ; sa couleur (149) et son nom (204)
+///   sont écrits JUSTE AVANT son 236, après le 147 de la piste d'avant (vérifié : le nom écrit avant le k-ième 236 est
+///   celui de la piste k où le Channel rack envoie ce son). L'icône (95, 2 octets) y va aussi : remplie si elle y est,
+///   sinon ajoutée juste avant le 236. Un Mixer d'une autre forme : rien n'y est écrit (l'ancienne façon reprend).
+extension FLPProject {
+    static let channelIconEvent: UInt8 = 155
+    static let insertStart: UInt8 = 236
+    static let insertOutput: UInt8 = 147
+    static let insertIcon: UInt8 = 95
+
+    /// `channels` : numéro de canal → numéro d'icône de FL ; `inserts` : piste du Mixer (Master = 0) → numéro d'icône.
+    /// Renvoie la copie et ce qui y a vraiment été écrit.
+    static func withIcons(_ file: FLPFile, channels: [Int: UInt32], inserts: [Int: UInt32])
+        -> (file: FLPFile, channels: Set<Int>, inserts: Set<Int>) {
+        var out = file
+        var doneChannels = Set<Int>()
+        // Channel rack : le premier 155 de chaque canal (un canal commence par 64 suivi de 21 ; il s'arrête au canal
+        // suivant, à l'arrangement ou au Mixer).
+        var current: Int?
+        var iconOf: [Int: Int] = [:]
+        let events = file.events
+        for (i, event) in events.enumerated() {
+            if event.id == 64, i + 1 < events.count, events[i + 1].id == 21 {
+                current = Int(event.value)
+                continue
+            }
+            if event.id == 99 || event.id == insertStart { current = nil }
+            if let c = current, event.id == channelIconEvent, iconOf[c] == nil, event.bytes.count == 4 { iconOf[c] = i }
+        }
+        for (channel, id) in channels {
+            guard let at = iconOf[channel], id != 0 else { continue }
+            out.events[at].bytes = FLPBytes.le(Int(id), size: 4)
+            doneChannels.insert(channel)
+        }
+        // Mixer : chaque 236 et le 147 qui le précède (piste d'avant) ; une forme inattendue n'écrit rien.
+        let starts = events.indices.filter { events[$0].id == insertStart }
+        guard let first = starts.first,
+              events[first...].filter({ $0.id == insertOutput }).count == starts.count else {
+            return (out, doneChannels, [])
+        }
+        var prefix: [Int: Range<Int>] = [:]
+        for (k, start) in starts.enumerated() where k > 0 {
+            guard let output = (starts[k - 1]..<start).last(where: { events[$0].id == insertOutput }) else {
+                return (out, doneChannels, [])
+            }
+            prefix[k] = (output + 1)..<start
+        }
+        var doneInserts = Set<Int>()
+        // Du bas vers le haut : un événement ajouté ne décale pas les pistes pas encore faites.
+        for (insert, id) in inserts.sorted(by: { $0.key > $1.key }) {
+            guard let range = prefix[insert], id != 0, id <= 0xFFFF else { continue }
+            let bytes = FLPBytes.le(Int(id), size: 2)
+            if let existing = range.first(where: { events[$0].id == insertIcon }) {
+                out.events[existing].bytes = bytes
+            } else {
+                out.events.insert(FLPEvent(id: insertIcon, bytes: bytes), at: range.upperBound)
+            }
+            doneInserts.insert(insert)
+        }
+        return (out, doneChannels, doneInserts)
+    }
+
+    /// Combien de sons et de pistes du Mixer ont une icône dans ce fichier (diagnostic : FL a-t-il gardé celles écrites
+    /// dans la copie en l'enregistrant ?). Des nombres seulement.
+    static func iconCounts(_ file: FLPFile) -> (channels: Int, inserts: Int) {
+        let events = file.events
+        var current: Int?
+        var seen = Set<Int>()
+        var channels = 0
+        for (i, event) in events.enumerated() {
+            if event.id == 64, i + 1 < events.count, events[i + 1].id == 21 {
+                current = Int(event.value)
+                continue
+            }
+            if event.id == 99 || event.id == insertStart { current = nil }
+            if let c = current, event.id == channelIconEvent, !seen.contains(c) {
+                seen.insert(c)
+                if event.value != 0 { channels += 1 }
+            }
+        }
+        let inserts = events.firstIndex { $0.id == insertStart }
+            .map { start in events[start...].filter { $0.id == insertIcon && $0.value != 0 }.count } ?? 0
+        return (channels, inserts)
+    }
+}

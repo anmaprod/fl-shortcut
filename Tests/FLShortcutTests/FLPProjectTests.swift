@@ -277,6 +277,55 @@ final class FLPProjectTests: XCTestCase {
         XCTAssertEqual(OrganizerApplier.learnIconIDs(placed, in: nil), [:])
     }
 
+    /// 12/11 (« il faut que ça soit à l'instant T… pas dans Mixer ») : les icônes connues écrites dans la copie, à la
+    /// forme vue dans le projet du propriétaire (FL 26.1) : le 155 de chaque son rempli ; le 95 d'une piste du Mixer
+    /// juste avant son 236, après sa couleur et son nom ; jamais le Master ; un Mixer d'une autre forme : rien.
+    func testKnownIconsAreWrittenInTheCopy() throws {
+        var file = FLPSample.sample()
+        for start in file.events.indices.filter({ file.events[$0].id == 21 }).reversed() {
+            file.events.insert(FLPSample.ev(155, 0), at: start + 1)          // FL l'écrit toujours, à 0
+        }
+        file.events.removeLast(4)                                             // le Mixer de l'exemple…
+        func insert(_ name: String?, color: Bool, icon: Int? = nil) -> [FLPEvent] {
+            var out: [FLPEvent] = color ? [FLPSample.ev(149, 0x1F3BFF)] : []
+            out.append(FLPSample.ev(42, 0))
+            if let name { out.append(FLPSample.text(204, name)) }
+            if let icon { out.append(FLPSample.ev(95, icon)) }
+            return out + [FLPSample.text(236, ""), FLPSample.ev(98, 0), FLPSample.text(235, ""), FLPSample.ev(154, 0),
+                          FLPSample.ev(147, 0)]
+        }
+        // … remplacé par celui de FL : Master, « Basse », une piste vide, « Kick » qui a déjà une icône.
+        file.events += insert(nil, color: false) + insert("Basse", color: true) + insert(nil, color: false)
+            + insert("Kick", color: true, icon: 7)
+        XCTAssertNoThrow(try FLPProject(file))
+
+        let written = FLPProject.withIcons(file, channels: [0: 2, 1: 4, 9: 4], inserts: [0: 2, 1: 2, 3: 4, 8: 4])
+        XCTAssertEqual(written.channels, [0, 1], "un son qui n'existe pas : rien")
+        XCTAssertEqual(written.inserts, [1, 3], "ni le Master, ni une piste qui n'existe pas")
+        XCTAssertEqual(try FLPProject(written.file).channels.map(\.icon), [2, 4, 0, 0, 0])
+        let events = written.file.events
+        let starts = events.indices.filter { events[$0].id == 236 }
+        func before(_ k: Int) -> [UInt8] {
+            let output = events[starts[k - 1]..<starts[k]].lastIndex { $0.id == 147 } ?? starts[k - 1]
+            return events[(output + 1)..<starts[k]].map(\.id)
+        }
+        XCTAssertEqual(before(1), [149, 42, 204, 95])
+        XCTAssertEqual(before(2), [42])
+        XCTAssertEqual(before(3), [149, 42, 204, 95], "l'icône déjà là est remplacée, pas doublée")
+        XCTAssertEqual(events.filter { $0.id == 95 }.map(\.value), [2, 4])
+        let counts = FLPProject.iconCounts(written.file)
+        XCTAssertEqual(counts.channels, 2)
+        XCTAssertEqual(counts.inserts, 2)
+
+        // Mixer de l'exemple d'origine (sans sorties 147) : forme inattendue, rien n'y est écrit.
+        XCTAssertEqual(FLPProject.withIcons(FLPSample.sample(), channels: [:], inserts: [1: 2]).inserts, [])
+
+        // Seules les icônes dont le numéro est appris sont écrites (jamais devinées).
+        let drums = try XCTUnwrap(FLIcon(code: "7-4"))
+        let bass = try XCTUnwrap(FLIcon(code: "6-0"))
+        XCTAssertEqual(OrganizerApplier.knownIcons([0: drums, 2: drums, 3: bass], ids: ["7-4": 4]), [0: 4, 2: 4])
+    }
+
     /// Retour du 01/11 : un groupe (la flèche de FL) par famille, jamais les groupes de l'ancien projet ; une piste
     /// « à vérifier » n'est jamais groupée.
     func testEachFamilyIsGroupedUnderItsFirstTrack() throws {
