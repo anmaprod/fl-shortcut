@@ -295,8 +295,10 @@ final class FLPProjectTests: XCTestCase {
                           FLPSample.ev(147, 0)]
         }
         // … remplacé par celui de FL : Master, « Basse », une piste vide, « Kick » qui a déjà une icône.
-        file.events += insert(nil, color: false) + insert("Basse", color: true) + insert(nil, color: false)
-            + insert("Kick", color: true, icon: 7)
+        file.events += insert(nil, color: false)
+        file.events += insert("Basse", color: true)
+        file.events += insert(nil, color: false)
+        file.events += insert("Kick", color: true, icon: 7)
         XCTAssertNoThrow(try FLPProject(file))
 
         let written = FLPProject.withIcons(file, channels: [0: 2, 1: 4, 9: 4], inserts: [0: 2, 1: 2, 3: 4, 8: 4])

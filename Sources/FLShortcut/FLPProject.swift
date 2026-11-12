@@ -561,8 +561,10 @@ extension FLPProject {
                 if event.value != 0 { channels += 1 }
             }
         }
-        let inserts = events.firstIndex { $0.id == insertStart }
-            .map { start in events[start...].filter { $0.id == insertIcon && $0.value != 0 }.count } ?? 0
-        return (channels, inserts)
+        var inserts = 0
+        if let start = events.firstIndex(where: { $0.id == insertStart }) {
+            inserts = events[start...].filter { $0.id == insertIcon && $0.value != 0 }.count
+        }
+        return (channels: channels, inserts: inserts)
     }
 }
