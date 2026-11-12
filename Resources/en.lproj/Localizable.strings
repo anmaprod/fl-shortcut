@@ -1000,6 +1000,7 @@
 "FL passe devant : fais le glisser-déposer une fois (il agit aussi dans FL). Échap annule." = "FL comes to the front: do the drag and drop once (it also works in FL). Esc cancels.";
 "FL passe devant : place la souris sur une piste du Mixer avant la fin du compte à rebours. Échap arrête la macro." = "FL comes to the front: put the mouse on a Mixer track before the countdown ends. Esc stops the macro.";
 "FL passe devant et la macro vise la dernière piste sur laquelle tu as cliqué. Échap l'arrête." = "FL comes to the front and the macro targets the last track you clicked. Esc stops it.";
+"FL rouvre la copie avec toutes ses icônes…" = "FL reopens the copy with all its icons…";
 "FL rouvre ton projet d'avant…" = "FL is reopening your previous project…";
 "FL répond : le lien est prêt." = "FL responds: the link is ready.";
 "FL trouve « FL Shortcuts Link » en démarrant et le relie tout seul. C'est détecté ici dès que c'est fait." = "FL finds “FL Shortcuts Link” when it starts and links it on its own. It shows up here as soon as it's done.";

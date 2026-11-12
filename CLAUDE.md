@@ -840,6 +840,10 @@
   relu ; 2e essai après 0,8 s (`iconRetryPause`) ; numéros du Mixer appris À PART (`organizerMixerIconIDs` : drums 75
   au Channel rack, 105 au Mixer dans crash out 3) ; diagnostic `écart rack couleurs 1/3`, `icônes au 2e essai N`,
   `icônes connues rack … mixer …`. Aucune table des numéros chez Image-Line : toujours appris au 1er usage.
+  12/11 (8) (« Arp oublié, Mélodie oubliée, rien dans la Playlist ») : Mac, dans la copie, UN clic par icône et par page
+  pour apprendre son numéro, puis TOUTES les icônes écrites dans la copie enregistrée (rack, Mixer, Playlist),
+  réécrite sous `_N+1`, rouverte par FL, l'ancienne à la Corbeille (`finishIcons`, `iconsToWrite`, diagnostic
+  `icônes fichier rack a mixer b playlist c rouverte N s`). Windows : pas encore.
 - Mails du compte : 2 par heure (donc 2 inscriptions) tant que le propriétaire n'a pas fait l'étape 6 de
   `supabase/README.md` (11/11 : Gmail rien que pour l'app, 60 par heure ; plus tard Brevo avec le domaine du site).
   Bêta limitée (1 000 comptes, un compte = un ordinateur) mise de côté le 11/11 : choix dans HISTORIQUE.

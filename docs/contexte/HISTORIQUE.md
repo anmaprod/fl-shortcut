@@ -1046,3 +1046,12 @@ entrée 1 ≈ 0,5 s.
   l'ordre relu même après un écart, 2e essai après 0,8 s, « écart rack couleurs 1/3 »… dans le diagnostic ; Mac :
   `organizerMixerIconIDs`, `learnMixerIconIDs`, `FLPProject.insertIcons`. Couleurs « pas changées » : cause pas
   encore vue (lire la ligne `écart` de son prochain diagnostic).
+- 12/11 (8) : diagnostic après 8ba1b2c (« icônes apprises 2 ; mixer 2 ; au 2e essai 9 ; ratées 1 ») + capture : plus
+  d'arrêt, mais Arp oublié au Channel rack, Mélodie au Mixer, rien dans la Playlist (aucun numéro connu au départ).
+  Les clics restent fragiles (9 sur 14 au 2e essai) → Mac : dans la copie, UN clic par icône et par page, seulement
+  pour apprendre son numéro (`placeIcons(oncePerIcon:)`) ; puis toutes les icônes connues écrites dans la copie
+  enregistrée (Channel rack 155, Mixer 95, Playlist octets 8-12 du 238 : `iconsToWrite`, `withAllIcons`,
+  `FLPProject.trackIcons/withTrackIcons`), réécrite sous `_N+1` (jamais par-dessus), rouverte (marque comme à
+  l'ouverture, nom remis d'après ce que FL montrait), enregistrée, l'ancienne `_N` à la Corbeille
+  (`ProjectFileAccess.trash`) ; rien à écrire = rien de rouvert. Diagnostic `icônes fichier rack a mixer b playlist c
+  rouverte N s`. Windows : à faire (il pose encore toutes ses icônes par clics, sans rien apprendre).

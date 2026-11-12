@@ -27,6 +27,8 @@ struct ProjectFileAccess {
     /// Ce que la dernière recherche du fichier a trouvé, en nombres et en mots fixes (diagnostic : jamais un nom ni
     /// un chemin).
     var search: () -> String = { "" }
+    /// Une copie rangée remplacée par la suivante (12/11 : icônes écrites puis copie rouverte) part à la Corbeille.
+    var trash: (URL) -> Void = { _ in }
 }
 
 /// Le fichier lu à l'analyse : où il est, chaque clip de la Playlist et ce qu'il joue.

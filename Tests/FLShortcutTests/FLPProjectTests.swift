@@ -324,6 +324,25 @@ final class FLPProjectTests: XCTestCase {
                            (icon: try XCTUnwrap(FLIcon(code: "6-0")), place: 2)]
         XCTAssertEqual(OrganizerApplier.learnMixerIconIDs(placedMixer, in: file), ["7-4": 7], "sans icône : rien appris")
         XCTAssertEqual(OrganizerApplier.learnMixerIconIDs(placedMixer, in: nil), [:])
+
+        // 12/11 (« dans mixer "melodie" a été oublié et dans channel rack "arp" a été oublié… pas dans la playlist ») :
+        // ce qui manque encore est écrit dans la copie, là où FL a sa case, jamais deux fois.
+        let saved = written.file
+        let project = try FLPProject(saved)
+        XCTAssertFalse(project.trackEvents.isEmpty)
+        let writes = OrganizerApplier.iconsToWrite(project, saved, rack: [0: 2, 1: 9, 2: 7, 40: 3],
+                                                   mixer: [1: 2, 2: 6, 3: 4, 9: 1], tracks: [0: 4, 500: 2])
+        XCTAssertEqual(writes.rack, [1: 9, 2: 7], "déjà là (0) : rien ; un son qui n'existe pas : rien")
+        XCTAssertEqual(writes.mixer, [2: 6], "déjà là (1, 3) : rien ; une piste sans case : rien")
+        XCTAssertEqual(writes.tracks, [0: 4])
+        let all = OrganizerApplier.withAllIcons(saved, project: project, writes)
+        let after = try FLPProject(all)
+        XCTAssertEqual(after.channels.map(\.icon), [2, 9, 7, 0, 0])
+        XCTAssertEqual(FLPProject.insertIcons(all), [1: 2, 2: 6, 3: 4])
+        XCTAssertEqual(after.trackIcons(all)[0], 4)
+        XCTAssertEqual(after.trackIcons(all)[1], 0, "les autres pistes ne bougent pas")
+        XCTAssertTrue(OrganizerApplier.iconsToWrite(after, all, rack: [1: 9], mixer: [2: 6], tracks: [0: 4]).isEmpty,
+                      "tout est là : rien à rouvrir")
         let counts = FLPProject.iconCounts(written.file)
         XCTAssertEqual(counts.channels, 2)
         XCTAssertEqual(counts.inserts, 2)

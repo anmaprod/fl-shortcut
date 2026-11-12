@@ -1168,6 +1168,50 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertEqual(layout.sounds, [1: [3], 2: [0, 1], 3: [0, 1], 5: [2, 4]])
     }
 
+    /// 12/11 (« ça n'a toujours pas fonctionné dans la playlist, dans mixer "melodie" a été oublié et dans channel rack
+    /// "arp" a été oublié ») : dans la copie, un seul clic par icône pour apprendre son numéro ; toutes les icônes sont
+    /// ensuite écrites dans la copie enregistrée (les autres sons de la famille, la Playlist), réécrite sous le nom
+    /// suivant et rouverte dans FL ; la copie d'avant part à la Corbeille.
+    func testIconsAreLearnedOnceThenWrittenInTheCopy() throws {
+        let disk = FakeDisk()
+        var original = FLPSample.sample()
+        for start in original.events.indices.filter({ original.events[$0].id == 21 }).reversed() {
+            original.events.insert(FLPSample.ev(155, 0), at: start + 1)       // FL l'écrit toujours, à 0
+        }
+        disk.files[disk.original] = original
+        let (link, result) = try fileProject(disk)
+        var styles = FamilyStyles.initial
+        styles[.drums]?.icon = try XCTUnwrap(FLIcon(code: "7-4"))
+        var clicked: [Int] = []
+        let copyURL = URL(fileURLWithPath: "/projets/Mon son_2.flp")
+        // FL enregistre la copie avec l'icône posée à la main : son numéro (75) sur le son cliqué.
+        disk.onSave = { url in
+            guard url == copyURL, let file = disk.files[url], let project = try? FLPProject(file) else { return }
+            let iids = Dictionary(uniqueKeysWithValues: clicked.map { (project.channels[$0].iid, UInt32(75)) })
+            disk.files[url] = FLPProject.withIcons(file, channels: iids, inserts: [:]).file
+        }
+        let options = OrganizerOptions(mixer: false, deleteUnused: false)
+        let outcome = OrganizerApplier(link: link, moveUp: link.moveSelectedUp, placeIcon: { _, target in
+            clicked.append(target.place)
+            return nil
+        }, wait: { _ in }, listen: 0, files: disk.access, marker: "FL Shortcuts 1234")
+            .apply(plan(result, styles: styles, options: options), result: result, styles: styles)
+        XCTAssertNil(outcome.error, "\(outcome.trace)")
+        XCTAssertEqual(clicked.count, 1, "un seul clic pour les deux sons des Drums")
+        XCTAssertEqual(outcome.learnedIconIDs, ["7-4": 75])
+        let reopened = URL(fileURLWithPath: "/projets/Mon son_3.flp")
+        XCTAssertEqual(outcome.copy, reopened)
+        XCTAssertEqual(disk.opened, [copyURL, reopened])
+        XCTAssertEqual(disk.trashed, [copyURL])
+        XCTAssertNil(outcome.iconsMissed)
+        let file = try XCTUnwrap(disk.files[reopened])
+        let copy = try FLPProject(file)
+        XCTAssertEqual(copy.channels.filter { $0.icon == 75 }.count, 2, "Kick et Snare")
+        XCTAssertTrue(copy.trackIcons(file).values.contains(75), "la Playlist aussi")
+        XCTAssertFalse(link.patternList.contains { $0.name.hasPrefix("FL Shortcuts") }, "la marque remise")
+        XCTAssertTrue(outcome.trace.contains { $0.hasPrefix("icônes fichier rack 1 mixer 0 playlist ") }, "\(outcome.trace)")
+    }
+
     /// Le projet a changé depuis l'analyse, ou FL n'ouvre pas la copie : rien n'est touché dans FL, et dans le second
     /// cas « Revenir comme avant » rouvre l'original.
     func testCopyRefusedWhenTheProjectChangedOrDoesNotOpen() throws {
@@ -1208,6 +1252,9 @@ final class FakeDisk {
     var asksDataFolder = false
     var answersDialog = true
     var answered = 0
+    /// Copies mises à la Corbeille ; ce que FL écrit en plus en enregistrant (une icône posée à la main, 12/11).
+    var trashed: [URL] = []
+    var onSave: ((URL) -> Void)?
     private var waiting: [ChannelInfo]?
     weak var link: FakeOrganizerLink?
 
@@ -1217,6 +1264,7 @@ final class FakeDisk {
         ProjectFileAccess(save: { known in
             let url = known ?? self.original
             self.saved.append(url)
+            self.onSave?(url)
             return .success(url)
         }, open: { url in
             self.opened.append(url)
@@ -1249,6 +1297,9 @@ final class FakeDisk {
             self.waiting = nil
             self.answered += 1
             return "dossier-données"
+        }, trash: { url in
+            self.trashed.append(url)
+            self.files[url] = nil
         })
     }
 

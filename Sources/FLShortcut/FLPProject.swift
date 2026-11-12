@@ -537,6 +537,28 @@ extension FLPProject {
 
     static let insertName: UInt8 = 204
 
+    /// Le numéro d'icône de chaque piste de la Playlist (0 : aucune), lu dans `file` (celui de ce projet).
+    func trackIcons(_ file: FLPFile) -> [Int: UInt32] {
+        var out: [Int: UInt32] = [:]
+        for (track, index) in trackEvents.enumerated()
+        where file.events.indices.contains(index) && file.events[index].bytes.count >= Self.trackIcon + 4 {
+            out[track] = FLPBytes.uint(file.events[index].bytes, at: Self.trackIcon, size: 4)
+        }
+        return out
+    }
+
+    /// Ces pistes de la Playlist reçoivent ces icônes ; rien d'autre ne change, aucun événement n'est ajouté (`file` :
+    /// celui de ce projet).
+    func withTrackIcons(_ file: FLPFile, _ icons: [Int: UInt32]) -> FLPFile {
+        var out = file
+        for (track, id) in icons where trackEvents.indices.contains(track) {
+            let index = trackEvents[track]
+            guard out.events.indices.contains(index), out.events[index].bytes.count >= Self.trackIcon + 4 else { continue }
+            FLPBytes.put(id, into: &out.events[index].bytes, at: Self.trackIcon, size: 4)
+        }
+        return out
+    }
+
     /// Ce qui est écrit avant le 236 de chaque piste k ≥ 1 du Mixer (après le 147 de la piste d'avant) ; nil si le
     /// Mixer n'a pas la forme vue dans les projets du propriétaire (autant de 147 que de 236).
     static func insertPrefixes(_ events: [FLPEvent]) -> [Int: Range<Int>]? {
