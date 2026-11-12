@@ -1020,3 +1020,6 @@ entrée 1 ≈ 0,5 s.
   faits. Contraire au choix du 07/11 (un accroc n'arrête que les icônes). Maintenant : page seule arrêtée, accrocs
   de suite, causes dans le diagnostic ; Mac et Windows, essais `PageThatKeepsLeavingButComesBackIsFinished`.
   Pourquoi FL ne restait pas devant chez lui : à lire dans son prochain diagnostic (ligne `remise …`).
+- 12/11 (3) : téléchargement Mac, 2e « Autoriser » (son de FL) : la petite fenêtre de macOS et la page des Réglages
+  s'ouvraient ensemble, et les Réglages restaient ouverts après « Quitter et rouvrir ». Déjà dans la liste : la page
+  seule, devant ; une fois donné : Réglages refermés, l'app devant. Pas vu sur son Mac.

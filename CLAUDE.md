@@ -73,6 +73,12 @@
   (TCC lu en direct, `AudioCapturePermission.screenAndAudio`) ; refus de TCC = refus (`AccessibilityGuide.allowed`) ;
   nombres bruts dans `AUDIO` (`audio=… screen=…`). « À autoriser » = bouton qui se soulève sur son encoche rouge
   (`StampButtonStyle`, comme les blocs des macros), il demande cette autorisation-là ; « pour l'Organiser » retiré.
+  12/11 (« la petite page qui demande d'ouvrir… s'ouvre en même temps que la page… on peut juste ouvrir cette
+  page-là… ça ferme pas la page de réglage ») : FL Shortcuts déjà dans la liste (TCC « refusé ») → rien demandé à
+  macOS (sur macOS 27 sa demande montrait sa petite fenêtre ET les Réglages), la page seule, mise devant ; tout
+  premier lancement : la demande de macOS reste (seule à ajouter l'app à la liste). Autorisation donnée, avec ou
+  sans « Quitter et rouvrir » : Réglages refermés, l'app revient devant (`PermissionRelaunchWait.closeSettingsIfGiven`,
+  appelé au lancement avec `asking`). Windows : aucune autorisation de ce genre.
 - Fenêtre principale sans bande sous la barre d'outils ; accueil remontré si l'autorisation clavier manque.
 - **Organiser v5** (`Sources/FLShortcut/Organizer*.swift`, `SoundFeatures.swift`, `SoundFamilies.swift`, script FL v16) :
   - analyse sur le fichier du projet (PROTOCOL.md §9, `FLP*.swift`, `OrganizerProject*.swift`) : FL enregistre (⌘S),

@@ -291,6 +291,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // qu'on coche dans les Réglages, retour du 01/11).
         let noted = DebugSnapshot.enabled ? nil : AppResume.shared.takeAsking()
         let asking = resume?.asking ?? noted
+        // Rouverte par « Quitter et rouvrir » avec l'autorisation donnée : les Réglages ouverts pour ça se ferment et
+        // l'app revient devant (12/11, « ça ferme pas la page de réglage, ce qui est pas très intuitif »).
+        if !DebugSnapshot.enabled { PermissionRelaunchWait.closeSettingsIfGiven(asking) }
         let onboarding = !UserDefaults.standard.bool(forKey: "didOnboard") || (!AXIsProcessTrusted() && !DebugSnapshot.enabled)
         if onboarding || resume?.onboarding != nil {
             DispatchQueue.main.async { AppDelegate.onboard(asking: asking) }

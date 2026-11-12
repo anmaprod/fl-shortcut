@@ -93,6 +93,16 @@ final class AccessibilityGuide: ObservableObject {
             audioGranted = true
             return
         }
+        // 12/11 (« la petite page qui demande d'ouvrir… s'ouvre en même temps… on peut juste ouvrir cette page-là, elle
+        // se met devant FL Shortcuts ») : déjà dans la liste (TCC répond « refusé » : présent, décoché), rien n'est
+        // demandé à macOS (sur macOS 27, sa demande montrait sa petite fenêtre ET les Réglages) : la page seule, devant.
+        // Pas encore dans la liste (tout premier lancement sur ce Mac) : seule la demande de macOS l'y ajoute.
+        if AudioCapturePermission.screenAndAudioStatus == .denied {
+            MacroLog.shared.write("AUDIO", "already listed: settings only " + AudioCapturePermission.rawSummary)
+            SingleInstance.watchForRelaunch()               // « Quitter et rouvrir » : l'app revient
+            openAudioSettings()
+            return
+        }
         NSApp.activate(ignoringOtherApps: true)             // la fenêtre de macOS devant
         let window = ScreenLook.requestOnce()
         MacroLog.shared.write("AUDIO", "screen+audio asked (\(window ? "macOS window" : "settings")) "
@@ -119,6 +129,12 @@ final class AccessibilityGuide: ObservableObject {
         AppResume.shared.noteAsking("son")
         MacroLog.shared.write("AUDIO", "settings opened")
         ScreenLook.openSettings()
+        // Devant FL Shortcuts (12/11) : la page s'ouvre parfois derrière l'accueil.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            for app in NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.systempreferences") {
+                app.activate(options: [])
+            }
+        }
     }
 
     /// Vidéo du 31/10 (« Autorisé » jamais affiché) : TCC peut ne noter la réponse qu'un instant après la question ;
@@ -215,6 +231,9 @@ final class AccessibilityGuide: ObservableObject {
             if audioGranted || Self.audioAllowed {
                 audioGranted = true
                 MacroLog.shared.write("AUDIO", "given\(audioInSettings ? " in settings" : "")")
+                // Réglages ouverts pour ça : refermés, comme pour le clavier (12/11, « ça ferme pas la page de
+                // réglage, ce qui est pas très intuitif »).
+                if audioInSettings { PermissionRelaunchWait.closeSystemSettings(why: "son") }
                 audioInSettings = false
                 timer?.invalidate()                         // la coche se voit, puis tout est rangé
                 timer = nil
@@ -409,6 +428,23 @@ final class PermissionRelaunchWait {
         missing(key, keyboardOK: AXIsProcessTrusted(), audioOK: AccessibilityGuide.audioAllowed)
     }
 
+    /// Réglages Système refermés (ouverts par l'app pour une autorisation, maintenant donnée).
+    static func closeSystemSettings(why key: String) {
+        let apps = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.systempreferences")
+        guard !apps.isEmpty else { return }
+        for app in apps { app.terminate() }
+        MacroLog.shared.write("ACCUEIL", "\(key) given: settings closed")
+    }
+
+    /// 12/11 (« ça quitte et FL Shortcuts se rouvre… mais ça ferme pas la page de réglage ») : rouverte par « Quitter
+    /// et rouvrir » avec l'autorisation qu'elle demandait maintenant donnée, l'app referme les Réglages Système
+    /// ouverts pour ça et revient devant. Rien si l'autorisation manque encore (l'attente garde les Réglages).
+    static func closeSettingsIfGiven(_ key: String?) {
+        guard let key, !missingNow(key) else { return }
+        closeSystemSettings(why: key)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
     /// `then` aussitôt si l'autorisation est déjà là ; sinon une fois l'attente finie.
     func start(asking key: String, then show: @escaping () -> Void) {
         guard Self.missingNow(key) else { show(); return }
@@ -433,6 +469,7 @@ final class PermissionRelaunchWait {
                         elapsed: Date().timeIntervalSince(started)) else { return }
         MacroLog.shared.write("ACCUEIL", "welcome back after \(Int(Date().timeIntervalSince(started))) s, "
                               + "\(key) \(missing ? "still missing" : "given")")
+        if !missing { Self.closeSettingsIfGiven(key) }
         finishNow()
     }
 
