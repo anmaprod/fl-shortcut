@@ -132,6 +132,9 @@ struct OrganizerEnvironment {
     /// « Revenir comme avant » réussi sur cette copie : elle part à la Corbeille (plus rien à demander). Fil principal.
     var copyMade: (_ original: URL, _ copy: URL) -> Void = { _, _ in }
     var copyUndone: (_ copy: URL) -> Void = { _ in }
+    /// « Garder » de l'écran de fin (13/11) : la version rangée devient le projet tout de suite (fenêtre de la question,
+    /// directement sur « FL enregistre la version organisée… »). Fil principal.
+    var keepCopy: (_ copy: URL) -> Void = { _ in }
 
     static func live() -> OrganizerEnvironment {
         OrganizerEnvironment(
@@ -253,7 +256,8 @@ struct OrganizerEnvironment {
                 return true
             },
             copyMade: { CopyApproval.shared.record(original: $0, copy: $1) },
-            copyUndone: { CopyApproval.shared.discard(copy: $0) })
+            copyUndone: { CopyApproval.shared.discard(copy: $0) },
+            keepCopy: { copy in MainActor.assumeIsolated { CopyApprovalWindow.shared.show(keeping: copy) } })
     }
 
     /// La Playlist devant (FL au premier plan), lue dans sa fenêtre.
@@ -624,7 +628,11 @@ final class OrganizerController: ObservableObject {
     }
 
     /// Le nom du bouton, comme la maquette du 28/10.
-    var title: String { String(localized: "Organiser") }
+    var title: String {
+        // 13/11 (maquette validée) : la fin réussie a son propre titre.
+        if case .applied(let error) = phase, error == nil { return String(localized: "c'est rangé") }
+        return String(localized: "Organiser")
+    }
 
     /// « Démarrer » : le lien avec FL, puis l'écoute de chaque son, hors du fil principal.
     func start() {
@@ -1370,6 +1378,20 @@ final class OrganizerController: ObservableObject {
     /// son empreinte, un son rangé d'après son nom par son nom (codé, jamais envoyé).
     var correctable: [OrganizerItem] { result?.items ?? [] }
 
+    /// Les trois chiffres de la fin (maquette du 13/11) : sons rangés, familles, sons sans note retirés.
+    var finishStats: (sounds: Int, families: Int, removed: Int) {
+        (families.count, presentFamilies.count, lastApply?.deleted ?? 0)
+    }
+
+    /// « Garder » (13/11, maquette validée) : la version rangée devient ton projet tout de suite, comme « Valider » à la
+    /// réouverture (FL l'enregistre, l'original part à la Corbeille, la copie prend son nom) ; l'Organiser se ferme.
+    /// Rangé sans copie : il se ferme seulement.
+    func keep() {
+        let copy = lastApply?.copy
+        close()
+        if let copy { env.keepCopy(copy) }
+    }
+
     /// « Pas content ? » : après l'application, une fois.
     var canGiveFeedback: Bool {
         guard case .applied = phase, result != nil else { return false }
@@ -1954,56 +1976,36 @@ struct OrganizerView: View {
         .morphIn(1)
     }
 
-    /// Fin réussie, en court : le titre et une ligne dans la carte verte, les remarques dessous (trois au plus, le
-    /// reste dans « Détails »), puis les boutons. La fenêtre ne grandit plus avec le texte.
+    /// Fin réussie (maquette validée le 13/11, « parfait go ») : sous le titre « c'est rangé », trois chiffres, les deux
+    /// grandes cases GARDER (la version rangée devient ton projet tout de suite) et REVENIR COMME AVANT, puis
+    /// « Pas content ? » et « Décider plus tard » (la question revient à la réouverture), « Copier le diagnostic » en bas.
     private var finished: some View {
-        let summary = controller.doneSummary
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 12) {
-                OrganizerBadge(symbol: "checkmark", tint: .green)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(summary.title).font(.system(size: 14, weight: .semibold))
-                    Text(summary.detail)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 0)
+        let stats = controller.finishStats
+        return VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top, spacing: 0) {
+                FinishStat(value: stats.sounds, label: String(localized: "sons rangés"), first: true)
+                FinishStat(value: stats.families, label: String(localized: "familles"))
+                FinishStat(value: stats.removed, label: String(localized: "sons sans note retirés"))
             }
-            .padding(14)
-            .organizerCard(.green)
+            .overlay(alignment: .bottom) { Rectangle().fill(Swiss.line).frame(height: 1) }
             .morphIn(1)
-            if !summary.notes.isEmpty {
-                VStack(alignment: .leading, spacing: 5) {
-                    ForEach(Array(summary.notes.prefix(3).enumerated()), id: \.offset) { _, note in
-                        HStack(alignment: .firstTextBaseline, spacing: 6) {
-                            Image(systemName: "info.circle")
-                            Text(note).lineLimit(2).fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                    if summary.notes.count > 3 {
-                        Button("Détails") { showDetails = true }
-                            .buttonStyle(SwissLinkButtonStyle())
-                            .swissPopover(isPresented: $showDetails, arrowEdge: .bottom) {
-                                ScrollView {
-                                    Text(controller.doneText)
-                                        .font(.system(size: 12))
-                                        .textSelection(.enabled)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                        .padding(14)
-                                }
-                                .frame(width: 380, height: 240)
-                            }
-                    }
+            HStack(spacing: 12) {
+                EndChoice(title: String(localized: "Garder"), primary: true) { controller.keep() }
+                if controller.canUndo {
+                    EndChoice(title: String(localized: "Revenir comme avant"), primary: false) { controller.undo() }
                 }
-                .font(.system(size: 11.5))
-                .foregroundStyle(.secondary)
-                .morphIn(2)
             }
+            .frame(height: 88)
+            .morphIn(2)
+            VStack(spacing: 0) {
+                if controller.canGiveFeedback {
+                    EndRow(title: String(localized: "Pas content ?"), bold: true) { controller.feedbackShown = true }
+                }
+                EndRow(title: String(localized: "Décider plus tard"), bold: false) { controller.close() }
+            }
+            .overlay(alignment: .top) { Rectangle().fill(Swiss.line).frame(height: 1) }
+            .morphIn(3)
             diagnosticLink
-                .morphIn(2)
-            buttons
                 .morphIn(3)
         }
     }
@@ -3596,5 +3598,73 @@ struct EdgeResizeCursors: NSViewRepresentable {
         }
 
         override func mouseExited(with event: NSEvent) { NSCursor.arrow.set() }
+    }
+}
+
+/// Un chiffre de la fin (maquette du 13/11) : grand nombre, petites capitales grises dessous, trait fin à gauche.
+private struct FinishStat: View {
+    let value: Int
+    let label: String
+    var first = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(verbatim: "\(value)").font(Swiss.title(30)).tracking(Swiss.titleTracking(30)).foregroundStyle(Swiss.text)
+            Text(label).swissLabel().fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.leading, first ? 0 : 14)
+        .padding(.bottom, 14)
+        .overlay(alignment: .leading) { if !first { Rectangle().fill(Swiss.line).frame(width: 1) } }
+    }
+}
+
+/// Grande case de la fin : GARDER pleine, REVENIR COMME AVANT bordée ; soulevée sur son ombre nette au survol (effet
+/// Gumroad, comme les autres boutons principaux).
+private struct EndChoice: View {
+    let title: String
+    let primary: Bool
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title.uppercased(with: Locale.current))
+                .font(.system(size: 13, weight: .bold)).tracking(1.6)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(primary ? Swiss.primaryInk : Swiss.text)
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Rectangle().fill(primary ? Swiss.primaryFill : Swiss.background))
+                .overlay(Rectangle().strokeBorder(primary ? Color.clear : Swiss.text, lineWidth: 2))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .gumroadLift(hovering, shadow: primary ? Swiss.primaryLift : Swiss.text)
+        .onHover { hovering = $0 }
+    }
+}
+
+/// Une ligne de la fin (« Pas content ? », « Décider plus tard ») : le texte, une flèche à droite, un trait dessous.
+private struct EndRow: View {
+    let title: String
+    let bold: Bool
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Text(title).font(.system(size: 14, weight: bold ? .bold : .regular))
+                Spacer(minLength: 8)
+                Text(verbatim: "→").foregroundStyle(hovering ? Swiss.text : Swiss.gray)
+            }
+            .foregroundStyle(Swiss.text)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+            .overlay(alignment: .bottom) { Rectangle().fill(Swiss.line).frame(height: 1) }
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
     }
 }

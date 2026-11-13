@@ -18,12 +18,21 @@ internal static class CopyApprovalPrompt
 {
     private static bool _showing;
 
-    /// `force` : demandé par le menu de l'icône (même après « Plus tard »).
-    public static async void Ask(XamlRoot? root, AppController app, bool force)
+    /// `force` : demandé par le menu de l'icône (même après « Plus tard »). `keepCopy` (13/11) : « Garder » de l'écran de
+    /// fin de l'Organiser, cette version rangée gardée tout de suite, sans la question.
+    public static async void Ask(XamlRoot? root, AppController app, bool force, string? keepCopy = null)
     {
         var approval = app.Approval;
         if (_showing || root is null) return;
-        if (force)
+        PendingCopy? kept = null;
+        if (keepCopy is not null)
+        {
+            approval.Prune();
+            kept = approval.Pending.FirstOrDefault(p => string.Equals(System.IO.Path.GetFullPath(p.Copy),
+                System.IO.Path.GetFullPath(keepCopy), StringComparison.OrdinalIgnoreCase));
+            if (kept is null) return;
+        }
+        else if (force)
         {
             approval.Prune();
             if (approval.Pending.Count == 0 || OrganizerWindow.IsOpen) return;
@@ -37,8 +46,10 @@ internal static class CopyApprovalPrompt
         {
             while (approval.Pending.Count > 0)
             {
-                var p = approval.Pending[0];
-                var answer = await Question(root, p, approval.Pending.Count - 1);
+                var p = kept ?? approval.Pending[0];
+                var answer = kept is not null ? ContentDialogResult.Primary
+                    : await Question(root, app, p, approval.Pending.Count - 1);
+                kept = null;
                 if (answer == ContentDialogResult.None)
                 {
                     approval.Snooze();
@@ -121,36 +132,46 @@ internal static class CopyApprovalPrompt
         return grid;
     }
 
-    /// « Tu valides la version organisée ? » : Primary = valider, Secondary = retourner en arrière, None = plus tard.
-    private static async Task<ContentDialogResult> Question(XamlRoot root, PendingCopy p, int remaining)
+    /// « tu gardes la version rangée » (13/11, maquette validée, comme le Mac) : deux grandes cases, GARDER (une mini
+    /// Playlist rangée aux couleurs choisies pour les familles) et REVENIR COMME AVANT (la même en désordre), soulevées
+    /// au survol ; « Plus tard » en bas à droite. Primary = garder, Secondary = revenir, None = plus tard.
+    private static async Task<ContentDialogResult> Question(XamlRoot root, AppController app, PendingCopy p, int remaining)
     {
         var answer = ContentDialogResult.None;
         var dialog = Dialog(root);
-        var lines = new StackPanel { Spacing = 4 };
-        lines.Children.Add(Centered(Loc.T("Valider : ton projet d'origine part à la Corbeille et la version organisée prend son nom."), 11.5, Secondary));
-        lines.Children.Add(Centered(Loc.T("Retourner en arrière : la version organisée part à la Corbeille."), 11.5, Secondary));
-        var back = Soft(Loc.T("Retourner en arrière"), () =>
-        {
-            answer = ContentDialogResult.Secondary;
-            dialog.Hide();
-        });
-        var yes = Primary(Loc.T("Oui, valider"), () =>
+        var body = new StackPanel { Spacing = 22, Width = 424, Padding = new Thickness(0, 6, 0, 0) };
+        var title = new TextBlock();
+        title.Text = Loc.T("tu gardes la version rangée");
+        var head = PageTitle(title, 34);
+        head.Padding = new Thickness(0, 0, 0, 14);
+        body.Children.Add(new Border { Child = head, BorderBrush = Brush(Text), BorderThickness = new Thickness(0, 0, 0, 1) });
+        var styles = FamilyStyles.Decode(app.Settings.OrganizerStyles);
+        var tiles = new Grid { ColumnSpacing = 16 };
+        tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        tiles.Children.Add(EndChoices.Tile(Loc.T("Garder"), true, () =>
         {
             answer = ContentDialogResult.Primary;
             dialog.Hide();
-        });
-        var later = new Button { Style = PlainButton, Content = Label(Loc.T("Plus tard"), 12, Link), HorizontalAlignment = HorizontalAlignment.Center };
+        }, 250, EndChoices.MiniPlaylist(true, styles)));
+        var back = EndChoices.Tile(Loc.T("Revenir comme avant"), false, () =>
+        {
+            answer = ContentDialogResult.Secondary;
+            dialog.Hide();
+        }, 250, EndChoices.MiniPlaylist(false, styles));
+        Grid.SetColumn(back, 1);
+        tiles.Children.Add(back);
+        body.Children.Add(tiles);
+        var bottom = new Grid();
+        if (remaining > 0) bottom.Children.Add(SwissLabel(Loc.F("Encore %lld projets ensuite.", remaining), 10.5, Secondary));
+        var laterText = Label(Loc.T("Plus tard").ToUpper(System.Globalization.CultureInfo.CurrentCulture), 12, Text, bold: true);
+        laterText.CharacterSpacing = 100;
+        var later = new Button { Style = PlainButton, Content = laterText, MinHeight = 44, HorizontalAlignment = HorizontalAlignment.Right };
         later.Click += (_, _) => dialog.Hide();
         AutomationProperties.SetName(later, Loc.T("Plus tard"));
-        var parts = new List<UIElement>
-        {
-            Centered(Loc.F("« %@ » est ton projet « %@ » rangé par l'Organiser.", System.IO.Path.GetFileName(p.Copy), System.IO.Path.GetFileName(p.Original)), 12, Text),
-            lines,
-        };
-        if (remaining > 0) parts.Add(Centered(Loc.F("Encore %lld projets ensuite.", remaining), 11.5, Secondary));
-        parts.Add(Pair(back, yes));
-        parts.Add(later);
-        dialog.Content = Message("square.stack.3d.up", Indigo, Loc.T("Tu valides la version organisée ?"), parts.ToArray());
+        bottom.Children.Add(later);
+        body.Children.Add(bottom);
+        dialog.Content = body;
         await dialog.ShowAsync();
         return answer;
     }

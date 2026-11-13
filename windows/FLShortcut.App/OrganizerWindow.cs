@@ -329,6 +329,9 @@ internal sealed class OrganizerWindow : Window
             case OrganizerPhase.Undoing:
                 Working(Loc.T("Retour comme avant…"));
                 break;
+            case OrganizerPhase.Applied { Error: null }:
+                Finished();
+                break;
             case OrganizerPhase.Applied a:
                 Ending(a.Error?.UserMessage ?? _controller.DoneText, a.Error is null, a.Error?.Is(OrganizerError.Kinds.NoResponse) == true);
                 break;
@@ -750,6 +753,51 @@ internal sealed class OrganizerWindow : Window
         {
             _right.Children.Add(BlueButton(Loc.T("Fermer"), _controller.Close));
         }
+    }
+
+    /// Fin réussie (13/11, maquette validée, comme le Mac) : sous le titre « c'est rangé », trois chiffres, les deux
+    /// grandes cases GARDER (la version rangée devient ton projet tout de suite) et REVENIR COMME AVANT, puis
+    /// « Pas content ? » et « Décider plus tard » (la question revient à la réouverture), « Copier le diagnostic » en bas.
+    private void Finished()
+    {
+        var stats = _controller.FinishStats;
+        var numbers = new Grid { BorderBrush = Brush(LineColor), BorderThickness = new Thickness(0, 0, 0, 1) };
+        var cells = new[]
+        {
+            EndChoices.Stat(stats.Sounds, Loc.T("sons rangés"), true),
+            EndChoices.Stat(stats.Families, Loc.T("familles"), false),
+            EndChoices.Stat(stats.Removed, Loc.T("sons sans note retirés"), false),
+        };
+        for (var i = 0; i < cells.Length; i++)
+        {
+            numbers.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            Grid.SetColumn(cells[i], i);
+            numbers.Children.Add(cells[i]);
+        }
+        _content.Children.Add(numbers);
+
+        var choices = new Grid { ColumnSpacing = 12 };
+        choices.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        choices.Children.Add(EndChoices.Tile(Loc.T("Garder"), true, _controller.Keep, 88));
+        if (_controller.CanUndo)
+        {
+            choices.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var back = EndChoices.Tile(Loc.T("Revenir comme avant"), false, _controller.Undo, 88);
+            Grid.SetColumn(back, 1);
+            choices.Children.Add(back);
+        }
+        _content.Children.Add(choices);
+
+        var rows = new StackPanel { BorderBrush = Brush(LineColor), BorderThickness = new Thickness(0, 1, 0, 0) };
+        if (_controller.CanGiveFeedback) rows.Children.Add(EndChoices.Row(Loc.T("Pas content ?"), true, ShowFeedback));
+        rows.Children.Add(EndChoices.Row(Loc.T("Décider plus tard"), false, _controller.Close));
+        _content.Children.Add(rows);
+
+        var copyText = Label(_controller.Copied ? Loc.T("Copié") : Loc.T("Copier le diagnostic"), 11.5, Text);
+        copyText.TextDecorations = Windows.UI.Text.TextDecorations.Underline;
+        var copy = new HyperlinkButton { Content = copyText, Padding = new Thickness(0) };
+        copy.Click += (_, _) => _controller.CopyDiagnostic();
+        _content.Children.Add(copy);
     }
 
     private Button DiagnosticButton() => SoftButton(_controller.Copied ? Loc.T("Copié") : Loc.T("Copier le diagnostic"), _controller.CopyDiagnostic,

@@ -170,6 +170,7 @@ internal static class OrganizerLive
             },
             ChooseProject = choose,
             CopyMade = (original, copy) => app.Approval.Record(original, copy),
+            KeepCopy = copy => app.RequestKeep(copy),
             // « Revenir comme avant » : la version organisée à la Corbeille dès que FL l'a quittée (demande du 28/10) ;
             // encore ouverte au bout d'une minute : elle reste, la question reviendra.
             CopyUndone = copy =>

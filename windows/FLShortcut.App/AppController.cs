@@ -200,6 +200,10 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         return ok;
     }
 
+    /// « Garder » de l'écran de fin de l'Organiser (13/11) : la fenêtre principale garde la version rangée tout de suite.
+    public event Action<string>? KeepRequested;
+    public void RequestKeep(string copy) => KeepRequested?.Invoke(copy);
+
     /// Script de FL Shortcuts présent dans FL (diagnostic).
     public bool ScriptInstalled => _settings.ScriptPath is { Length: > 0 } path && File.Exists(path);
 

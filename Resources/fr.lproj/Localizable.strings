@@ -765,6 +765,7 @@
 "Décaler vers le haut" = "Décaler vers le haut";
 "Décaler à droite" = "Décaler à droite";
 "Décaler à gauche" = "Décaler à gauche";
+"Décider plus tard" = "Décider plus tard";
 "Décompte" = "Décompte";
 "Décompte avant l'enregistrement" = "Décompte avant l'enregistrement";
 "Découvrir" = "Découvrir";
@@ -1057,6 +1058,7 @@
 "Format de profil illisible." = "Format de profil illisible.";
 "Format du son de FL inattendu : écoute impossible." = "Format du son de FL inattendu : écoute impossible.";
 "Fruity Limiter, Pro-Q 3…" = "Fruity Limiter, Pro-Q 3…";
+"Garder" = "Garder";
 "Garder ce Mac" = "Garder ce Mac";
 "Garder mon compte" = "Garder mon compte";
 "Gauche" = "Gauche";
@@ -2333,6 +2335,7 @@
 "boîte de dialogue introuvable" = "boîte de dialogue introuvable";
 "boîte « Open » introuvable" = "boîte « Open » introuvable";
 "boîte…) : le clic attend qu'elle s'ouvre. Si elle change de taille, montre-le de nouveau." = "boîte…) : le clic attend qu'elle s'ouvre. Si elle change de taille, montre-le de nouveau.";
+"c'est rangé" = "c'est rangé";
 "canal %lld : lien avec FL nécessaire" = "canal %lld : lien avec FL nécessaire";
 "canal %lld absent du Channel rack (ou script de FL pas à jour : redémarre FL)" = "canal %lld absent du Channel rack (ou script de FL pas à jour : redémarre FL)";
 "ce bloc a besoin du lien avec FL (%@)" = "ce bloc a besoin du lien avec FL (%@)";
@@ -2390,6 +2393,7 @@
 "ex. Armer la piste et lancer l'enregistrement" = "ex. Armer la piste et lancer l'enregistrement";
 "ex. fl.shortcuts" = "ex. fl.shortcuts";
 "fait" = "fait";
+"familles" = "familles";
 "fenêtre de FL" = "fenêtre de FL";
 "fenêtre de FL de %lld × %lld introuvable (pas ouverte, ou changée de taille : montre de nouveau le clic)" = "fenêtre de FL de %lld × %lld introuvable (pas ouverte, ou changée de taille : montre de nouveau le clic)";
 "fenêtre de FL illisible" = "fenêtre de FL illisible";
@@ -2574,6 +2578,8 @@
 "réponse de FL illisible" = "réponse de FL illisible";
 "s" = "s";
 "seulement dans la Playlist : clique sur le nom d'une piste de la Playlist, puis relance" = "seulement dans la Playlist : clique sur le nom d'une piste de la Playlist, puis relance";
+"sons rangés" = "sons rangés";
+"sons sans note retirés" = "sons sans note retirés";
 "sortie et entrée du Mac" = "sortie et entrée du Mac";
 "sous-menu « Select » non ouvert" = "sous-menu « Select » non ouvert";
 "sur la piste visée" = "sur la piste visée";
@@ -2596,6 +2602,7 @@
 "trop de canaux" = "trop de canaux";
 "trop de patterns" = "trop de patterns";
 "trop de pistes" = "trop de pistes";
+"tu gardes la version rangée" = "tu gardes la version rangée";
 "téléchargement impossible." = "téléchargement impossible.";
 "un chiffre" = "un chiffre";
 "un dégradé demande ses deux couleurs." = "un dégradé demande ses deux couleurs.";

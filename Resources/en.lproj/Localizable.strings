@@ -765,6 +765,7 @@
 "Décaler vers le haut" = "Shift up";
 "Décaler à droite" = "Shift right";
 "Décaler à gauche" = "Shift left";
+"Décider plus tard" = "Decide later";
 "Décompte" = "Countdown";
 "Décompte avant l'enregistrement" = "Countdown before recording";
 "Découvrir" = "Explore";
@@ -1057,6 +1058,7 @@
 "Format de profil illisible." = "Unreadable profile format.";
 "Format du son de FL inattendu : écoute impossible." = "Unexpected FL audio format: can't listen.";
 "Fruity Limiter, Pro-Q 3…" = "Fruity Limiter, Pro-Q 3…";
+"Garder" = "Keep";
 "Garder ce Mac" = "Keep this Mac";
 "Garder mon compte" = "Keep my account";
 "Gauche" = "Left";
@@ -2333,6 +2335,7 @@
 "boîte de dialogue introuvable" = "dialog not found";
 "boîte « Open » introuvable" = "“Open” dialog not found";
 "boîte…) : le clic attend qu'elle s'ouvre. Si elle change de taille, montre-le de nouveau." = "dialog…): the click waits for it to open. If it changes size, show it again.";
+"c'est rangé" = "it's organized";
 "canal %lld : lien avec FL nécessaire" = "channel %lld: FL link needed";
 "canal %lld absent du Channel rack (ou script de FL pas à jour : redémarre FL)" = "channel %lld not in the Channel rack (or FL script out of date: restart FL)";
 "ce bloc a besoin du lien avec FL (%@)" = "this block needs the FL link (%@)";
@@ -2390,6 +2393,7 @@
 "ex. Armer la piste et lancer l'enregistrement" = "e.g. Arm the track and start recording";
 "ex. fl.shortcuts" = "e.g. fl.shortcuts";
 "fait" = "done";
+"familles" = "families";
 "fenêtre de FL" = "FL window";
 "fenêtre de FL de %lld × %lld introuvable (pas ouverte, ou changée de taille : montre de nouveau le clic)" = "%lld × %lld FL window not found (not open, or resized: show the click again)";
 "fenêtre de FL illisible" = "FL window can't be read";
@@ -2574,6 +2578,8 @@
 "réponse de FL illisible" = "FL reply unreadable";
 "s" = "s";
 "seulement dans la Playlist : clique sur le nom d'une piste de la Playlist, puis relance" = "Playlist only: click the name of a Playlist track, then run it again";
+"sons rangés" = "sounds organized";
+"sons sans note retirés" = "silent sounds removed";
 "sortie et entrée du Mac" = "Mac output and input";
 "sous-menu « Select » non ouvert" = "“Select” submenu not opened";
 "sur la piste visée" = "on the targeted track";
@@ -2596,6 +2602,7 @@
 "trop de canaux" = "too many channels";
 "trop de patterns" = "too many patterns";
 "trop de pistes" = "too many tracks";
+"tu gardes la version rangée" = "keep the organized version";
 "téléchargement impossible." = "download failed.";
 "un chiffre" = "a number";
 "un dégradé demande ses deux couleurs." = "a gradient needs both its colors.";

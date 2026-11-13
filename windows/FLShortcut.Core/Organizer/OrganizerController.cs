@@ -100,6 +100,8 @@ public sealed class OrganizerEnvironment
     /// « Revenir comme avant » réussi sur cette copie.
     public Action<string, string> CopyMade { get; init; } = (_, _) => { };
     public Action<string> CopyUndone { get; init; } = _ => { };
+    /// « Garder » de l'écran de fin (13/11, comme le Mac) : la version rangée devient le projet tout de suite.
+    public Action<string> KeepCopy { get; init; } = _ => { };
     public string AppVersion { get; init; } = "?";
     /// Fil de l'interface (les essais : tout de suite).
     public Action<Action> Post { get; init; } = a => a();
@@ -160,7 +162,20 @@ public sealed class OrganizerController
     }
 
     /// Le titre seul, comme le Mac (maquette du 28/10).
-    public string Title => Loc.T("Organiser");
+    // 13/11 (maquette validée, comme le Mac) : la fin réussie a son propre titre.
+    public string Title => Phase is OrganizerPhase.Applied { Error: null } ? Loc.T("c'est rangé") : Loc.T("Organiser");
+
+    /// Les trois chiffres de la fin : sons rangés, familles, sons sans note retirés.
+    public (int Sounds, int Families, int Removed) FinishStats => (Families.Count, PresentFamilies.Count, LastApply?.Deleted ?? 0);
+
+    /// « Garder » (13/11, comme le Mac) : la version rangée devient ton projet tout de suite, comme « Valider » à la
+    /// réouverture ; l'Organiser se ferme. Rangé sans copie : il se ferme seulement.
+    public void Keep()
+    {
+        var copy = LastApply?.Copy;
+        Close();
+        if (copy is not null) _env.KeepCopy(copy);
+    }
 
     /// Playlist trop grande pour être rangée dans la copie (comme le Mac) : l'aperçu propose de décocher « Playlist ».
     public bool PlaylistTooBig => OrganizesCopy && Options.Playlist && Plan.Layout is null;

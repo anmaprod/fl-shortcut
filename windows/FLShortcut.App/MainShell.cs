@@ -227,6 +227,12 @@ internal sealed partial class MainShell
             if (!ok) ShowToast(text);
         };
         if (!photos) root.Loaded += (_, _) => CopyApprovalPrompt.Ask(_root.XamlRoot, _app, force: false);
+        // 13/11 : « Garder » de l'écran de fin de l'Organiser, la version rangée gardée tout de suite.
+        _app.KeepRequested += copy =>
+        {
+            ShowFromTray(ask: false);
+            CopyApprovalPrompt.Ask(_root.XamlRoot, _app, force: true, keepCopy: copy);
+        };
     }
 
     // ---------- Fenêtre et zone de notification ----------

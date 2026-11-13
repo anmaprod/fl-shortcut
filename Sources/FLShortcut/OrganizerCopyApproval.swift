@@ -317,10 +317,10 @@ final class CopyApprovalFlow: ObservableObject {
     let demo: Bool
     var close: () -> Void = {}
 
-    init(approval: CopyApproval, demo: PendingCopy? = nil) {
+    init(approval: CopyApproval, demo: PendingCopy? = nil, start: PendingCopy? = nil) {
         self.approval = approval
         self.demo = demo != nil
-        current = demo ?? approval.pending.first
+        current = demo ?? start ?? approval.pending.first
     }
 
     var remaining: Int { demo ? 0 : max(0, approval.pending.count - 1) }
@@ -390,13 +390,24 @@ final class CopyApprovalWindow: NSObject, NSWindowDelegate {
 
     var isShowing: Bool { window != nil }
 
-    func show(demo: PendingCopy? = nil) {
+    /// « Garder » de l'écran de fin de l'Organiser (13/11, maquette validée) : la question n'est pas posée, la version
+    /// rangée est gardée tout de suite (« FL enregistre la version organisée… », puis la fenêtre se ferme ; un souci :
+    /// elle le dit, avec Réessayer).
+    func show(keeping copy: URL) {
+        CopyApproval.shared.prune()
+        guard let p = CopyApproval.shared.pending.first(where: { CopyApprovalRules.same($0.copy, copy) }) else { return }
+        window?.close()
+        show(start: p)
+        flow?.validate()
+    }
+
+    func show(demo: PendingCopy? = nil, start: PendingCopy? = nil) {
         if let window {
             window.orderFrontRegardless()
             NSApp.activate(ignoringOtherApps: true)
             return
         }
-        let flow = CopyApprovalFlow(approval: .shared, demo: demo)
+        let flow = CopyApprovalFlow(approval: .shared, demo: demo, start: start)
         guard flow.current != nil else { return }
         flow.close = { [weak self] in self?.window?.close() }
         self.flow = flow
@@ -461,68 +472,44 @@ struct CopyApprovalView: View {
             case .failed(let text, let retry): failed(text, retry: retry)
             }
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 30)
-        .padding(.bottom, 18)
-        .frame(width: 380)
+        .padding(.horizontal, 28)
+        .padding(.top, 32)
+        .padding(.bottom, 20)
+        .frame(width: 480)
         .background(Swiss.background)
     }
 
     private func name(_ url: URL?) -> String { url?.lastPathComponent ?? "" }
 
-    /// Style suisse (maquette validée le 01/11) : la question en gros souligné de blanc, les deux choix expliqués sur
-    /// une ligne chacun (petites capitales à gauche), RETOURNER EN ARRIÈRE / VALIDER collés en bas.
+    /// Maquette validée le 13/11 (« parfait go ») : « tu gardes la version rangée », puis deux grandes cases : GARDER
+    /// (une mini Playlist rangée, aux couleurs choisies pour les familles) et REVENIR COMME AVANT (la même en
+    /// désordre), soulevées au survol ; « Plus tard » en bas à droite. Plus aucune phrase.
     private var question: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Tu valides la version organisée ?")
-                .swissTitle(30)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.bottom, 12)
+        VStack(alignment: .leading, spacing: 22) {
+            SwissPageTitle(text: String(localized: "tu gardes la version rangée"), size: 40)
+                .padding(.bottom, 16)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .swissRule()
-            Text("« \(name(flow.current?.copy)) » est ton projet « \(name(flow.current?.original)) » rangé par l'Organiser.")
-                .font(.system(size: 12))
-                .foregroundStyle(Swiss.soft)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.vertical, 10)
-            choice(String(localized: "Valider"), Swiss.text,
-                   String(localized: "Valider : ton projet d'origine part à la Corbeille et la version organisée prend son nom."))
-            choice(String(localized: "En arrière"), Swiss.gray,
-                   String(localized: "Retourner en arrière : la version organisée part à la Corbeille et FL rouvre ton projet d'avant."))
-            if flow.remaining > 0 {
-                Text("Encore \(flow.remaining) autre(s) projet(s) ensuite.")
-                    .swissLabel(size: 10.5)
-                    .padding(.top, 10)
-            }
-            HStack(spacing: 0) {
-                Button { flow.goBack() } label: { Text("Retourner en arrière").frame(maxWidth: .infinity) }
-                    .secondaryButton()
-                Button { flow.validate() } label: { Text("Oui, valider").frame(maxWidth: .infinity) }
-                    .primaryButton()
+            HStack(spacing: 16) {
+                KeepChoice(title: String(localized: "Garder"), primary: true) { flow.validate() }
                     .keyboardShortcut(.defaultAction)
+                KeepChoice(title: String(localized: "Revenir comme avant"), primary: false) { flow.goBack() }
             }
-            .controlSize(.large)
-            .padding(.top, 18)
-            Button("Plus tard") { flow.later() }
-                .buttonStyle(.plain)
-                .swissLabel(size: 10.5)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 10)
-                .keyboardShortcut(.cancelAction)
+            .frame(height: 250)
+            HStack {
+                if flow.remaining > 0 {
+                    Text("Encore \(flow.remaining) autre(s) projet(s) ensuite.").swissLabel(size: 10.5)
+                }
+                Spacer()
+                Button("Plus tard") { flow.later() }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 12, weight: .bold)).tracking(1.4)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Swiss.text)
+                    .frame(minHeight: 44)
+                    .keyboardShortcut(.cancelAction)
+            }
         }
-    }
-
-    /// Un des deux choix : son nom en petites capitales, puis ce qu'il fait (la phrase sans son début « Valider : »).
-    private func choice(_ tag: String, _ color: Color, _ text: String) -> some View {
-        let detail = text.split(separator: ":", maxSplits: 1).last.map { $0.trimmingCharacters(in: .whitespaces) } ?? text
-        return HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(tag).swissLabel(color, size: 10.5).frame(width: 96, alignment: .leading)
-            Text(detail).font(.system(size: 13)).foregroundStyle(Swiss.soft)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(.vertical, 10)
-        .swissRule(Swiss.line)
     }
 
     /// Au style suisse (02/11) : le texte en gros, une barre rouge qui avance sous lui.
@@ -569,5 +556,77 @@ struct CopyApprovalView: View {
             .controlSize(.large)
             .padding(.top, 8)
         }
+    }
+}
+
+/// Une des deux grandes cases de la question (13/11) : une mini Playlist, rangée aux couleurs des familles (GARDER,
+/// pleine) ou grise en désordre (REVENIR COMME AVANT, bordée), le choix en capitales en bas ; soulevée au survol.
+private struct KeepChoice: View {
+    let title: String
+    let primary: Bool
+    let action: () -> Void
+    @State private var hovering = false
+
+    /// Une ligne de la mini Playlist : où commencent ses clips et leur largeur (en part de la ligne).
+    private typealias Row = (color: Color, clips: [(start: CGFloat, width: CGFloat)])
+
+    private var rows: [Row] {
+        if primary {
+            let styles = FamilyStyles.load()
+            let clips: [[(CGFloat, CGFloat)]] = [[(0, 0.30), (0.50, 0.30)], [(0, 0.62), (0.66, 0.34)],
+                                                 [(0, 0.48), (0.50, 0.48)], [(0, 1)], [(0.34, 0.14), (0.84, 0.14)]]
+            var out: [Row] = []
+            for (family, parts) in zip(SoundFamily.order.filter { $0 != .unsure }, clips) {
+                let color = styles[family]?.color ?? FamilyStyles.initial[family]?.color ?? RGBColor(r: 128, g: 128, b: 128)
+                out.append((color: swiftColor(color), clips: parts.map { (start: $0.0, width: $0.1) }))
+            }
+            return out
+        }
+        let dark = Color(white: 0.35), light = Color(white: 0.55)
+        let messy: [(Color, [(CGFloat, CGFloat)])] = [(dark, [(0.06, 0.22)]), (light, [(0.30, 0.44)]),
+                                                      (dark, [(0, 0.16), (0.40, 0.12)]), (dark, [(0.18, 0.60)]),
+                                                      (light, [(0.50, 0.18)]), (dark, [(0.64, 0.34)])]
+        return messy.map { row -> Row in (color: row.0, clips: row.1.map { (start: $0.0, width: $0.1) }) }
+    }
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(spacing: 5) {
+                    ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                        HStack(spacing: 6) {
+                            if primary { Rectangle().fill(row.color).frame(width: 10, height: 10) }
+                            GeometryReader { geo in
+                                ZStack(alignment: .leading) {
+                                    if primary { Rectangle().fill(Color(white: 0.93)) }
+                                    ForEach(Array(row.clips.enumerated()), id: \.offset) { _, clip in
+                                        Rectangle().fill(row.color)
+                                            .frame(width: geo.size.width * clip.width)
+                                            .offset(x: geo.size.width * clip.start)
+                                    }
+                                }
+                            }
+                            .frame(height: 10)
+                        }
+                        .frame(height: 16)
+                    }
+                }
+                .accessibilityHidden(true)
+                Spacer(minLength: 8)
+                Text(title.uppercased(with: Locale.current))
+                    .font(.system(size: 15, weight: .bold)).tracking(1.6)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .foregroundStyle(primary ? Swiss.primaryInk : Swiss.text)
+            .padding(primary ? 16 : 14)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(Rectangle().fill(primary ? Swiss.primaryFill : Swiss.background))
+            .overlay(Rectangle().strokeBorder(primary ? Color.clear : Swiss.text, lineWidth: 2))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .gumroadLift(hovering, shadow: primary ? Swiss.primaryLift : Swiss.text)
+        .onHover { hovering = $0 }
     }
 }

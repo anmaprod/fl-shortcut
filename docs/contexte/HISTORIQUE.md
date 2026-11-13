@@ -1176,3 +1176,12 @@ entrée 1 ≈ 0,5 s.
   luminosité, 10 récentes, #RRGGBB, Hue/Sat/Lum, Red/Green/Blue, Reset/Accept) ; « tu gardes la version rangée » :
   deux grandes cases Garder / Revenir comme avant avec une mini Playlist (rangée aux couleurs des familles choisies /
   en désordre), soulevées au survol.
+- 13/11 (13) : « parfait go » (maquette des fins validée, artefact `WEojWWarY4LkDi2ckQXykn`). Fait (Mac et Windows) :
+  fin réussie de l'Organiser = titre « c'est rangé », 3 chiffres (sons rangés, familles, sons sans note retirés), deux
+  grandes cases GARDER (pleine) / REVENIR COMME AVANT (bordée) soulevées au survol, lignes « Pas content ? → » et
+  « Décider plus tard → » (ferme, la question revient à la réouverture), « Copier le diagnostic » souligné. GARDER =
+  la validation tout de suite, sans la question (Mac `OrganizerController.keep` → `CopyApprovalWindow.show(keeping:)`,
+  Windows `Keep` → `AppController.RequestKeep` → `CopyApprovalPrompt.Ask(keepCopy:)`). Question à la réouverture =
+  « tu gardes la version rangée », deux grandes cases à mini Playlist (rangée aux couleurs des familles choisies /
+  grise en désordre) + « Plus tard » (Mac `KeepChoice`, Windows `EndChoices`). Reste : « Pas content ? » (liste + 4
+  pages).
