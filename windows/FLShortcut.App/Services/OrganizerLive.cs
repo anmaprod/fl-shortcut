@@ -146,6 +146,14 @@ internal static class OrganizerLive
                 app.Settings.OrganizerFamilyOrder = order.Select(f => f.Raw()).ToList();
                 app.Settings.Save();
             },
+            LoadMixerChoices = () => app.Settings.OrganizerBuses is { } buses
+                ? (buses, app.Settings.OrganizerPremaster ?? true) : null,
+            SaveMixerChoices = (buses, premaster) =>
+            {
+                app.Settings.OrganizerBuses = buses;
+                app.Settings.OrganizerPremaster = premaster;
+                app.Settings.Save();
+            },
             PlaceIcon = _ => OrganizerError.Failed(Loc.T("Les icônes de FL ne sont pas encore posées sur Windows. Les couleurs sont posées.")),
             PrepareLink = () => PrepareLink(app),
             ReleaseLink = () => app.Midi.Release(LinkUser.Organizer),
@@ -171,6 +179,9 @@ internal static class OrganizerLive
             ChooseProject = choose,
             CopyMade = (original, copy) => app.Approval.Record(original, copy),
             KeepCopy = copy => app.RequestKeep(copy),
+            // « Pas content ? » : ce que l'ordinateur ne peut pas apprendre part à l'équipe, comme sur le Mac.
+            SendFeedback = (message, diagnostic) =>
+                _ = app.SendSupport?.Invoke(new SupportMessage { Kind = SupportKind.Probleme, Text = message, Diagnostic = diagnostic }),
             // « Revenir comme avant » : la version organisée à la Corbeille dès que FL l'a quittée (demande du 28/10) ;
             // encore ouverte au bout d'une minute : elle reste, la question reviendra.
             CopyUndone = copy =>

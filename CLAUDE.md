@@ -876,7 +876,7 @@
   `.popover` (NE PAS remettre `.popover` ni `Menu` de SwiftUI) ; liste des sortes de l'Organiser = liste suisse, nom
   tapé dans la case. Windows : menus suisses, bulles carrées. Écran « Démarrer » sans carré orange, écoute sans traits
   gris. Fins (maquette `WEojWWarY4LkDi2ckQXykn`, validée le 13/11) : « c'est rangé » + GARDER / REVENIR, question
-  « tu gardes la version rangée » à mini Playlist (fait, Mac et Windows) ; « Pas content ? » en 4 pages : en cours.
+  « tu gardes la version rangée » à mini Playlist (fait, Mac et Windows) ; « Pas content ? » en 4 pages (sons, Mixer, Playlist, couleurs ; « C'est noté » garde, « Annuler » remet) : fait, Mac et Windows.
 - Lien MIDI posé dès l'installation (13/11, « installer le lien midi dès l'installation du logiciel ») : script de FL
   écrit tout seul au lancement si jamais installé et si le dossier de FL existe (Mac `installIfMissing`, Windows
   `InstallScriptIfMissing`/`FlScriptPlace`) ; ligne « Lien avec FL » dans l'accueil. Les ports restent ouverts le

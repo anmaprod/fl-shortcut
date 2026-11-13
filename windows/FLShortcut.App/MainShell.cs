@@ -205,6 +205,7 @@ internal sealed partial class MainShell
             try { return (await _account.FreshSession())?.AccessToken; }
             catch (Exception) { return _account.Session?.AccessToken; }      // hors ligne : l'ancien jeton
         };
+        _app.SendSupport = _help.SendQuietly;
         UpdateAccountButton();
         _macros = new MacrosPage(_app, macroStore, photos, window,
             listChanged: () => { if (_kind == PageKind.Macros && _query.Trim().Length == 0) RenderPage(); },

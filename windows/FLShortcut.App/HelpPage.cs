@@ -421,11 +421,31 @@ internal sealed class HelpPage
         }
     }
 
-    private async Task<(int Status, string Body)> Post(ServerConfig server, string? token)
+    private Task<(int Status, string Body)> Post(ServerConfig server, string? token) => Post(server, _message, token);
+
+    private static async Task<(int Status, string Body)> Post(ServerConfig server, SupportMessage message, string? token)
     {
-        using var request = ServerRequests.Support(server, _message, AppVersion, token: token);
+        using var request = ServerRequests.Support(server, message, AppVersion, token: token);
         using var response = await Http.SendAsync(request);
         return ((int)response.StatusCode, await response.Content.ReadAsStringAsync());
+    }
+
+    /// « Pas content ? » de l'Organiser (13/11, comme le Mac) : le message part à l'équipe sans rien montrer, avec le
+    /// compte s'il y en a un (jeton refusé : sans) ; un échec reste au journal, jamais une chute.
+    public async Task SendQuietly(SupportMessage message)
+    {
+        if (Server is not { } server || SupportRules.Problem(message) is not null) return;
+        try
+        {
+            var token = await Token();
+            var (status, _) = await Post(server, message, token);
+            if (token is not null && status is 401 or 403) (status, _) = await Post(server, message, null);
+            AppLog.Write("SUPPORT", status is >= 200 and < 300 ? "organizer feedback sent" : $"organizer feedback failed ({status})");
+        }
+        catch (Exception e)
+        {
+            AppLog.Write("SUPPORT", "organizer feedback failed (" + e.GetType().Name + ")");
+        }
     }
 
     /// Sans serveur (ou s'il échoue) : le message copié et le ticket GitHub ouvert (sans le mail : la page est publique).

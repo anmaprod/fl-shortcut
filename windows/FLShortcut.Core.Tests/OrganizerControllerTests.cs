@@ -42,8 +42,11 @@ public sealed class OrganizerControllerTests
     private static OrganizerEnvironment Env(FakeOrganizerLink link, FakeDisk disk, Later later, Func<OrganizerLinkState>? prepare = null,
         Func<bool>? install = null, FakeAudio? audio = null, Func<CorrectionsIA?>? corrections = null, Action<string>? share = null,
         Action<string, string>? team = null, Func<IReadOnlyList<SoundFamily>>? order = null, Action<IReadOnlyList<SoundFamily>>? saveOrder = null,
-        Action<string>? copy = null, List<(string, string)>? made = null, List<string>? linkLog = null) => new()
+        Action<string>? copy = null, List<(string, string)>? made = null, List<string>? linkLog = null,
+        Func<(bool Buses, bool Premaster)?>? mixer = null, Action<bool, bool>? saveMixer = null) => new()
     {
+        LoadMixerChoices = mixer ?? (() => null),
+        SaveMixerChoices = saveMixer ?? ((_, _) => { }),
         ReleaseLink = () => linkLog?.Add("rendu"),
         UseLinkAgain = () =>
         {
@@ -123,6 +126,35 @@ public sealed class OrganizerControllerTests
         controller.Close();
         controller.Close();
         Assert.Equal(1, closings);
+    }
+
+    /// « Pas content ? » en pages (13/11, comme le Mac) : les choix du Mixer gardés reviennent ; « Annuler » remet tout
+    /// comme à l'ouverture ; « C'est noté » garde l'ordre des familles, les bus et le pré-master.
+    [Fact]
+    public void FeedbackPagesKeepOrRestoreChoices()
+    {
+        var (link, disk) = Project();
+        (bool Buses, bool Premaster)? savedChoices = null;
+        IReadOnlyList<SoundFamily>? savedOrder = null;
+        var controller = new OrganizerController(Env(link, disk, new Later(), saveOrder: o => savedOrder = o,
+            mixer: () => (false, false), saveMixer: (b, p) => savedChoices = (b, p)));
+        Assert.False(controller.Options.Buses);                 // le choix gardé revient
+        Assert.False(controller.Options.Premaster);
+        var styles = new Dictionary<SoundFamily, FamilyStyle>(controller.Styles);
+        var options = controller.Options;
+        var drumsFirst = new[] { SoundFamily.Drums, SoundFamily.Bass, SoundFamily.Melody, SoundFamily.Vocals, SoundFamily.Fx };
+        controller.SetOptions(controller.Options with { Buses = true });
+        controller.SetFamilyOrder(drumsFirst);
+        Assert.Equal(SoundFamily.Drums, controller.Options.FamilyOrder[0]);
+        Assert.Equal(SoundFamily.Unsure, controller.Options.FamilyOrder[^1]);  // « À vérifier » toujours à la fin
+        controller.Restore(styles, options);
+        Assert.False(controller.Options.Buses);                 // Annuler : comme à l'ouverture
+        Assert.NotEqual(SoundFamily.Drums, controller.Options.FamilyOrder[0]);
+        controller.SetFamilyOrder(drumsFirst);
+        controller.SetOptions(controller.Options with { Buses = true, Premaster = true });
+        controller.SubmitFeedback(new OrganizerFeedback());
+        Assert.Equal(SoundFamily.Drums, savedOrder?[0]);        // C'est noté : l'ordre gardé
+        Assert.Equal((true, true), savedChoices);
     }
 
     [Fact]

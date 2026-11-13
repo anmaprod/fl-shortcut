@@ -28,7 +28,7 @@ using static FLShortcut.App.MacLook;
 
 namespace FLShortcut.App;
 
-internal sealed class OrganizerWindow : Window
+internal sealed partial class OrganizerWindow : Window
 {
     private static OrganizerWindow? _open;
 
@@ -1278,121 +1278,6 @@ internal sealed class OrganizerWindow : Window
         flyout.Content = content;
         flyout.Opened += (_, _) => box.Focus(FocusState.Programmatic);
         flyout.ShowAt(anchor);
-    }
-
-    private static CheckBox Check(string text, bool on, Action<bool> set)
-    {
-        var box = new CheckBox { Content = new TextBlock { Text = text, FontSize = 12, TextWrapping = TextWrapping.Wrap }, IsChecked = on, MinWidth = 0 };
-        box.Checked += (_, _) => set(true);
-        box.Unchecked += (_, _) => set(false);
-        return box;
-    }
-
-    // ---------- « Pas content ? » ----------
-
-    private async void ShowFeedback()
-    {
-        var feedback = new OrganizerFeedback { Share = _controller.SharingCorrections };
-        var body = new StackPanel { Spacing = 8 };
-        var dialog = new ContentDialog
-        {
-            XamlRoot = Content.XamlRoot,
-            Style = MainShell.DialogStyle(),
-            RequestedTheme = MacLook.SurfaceTheme,
-            Background = Brush(Rgb(0x1E, 0x1E, 0x21)),
-            BorderBrush = Brush(LineColor),
-            Title = Loc.T("Qu'est-ce qui n'allait pas ?"),
-            PrimaryButtonText = Loc.T("Envoyer"),
-            CloseButtonText = Loc.T("Annuler"),
-            DefaultButton = ContentDialogButton.Primary,
-            IsPrimaryButtonEnabled = false,
-            Content = new ScrollViewer { Content = body, MaxHeight = 460 },
-        };
-        void Build()
-        {
-            body.Children.Clear();
-            body.Children.Add(Paragraph(Loc.T("Coche tout ce qui ne va pas : l'ordinateur apprend de ses erreurs."), 12));
-            foreach (var reason in OrganizerFeedback.AllReasons)
-            {
-                body.Children.Add(Check(OrganizerFeedback.Label(reason), feedback.Reasons.Contains(reason), on =>
-                {
-                    if (on) feedback.Reasons.Add(reason); else feedback.Reasons.Remove(reason);
-                    Build();
-                }));
-            }
-            body.Children.Add(Check(Loc.T("Autre"), feedback.Other, on =>
-            {
-                feedback.Other = on;
-                Build();
-            }));
-            if (feedback.Other)
-            {
-                var text = new TextBox
-                {
-                    Text = feedback.OtherText, PlaceholderText = Loc.T("Dis-nous ce qui ne va pas"), AcceptsReturn = true,
-                    TextWrapping = TextWrapping.Wrap, MinHeight = 64, MaxLength = 1000,
-                };
-                text.TextChanged += (_, _) =>
-                {
-                    feedback.OtherText = text.Text;
-                    dialog.IsPrimaryButtonEnabled = feedback.CanSend;
-                };
-                body.Children.Add(text);
-            }
-            if (feedback.AsksSounds) FeedbackSounds(body, feedback, Build);
-            if (feedback.TeamMessage() is not null)
-                body.Children.Add(Note(Loc.T("Sur Windows, copie le diagnostic et colle-le dans ton message.")));
-            dialog.IsPrimaryButtonEnabled = feedback.CanSend;
-        }
-        Build();
-        if (await dialog.ShowAsync() == ContentDialogResult.Primary) _controller.SubmitFeedback(feedback);
-    }
-
-    /// Tous les sons (comme le Mac) : pour chacun mal rangé, sa bonne famille ou sorte (mêmes choix que l'aperçu).
-    private void FeedbackSounds(StackPanel body, OrganizerFeedback feedback, System.Action rebuild)
-    {
-        body.Children.Add(Label(Loc.T("Quels sons étaient mal rangés ?"), 13, Text, semibold: true));
-        var correctable = _controller.Correctable;
-        if (correctable.Count == 0) return;
-        foreach (var item in correctable)
-        {
-            var chosen = feedback.Fixes.TryGetValue(item.Index, out var fix) ? fix : (OrganizerFeedback.Fix?)null;
-            var family = _controller.Families.TryGetValue(item.Index, out var f) ? f : item.Family;
-            var label = chosen is { } c ? c.Kind?.Name() ?? c.Family.Label() : _controller.KindOf(item.Index)?.Name() ?? family.Label();
-            var menu = new MenuFlyout();
-            foreach (var choice in SoundFamilies.Order)
-            {
-                if (choice.Kinds().Length == 0)
-                {
-                    menu.Items.Add(MenuItem(choice.Label(), () => { feedback.Fixes[item.Index] = new OrganizerFeedback.Fix(choice); rebuild(); }));
-                    continue;
-                }
-                var sub = new MenuFlyoutSubItem { Text = choice.Label() };
-                sub.Items.Add(MenuItem(choice.Label(), () => { feedback.Fixes[item.Index] = new OrganizerFeedback.Fix(choice); rebuild(); }));
-                sub.Items.Add(new MenuFlyoutSeparator());
-                foreach (var k in choice.Kinds())
-                    sub.Items.Add(MenuItem(k.Name(), () => { feedback.Fixes[item.Index] = new OrganizerFeedback.Fix(choice, k); rebuild(); }));
-                menu.Items.Add(sub);
-            }
-            var button = new DropDownButton { Content = new TextBlock { Text = label, FontSize = 11 }, Flyout = menu };
-            ToolTipService.SetToolTip(button, Loc.T("Ce qu'est vraiment ce son"));
-            var row = new Grid { ColumnSpacing = 8 };
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var name = new TextBlock { Text = item.Name.Length == 0 ? Loc.T("Sans nom") : item.Name, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
-            var mark = chosen is null
-                ? (FrameworkElement)new Ellipse { Width = 12, Height = 12, Stroke = Brush(White(0.3)), StrokeThickness = 1.2 }
-                : Icon("check", 12, Green);
-            mark.VerticalAlignment = VerticalAlignment.Center;
-            Grid.SetColumn(button, 1);
-            Grid.SetColumn(mark, 2);
-            row.Children.Add(name);
-            row.Children.Add(button);
-            row.Children.Add(mark);
-            body.Children.Add(row);
-        }
-        body.Children.Add(Note(Loc.T("Un son rangé d'après son nom : ta réponse est retenue pour ce nom, sur ce PC.")));
     }
 
     // ---------- Fichier et dossier montrés ----------

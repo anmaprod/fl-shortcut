@@ -102,6 +102,10 @@ public sealed class OrganizerEnvironment
     public Action<string> CopyUndone { get; init; } = _ => { };
     /// « Garder » de l'écran de fin (13/11, comme le Mac) : la version rangée devient le projet tout de suite.
     public Action<string> KeepCopy { get; init; } = _ => { };
+    /// « Pas content ? › Le Mixer » (13/11, comme le Mac) : un bus par famille et le pré-master, gardés pour les
+    /// prochains rangements (null : jamais choisis, les réglages d'origine).
+    public Func<(bool Buses, bool Premaster)?> LoadMixerChoices { get; init; } = () => null;
+    public Action<bool, bool> SaveMixerChoices { get; init; } = (_, _) => { };
     public string AppVersion { get; init; } = "?";
     /// Fil de l'interface (les essais : tout de suite).
     public Action<Action> Post { get; init; } = a => a();
@@ -159,6 +163,20 @@ public sealed class OrganizerController
         Styles = env.LoadStyles();
         // Le pré-master est là par défaut dans l'app (01/11, comme le Mac).
         Options = new OrganizerOptions { Premaster = true, FamilyOrder = OrganizerOptions.CompleteOrder(env.LoadFamilyOrder()) };
+        if (env.LoadMixerChoices() is { } choices) Options = Options with { Buses = choices.Buses, Premaster = choices.Premaster };
+    }
+
+    /// « Pas content ? › La Playlist » (13/11, comme le Mac) : les familles dans cet ordre (« À vérifier » à la fin).
+    public void SetFamilyOrder(IReadOnlyList<SoundFamily> order) =>
+        SetOptions(Options with { FamilyOrder = OrganizerOptions.CompleteOrder(order) });
+
+    /// « Pas content ? › Annuler » (13/11) : couleurs, départs du Mixer, bus, pré-master et ordre comme à l'ouverture.
+    public void Restore(IReadOnlyDictionary<SoundFamily, FamilyStyle> styles, OrganizerOptions options)
+    {
+        Styles = new Dictionary<SoundFamily, FamilyStyle>(styles);
+        Options = options;
+        _env.SaveStyles(Styles);
+        Raise();
     }
 
     /// Le titre seul, comme le Mac (maquette du 28/10).
@@ -795,6 +813,10 @@ public sealed class OrganizerController
     /// « Envoyer » : les sons corrigés retenus (et partagés si la case est cochée), le reste dit à l'équipe.
     public void SubmitFeedback(OrganizerFeedback feedback)
     {
+        // 13/11 (« Pas content ? » en pages, comme le Mac) : ce qui a été changé est gardé pour les prochains rangements.
+        _env.SaveStyles(Styles);
+        _env.SaveFamilyOrder(Options.FamilyOrder);
+        _env.SaveMixerChoices(Options.Buses, Options.Premaster);
         if (feedback.Fixes.Count > 0 && _env.Corrections() is { } store) store.Partage = feedback.Share;
         Learned += Learn(feedback.Fixes, feedback.Reasons.Select(OrganizerFeedback.Raw).OrderBy(r => r, StringComparer.Ordinal).ToList());
         if (feedback.TeamMessage() is { } message) _env.SendFeedback(message, DiagnosticText);

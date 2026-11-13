@@ -1183,5 +1183,16 @@ entrée 1 ≈ 0,5 s.
   la validation tout de suite, sans la question (Mac `OrganizerController.keep` → `CopyApprovalWindow.show(keeping:)`,
   Windows `Keep` → `AppController.RequestKeep` → `CopyApprovalPrompt.Ask(keepCopy:)`). Question à la réouverture =
   « tu gardes la version rangée », deux grandes cases à mini Playlist (rangée aux couleurs des familles choisies /
-  grise en désordre) + « Plus tard » (Mac `KeepChoice`, Windows `EndChoices`). Reste : « Pas content ? » (liste + 4
-  pages).
+  grise en désordre) + « Plus tard » (Mac `KeepChoice`, Windows `EndChoices`).
+  « Pas content ? » (fait, Mac et Windows) : « pas content » + une phrase, 4 lignes numérotées (Un son est mal rangé,
+  Le Mixer, La Playlist, Les couleurs ; « N sons corrigés » / « Changé » sur un carré rouge en face), « Autre chose ? »
+  (champ simple, part à l'équipe), Annuler / C'est noté. Pages : les sons (liste suisse famille › sorte par son, case
+  pleine d'encre une fois corrigée, « Aider l'ordinateur de tout le monde » si un son écouté est corrigé), le Mixer
+  (départ de chaque famille, case comme FL ; « Un bus par famille », « Pré-master avant le Master »), la Playlist
+  (familles tirées haut/bas, Channel rack et Mixer suivent), les couleurs (familles à gauche, fenêtre de couleur de FL
+  à droite avec les 10 récentes). « C'est noté » garde couleurs, ordre, bus et pré-master pour les prochains
+  rangements (réglages `organize.buses`/`organize.premaster` sur Mac, `OrganizerBuses`/`OrganizerPremaster` sur
+  Windows) ; « Annuler » remet tout comme à l'ouverture (`restore`/`Restore`). Mac `OrganizerFeedbackView` ; Windows
+  `OrganizerFeedbackPages.cs` (Échap sur une page : retour à la liste) ; le message à l'équipe part enfin aussi sous
+  Windows (`AppController.SendSupport` → `HelpPage.SendQuietly`, avec le compte s'il y en a un). Essais
+  `testFeedbackPagesKeepOrRestoreChoices` / `FeedbackPagesKeepOrRestoreChoices`. Pas encore vu chez lui.

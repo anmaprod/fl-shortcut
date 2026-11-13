@@ -2133,6 +2133,7 @@
 "Texte" = "Text";
 "Thème" = "Theme";
 "Tire la case vers le haut ou le bas, comme dans FL, ou clique pour écrire." = "Drag the box up or down, like in FL, or click to type.";
+"Tire vers le haut ou le bas" = "Drag up or down";
 "Titre" = "Title";
 "Titre : %lld à %lld caractères." = "Title: %lld to %lld characters.";
 "Titres" = "Titles";

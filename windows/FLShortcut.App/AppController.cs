@@ -204,6 +204,10 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     public event Action<string>? KeepRequested;
     public void RequestKeep(string copy) => KeepRequested?.Invoke(copy);
 
+    /// Message à l'équipe envoyé sans rien montrer (« Pas content ? » de l'Organiser, 13/11, comme le Mac) : posé par la
+    /// fenêtre principale (Aide : serveur, compte) ; null : pas encore de fenêtre, rien n'est envoyé.
+    public Func<SupportMessage, Task>? SendSupport { get; set; }
+
     /// Script de FL Shortcuts présent dans FL (diagnostic).
     public bool ScriptInstalled => _settings.ScriptPath is { Length: > 0 } path && File.Exists(path);
 
