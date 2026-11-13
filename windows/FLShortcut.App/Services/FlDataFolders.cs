@@ -12,6 +12,9 @@ internal static class FlDataFolders
     public static IReadOnlyList<string> PluginRoots(string? scriptPath) =>
         PluginDatabase.Roots(scriptPath, Documents(), Registered());
 
+    /// Les dossiers « Settings\Hardware » de FL possibles (13/11 : lien posé tout seul au lancement).
+    public static IReadOnlyList<string> HardwareCandidates() => FLShortcut.Core.FlScriptPlace.Candidates(Documents(), Registered());
+
     /// Les dossiers Documents possibles, sans doublon.
     private static List<string> Documents()
     {

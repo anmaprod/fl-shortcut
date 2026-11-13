@@ -1119,6 +1119,7 @@
 "Installer le lien avec FL…" = "Installer le lien avec FL…";
 "Installer le lien dans FL Studio (bouton ci-dessous), puis redémarrer FL." = "Installer le lien dans FL Studio (bouton ci-dessous), puis redémarrer FL.";
 "Installer…" = "Installer…";
+"Installé" = "Installé";
 "Instrument au-dessus" = "Instrument au-dessus";
 "Instrument au-dessus avec des notes" = "Instrument au-dessus avec des notes";
 "Instrument en dessous" = "Instrument en dessous";
@@ -1149,7 +1150,6 @@
 "Kick" = "Kick";
 "Kick, Lead, Voix…" = "Kick, Lead, Voix…";
 "Kick, Lead, Voix… (facultatif)" = "Kick, Lead, Voix… (facultatif)";
-"L'ordinateur retient %lld sons corrigés sur ce Mac : la prochaine fois, ils seront rangés comme tu l'as dit." = "L'ordinateur retient %lld sons corrigés sur ce Mac : la prochaine fois, ils seront rangés comme tu l'as dit.";
 "L'Organiser ne sait pas encore ranger ce projet sans risque (%@) : rien n'a été touché." = "L'Organiser ne sait pas encore ranger ce projet sans risque (%@) : rien n'a été touché.";
 "L'Organiser écoute FL avec macOS 14.2 ou plus récent : mets macOS à jour." = "L'Organiser écoute FL avec macOS 14.2 ou plus récent : mets macOS à jour.";
 "L'app et tous ses réglages seront supprimés de ce Mac." = "L'app et tous ses réglages seront supprimés de ce Mac.";
@@ -1160,6 +1160,7 @@
 "L'explication de @%@" = "L'explication de @%@";
 "L'icône en haut de l'écran ouvre le menu." = "L'icône en haut de l'écran ouvre le menu.";
 "L'icône en haut de l'écran ouvre son menu : modifier les raccourcis, organiser, mettre en pause." = "L'icône en haut de l'écran ouvre son menu : modifier les raccourcis, organiser, mettre en pause.";
+"L'ordinateur retient %lld sons corrigés sur ce Mac : la prochaine fois, ils seront rangés comme tu l'as dit." = "L'ordinateur retient %lld sons corrigés sur ce Mac : la prochaine fois, ils seront rangés comme tu l'as dit.";
 "L'équipe la regarde et la retire si elle n'a rien à faire ici. Le membre ne sait pas qui l'a signalée." = "L'équipe la regarde et la retire si elle n'a rien à faire ici. Le membre ne sait pas qui l'a signalée.";
 "La Communauté" = "La Communauté";
 "La Communauté n'est pas encore ouverte" = "La Communauté n'est pas encore ouverte";
@@ -1706,6 +1707,7 @@
 "Positions" = "Positions";
 "Posée par la fenêtre de FL (F2). La première fois, montre une fois le bouton de l'icône." = "Posée par la fenêtre de FL (F2). La première fois, montre une fois le bouton de l'icône.";
 "Pour l'Organiser : il écoute chaque son pour le ranger" = "Pour l'Organiser : il écoute chaque son pour le ranger";
+"Pour les actions de FL et l'Organiser." = "Pour les actions de FL et l'Organiser.";
 "Pour tes raccourcis dans FL." = "Pour tes raccourcis dans FL.";
 "Pour toi" = "Pour toi";
 "Pour toi (facultatif)" = "Pour toi (facultatif)";
@@ -1761,6 +1763,7 @@
 "Quitte et rouvre FL" = "Quitte et rouvre FL";
 "Quitte et rouvre FL Studio" = "Quitte et rouvre FL Studio";
 "Quitte et rouvre FL Studio : il trouve « FL Shortcuts Link » en démarrant et le relie tout seul. Puis « Réessayer »." = "Quitte et rouvre FL Studio : il trouve « FL Shortcuts Link » en démarrant et le relie tout seul. Puis « Réessayer ».";
+"Quitte et rouvre FL pour qu'il le voie." = "Quitte et rouvre FL pour qu'il le voie.";
 "Quitter" = "Quitter";
 "Quitter FL Shortcuts" = "Quitter FL Shortcuts";
 "Quitter et rouvrir FL" = "Quitter et rouvrir FL";
@@ -2653,6 +2656,7 @@
 "À corriger" = "À corriger";
 "À faire une seule fois." = "À faire une seule fois.";
 "À gauche, choisis une page : Général, Playlist, Mixer… Elle montre les raccourcis de FL qui s'y appliquent." = "À gauche, choisis une page : Général, Playlist, Mixer… Elle montre les raccourcis de FL qui s'y appliquent.";
+"À installer" = "À installer";
 "À jour" = "À jour";
 "À quoi elle sert, où l'utiliser dans FL (Mixer, Playlist…), ce qu'il faut faire avant de la lancer." = "À quoi elle sert, où l'utiliser dans FL (Mixer, Playlist…), ce qu'il faut faire avant de la lancer.";
 "À quoi sert loopMIDI ?" = "À quoi sert loopMIDI ?";

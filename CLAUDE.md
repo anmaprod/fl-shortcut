@@ -876,6 +876,11 @@
   `.popover` (NE PAS remettre `.popover` ni `Menu` de SwiftUI) ; liste des sortes de l'Organiser = liste suisse, nom
   tapé dans la case. Windows : menus suisses, bulles carrées. Écran « Démarrer » sans carré orange, écoute sans traits
   gris. Fins (Garder / Revenir / Pas content ?) : maquette `WEojWWarY4LkDi2ckQXykn`, à valider avant l'app.
+- Lien MIDI posé dès l'installation (13/11, « installer le lien midi dès l'installation du logiciel ») : script de FL
+  écrit tout seul au lancement si jamais installé et si le dossier de FL existe (Mac `installIfMissing`, Windows
+  `InstallScriptIfMissing`/`FlScriptPlace`) ; ligne « Lien avec FL » dans l'accueil. Les ports restent ouverts le
+  temps d'une action seulement. « Ouvre un VST » : le dépôt attend la page que le bloc d'avant vient d'ouvrir
+  (`DropPageWait`, plus de 2e F6 qui la refermait), titre « Channel rack » lu même avec l'icône devant.
 - Une seule fenêtre pour « Enregistrement de l'écran » (13/11, « cette page n'a pas besoin de s'ouvrir vu que l'autre
   s'ouvre ») : `ScreenLook.askOneWindow()` (déjà dans la liste → Réglages seuls ; sinon la demande de macOS seule).
 - Mails du compte : 2 par heure (donc 2 inscriptions) tant que le propriétaire n'a pas fait l'étape 6 de

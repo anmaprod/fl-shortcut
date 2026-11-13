@@ -248,6 +248,13 @@ internal sealed partial class MainShell
         rows.Children.Add(WelcomeRow(Loc.T("Ports MIDI"), restart ? Loc.T("Relance FL Studio : il voit les ports seulement à son ouverture.")
                                                         : ok ? Loc.T("Rien à faire dans loopMIDI : l'app crée les ports.")
                                                              : Loc.T("Installe loopMIDI, puis ferme-le : rien à faire dedans."), portsState));
+        // 13/11 (comme le Mac, « installer le lien midi dès l'installation du logiciel ») : le lien avec FL, posé tout
+        // seul au lancement s'il trouve le dossier de FL ; sinon « À installer » (dossier de FL demandé). Il n'empêche
+        // jamais d'entrer : FL peut ne pas être encore installé.
+        if (!_app.ScriptInstalled) _app.InstallScriptIfMissing();
+        rows.Children.Add(Rule(Faint));
+        rows.Children.Add(WelcomeRow(Loc.T("Lien avec FL"), Loc.T("Pour les actions de FL et l'Organiser."),
+            _app.ScriptInstalled ? Done(Loc.T("Installé")) : ToDo(Loc.T("À installer"), InstallLinkFromWelcome)));
         _welcomeContent.Children.Add(WelcomeCard(rows));
 
         // 12/11, comme le Mac (« il faut que le deuxième aussi soit autorisé pour qu'on puisse rentrer ») : on n'entre
@@ -393,6 +400,21 @@ internal sealed partial class MainShell
         var error = _app.InstallScript(folder);
         if (error is null) _linkStep = _app.Linked ? LinkStep.Linked : LinkStep.Waiting;
         ShowWelcomeLink(error);
+    }
+
+    /// « À installer » de l'accueil (13/11) : dans le dossier de FL trouvé, sinon dans celui qu'on choisit.
+    private async void InstallLinkFromWelcome()
+    {
+        if (!_app.InstallScriptIfMissing() && !_app.ScriptInstalled)
+        {
+            var picker = new FolderPicker();
+            picker.FileTypeFilter.Add("*");
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, _hwnd);
+            var folder = await picker.PickSingleFolderAsync();
+            if (folder is null) return;
+            if (_app.InstallScript(folder.Path) is { } error) ShowToast(error);
+        }
+        ShowWelcomePorts();
     }
 
     private async void ChooseFolder()

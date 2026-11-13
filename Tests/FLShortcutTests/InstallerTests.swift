@@ -230,6 +230,35 @@ final class InstallerTests: XCTestCase {
         XCTAssertNil(FLScriptInstaller.installedScript(defaults: other))
     }
 
+    /// 13/11 (« installer le lien midi dès l'installation du logiciel ») : jamais installé → installé tout seul dans le
+    /// dossier de FL, avec une clé neuve ; jamais une 2e fois, jamais sans dossier de FL, jamais pour un FL trop ancien.
+    func testTheLinkInstallsItselfWhenFLsFolderExists() throws {
+        let hardware = dir.appendingPathComponent("Auto/Settings/Hardware", isDirectory: true)
+        let absent = dir.appendingPathComponent("absent", isDirectory: true)
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "FLShortcutTests-\(UUID())"))
+        let secrets = MemorySecrets()
+        let template = "# name=FL Shortcuts\nKEY_HEX = \"__FLSHORTCUT_KEY__\"\n"
+        let usable: (URL) -> Bool = { SecureFile.kind(at: $0.path) == .directory }
+        func install(_ folder: URL, python: Bool = true) -> URL? {
+            FLScriptInstaller.installIfMissing(secrets: secrets, defaults: defaults, template: template,
+                                               defaultHardware: folder, supportsPython: python, usable: usable)
+        }
+
+        XCTAssertNil(install(absent), "FL jamais ouvert : pas de dossier, rien d'écrit")
+        XCTAssertNil(secrets.key)
+        try FileManager.default.createDirectory(at: hardware, withIntermediateDirectories: true)
+        XCTAssertNil(install(hardware, python: false), "FL trop ancien : rien")
+        let dest = try XCTUnwrap(install(hardware))
+        XCTAssertEqual(dest.path, hardware.appendingPathComponent("FL Shortcuts/device_FLShortcut.py").path)
+        let newKey = try XCTUnwrap(secrets.key)
+        XCTAssertEqual(newKey.count, FLProtocol.keyLength)
+        XCTAssertEqual(try String(contentsOf: dest, encoding: .utf8),
+                       "# name=FL Shortcuts\nKEY_HEX = \"\(FLProtocol.hex(newKey))\"\n")
+        XCTAssertEqual(ScriptIntegrity.check(defaults: defaults), .ok)
+        XCTAssertNil(install(hardware), "déjà installé : jamais une 2e clé")
+        XCTAssertEqual(secrets.key, newKey)
+    }
+
     func testScriptFolderShownFromHome() {
         let home = URL(fileURLWithPath: "/Users/nina")
         XCTAssertEqual(FLScriptInstaller.displayFolder(

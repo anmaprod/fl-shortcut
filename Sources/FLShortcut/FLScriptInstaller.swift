@@ -192,6 +192,42 @@ enum FLScriptInstaller {
         return dest
     }
 
+    /// 13/11 (« ça fonctionne mais que si j'installe le lien midi d'organiser… installer le lien midi dès
+    /// l'installation du logiciel ») : lien jamais installé (aucune clé) → installé tout seul, sans question ni
+    /// fenêtre, dans le dossier « Hardware » de FL s'il existe (celui enregistré, sinon celui par défaut). FL le lit à
+    /// son prochain lancement et le relie tout seul à l'appareil « FL Shortcuts » (`supportedDevices` du script).
+    /// Renvoie le chemin écrit ; nil : déjà installé (une clé : `repairIfNeeded` s'en charge), script modifié par
+    /// quelqu'un, FL trop ancien, ou dossier de FL introuvable (l'accueil propose alors « Installer »).
+    @discardableResult
+    static func installIfMissing(secrets: SecretStore = PreferredSecretStore(), defaults: UserDefaults = .standard,
+                                 template: String? = bundledTemplate(),
+                                 defaultHardware: URL = defaultHardwareFolder,
+                                 supportsPython: Bool = FLDetector.installedVersion()?.supportsPython ?? true,
+                                 usable: (URL) -> Bool = { SecureFile.kind(at: $0.path) == .directory
+                                     && !SecureFile.pathContainsSymlink($0) }) -> URL? {
+        let state = ScriptIntegrity.check(defaults: defaults)
+        guard supportsPython, state == .notInstalled || state == .missing, let template, secrets.load() == nil else {
+            return nil
+        }
+        var folders: [URL] = []
+        if let saved = defaults.string(forKey: chosenFolderKey) {
+            folders.append(URL(fileURLWithPath: saved, isDirectory: true))
+        }
+        folders.append(defaultHardware)
+        guard let hardware = folders.first(where: usable),
+              let key = try? SecretKeyGenerator.generate(),
+              let text = try? ScriptTemplate.inject(key: key, into: template),
+              (try? secrets.save(key)) != nil else { return nil }
+        let data = Data(text.utf8)
+        guard let dest = try? write(script: data, hardware: hardware) else {
+            secrets.delete()
+            return nil
+        }
+        ScriptIntegrity.record(data, at: dest, defaults: defaults)
+        defaults.set(hardware.path, forKey: chosenFolderKey)
+        return dest
+    }
+
     /// Script enregistré et s'il est toujours là (nil : jamais installé).
     static func installedScript(defaults: UserDefaults = .standard) -> (url: URL, present: Bool)? {
         guard let path = defaults.string(forKey: ScriptIntegrity.pathKey) else { return nil }

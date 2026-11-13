@@ -1152,3 +1152,14 @@ entrée 1 ≈ 0,5 s.
   du haut-parleur lue devant (« 4) Channel rack », `PluginDrop.titles` / `Titles`). Journal `PLUGIN … (title seen|not
   seen, N reads, key pressed|not pressed)`. Essais : Windows sur le faux FL (`PluginDropWaitsForThePageThePreviousBlock
   Opened`, rouge avant), Mac sur les parties pures. Pas encore vu chez lui.
+- 13/11 (11) : « enfait ça fonctionne mais que si j'installe le lien midi d'organiser ducoup je pense que la meilleur
+  des idées c'est d'installer le lien midi dès l'installation du logiciel » (« Ouvre un VST » marche une fois le lien
+  installé). Fait sur Mac et Windows : lien jamais installé (aucune clé) → posé TOUT SEUL au lancement, sans question
+  ni fenêtre, dans le dossier « Settings/Hardware » de FL s'il existe (Mac `FLScriptInstaller.installIfMissing` :
+  dossier enregistré puis celui par défaut ; Windows `AppController.InstallScriptIfMissing` + `FlScriptPlace` :
+  dossiers notés par FL puis chaque Documents, OneDrive compris ; jamais créé si FL n'a jamais été ouvert ; jamais en
+  mode photos de la CI). FL le relie tout seul à « FL Shortcuts » (`supportedDevices` du script) à son prochain
+  lancement ; FL ouvert pendant la pose → « FL à rouvrir » noté (`scriptNeedsFLRestart`). Accueil : 3e ligne « Lien
+  avec FL » (« Installé », sinon « À installer » qui demande le dossier de FL), qui n'empêche jamais d'entrer. Le lien
+  lui-même reste ouvert le temps d'une action seulement (NE PAS remettre les ports permanents). Journal `LINK`.
+  Essais : `testTheLinkInstallsItselfWhenFLsFolderExists` (Mac), `FlScriptPlaceTests` (Windows).

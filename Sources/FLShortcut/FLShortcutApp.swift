@@ -432,6 +432,8 @@ final class AppStatus: ObservableObject {
     /// Script de FL réécrit (nouvelle version, ou remis) pendant que FL tournait : FL ne relit ses scripts qu'en
     /// démarrant (« FL Shortcuts » absent de Controller type, ou ancienne version chargée). Effacé quand FL se ferme.
     @Published private(set) var scriptNeedsFLRestart = false
+    /// Lien posé pendant que FL est ouvert (accueil, 13/11) : FL ne le lira qu'après avoir été rouvert.
+    func scriptInstalledWhileFLOpen() { scriptNeedsFLRestart = true }
 
     private var timer: Timer?
     private var cancellables = Set<AnyCancellable>()
@@ -499,8 +501,15 @@ final class AppStatus: ObservableObject {
 
         let updated = FLScriptInstaller.updateInstalledIfNeeded()   // script déjà installé : nouvelle version, même clé
         let repaired = FLScriptInstaller.repairIfNeeded() != nil    // clé là mais script disparu de FL : remis, même clé
+        // 13/11 (« ça fonctionne mais que si j'installe le lien midi d'organiser… installer le lien midi dès
+        // l'installation du logiciel ») : jamais installé → posé tout seul dans le dossier de FL (sans question).
+        let installed = !DebugSnapshot.enabled && FLScriptInstaller.installIfMissing() != nil   // jamais en mode capture (CI)
+        if installed {
+            MIDILink.shared.reloadKey()
+            MacroLog.shared.write("LINK", "installed at launch")
+        }
         let flOpen = NSWorkspace.shared.runningApplications.contains { FLMatcher.isFL(bundleID: $0.bundleIdentifier) }
-        if updated || repaired, flOpen { scriptNeedsFLRestart = true }
+        if updated || repaired || installed, flOpen { scriptNeedsFLRestart = true }
         if !AppMode.light { refreshScriptState() }
         supervise()
         let t = Timer(timeInterval: 2, repeats: true) { [weak self] _ in self?.supervise() }

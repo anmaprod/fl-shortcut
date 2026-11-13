@@ -125,6 +125,8 @@ struct OnboardingView: View {
     @State private var guidePage = 0
     @State private var askedPermission = false
     @State private var installed = false
+    /// FL ouvert quand le lien a été posé : il ne le lira qu'après avoir été rouvert.
+    @State private var flOpenAtInstall = false
     /// Mode capture : clavier montré comme autorisé.
     @State private var demoAccess = false
 
@@ -160,6 +162,7 @@ struct OnboardingView: View {
         .motion(Motion.morph, value: stage)
         .onAppear {
             installed = link.snapshot.hasKey
+            if !installed, !DebugSnapshot.enabled { installLink(asking: false) }
             // Relancée par « Quitter et rouvrir » : l'accueil reprend à l'écran où il en était, sans transition.
             if let resume = AppResume.shared.takeOnboarding(), let saved = Stage(rawValue: resume.stage) {
                 var t = Transaction()
@@ -266,6 +269,7 @@ struct OnboardingView: View {
                     }
                     .accessibilityElement(children: .combine)
                 }
+                linkRow
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 4)
@@ -305,6 +309,47 @@ struct OnboardingView: View {
         .motion(Motion.morph, value: accessOK)
         .motion(Motion.morph, value: allAllowed)
         .motion(Motion.morph, value: askedPermission)
+    }
+
+    /// 13/11 (« installer le lien midi dès l'installation du logiciel ») : le lien avec FL, posé tout seul à l'arrivée
+    /// sur l'accueil dès que le dossier de FL existe (`installIfMissing`) ; sinon « À installer » le pose (dossier de
+    /// FL demandé s'il n'est pas à sa place). Il n'empêche jamais d'entrer : FL peut ne pas être encore installé.
+    private var linkRow: some View {
+        HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Lien avec FL").font(Swiss.font(18)).tracking(-0.3)
+                Text(installed && flOpenAtInstall ? String(localized: "Quitte et rouvre FL pour qu'il le voie.")
+                                                  : String(localized: "Pour les actions de FL et l'Organiser."))
+                    .font(.system(size: 13)).foregroundStyle(Swiss.gray)
+            }
+            Spacer(minLength: 8)
+            if installed {
+                Text("Installé").swissLabel(Swiss.text)
+            } else {
+                Button(String(localized: "À installer")) { installLink(asking: true) }
+                    .buttonStyle(StampButtonStyle())
+            }
+        }
+        .frame(minHeight: 64)
+        .overlay(alignment: .top) { Rectangle().fill(Swiss.faint).frame(height: 1) }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Le lien posé : tout seul (`asking` faux : seulement si le dossier de FL est à sa place), ou par « À installer ».
+    private func installLink(asking: Bool) {
+        guard !link.snapshot.hasKey else {
+            installed = true
+            return
+        }
+        let flOpen = NSWorkspace.shared.runningApplications.contains { FLMatcher.isFL(bundleID: $0.bundleIdentifier) }
+        let done = asking ? FLScriptInstaller.installWithAlert(quiet: true) : FLScriptInstaller.installIfMissing() != nil
+        if done {
+            if !asking { MIDILink.shared.reloadKey() }
+            MacroLog.shared.write("LINK", asking ? "installed from the welcome screen" : "installed on the welcome screen")
+            flOpenAtInstall = flOpen
+            if flOpen { status.scriptInstalledWhileFLOpen() }
+        }
+        installed = done || link.snapshot.hasKey
     }
 
     /// Toutes les autorisations de la carte sont données : on peut entrer (12/11).

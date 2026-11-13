@@ -86,6 +86,7 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
             for (var i = 0; i < 18 && MidiServicesPorts.Available && !MidiServicesPorts.EnsureIfNeeded(); i++)
                 await Task.Delay(TimeSpan.FromSeconds(10));
         });
+        InstallScriptIfMissing();           // 13/11 : le lien avec FL posé dès l'installation (comme le Mac)
         if (!Light) _midi.Start();          // mode léger : aucun port MIDI ouvert, rien dans FL
         _hook.Start();
         RefreshAll();
@@ -184,6 +185,19 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         {
             return "Installation impossible : " + e.Message;
         }
+    }
+
+    /// 13/11 (comme le Mac, « ça fonctionne mais que si j'installe le lien midi d'organiser… installer le lien midi
+    /// dès l'installation du logiciel ») : lien jamais installé (ni script ni clé) → posé tout seul, sans question,
+    /// dans le dossier « Settings\Hardware » de FL s'il existe (`FlScriptPlace`). FL le lit à son prochain lancement et
+    /// le relie tout seul à « FL Shortcuts » (`supportedDevices` du script). Vrai s'il vient d'être posé.
+    public bool InstallScriptIfMissing()
+    {
+        if (_photoPages || ScriptInstalled || _settings.ScriptPath is { Length: > 0 } || SecretStore.Load() is not null) return false;
+        if (FlScriptPlace.Hardware(FlDataFolders.HardwareCandidates(), Directory.Exists) is not { } hardware) return false;
+        var ok = InstallScript(hardware) is null;
+        AppLog.Write("LINK", ok ? "installed at launch" : "not installed at launch");
+        return ok;
     }
 
     /// Script de FL Shortcuts présent dans FL (diagnostic).
