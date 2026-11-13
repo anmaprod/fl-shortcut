@@ -1283,7 +1283,7 @@ final class OrganizerController: ObservableObject {
         }
         if learned > 0 {
             lines.append(String(localized: """
-                L'IA retient \(learned) sons corrigés sur ce Mac : la prochaine fois, ils seront rangés comme tu l'as dit.
+                L'ordinateur retient \(learned) sons corrigés sur ce Mac : la prochaine fois, ils seront rangés comme tu l'as dit.
                 """))
         }
         if feedbackSent {
