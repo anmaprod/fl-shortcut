@@ -23,7 +23,10 @@ internal static class PresetFiles
     private const int FileNameCombo = 1148, FileNameEdit = 1152, IdOk = 1;
 
     /// Fichier glissé en (x, y) : null si FL l'a pris, sinon la raison. `inFront` : FL toujours devant.
-    public static string? Drop(string path, int x, int y, Func<bool> inFront)
+    /// `endWaitMs` : temps laissé à FL pour finir de recevoir le fichier. `slowIsTaken` (plugin, 13/11, comme le Mac) : FL
+    /// encore occupé au bout de ce temps = il charge le plugin déposé (un VST peut mettre plus de 2 s) : pris, jamais
+    /// rouvert par le menu (sinon deux fois le même plugin).
+    public static string? Drop(string path, int x, int y, Func<bool> inFront, int endWaitMs = 2_000, bool slowIsTaken = false)
     {
         var t0 = Environment.TickCount64;
         var drop = new SourceWindow(path, x, y);
@@ -84,8 +87,14 @@ internal static class PresetFiles
         drop.Source.Release = true;
         Button(false);
         pressed = false;
-        if (!drop.Source.Ended.Wait(2_000))
+        if (!drop.Source.Ended.Wait(endWaitMs))
         {
+            if (slowIsTaken)
+            {
+                // FL charge encore le plugin reçu : son fil de dépôt se termine seul quand FL a fini.
+                AppLog.Write("MACRO", $"DROP still in FL after {Environment.TickCount64 - t0} ms: taken, still loading");
+                return null;
+            }
             AppLog.Write("MACRO", $"DROP not ended · {Environment.TickCount64 - t0} ms");
             return Abandon(Loc.T("FL n'a pas répondu au dépôt du preset"));
         }

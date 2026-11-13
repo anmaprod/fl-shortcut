@@ -1106,3 +1106,12 @@ entrée 1 ≈ 0,5 s.
   `testTwoFLKeysCanBeSwapped` / `TwoFlKeysCanBeSwapped` (rouge sans la correction) ; 3.1/3.2 « Ouvre un VST : ça ne
   fait pas le drag and drop » : cause à lire dans son macro.log (lignes PLUGIN) ; 4.9-4.11 (Revenir, Valider, Pas
   content ?) : « revoir la beauté et l'ergonomie de la page » → maquette à proposer.
+- 13/11 (7) : « Ouvre un VST » : « ça ouvre le Channel rack mais ça ne cherche pas à faire le drag and drop, ça va
+  directement dans le Add… les plugins ça fonctionne, c'est les VST qui ne fonctionnent pas » (le .fst glissé à la
+  main marche). Cause trouvée dans le code : après le dépôt, l'app attendait au plus 2 s que FL termine la réception
+  (fin de la session de glisser, Mac ; retour de DoDragDrop, Windows). FL charge le plugin PENDANT qu'il reçoit le
+  fichier : immédiat pour un plugin de FL, souvent plus de 2 s pour un VST → dépôt jugé raté → menu Add (et risque de
+  deux fois le même plugin). Maintenant, pour un plugin : jusqu'à 30 s, et FL encore occupé = pris, jamais de menu
+  derrière (`PresetDrop.drop(endWait:slowIsTaken:)`, `dropFile(plugin:)` ; Windows `PresetFiles.Drop(endWaitMs,
+  slowIsTaken)`, `IFlDriver.DropFile(plugin:)`). Presets du Mixer : 2 s comme avant. Journal `DROP … still in FL after
+  N ms: taken, still loading`. Pas encore vu chez lui : sinon, lignes PLUGIN/DROP de son macro.log.

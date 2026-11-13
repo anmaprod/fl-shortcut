@@ -1247,7 +1247,8 @@ final class MacroEffectsMac: MacroEffects {
 
     /// Preset glissé sur la piste (PresetDrop) : mêmes garde-fous qu'un clic (dans FL, rien ne la couvre), toujours
     /// par le flux du système (un glisser ne peut pas être adressé à un seul processus).
-    func dropFile(_ path: String, at p: CGPoint, ctx: Context) -> StepResult {
+    /// `plugin` : le .fst d'un plugin (13/11) : FL peut mettre bien plus de 2 s à charger un VST pendant le dépôt.
+    func dropFile(_ path: String, at p: CGPoint, ctx: Context, plugin: Bool = false) -> StepResult {
         guard FLWindows.contains(p, pid: ctx.pid) else {
             MacroLog.shared.write("DROP", "refused \(p.logText): outside every FL window")
             return .fail(String(localized: "la piste visée est hors de FL : clique d'abord sur ta piste dans le Mixer"))
@@ -1255,7 +1256,7 @@ final class MacroEffectsMac: MacroEffects {
         if let name = coveringApp(at: p, ctx: ctx) { return .fail(String(localized: "« \(name) » couvre FL à cet endroit")) }
         if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
         if cursorBeforeBurst == nil { cursorBeforeBurst = FLWindows.cursor() }
-        switch PresetDrop.drop(path: path, at: p, source: source) {
+        switch PresetDrop.drop(path: path, at: p, source: source, endWait: plugin ? 30 : 2, slowIsTaken: plugin) {
         case .done:
             lastClickPoint = p
             return .ok

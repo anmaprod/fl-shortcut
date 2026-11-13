@@ -868,6 +868,9 @@
 - Essais du 13/11 (artefact « Essais FL Shortcuts », collection `essais` : LIRE AUSSI LES NOTES sous les cases OK) :
   carré du titre de chaque partie du guide plein d'orange ; touches échangées entre deux raccourcis sans boucle (une
   touche d'origine ne compte plus si son entrée a été déplacée, `clashes`/`CatalogRows.Clashes`).
+  « Ouvre un VST » qui repassait par le menu Add : FL charge le VST pendant le dépôt (plus de 2 s) → pour un plugin,
+  attente jusqu'à 30 s et FL encore occupé = pris (`PresetDrop.drop(endWait:slowIsTaken:)`, Windows
+  `PresetFiles.Drop`) ; pas encore vu chez lui.
 - Une seule fenêtre pour « Enregistrement de l'écran » (13/11, « cette page n'a pas besoin de s'ouvrir vu que l'autre
   s'ouvre ») : `ScreenLook.askOneWindow()` (déjà dans la liste → Réglages seuls ; sinon la demande de macOS seule).
 - Mails du compte : 2 par heure (donc 2 inscriptions) tant que le propriétaire n'a pas fait l'étape 6 de

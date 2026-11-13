@@ -272,7 +272,7 @@ extension MacroEffectsMac {
                             : String(localized: "Channel rack illisible : instrument ouvert par le menu."))
             return nil
         }
-        switch dropFile(file.path, at: at, ctx: ctx) {
+        switch dropFile(file.path, at: at, ctx: ctx, plugin: true) {
         case .ok:
             MacroLog.shared.write("PLUGIN", effect ? "effect dropped on the selected track" : "instrument dropped under the last channel")
             return .ok

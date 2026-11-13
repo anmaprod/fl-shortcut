@@ -85,7 +85,8 @@ public interface IFlDriver
     /// Lien avec FL installé (clé et ports MIDI) : sinon, ses commandes échoueraient après une attente.
     bool LinkInstalled { get; }
     /// Fichier glissé depuis l'Explorateur et déposé en ce point de FL ; null si FL l'a pris, sinon la raison.
-    string? DropFile(string path, int x, int y);
+    /// `plugin` (13/11) : le .fst d'un plugin ; FL peut mettre bien plus de 2 s à charger un VST pendant le dépôt.
+    string? DropFile(string path, int x, int y, bool plugin = false);
     /// Le .fst du plugin dans la Plugin database de FL (Installed › Generators ou Effects), au format préféré ; null :
     /// absent (PluginDrop.PresetFile).
     string? PluginPreset(string name, bool effect);
@@ -699,7 +700,7 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
         if (_fl.At(at.X, at.Y).Window is null) return null;
         if (StopReason() is { } stop) return new StepResult.Cancel(stop);
         _cursorBefore ??= _fl.Cursor();
-        if (_fl.DropFile(file, at.X, at.Y) is not null)
+        if (_fl.DropFile(file, at.X, at.Y, plugin: true) is not null)
         {
             _fl.Log("PLUGIN", "drop refused, Add menu used");
             return null;

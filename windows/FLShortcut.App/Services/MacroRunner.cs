@@ -377,7 +377,8 @@ internal sealed class WindowsFlDriver : IFlDriver
     /// Dernier clic de l'utilisateur dans FL, retenu par le crochet souris (seulement si une macro vise la piste).
     public AimedClick? LastAimedClick => _aimed();
 
-    public string? DropFile(string path, int x, int y) => PresetFiles.Drop(path, x, y, InFront);
+    public string? DropFile(string path, int x, int y, bool plugin = false) =>
+        PresetFiles.Drop(path, x, y, InFront, endWaitMs: plugin ? 30_000 : 2_000, slowIsTaken: plugin);
 
     public string? ChooseFile(long dialog, string path) => PresetFiles.Choose((IntPtr)dialog, path, _pid);
 

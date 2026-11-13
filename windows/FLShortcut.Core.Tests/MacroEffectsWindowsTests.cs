@@ -79,7 +79,7 @@ internal sealed class FakeFl : IFlDriver
     public Dictionary<string, string> Presets { get; } = new();
     public string? PluginPreset(string name, bool effect) => Presets.GetValueOrDefault(name);
 
-    public string? DropFile(string path, int x, int y)
+    public string? DropFile(string path, int x, int y, bool plugin = false)
     {
         Drops.Add((path, x, y));
         return null;
