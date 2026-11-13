@@ -688,6 +688,7 @@ final class OrganizerController: ObservableObject {
         } else if outcome.rack.count < total || outcome.mixer.count < total {
             text += "\n" + String(localized: "Relance l'apprentissage pour finir les autres.")
         }
+        guard !outcome.rack.isEmpty || !outcome.mixer.isEmpty else { return text }
         return text + "\n" + String(localized: "Copie la table et envoie-la à l'équipe : les icônes seront écrites directement, pour tout le monde.")
     }
 

@@ -67,25 +67,40 @@ final class OrganizerIconLearner {
             guard !channels.isEmpty else {
                 throw OrganizerError.failed(String(localized: "Ce projet n'a aucun son où poser les icônes : ouvre un nouveau projet dans FL (File › New)."))
             }
-            try link.setNames(.channels, channels.map { (index: $0, name: "Icône \($0 + 1)") })
-            let missedRack = try learn(.channels, places: channels, url: url, table: &out.rack) { file in
-                let project = try? FLPProject(file)
-                var icons: [Int: UInt32] = [:]
-                for (place, channel) in (project?.channels ?? []).enumerated() { icons[place] = channel.icon ?? 0 }
-                return icons
+            // Noms différents de ceux du Mixer : jamais deux fois le même texte dans la fenêtre de FL.
+            try link.setNames(.channels, channels.map { (index: $0, name: "Rack \($0 + 1)") })
+            // Une page qui échoue n'empêche pas l'autre (13/11 : le Channel rack ratait, le Mixer n'était pas essayé) ;
+            // seul Échap arrête tout.
+            do {
+                let missedRack = try learn(.channels, places: channels, url: url, table: &out.rack) { file in
+                    let project = try? FLPProject(file)
+                    var icons: [Int: UInt32] = [:]
+                    for (place, channel) in (project?.channels ?? []).enumerated() { icons[place] = channel.icon ?? 0 }
+                    return icons
+                }
+                out.missedRack = missedRack
+            } catch let error as OrganizerError where error != .interrupted {
+                out.error = error
+                out.missedRack = cells.count - out.rack.count
+                out.trace.append("rack arrêté")
             }
-            out.missedRack = missedRack
             out.trace.append("rack \(out.rack.count)/\(cells.count) sons \(channels.count)")
             // Mixer : ses pistes 1 à 8 (le Master ne bouge pas), seulement si FL les écrit à la forme connue.
             let saved = try files.read(url)
             if let prefixes = FLPProject.insertPrefixes(saved.events) {
                 let inserts = Array(prefixes.keys.sorted().prefix(Self.batch))
                 if !inserts.isEmpty {
-                    try link.setNames(.mixer, inserts.map { (index: $0, name: "Icône \($0)") })
-                    let missedMixer = try learn(.mixer, places: inserts, url: url, table: &out.mixer) { file in
-                        FLPProject.insertIcons(file)
+                    try link.setNames(.mixer, inserts.map { (index: $0, name: "Mix \($0)") })
+                    do {
+                        let missedMixer = try learn(.mixer, places: inserts, url: url, table: &out.mixer) { file in
+                            FLPProject.insertIcons(file)
+                        }
+                        out.missedMixer = missedMixer
+                    } catch let error as OrganizerError where error != .interrupted {
+                        if out.error == nil { out.error = error }
+                        out.missedMixer = cells.count - out.mixer.count
+                        out.trace.append("mixer arrêté")
                     }
-                    out.missedMixer = missedMixer
                 }
                 out.trace.append("mixer \(out.mixer.count)/\(cells.count) pistes \(inserts.count)")
             } else {

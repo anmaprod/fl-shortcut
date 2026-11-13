@@ -1065,3 +1065,8 @@ entrée 1 ≈ 0,5 s.
   bouton « Apprendre les icônes de FL » de l'écran Démarrer), table copiée puis mise dans l'app pour tous (Mac et
   Windows). « Ne traduis pas » : plus de traductions pour cet outil. CI : `.pkg` publié juste après la compilation
   (« donne-moi le lien ici »).
+- 13/11 : 1er essai de l'apprentissage (capture : « 0 sur 123… Nom du son introuvable dans le Channel rack de FL »,
+  table vide ; « c'est un sampler ») : un projet vide n'a qu'UNE ligne, or `IconTargets.line` voulait au moins 2 noms
+  alignés → un seul nom attendu et lu UNE seule fois est pris (deux fois : doute) ; lignes renommées « Rack N » et
+  pistes « Mix N » (jamais le même texte) ; un Channel rack raté n'empêche plus le Mixer ; « Copie la table… »
+  seulement si quelque chose est appris.

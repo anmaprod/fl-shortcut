@@ -38,6 +38,11 @@ final class OrganizerIconTargetsTests: XCTestCase {
         let more = try XCTUnwrap(IconTargets.line(names: names, items: rack + Array(playlist.prefix(2))))
         XCTAssertEqual(more[2], CGPoint(x: 420, y: 146))
         XCTAssertNil(IconTargets.line(names: names, items: [item("Kick", x: 400, y: 100)]), "un seul nom : rien")
+        // 13/11 : un Channel rack d'une seule ligne (projet vide, un Sampler) ; son nom lu une fois suffit, deux fois non.
+        XCTAssertEqual(IconTargets.line(names: ["Rack 1"], items: [item("Rack 1", x: 400, y: 100)]),
+                       [0: CGPoint(x: 420, y: 106)])
+        XCTAssertNil(IconTargets.line(names: ["Rack 1"], items: [item("Rack 1", x: 400, y: 100),
+                                                                 item("Rack 1", x: 20, y: 300)]))
     }
 
     /// Mixer : noms écrits à la verticale, alignés en bas, lus de gauche à droite (Master, puis les pistes).

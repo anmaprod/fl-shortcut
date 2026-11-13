@@ -87,7 +87,8 @@ final class OrganizerIconLearnerTests: XCTestCase {
         XCTAssertEqual(outcome.missedMixer, 0)
         XCTAssertEqual(fl.saves, 1 + 2 + 3, "le projet, 5 + 2 sons, 3 + 3 + 1 pistes")
         XCTAssertEqual(last.0, last.1)
-        XCTAssertTrue(link.channels.allSatisfy { $0.name.hasPrefix("Icône ") }, "les sons renommés pour être retrouvés")
+        XCTAssertTrue(link.channels.allSatisfy { $0.name.hasPrefix("Rack ") }, "les sons renommés pour être retrouvés")
+        XCTAssertEqual(link.mixer.dropFirst().map(\.name), ["Mix 1", "Mix 2", "Mix 3"], "jamais les mêmes noms qu'au rack")
     }
 
     /// Une icône que FL n'a pas prise sans rien dire (le numéro n'a pas changé) est refaite plus tard ; celle qui ne
@@ -122,6 +123,18 @@ final class OrganizerIconLearnerTests: XCTestCase {
         XCTAssertEqual(outcome.error, .failed(String(localized: "Ouvre un projet vide dans FL (File › New), enregistre-le, puis recommence : l'apprentissage pose des icônes sur ses sons.")))
         XCTAssertEqual(placed, 0)
         XCTAssertTrue(outcome.rack.isEmpty)
+    }
+
+    /// 13/11 (le Channel rack ratait : « Nom du son introuvable ») : une page qui échoue n'empêche pas l'autre.
+    func testMixerIsTriedWhenTheRackFails() {
+        let fl = FakeIconFL(emptyProject())
+        let outcome = learner(fl, link(), place: { _, target in
+            target.kind == .channels ? .failed("nom du son introuvable dans le Channel rack de FL") : nil
+        }).run()
+        XCTAssertEqual(outcome.error, .failed("nom du son introuvable dans le Channel rack de FL"))
+        XCTAssertTrue(outcome.rack.isEmpty)
+        XCTAssertEqual(outcome.mixer.count, cells.count)
+        XCTAssertEqual(outcome.missedRack, cells.count)
     }
 
     /// Échap ou fenêtre fermée : tout s'arrête, ce qui est appris reste.

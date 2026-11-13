@@ -45,7 +45,8 @@ enum IconTargets {
     /// Channel rack) ou de gauche à droite (`across` vrai, Mixer). La ligne retenue : textes alignés (même début, même
     /// milieu ou même fin, à 8 points près) où le plus de noms attendus se suivent dans l'ordre ; à égalité entre deux
     /// lignes différentes, la plus proche de `near` (titre de la page), sinon aucune (doute). Un nom non lu entre deux
-    /// noms lus prend sa place d'après eux ; jamais au-delà. nil si moins de 2 noms sont lus.
+    /// noms lus prend sa place d'après eux ; jamais au-delà. nil si moins de 2 noms sont lus (sauf un seul nom attendu,
+    /// lu une seule fois).
     static func line(names: [String], items: [TextLook.Item], across: Bool = false,
                      near: CGPoint? = nil) -> [Int: CGPoint]? {
         func flip(_ p: CGPoint) -> CGPoint { CGPoint(x: p.y, y: p.x) }
@@ -60,6 +61,11 @@ enum IconTargets {
         let matching = items.filter { item in
             let text = TextLook.normalized(item.text)
             return !text.isEmpty && wanted.contains(text)
+        }
+        // 13/11 (« c'est un sampler » : un projet vide n'a qu'une ligne dans le Channel rack) : un seul élément attendu,
+        // lu une seule fois dans la fenêtre, est pris tel quel ; lu deux fois : doute, rien.
+        if wanted.count == 1, !wanted[0].isEmpty {
+            return matching.count == 1 ? [0: matching[0].center] : nil
         }
         typealias Candidate = (found: [Int: TextLook.Item], x: CGFloat)
         var candidates: [Candidate] = []
