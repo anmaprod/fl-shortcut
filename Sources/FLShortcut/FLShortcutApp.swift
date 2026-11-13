@@ -42,6 +42,8 @@ struct FLShortcutApp: App {
                 .environmentObject(status)
                 .environmentObject(link)
                 .environmentObject(fl)
+                // 13/11 : la flèche de l'app sur le menu, même FL devant (plus son pinceau).
+                .background(ArrowCursorKeeper())
         } label: {
             MenuBarLabel(symbol: status.menuBarSymbol(enabled: store.enabled))
         }
@@ -57,6 +59,9 @@ struct FLShortcutApp: App {
                 // jamais plus petite que là où chaque page garde sa mise en page (raccourcis sur deux colonnes, les
                 // trois cartes de Macros, l'en-tête entier) ; la même largeur que le créateur de macros.
                 .frame(minWidth: EditorView.minWindowWidth, minHeight: EditorView.minWindowHeight)
+                // 13/11 (« que le curseur change dès que tu as le curseur sur la page… partout ») : FL devant, la
+                // flèche de l'app sur la fenêtre, plus le pinceau de FL.
+                .background(ArrowCursorKeeper())
         }
         .windowResizability(.contentMinSize)
         // Barre de titre transparente, sans titre (maquette) : SwiftUI la remettait opaque, avec le titre, par-dessus

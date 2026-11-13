@@ -1610,7 +1610,7 @@ struct NameColorField: View {
                     Button("Choisir…") { picking = true }
                         .secondaryButton()
                         .controlSize(.small)
-                        .popover(isPresented: $picking, arrowEdge: .leading) {
+                        .swissPopover(isPresented: $picking, arrowEdge: .leading) {
                             FLColorSelector(initial: color) { picked in
                                 choose(picked)
                                 picking = false

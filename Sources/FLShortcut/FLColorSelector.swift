@@ -198,7 +198,7 @@ struct GradientField: View {
         }
         .buttonStyle(.plain)
         .help("\(title) : #\(c.hex) — cliquer pour choisir")
-        .popover(isPresented: picking, arrowEdge: .leading) {
+        .swissPopover(isPresented: picking, arrowEdge: .leading) {
             FLColorSelector(initial: c) { picked in
                 choose(picked)
                 picking.wrappedValue = false

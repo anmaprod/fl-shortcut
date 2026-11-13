@@ -65,7 +65,7 @@ struct StyledMenuButton<Content: View>: View {
     var body: some View {
         Button { shown.toggle() } label: { label() }
             .help(help)
-            .popover(isPresented: $shown, arrowEdge: arrowEdge) {
+            .swissPopover(isPresented: $shown, arrowEdge: arrowEdge) {
                 StyledMenuList(entries: entries(), width: width) { shown = false }
             }
     }

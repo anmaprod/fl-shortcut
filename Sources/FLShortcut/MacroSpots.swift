@@ -291,13 +291,14 @@ private struct HintView: View {
         HStack(spacing: 10) {
             Image(systemName: "hand.point.up.left.fill")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.tint)
+                .foregroundStyle(Swiss.brandRed)            // 13/11 : plus le bleu de macOS
             Text(text).font(.system(size: 13, weight: .medium)).fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
         .frame(maxWidth: 380)
         .glassSurface(Rectangle(), alwaysLive: true)
+        .background(ArrowCursorKeeper())
         .padding(6)
     }
 }

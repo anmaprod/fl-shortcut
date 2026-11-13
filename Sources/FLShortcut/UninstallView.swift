@@ -164,7 +164,8 @@ final class UninstallWindow: NSObject, NSWindowDelegate {
         let flow = UninstallFlow(risk: risk, hasExports: hasExports, demo: demo != nil)
         if let demo { flow.showDemo(demo) }
         self.flow = flow
-        let host = NSHostingController(rootView: UninstallView(flow: flow, close: { [weak self] in self?.close() }))
+        let host = NSHostingController(rootView: UninstallView(flow: flow, close: { [weak self] in self?.close() })
+            .background(ArrowCursorKeeper()))
         let w = self.window ?? NSWindow(contentViewController: host)
         w.contentViewController = host
         w.styleMask = [.titled, .closable, .fullSizeContentView]

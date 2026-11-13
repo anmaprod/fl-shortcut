@@ -1783,6 +1783,8 @@ struct OrganizerView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         // 07/11 : l'aperçu se tire par ses bords, avec le curseur de macOS qui le dit (↔, ↕).
         .overlay { if isPreview { EdgeResizeCursors() } }
+        // 13/11 : la flèche de l'app sur toute la fenêtre, même FL devant (plus son pinceau ni ses croix).
+        .background(ArrowCursorKeeper())
         // Plus de lueur de couleur dans le fond (28/10, « pas de fond »).
         .motion(Motion.morph, value: stepKey)
         // Nouvelle analyse : les colonnes des familles reviennent à leur coupe automatique.
@@ -1849,7 +1851,9 @@ struct OrganizerView: View {
                     }
                 }
                 .padding(14)
-                .organizerCard()
+                // 13/11 (« il y a trois traits, je veux que tu me gardes que le trait blanc… les traits ça nique
+                // tout ») : plus de traits gris autour, le trait blanc du titre seul.
+                .organizerCard(rules: false)
                 .morphIn(1)
                 // Plus d'explication (28/10, « ça j'aime pas ») : la consigne seule.
                 Text(String(localized: "Ne touche pas à FL."))
@@ -1879,7 +1883,7 @@ struct OrganizerView: View {
                     SwissProgress(value: Double(done) / Double(max(total, 1)))
                 }
                 .padding(14)
-                .organizerCard()
+                .organizerCard(rules: false)
                 Text(String(localized: "Ne touche pas à FL. Échap arrête."))
                     .swissLabel()
                 HStack {
@@ -1932,7 +1936,7 @@ struct OrganizerView: View {
             Spacer(minLength: 0)
         }
         .padding(14)
-        .organizerCard()
+        .organizerCard(rules: false)        // 13/11 : le trait blanc du titre seul
         .morphIn(1)
     }
 
@@ -1967,7 +1971,7 @@ struct OrganizerView: View {
                     if summary.notes.count > 3 {
                         Button("Détails") { showDetails = true }
                             .buttonStyle(SwissLinkButtonStyle())
-                            .popover(isPresented: $showDetails, arrowEdge: .bottom) {
+                            .swissPopover(isPresented: $showDetails, arrowEdge: .bottom) {
                                 ScrollView {
                                     Text(controller.doneText)
                                         .font(.system(size: 12))
@@ -2116,12 +2120,8 @@ struct OrganizerView: View {
         VStack(alignment: .leading, spacing: 14) {
             // 07/11 : plus « Organiser ton projet » ni les deux traits gris ; la consigne seule, en grand (« c'est
             // vraiment important »), sous le trait blanc du titre.
-            // 08/11 : à la place de l'ancienne baguette, un carré orange plein (choix du propriétaire).
+            // 13/11 (« il y a un gros carré orange qui est à gauche, je veux que tu me l'enlèves ») : la consigne seule.
             HStack(alignment: .center, spacing: 14) {
-                Rectangle()
-                    .fill(Swiss.brandRed)
-                    .frame(width: 16, height: 16)
-                    .accessibilityHidden(true)
                 Text(String(localized: "Ne touche pas à FL jusqu'à la fin."))
                     .font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
                     .foregroundStyle(Swiss.text)
@@ -2870,7 +2870,7 @@ private struct FamilySection: View {
                 Button { pickingIcon = true } label: { FLIconBadge(icon: style.icon, size: 18) }
                     .buttonStyle(.plain)
                     .help("Icône de FL de la famille, sur ses sons et ses pistes du Mixer (posée par la fenêtre de FL, F2 ; « Revenir comme avant » ne la retire pas)")
-                    .popover(isPresented: $pickingIcon, arrowEdge: .bottom) {
+                    .swissPopover(isPresented: $pickingIcon, arrowEdge: .bottom) {
                         FLIconPicker(selected: style.icon) { picked in
                             controller.updateStyle(family) { $0.icon = picked }
                             pickingIcon = false
@@ -2951,7 +2951,7 @@ private struct FamilySection: View {
         }
         .buttonStyle(.plain)
         .help(String(localized: "#\(color.hex) : choisir dans la roue des couleurs de FL"))
-        .popover(isPresented: picking, arrowEdge: .bottom) {
+        .swissPopover(isPresented: picking, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 0) {
                 if withFade {
                     SwissSegmented(selection: fadeOn, options: [
@@ -2985,6 +2985,34 @@ private struct FamilyMemberRow: View {
     var onRelease: () -> Void = {}
     @State private var writing = false
     @State private var draft = ""
+    @FocusState private var fieldFocused: Bool
+    @StateObject private var anchor = ScreenAnchor()
+
+    /// La liste suisse sous la case : chaque famille en rubrique, ses sortes dessous (celle du son cochée), puis
+    /// « Écrire… » et, pour un nom écrit, « Nom automatique ».
+    private func openKinds() {
+        guard let frame = anchor.screenFrame else { return }
+        let id = member.id
+        var items: [RightClickMenu.Item?] = []
+        for choice in SoundFamily.order where !choice.kinds.isEmpty {
+            items.append(RightClickMenu.Item(title: choice.label, enabled: false, header: true) {})
+            for kind in choice.kinds {
+                items.append(RightClickMenu.Item(title: kind.name, checked: choice == family && kind == member.kind) {
+                    controller.setKind(id, kind)
+                })
+            }
+        }
+        items.append(nil)
+        items.append(RightClickMenu.Item(title: String(localized: "Écrire…")) {
+            draft = controller.names[id] ?? ""
+            anchor.view?.window?.makeKey()                   // le panneau prend le clavier sans activer l'app
+            writing = true
+        })
+        if member.written {
+            items.append(RightClickMenu.Item(title: String(localized: "Nom automatique")) { controller.setName(id, nil) })
+        }
+        SwissContextMenu.shared.showList(items, below: frame)
+    }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -3004,59 +3032,37 @@ private struct FamilyMemberRow: View {
                     .help("Muet dans ses patterns : classé avec deux notes d'essai. Vérifie sa famille.")
             }
             Image(systemName: "arrow.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
-            Menu {
-                ForEach(SoundFamily.order.filter { !$0.kinds.isEmpty }, id: \.self) { choice in
-                    Menu(choice.label) {
-                        ForEach(choice.kinds, id: \.self) { kind in
-                            Button(kind.name) { controller.setKind(member.id, kind) }
-                        }
+            // 13/11 (vidéo : « quand je clique sur guitare… ça me met encore du liquid glass ») : la liste suisse de
+            // l'app (une rubrique par famille, la sorte en cours cochée), plus le menu de macOS ; « Écrire… » se tape
+            // dans la case elle-même, plus dans une bulle de macOS.
+            if writing {
+                TextField(String(localized: "Écris le nom que tu veux"), text: $draft)
+                    .swissField()
+                    .focused($fieldFocused)
+                    .onSubmit(save)
+                    .onExitCommand { writing = false }
+                    .frame(maxWidth: .infinity, minHeight: 26)
+                    .onAppear { fieldFocused = true }
+                    .onChange(of: fieldFocused) { focused in if !focused { writing = false } }   // clic ailleurs : annulé
+            } else {
+                Button(action: openKinds) {
+                    HStack(spacing: 4) {
+                        Text(member.newName ?? member.kind?.name ?? family.label)
+                            .lineLimit(1)
+                            .foregroundStyle(Swiss.text)
+                        Spacer(minLength: 2)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(Swiss.gray)
                     }
+                    .padding(.horizontal, 8)
+                    .frame(maxWidth: .infinity, minHeight: 26)
+                    .overlay(Rectangle().strokeBorder(Swiss.keyLine, lineWidth: 1))
+                    .contentShape(Rectangle())
                 }
-                Divider()
-                Button("Écrire…") {
-                    draft = controller.names[member.id] ?? ""
-                    writing = true
-                }
-                if member.written {
-                    Button("Nom automatique") { controller.setName(member.id, nil) }
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Text(member.newName ?? member.kind?.name ?? family.label)
-                        .lineLimit(1)
-                        .foregroundStyle(Color.primary)
-                    Spacer(minLength: 2)
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 8)
-                .frame(maxWidth: .infinity, minHeight: 26)
-                .background(Rectangle().fill(Color.primary.opacity(0.06)))
-                .contentShape(Rectangle())
-            }
-            .menuStyle(.button)
-            .buttonStyle(.plain)
-            .menuIndicator(.hidden)
-            .help("Changer ce qu'est ce son (Kick, 808, Lead…), ou écrire son nom")
-            .popover(isPresented: $writing, arrowEdge: .bottom) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Nom du son").font(.system(size: 12, weight: .semibold))
-                    TextField(String(localized: "Écris le nom que tu veux"), text: $draft)
-                        .swissField()
-                        .frame(width: 220)
-                        .onSubmit(save)
-                    HStack {
-                        Spacer()
-                        Button("Annuler") { writing = false }
-                            .secondaryButton()
-                            .keyboardShortcut(.cancelAction)
-                        Button("OK", action: save)
-                            .primaryButton()
-                            .keyboardShortcut(.defaultAction)
-                    }
-                }
-                .padding(14)
+                .buttonStyle(.plain)
+                .background(ScreenAnchor.Reader(anchor: anchor))
+                .help("Changer ce qu'est ce son (Kick, 808, Lead…), ou écrire son nom")
             }
             // La case du Mixer tout à droite, alignée d'un son à l'autre.
             if controller.options.mixer, member.slot != nil || member.pinned {
@@ -3233,7 +3239,7 @@ struct MixerSlotBox: View {
                     typing = true
                 }
             }
-            .popover(isPresented: $typing, arrowEdge: .bottom) {
+            .swissPopover(isPresented: $typing, arrowEdge: .bottom) {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Piste du Mixer").font(.system(size: 12, weight: .semibold))
                     TextField(String("1…\(last)"), text: $draft)
@@ -3347,6 +3353,44 @@ enum BackgroundCursor {
     static func show() {
         CGDisplayShowCursor(CGMainDisplayID())
     }
+
+    /// Le curseur de l'app peut être posé même quand FL est devant (13/11, `ArrowCursorKeeper`).
+    static func allowInBackground() { _ = allowed }
+}
+
+/// 13/11 (vidéo : « il y a le pinceau de FL qui reste en curseur… que le curseur change dès que tu as le curseur sur
+/// la page… vraiment partout ») : une fenêtre de l'app qui reste devant FL sans lui prendre la main (Organiser, listes
+/// suisses) garde la flèche dès que la souris y entre ou y bouge. Les curseurs posés exprès par ses vues (bords à
+/// tirer, case du Mixer, texte) restent. Ne prend aucun clic.
+struct ArrowCursorKeeper: NSViewRepresentable {
+    func makeNSView(context: Context) -> KeeperView { KeeperView() }
+    func updateNSView(_ nsView: KeeperView, context: Context) {}
+
+    final class KeeperView: NSView {
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            trackingAreas.forEach(removeTrackingArea)
+            addTrackingArea(NSTrackingArea(rect: .zero,
+                                           options: [.activeAlways, .mouseEnteredAndExited, .mouseMoved, .inVisibleRect],
+                                           owner: self, userInfo: nil))
+        }
+
+        override func mouseEntered(with event: NSEvent) { keep() }
+        override func mouseMoved(with event: NSEvent) { keep() }
+
+        /// Seulement l'app derrière FL : devant, macOS pose déjà ses curseurs (texte, main…) et FL ne peut plus y
+        /// laisser le sien. Les curseurs posés exprès par les vues de l'app restent.
+        private func keep() {
+            guard !NSApp.isActive else { return }
+            let current = NSCursor.current
+            let deliberate: [NSCursor] = [.resizeLeftRight, .resizeUpDown, .iBeam, .pointingHand, .openHand, .closedHand]
+            guard !deliberate.contains(current) else { return }
+            BackgroundCursor.allowInBackground()
+            NSCursor.arrow.set()
+        }
+    }
 }
 
 /// Une action faite une seule fois, la première fois qu'on la demande (fil principal).
@@ -3439,7 +3483,7 @@ private struct BaseColorsSheet: View {
         .buttonStyle(.plain)
         .help(String(localized: "Choisir dans la roue des couleurs de FL"))
         .accessibilityLabel(family.label + " : " + String(localized: "Choisir dans la roue des couleurs de FL"))
-        .popover(isPresented: open, arrowEdge: .trailing) {
+        .swissPopover(isPresented: open, arrowEdge: .trailing) {
             FLColorSelector(initial: current) { picked in
                 controller.setBaseColor(family, picked)
                 wheelFor = nil

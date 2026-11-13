@@ -638,6 +638,158 @@ extension View {
     }
 }
 
+// MARK: - Petite fenêtre suisse (à la place de la bulle de macOS)
+
+extension View {
+    /// 13/11 (vidéo : « ça me met encore du liquid glass… je veux que toutes les pages soient en style suisse ») : à la
+    /// place de `.popover` (bulle de macOS, en verre sur macOS 26, avec sa flèche et ses coins ronds), une petite
+    /// fenêtre carrée au fond de l'app, bordée d'encre, posée du côté `arrowEdge` de la vue ; fermée à Échap, au moindre
+    /// clic ailleurs (un clic sur la vue elle-même la ferme seulement) ou quand `isPresented` repasse à faux.
+    func swissPopover<Inner: View>(isPresented: Binding<Bool>, arrowEdge: Edge = .bottom,
+                                   @ViewBuilder content: @escaping () -> Inner) -> some View {
+        modifier(SwissPopoverModifier(isPresented: isPresented, edge: arrowEdge, inner: content))
+    }
+}
+
+private struct SwissPopoverModifier<Inner: View>: ViewModifier {
+    @Binding var isPresented: Bool
+    let edge: Edge
+    let inner: () -> Inner
+    @StateObject private var anchor = ScreenAnchor()
+    @StateObject private var presenter = SwissPopoverPresenter()
+
+    func body(content: Content) -> some View {
+        // Ouverte, elle suit l'état de la vue (choix fait, texte tapé), comme la bulle qu'elle remplace.
+        let _ = presenter.refresh(AnyView(inner()))
+        content
+            .background(ScreenAnchor.Reader(anchor: anchor))
+            .onChange(of: isPresented) { shown in apply(shown) }
+            .onAppear { if isPresented { DispatchQueue.main.async { apply(true) } } }
+            .onDisappear { presenter.close() }
+    }
+
+    private func apply(_ shown: Bool) {
+        guard shown else { presenter.close(); return }
+        let binding = $isPresented
+        guard let frame = anchor.screenFrame else {
+            DispatchQueue.main.async { binding.wrappedValue = false }
+            return
+        }
+        presenter.show(AnyView(inner()), next: frame, edge: edge) { binding.wrappedValue = false }
+    }
+}
+
+@MainActor final class SwissPopoverPresenter: ObservableObject {
+    private var panel: Panel?
+    private var host: NSHostingView<AnyView>?
+    private var monitors: [Any] = []
+    private var anchor: NSRect = .zero
+    private var edge: Edge = .bottom
+    private var onClose: () -> Void = {}
+
+    private final class Panel: NSPanel {
+        override var canBecomeKey: Bool { true }
+        var onCancel: () -> Void = {}
+        override func cancelOperation(_ sender: Any?) { onCancel() }
+    }
+
+    /// Le fond de l'app, un trait d'encre, la flèche de l'app dessus (même FL devant).
+    private static func framed(_ view: AnyView) -> AnyView {
+        AnyView(view
+            .background(Rectangle().fill(Swiss.background))
+            .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
+            .background(ArrowCursorKeeper()))
+    }
+
+    func show(_ view: AnyView, next anchor: NSRect, edge: Edge, onClose: @escaping () -> Void) {
+        close()
+        self.anchor = anchor
+        self.edge = edge
+        self.onClose = onClose
+        let host = NSHostingView(rootView: Self.framed(view))
+        let panel = Panel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        panel.isFloatingPanel = true
+        panel.level = .popUpMenu
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = false
+        panel.hidesOnDeactivate = false
+        panel.animationBehavior = .none
+        panel.appearance = NSAppearance(named: AppTheme.current.floatingAppearanceName)
+        panel.onCancel = { [weak self] in self?.close(notify: true) }
+        panel.contentView = host
+        self.panel = panel
+        self.host = host
+        place()
+        panel.makeKeyAndOrderFront(nil)
+        // Un clic ailleurs (dans l'app ou une autre) la ferme ; une liste suisse ouverte depuis elle reste à elle.
+        if let local = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown],
+                                                         handler: { [weak self] event in
+            guard let self, let panel = self.panel, event.window !== panel else { return event }
+            if let other = event.window, other.level == .popUpMenu { return event }
+            let onAnchor = self.anchor.contains(NSEvent.mouseLocation)
+            self.close(notify: true)
+            return onAnchor ? nil : event                    // sinon un clic sur sa case la rouvrirait aussitôt
+        }) { monitors.append(local) }
+        if let global = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown],
+                                                           handler: { [weak self] _ in
+            MainActor.assumeIsolated { self?.close(notify: true) }
+        }) { monitors.append(global) }
+    }
+
+    /// Ouverte : le nouveau contenu (au tour suivant, jamais pendant le dessin de la vue).
+    func refresh(_ view: @autoclosure () -> AnyView) {
+        guard let host else { return }
+        let next = view()
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.host === host else { return }
+            host.rootView = Self.framed(next)
+            self.place()
+        }
+    }
+
+    /// Du côté demandé de la vue, de l'autre s'il n'y a pas la place, toujours dans l'écran.
+    private func place() {
+        guard let panel, let host else { return }
+        let size = host.fittingSize
+        let screen = NSScreen.screens.first(where: { $0.frame.intersects(anchor) }) ?? NSScreen.main
+        let area = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let gap: CGFloat = 4
+        var origin: NSPoint
+        switch edge {
+        case .top:
+            origin = NSPoint(x: anchor.midX - size.width / 2, y: anchor.maxY + gap)
+            if origin.y + size.height > area.maxY { origin.y = anchor.minY - gap - size.height }
+        case .leading:
+            origin = NSPoint(x: anchor.minX - gap - size.width, y: anchor.midY - size.height / 2)
+            if origin.x < area.minX { origin.x = anchor.maxX + gap }
+        case .trailing:
+            origin = NSPoint(x: anchor.maxX + gap, y: anchor.midY - size.height / 2)
+            if origin.x + size.width > area.maxX { origin.x = anchor.minX - gap - size.width }
+        case .bottom:
+            origin = NSPoint(x: anchor.midX - size.width / 2, y: anchor.minY - gap - size.height)
+            if origin.y < area.minY { origin.y = anchor.maxY + gap }
+        }
+        origin.x = min(max(area.minX, origin.x), area.maxX - size.width)
+        origin.y = min(max(area.minY, origin.y), area.maxY - size.height)
+        let frame = NSRect(origin: origin, size: size)
+        if panel.frame != frame { panel.setFrame(frame, display: true) }
+    }
+
+    func close(notify: Bool = false) {
+        monitors.forEach(NSEvent.removeMonitor)
+        monitors = []
+        let wasOpen = panel != nil
+        panel?.orderOut(nil)
+        panel = nil
+        host = nil
+        if notify, wasOpen {
+            let done = onClose
+            DispatchQueue.main.async { done() }
+        }
+    }
+}
+
 private struct SwissMenuList: View {
     let items: [RightClickMenu.Item?]
     var minWidth: CGFloat = 180
@@ -675,6 +827,8 @@ private struct SwissMenuList: View {
         }
         .background(Rectangle().fill(Swiss.background))
         .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
+        // 13/11 : la flèche de l'app sur la liste, même FL devant (plus son pinceau).
+        .background(ArrowCursorKeeper())
     }
 
     @ViewBuilder private var rows: some View {

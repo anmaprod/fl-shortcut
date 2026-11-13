@@ -871,6 +871,11 @@
   « Ouvre un VST » qui repassait par le menu Add : FL charge le VST pendant le dépôt (plus de 2 s) → pour un plugin,
   attente jusqu'à 30 s et FL encore occupé = pris (`PresetDrop.drop(endWait:slowIsTaken:)`, Windows
   `PresetFiles.Drop`) ; pas encore vu chez lui.
+- Curseur et bulles (13/11, vidéo 13.36) : l'app derrière FL garde SA flèche sur toutes ses fenêtres
+  (`ArrowCursorKeeper`, plus le pinceau de FL) ; plus aucune bulle de macOS en verre : `swissPopover` à la place de
+  `.popover` (NE PAS remettre `.popover` ni `Menu` de SwiftUI) ; liste des sortes de l'Organiser = liste suisse, nom
+  tapé dans la case. Windows : menus suisses, bulles carrées. Écran « Démarrer » sans carré orange, écoute sans traits
+  gris. Fins (Garder / Revenir / Pas content ?) : maquette `WEojWWarY4LkDi2ckQXykn`, à valider avant l'app.
 - Une seule fenêtre pour « Enregistrement de l'écran » (13/11, « cette page n'a pas besoin de s'ouvrir vu que l'autre
   s'ouvre ») : `ScreenLook.askOneWindow()` (déjà dans la liste → Réglages seuls ; sinon la demande de macOS seule).
 - Mails du compte : 2 par heure (donc 2 inscriptions) tant que le propriétaire n'a pas fait l'étape 6 de

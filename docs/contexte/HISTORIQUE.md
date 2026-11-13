@@ -1115,3 +1115,21 @@ entrée 1 ≈ 0,5 s.
   derrière (`PresetDrop.drop(endWait:slowIsTaken:)`, `dropFile(plugin:)` ; Windows `PresetFiles.Drop(endWaitMs,
   slowIsTaken)`, `IFlDriver.DropFile(plugin:)`). Presets du Mixer : 2 s comme avant. Journal `DROP … still in FL after
   N ms: taken, still loading`. Pas encore vu chez lui : sinon, lignes PLUGIN/DROP de son macro.log.
+- 13/11 (8) : maquette des fins (artefact privé `WEojWWarY4LkDi2ckQXykn`, tableaux 1-2 corrigés à ses retours :
+  fin = GARDER / REVENIR sans texte dessous, « Décider plus tard », « Copier le diagnostic » ; question d'après =
+  « tu gardes la version rangée. » (point carré collé au mot), Garder / Revenir comme avant / Plus tard, plus les noms
+  des fichiers ni « Rien ne bouge… ») : À FAIRE dans l'app une fois validée. « Pas content ? » : « beaucoup plus
+  simple… pour chaque case qu'on puisse modifier un truc… regarde sur internet » + « l'ordinateur » à la place de
+  « l'IA » : à proposer. Fait tout de suite (Mac et Windows) : plus le carré orange de l'écran « Démarrer » ; écoute,
+  attente et rangement sans les traits gris (le trait blanc du titre seul, « les traits ça nique tout »). Vidéo 13.36
+  (« le pinceau de FL reste en curseur… que le curseur change dès que tu as le curseur sur la page… partout ») :
+  `ArrowCursorKeeper` (OrganizerWindow.swift) : l'app derrière FL, la flèche dès que la souris entre ou bouge sur
+  une de ses fenêtres (Organiser, fenêtre principale, menu de l'icône, listes suisses, petites fenêtres, accueil,
+  question de la version, Accessibilité, désinstallation, barre d'enregistrement), curseurs posés exprès gardés
+  (bords, texte, main) ; Windows : rien (Windows remet le curseur de la fenêtre sous la souris). « Quand je clique sur
+  guitare… encore du liquid glass » : liste suisse (une rubrique par famille, sorte cochée ; « Écrire… » tapé dans la
+  case), et PLUS AUCUNE bulle de macOS : `swissPopover` (GlassStyle.swift, petite fenêtre carrée, fond de l'app,
+  trait d'encre, Échap / clic ailleurs) à la place de tous les `.popover` (couleurs, icônes, case du Mixer, Détails,
+  MIDI Settings en grand) ; carré rouge (plus le rond) dans la barre d'enregistrement, main rouge (plus bleue) dans la
+  bulle « Montre-moi ». Windows : liste des sortes en menu suisse (plus de sous-menus), menu de la famille suisse,
+  bulles « Nom du son » / « Piste du Mixer » carrées (`FlatFlyout`). NE PAS remettre `.popover` ni `Menu` de SwiftUI.

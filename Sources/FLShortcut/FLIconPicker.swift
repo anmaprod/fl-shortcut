@@ -171,7 +171,7 @@ struct FLIconField: View {
             Button("Choisir…") { picking = true }
                 .secondaryButton()
                 .controlSize(.small)
-                .popover(isPresented: $picking, arrowEdge: .leading) {
+                .swissPopover(isPresented: $picking, arrowEdge: .leading) {
                     FLIconPicker(selected: icon) { picked in
                         set(picked)
                         picking = false

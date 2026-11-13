@@ -352,9 +352,10 @@ internal sealed class OrganizerWindow : Window
         var text = SwissTitle(22);
         text.Text = Loc.T("Ne touche pas à FL jusqu'à la fin.");
         text.TextWrapping = TextWrapping.Wrap;
-        var row = Row(new Rectangle { Width = 16, Height = 16, Fill = Brush(BrandRed) }, text, 14);
-        row.Margin = new Thickness(0, 10, 0, 10);
-        _content.Children.Add(row);
+        // 13/11 (comme le Mac : « il y a un gros carré orange qui est à gauche, je veux que tu me l'enlèves ») : la
+        // consigne seule.
+        text.Margin = new Thickness(0, 10, 0, 10);
+        _content.Children.Add(text);
         _right.Children.Add(SoftButton(Loc.T("Fermer"), _controller.Close));
         _right.Children.Add(BlueButton(Loc.T("Démarrer"), _controller.Start));
     }
@@ -413,7 +414,9 @@ internal sealed class OrganizerWindow : Window
     {
         var label = Label(text, 13, Text, bold: true);
         label.TextWrapping = TextWrapping.Wrap;
-        _content.Children.Add(Ruled(label, 14));
+        // 13/11 (comme le Mac : « trois traits… garde que le trait blanc ») : plus de traits gris autour.
+        label.Margin = new Thickness(0, 14, 0, 14);
+        _content.Children.Add(label);
     }
 
     /// Lien avec FL pas encore installé (05/11 : « un ordre à la fois ») : étape 1 sur 3, un seul bouton.
@@ -705,8 +708,9 @@ internal sealed class OrganizerWindow : Window
             Maximum = Math.Max(total, 1), Value = done, IsIndeterminate = total == 0,
             Foreground = Brush(Red), Background = Brush(Faint), MinHeight = 3, CornerRadius = new CornerRadius(0),
         };
-        var block = Ruled(Stack(10, head, bar), 14);
-        block.Padding = new Thickness(14, 14, 14, 14);
+        // 13/11 (comme le Mac : « trois traits… garde que le trait blanc ») : plus de traits gris autour.
+        var block = Stack(10, head, bar);
+        block.Margin = new Thickness(0, 14, 0, 14);
         _content.Children.Add(block);
         // Plus d'explication (comme le Mac, 28/10) : la consigne seule.
         _content.Children.Add(SwissLabel(Loc.T("Ne touche pas à FL."), 10.5));
@@ -1039,7 +1043,7 @@ internal sealed class OrganizerWindow : Window
         var menu = new MenuFlyout();
         menu.Items.Add(MenuItem(Loc.T("Monter la famille"), () => _controller.ShiftFamily(family, -1)));
         menu.Items.Add(MenuItem(Loc.T("Descendre la famille"), () => _controller.ShiftFamily(family, 1)));
-        section.ContextFlyout = menu;
+        section.ContextFlyout = SwissMenu(menu);              // 13/11 : le menu suisse de l'app
         return section;
     }
 
@@ -1164,17 +1168,26 @@ internal sealed class OrganizerWindow : Window
         kind.PointerEntered += (_, _) => kind.Background = Brush(MacLook.WindowColor);
         kind.PointerExited += (_, _) => kind.Background = Brush(MacLook.WindowColor);
         ToolTipService.SetToolTip(kind, Loc.T("Changer ce son ou écrire son nom"));
+        // 13/11 (comme le Mac : « toutes les pages en style suisse ») : une seule liste suisse, chaque famille en
+        // rubrique, ses sortes dessous, celle du son cochée ; plus de sous-menus de Windows.
         var menu = new MenuFlyout();
         foreach (var choice in SoundFamilies.Order.Where(f => f.Kinds().Length > 0))
         {
-            var sub = new MenuFlyoutSubItem { Text = choice.Label() };
-            foreach (var k in choice.Kinds()) sub.Items.Add(MenuItem(k.Name(), () => _controller.SetKind(member.Id, k)));
-            menu.Items.Add(sub);
+            menu.Items.Add(new MenuFlyoutItem
+            {
+                Text = choice.Label().ToUpper(System.Globalization.CultureInfo.CurrentCulture), IsEnabled = false,
+            });
+            foreach (var k in choice.Kinds())
+            {
+                var item = new ToggleMenuFlyoutItem { Text = k.Name(), IsChecked = choice == family && k == member.Kind };
+                item.Click += (_, _) => _controller.SetKind(member.Id, k);
+                menu.Items.Add(item);
+            }
         }
         menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(MenuItem(Loc.T("Écrire…"), () => DispatcherQueue.TryEnqueue(() => WriteName(kind, member))));
         if (member.Written) menu.Items.Add(MenuItem(Loc.T("Nom automatique"), () => _controller.SetName(member.Id, null)));
-        kind.Flyout = menu;
+        kind.Flyout = SwissMenu(menu);
         Grid.SetColumn(kind, 3);
         grid.Children.Add(kind);
 
@@ -1196,7 +1209,8 @@ internal sealed class OrganizerWindow : Window
             Text = _controller.Names.TryGetValue(member.Id, out var written) ? written : "",
             PlaceholderText = Loc.T("Écris le nom que tu veux"), Width = 240, MaxLength = 64,
         };
-        var flyout = new Flyout();
+        // 13/11 (« toutes les pages en style suisse ») : la bulle carrée de l'app, plus celle de Windows.
+        var flyout = new Flyout { FlyoutPresenterStyle = FlatFlyout() };
         void Save()
         {
             _controller.SetName(member.Id, box.Text);
@@ -1211,7 +1225,9 @@ internal sealed class OrganizerWindow : Window
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
         buttons.Children.Add(SoftButton(Loc.T("Annuler"), flyout.Hide));
         buttons.Children.Add(BlueButton(Loc.T("OK"), Save));
-        flyout.Content = Stack(10, Label(Loc.T("Nom du son"), 12, Text, semibold: true), box, buttons);
+        var content = Stack(10, Label(Loc.T("Nom du son"), 12, Text, semibold: true), box, buttons);
+        content.Margin = new Thickness(14);
+        flyout.Content = content;
         flyout.Opened += (_, _) => box.Focus(FocusState.Programmatic);
         flyout.ShowAt(anchor);
     }
@@ -1423,7 +1439,7 @@ internal sealed class OrganizerWindow : Window
         private void Type(int? value, int last, Action<int?> set)
         {
             var box = new TextBox { Text = value?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "", PlaceholderText = $"1…{last}", Width = 120 };
-            var flyout = new Flyout();
+            var flyout = new Flyout { FlyoutPresenterStyle = FlatFlyout() };   // 13/11 : carrée, au style de l'app
             void Save()
             {
                 if (int.TryParse(box.Text.Trim(), out var n)) set(Math.Clamp(n, 1, last));
@@ -1442,7 +1458,9 @@ internal sealed class OrganizerWindow : Window
                 flyout.Hide();
             }));
             buttons.Children.Add(Primary(Loc.T("OK"), Save));
-            flyout.Content = Stack(10, Label(Loc.T("Piste du Mixer"), 12, Text, semibold: true), box, buttons);
+            var content = Stack(10, Label(Loc.T("Piste du Mixer"), 12, Text, semibold: true), box, buttons);
+            content.Margin = new Thickness(14);
+            flyout.Content = content;
             flyout.Opened += (_, _) => box.Focus(FocusState.Programmatic);
             flyout.ShowAt(this);
         }

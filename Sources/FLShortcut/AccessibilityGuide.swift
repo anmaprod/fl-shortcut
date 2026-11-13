@@ -274,7 +274,7 @@ final class AccessibilityGuide: ObservableObject {
 
     private func showPanel() {
         if let panel { panel.orderFrontRegardless(); return }
-        let host = NSHostingView(rootView: AccessibilityGuideView(guide: self))
+        let host = NSHostingView(rootView: AccessibilityGuideView(guide: self).background(ArrowCursorKeeper()))
         let p = NSPanel(contentRect: NSRect(origin: .zero, size: host.fittingSize),
                         styleMask: [.titled, .closable, .nonactivatingPanel, .utilityWindow],
                         backing: .buffered, defer: false)

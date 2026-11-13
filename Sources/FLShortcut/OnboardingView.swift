@@ -26,6 +26,7 @@ final class OnboardingWindow {
             .environmentObject(AppStatus.shared)
             .environmentObject(MIDILink.shared)
             .environmentObject(FLMonitor.shared)
+            .background(ArrowCursorKeeper())            // 13/11 : la flèche de l'app, même FL devant
         let host = NSHostingView(rootView: root)
         let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: onboardingSize.width, height: onboardingSize.height),
                          styleMask: [.titled, .closable, .fullSizeContentView],

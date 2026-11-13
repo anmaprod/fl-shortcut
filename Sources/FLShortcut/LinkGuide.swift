@@ -40,7 +40,7 @@ struct MIDISettingsImage: View {
                     .contentShape(Rectangle())
                     .onTapGesture { large = true }
                     .help("Agrandir")
-                    .popover(isPresented: $large, arrowEdge: .trailing) {
+                    .swissPopover(isPresented: $large, arrowEdge: .trailing) {
                         Image(nsImage: image)
                             .resizable()
                             .interpolation(.high)

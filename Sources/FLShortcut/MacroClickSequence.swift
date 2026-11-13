@@ -1055,7 +1055,8 @@ private struct RecordingBar: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Circle().fill(Color.red).frame(width: 10, height: 10)
+            // 13/11 (« toutes les pages en style suisse ») : le carré rouge de l'app, plus le rond de macOS.
+            Rectangle().fill(Swiss.brandRed).frame(width: 10, height: 10)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Enregistrement des clics et des touches").font(.system(size: 13, weight: .semibold))
                 Text(detail).font(.system(size: 11)).foregroundStyle(.secondary)
@@ -1069,6 +1070,7 @@ private struct RecordingBar: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .glassSurface(Rectangle(), alwaysLive: true)
+        .background(ArrowCursorKeeper())                // la flèche de l'app sur la barre, même FL devant
         .padding(6)
     }
 

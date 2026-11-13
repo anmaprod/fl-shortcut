@@ -400,7 +400,8 @@ final class CopyApprovalWindow: NSObject, NSWindowDelegate {
         guard flow.current != nil else { return }
         flow.close = { [weak self] in self?.window?.close() }
         self.flow = flow
-        let host = NSHostingController(rootView: CopyApprovalView(flow: flow))
+        // 13/11 : la flèche de l'app sur la question, même FL devant (plus son pinceau).
+        let host = NSHostingController(rootView: CopyApprovalView(flow: flow).background(ArrowCursorKeeper()))
         let w = NSWindow(contentViewController: host)
         w.styleMask = [.titled, .closable, .fullSizeContentView]
         w.titlebarAppearsTransparent = true
