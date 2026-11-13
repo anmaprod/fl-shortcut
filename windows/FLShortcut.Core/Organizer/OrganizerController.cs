@@ -676,7 +676,7 @@ public sealed class OrganizerController
                     lines.Add(Loc.T("Mixer pas entièrement rangé : FL n'est pas resté devant. Couleurs et noms sont posés."));
             }
             if (Learned > 0)
-                lines.Add(Loc.F("L'IA retient %lld sons corrigés.", Learned));
+                lines.Add(Loc.F("L'ordinateur retient %lld sons corrigés.", Learned));
             if (FeedbackSent)
                 lines.Add(Loc.T("Merci ! « Revenir comme avant », puis relance Organiser."));
             return string.Join("\n", lines);

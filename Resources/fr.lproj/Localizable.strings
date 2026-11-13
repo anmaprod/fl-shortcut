@@ -197,7 +197,7 @@
 "Aide" = "Aide";
 "Aide, compte, profil, import et export" = "Aide, compte, profil, import et export";
 "Aide, guide et contact" = "Aide, guide et contact";
-"Aider l'IA de tout le monde : envoyer des nombres qui décrivent ces sons (jamais le son, son nom ni ce que tu écris)" = "Aider l'IA de tout le monde : envoyer des nombres qui décrivent ces sons (jamais le son, son nom ni ce que tu écris)";
+"Aider l'ordinateur de tout le monde : envoyer des nombres qui décrivent ces sons (jamais le son, son nom ni ce que tu écris)" = "Aider l'ordinateur de tout le monde : envoyer des nombres qui décrivent ces sons (jamais le son, son nom ni ce que tu écris)";
 "Aides de notes" = "Aides de notes";
 "Ajoute ce bloc sous la ligne choisie" = "Ajoute ce bloc sous la ligne choisie";
 "Ajoute des macros toutes faites, après avoir lu ce qu'elles font." = "Ajoute des macros toutes faites, après avoir lu ce qu'elles font.";
@@ -618,7 +618,7 @@
 "Cloner les canaux" = "Cloner les canaux";
 "Clé invalide (16 octets attendus)." = "Clé invalide (16 octets attendus).";
 "Clé invalide." = "Clé invalide.";
-"Coche tout ce qui ne va pas : l'IA apprend de ses erreurs." = "Coche tout ce qui ne va pas : l'IA apprend de ses erreurs.";
+"Coche tout ce qui ne va pas : l'ordinateur apprend de ses erreurs." = "Coche tout ce qui ne va pas : l'ordinateur apprend de ses erreurs.";
 "Code" = "Code";
 "Code de la couleur (#RRGGBB), comme dans FL" = "Code de la couleur (#RRGGBB), comme dans FL";
 "Code de la couleur, comme dans la fenêtre de couleur de FL (Entrée pour la garder dans les récentes)" = "Code de la couleur, comme dans la fenêtre de couleur de FL (Entrée pour la garder dans les récentes)";
@@ -738,7 +738,7 @@
 "Descendre la famille" = "Descendre la famille";
 "Descendre les canaux" = "Descendre les canaux";
 "Deux versions différentes" = "Deux versions différentes";
-"Dis ce qui n'allait pas : l'IA apprend de ses erreurs" = "Dis ce qui n'allait pas : l'IA apprend de ses erreurs";
+"Dis ce qui n'allait pas : l'ordinateur apprend de ses erreurs" = "Dis ce qui n'allait pas : l'ordinateur apprend de ses erreurs";
 "Dis en quelques mots ce que tu faisais juste avant : ça nous aide beaucoup." = "Dis en quelques mots ce que tu faisais juste avant : ça nous aide beaucoup.";
 "Dis-nous ce qui ne va pas" = "Dis-nous ce qui ne va pas";
 "Disponible à partir de FL %@" = "Disponible à partir de FL %@";
@@ -1149,7 +1149,7 @@
 "Kick" = "Kick";
 "Kick, Lead, Voix…" = "Kick, Lead, Voix…";
 "Kick, Lead, Voix… (facultatif)" = "Kick, Lead, Voix… (facultatif)";
-"L'IA retient %lld sons corrigés sur ce Mac : la prochaine fois, ils seront rangés comme tu l'as dit." = "L'IA retient %lld sons corrigés sur ce Mac : la prochaine fois, ils seront rangés comme tu l'as dit.";
+"L'ordinateur retient %lld sons corrigés sur ce Mac : la prochaine fois, ils seront rangés comme tu l'as dit." = "L'ordinateur retient %lld sons corrigés sur ce Mac : la prochaine fois, ils seront rangés comme tu l'as dit.";
 "L'Organiser ne sait pas encore ranger ce projet sans risque (%@) : rien n'a été touché." = "L'Organiser ne sait pas encore ranger ce projet sans risque (%@) : rien n'a été touché.";
 "L'Organiser écoute FL avec macOS 14.2 ou plus récent : mets macOS à jour." = "L'Organiser écoute FL avec macOS 14.2 ou plus récent : mets macOS à jour.";
 "L'app et tous ses réglages seront supprimés de ce Mac." = "L'app et tous ses réglages seront supprimés de ce Mac.";
@@ -1262,7 +1262,7 @@
 "Les raccourcis qu'il contient" = "Les raccourcis qu'il contient";
 "Les réponses aux questions fréquentes, et l'équipe si ça ne suffit pas." = "Les réponses aux questions fréquentes, et l'équipe si ça ne suffit pas.";
 "Les sauvegarder d'abord" = "Les sauvegarder d'abord";
-"Les sons rangés d'après leur nom n'y sont pas : l'IA ne les a pas écoutés." = "Les sons rangés d'après leur nom n'y sont pas : l'IA ne les a pas écoutés.";
+"Les sons rangés d'après leur nom n'y sont pas : l'ordinateur ne les a pas écoutés." = "Les sons rangés d'après leur nom n'y sont pas : l'ordinateur ne les a pas écoutés.";
 "Lettres" = "Lettres";
 "Lettres d'un menu de FL" = "Lettres d'un menu de FL";
 "Lettres du menu" = "Lettres du menu";

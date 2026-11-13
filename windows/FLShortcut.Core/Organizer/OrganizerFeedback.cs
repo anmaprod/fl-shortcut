@@ -47,7 +47,7 @@ public sealed class OrganizerFeedback
     public string OtherText { get; set; } = "";
     /// Bonne réponse de chaque son corrigé (index du canal).
     public Dictionary<int, Fix> Fixes { get; } = new();
-    /// Aider l'IA de tout le monde avec ces corrections (des nombres seulement).
+    /// Aider l'ordinateur de tout le monde avec ces corrections (des nombres seulement).
     public bool Share { get; set; }
 
     public bool AsksSounds => Reasons.Any(AboutSounds);

@@ -50,7 +50,7 @@ struct OrganizerFeedback: Equatable {
     var otherText = ""
     /// Bonne réponse de chaque son corrigé (index du canal).
     var fixes: [Int: Fix] = [:]
-    /// Aider l'IA de tout le monde avec ces corrections (des nombres seulement).
+    /// Aider l'ordinateur de tout le monde avec ces corrections (des nombres seulement).
     var share = false
 
     var asksSounds: Bool { reasons.contains { $0.aboutSounds } }
@@ -91,7 +91,7 @@ struct OrganizerFeedbackView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Qu'est-ce qui n'allait pas ?").font(.system(size: 15, weight: .semibold))
-            Text("Coche tout ce qui ne va pas : l'IA apprend de ses erreurs.")
+            Text("Coche tout ce qui ne va pas : l'ordinateur apprend de ses erreurs.")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
             ScrollView {
@@ -163,7 +163,7 @@ struct OrganizerFeedbackView: View {
             }) {
                 Toggle(isOn: $feedback.share) {
                     Text(String(localized: """
-                        Aider l'IA de tout le monde : envoyer des nombres qui décrivent ces sons (jamais le son, son \
+                        Aider l'ordinateur de tout le monde : envoyer des nombres qui décrivent ces sons (jamais le son, son \
                         nom ni ce que tu écris)
                         """))
                         .fixedSize(horizontal: false, vertical: true)

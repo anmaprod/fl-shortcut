@@ -1133,3 +1133,10 @@ entrée 1 ≈ 0,5 s.
   MIDI Settings en grand) ; carré rouge (plus le rond) dans la barre d'enregistrement, main rouge (plus bleue) dans la
   bulle « Montre-moi ». Windows : liste des sortes en menu suisse (plus de sous-menus), menu de la famille suisse,
   bulles « Nom du son » / « Piste du Mixer » carrées (`FlatFlyout`). NE PAS remettre `.popover` ni `Menu` de SwiftUI.
+- 13/11 (9) : « Pas content ? » : recherche (Microsoft, guide HAX 9A « corriger chaque classement là où il est » ;
+  Google Photos et Gmail : une correction d'un geste, sur une seule chose ; motifs « pouce en bas + quelques
+  raisons » des produits d'IA) → proposé dans la maquette `WEojWWarY4LkDi2ckQXykn` (tableaux 3, 3a-3c) : plus de cases
+  à cocher, une ligne par chose à corriger (un son mal rangé, le Mixer, la Playlist, les couleurs) qui ouvre l'endroit
+  où on corrige, gardé pour les prochains rangements (famille et sorte d'un son, départ de chaque famille dans le
+  Mixer + bus + pré-master, ordre des familles, couleurs de base) ; « Autre chose ? » part à l'équipe. À valider avant
+  l'app. Déjà fait dans l'app (Mac et Windows) : « l'IA » → « l'ordinateur » dans tous les textes affichés.

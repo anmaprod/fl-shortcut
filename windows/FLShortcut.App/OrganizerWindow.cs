@@ -734,7 +734,7 @@ internal sealed class OrganizerWindow : Window
         _content.Children.Add(copy);
         if (_controller.CanUndo) _left.Children.Add(SoftButton(Loc.T("Revenir comme avant"), _controller.Undo));
         if (_controller.CanGiveFeedback)
-            _left.Children.Add(SoftButton(Loc.T("Pas content ?"), ShowFeedback, Loc.T("Dis ce qui n'allait pas : l'IA apprend de ses erreurs")));
+            _left.Children.Add(SoftButton(Loc.T("Pas content ?"), ShowFeedback, Loc.T("Dis ce qui n'allait pas : l'ordinateur apprend de ses erreurs")));
         if (_controller.CanRetry && _controller.ProjectMissing)
         {
             _right.Children.Add(SoftButton(Loc.T("Fermer"), _controller.Close));
@@ -1263,7 +1263,7 @@ internal sealed class OrganizerWindow : Window
         void Build()
         {
             body.Children.Clear();
-            body.Children.Add(Paragraph(Loc.T("Coche tout ce qui ne va pas : l'IA apprend de ses erreurs."), 12));
+            body.Children.Add(Paragraph(Loc.T("Coche tout ce qui ne va pas : l'ordinateur apprend de ses erreurs."), 12));
             foreach (var reason in OrganizerFeedback.AllReasons)
             {
                 body.Children.Add(Check(OrganizerFeedback.Label(reason), feedback.Reasons.Contains(reason), on =>

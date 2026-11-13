@@ -260,7 +260,7 @@
 "Copie pas enregistrée : Ctrl+S dans FL." = "Copy not saved: Ctrl+S in FL.";
 "À la fermeture, tu valideras cette version." = "When you close, you'll confirm this version.";
 "%lld sons sans note pas supprimés : supprime-les dans FL." = "%lld sounds without notes not deleted: delete them in FL.";
-"L'IA retient %lld sons corrigés." = "The AI remembers %lld corrected sounds.";
+"L'ordinateur retient %lld sons corrigés." = "The computer remembers %lld corrected sounds.";
 "Merci ! « Revenir comme avant », puis relance Organiser." = "Thanks! “Undo changes”, then restart Organize.";
 "Un son a le mauvais nom" = "A sound has the wrong name";
 "La page de FL a changé : arrêté. « Revenir comme avant » défait tout." = "FL's page changed: stopped. “Undo changes” undoes everything.";

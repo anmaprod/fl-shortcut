@@ -197,7 +197,7 @@
 "Aide" = "Help";
 "Aide, compte, profil, import et export" = "Help, account, profile, import and export";
 "Aide, guide et contact" = "Help, guide and contact";
-"Aider l'IA de tout le monde : envoyer des nombres qui décrivent ces sons (jamais le son, son nom ni ce que tu écris)" = "Help everyone's AI: send numbers that describe these sounds (never the sound, its name or what you type)";
+"Aider l'ordinateur de tout le monde : envoyer des nombres qui décrivent ces sons (jamais le son, son nom ni ce que tu écris)" = "Help everyone's computer: send numbers that describe these sounds (never the sound, its name or what you type)";
 "Aides de notes" = "Note helpers";
 "Ajoute ce bloc sous la ligne choisie" = "Adds this block below the selected row";
 "Ajoute des macros toutes faites, après avoir lu ce qu'elles font." = "Add ready-made macros, after reading what they do.";
@@ -618,7 +618,7 @@
 "Cloner les canaux" = "Clone channels";
 "Clé invalide (16 octets attendus)." = "Invalid key (16 bytes expected).";
 "Clé invalide." = "Invalid key.";
-"Coche tout ce qui ne va pas : l'IA apprend de ses erreurs." = "Check everything that's wrong: the AI learns from its mistakes.";
+"Coche tout ce qui ne va pas : l'ordinateur apprend de ses erreurs." = "Check everything that's wrong: the computer learns from its mistakes.";
 "Code" = "Code";
 "Code de la couleur (#RRGGBB), comme dans FL" = "Color code (#RRGGBB), as in FL";
 "Code de la couleur, comme dans la fenêtre de couleur de FL (Entrée pour la garder dans les récentes)" = "Color code, as in FL's color window (Return to keep it in recent colors)";
@@ -738,7 +738,7 @@
 "Descendre la famille" = "Move family down";
 "Descendre les canaux" = "Move channels down";
 "Deux versions différentes" = "Two different versions";
-"Dis ce qui n'allait pas : l'IA apprend de ses erreurs" = "Say what went wrong: the AI learns from its mistakes";
+"Dis ce qui n'allait pas : l'ordinateur apprend de ses erreurs" = "Say what went wrong: the computer learns from its mistakes";
 "Dis en quelques mots ce que tu faisais juste avant : ça nous aide beaucoup." = "Tell us in a few words what you were doing just before: it helps us a lot.";
 "Dis-nous ce qui ne va pas" = "Tell us what's wrong";
 "Disponible à partir de FL %@" = "Available from FL %@";
@@ -1149,7 +1149,7 @@
 "Kick" = "Kick";
 "Kick, Lead, Voix…" = "Kick, Lead, Vocals…";
 "Kick, Lead, Voix… (facultatif)" = "Kick, Lead, Vocals… (optional)";
-"L'IA retient %lld sons corrigés sur ce Mac : la prochaine fois, ils seront rangés comme tu l'as dit." = "The AI remembers %lld corrected sounds on this Mac: next time, they'll be organized the way you said.";
+"L'ordinateur retient %lld sons corrigés sur ce Mac : la prochaine fois, ils seront rangés comme tu l'as dit." = "The computer remembers %lld corrected sounds on this Mac: next time, they'll be organized the way you said.";
 "L'Organiser ne sait pas encore ranger ce projet sans risque (%@) : rien n'a été touché." = "The Organizer can't safely organize this project yet (%@): nothing was changed.";
 "L'Organiser écoute FL avec macOS 14.2 ou plus récent : mets macOS à jour." = "Organizer listens to FL on macOS 14.2 or later: update macOS.";
 "L'app et tous ses réglages seront supprimés de ce Mac." = "The app and all its settings will be removed from this Mac.";
@@ -1262,7 +1262,7 @@
 "Les raccourcis qu'il contient" = "The shortcuts it contains";
 "Les réponses aux questions fréquentes, et l'équipe si ça ne suffit pas." = "Answers to common questions, and the team if that's not enough.";
 "Les sauvegarder d'abord" = "Back them up first";
-"Les sons rangés d'après leur nom n'y sont pas : l'IA ne les a pas écoutés." = "Sounds organized by their name aren't listed: the AI didn't listen to them.";
+"Les sons rangés d'après leur nom n'y sont pas : l'ordinateur ne les a pas écoutés." = "Sounds organized by their name aren't listed: the computer didn't listen to them.";
 "Lettres" = "Letters";
 "Lettres d'un menu de FL" = "FL menu letters";
 "Lettres du menu" = "Menu letters";

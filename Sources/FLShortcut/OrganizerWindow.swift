@@ -2086,7 +2086,7 @@ struct OrganizerView: View {
             if controller.canGiveFeedback {
                 Button("Pas content ?") { controller.feedbackShown = true }
                     .secondaryButton()
-                    .help("Dis ce qui n'allait pas : l'IA apprend de ses erreurs")
+                    .help("Dis ce qui n'allait pas : l'ordinateur apprend de ses erreurs")
             }
             Spacer()
             if controller.canRetry && controller.projectMissing {
