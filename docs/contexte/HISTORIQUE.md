@@ -1163,3 +1163,16 @@ entrée 1 ≈ 0,5 s.
   avec FL » (« Installé », sinon « À installer » qui demande le dossier de FL), qui n'empêche jamais d'entrer. Le lien
   lui-même reste ouvert le temps d'une action seulement (NE PAS remettre les ports permanents). Journal `LINK`.
   Essais : `testTheLinkInstallsItselfWhenFLsFolderExists` (Mac), `FlScriptPlaceTests` (Windows).
+- 13/11 (12) : « quand j'ouvre organiser et que je ferme ça re rame… peut être mettre un analyseur qui regarde si le
+  midi sert ou pas et si non utilisé il faut le fermer directement ». Le lien n'existait qu'entre « Démarrer » et la
+  fin du rangement, mais l'aperçu (où l'on choisit familles, sortes, couleurs, parfois longtemps) le gardait alors
+  qu'il n'envoie RIEN à FL : FL voyait l'appareil et ramait. Maintenant (Mac et Windows) le lien est rendu dès la fin
+  de l'écoute (aperçu ou échec), repris le temps de « Organiser » (2 s pour que FL recharge son script), rendu à la fin,
+  comme « Revenir comme avant » (`finishListening`/`FinishListening` → `dropLink`, `apply` → `useLinkAgain`). Le
+  surveillant (`LinkWatch`, chaque seconde) retire les ports dès que personne ne les tient. Essais :
+  `testLinkReleasedAsSoonAsOrganized` (Mac), `LinkIsGivenBackAsSoonAsTheWorkIsDone` (Windows, rouge avant). Si FL rame
+  encore après « Fermer », lire les lignes MIDI de macro.log (`link ports removed after N s (why)`).
+  Maquette des fins : page « les couleurs » = la fenêtre de couleur de l'Organiser à l'identique (roue de FL 16 × 5,
+  luminosité, 10 récentes, #RRGGBB, Hue/Sat/Lum, Red/Green/Blue, Reset/Accept) ; « tu gardes la version rangée » :
+  deux grandes cases Garder / Revenir comme avant avec une mini Playlist (rangée aux couleurs des familles choisies /
+  en désordre), soulevées au survol.

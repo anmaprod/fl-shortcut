@@ -520,16 +520,20 @@ final class OrganizerWindowTests: XCTestCase {
         let controller = OrganizerController(env: e)
         controller.start()
         waitFor(controller) { $0 == .preview }
-        XCTAssertEqual(released, 0, "pendant l'aperçu : le lien reste")
+        // 13/11 (« quand j'ouvre organiser et que je ferme ça re rame… si non utilisé il faut le fermer directement ») :
+        // l'aperçu n'envoie rien à FL, le lien est rendu dès la fin de l'écoute et repris pour « Organiser ».
+        XCTAssertEqual(released, 1, "aperçu : le lien est rendu tout de suite")
+        XCTAssertFalse(controller.holdsLink)
         controller.apply()
         waitFor(controller, OrganizerWindowTests.isApplied)
-        XCTAssertEqual(released, 1, "rangé : le lien est rendu tout de suite")
+        XCTAssertEqual(retaken, 1, "« Organiser » : le lien de nouveau")
+        XCTAssertEqual(released, 2, "rangé : le lien est rendu tout de suite")
         XCTAssertTrue(controller.canUndo)
         controller.undo()
         waitFor(controller, OrganizerWindowTests.isUndone)
         XCTAssertEqual(controller.phase, .undone(nil))
-        XCTAssertEqual(retaken, 1, "revenir comme avant : le lien de nouveau")
-        XCTAssertEqual(released, 2, "puis rendu")
+        XCTAssertEqual(retaken, 2, "revenir comme avant : le lien de nouveau")
+        XCTAssertEqual(released, 3, "puis rendu")
         controller.close()
     }
 

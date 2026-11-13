@@ -390,12 +390,20 @@ public sealed class OrganizerController
             Kinds = Organize.KindsOf(result);
             if (Families.Count > 0 || !Plan.IsEmpty) SetPhase(new OrganizerPhase.Preview());
             else SetPhase(new OrganizerPhase.Failed(Loc.T("Aucun son à organiser dans ce projet.")));
+            // 13/11 (comme le Mac, « quand j'ouvre organiser et que je ferme ça re rame… si non utilisé il faut le
+            // fermer directement ») : l'aperçu n'envoie rien à FL ; le lien est rendu tout de suite et repris le temps
+            // de « Organiser ».
+            DropLink();
             return;
         }
         var e = error ?? OrganizerError.Failed("?");
         ProjectMissing = e.Is(OrganizerError.Kinds.ProjectNotFound);
         if (WaitReason(e, _env.WrongInput()) is { } reason) Wait(reason);
-        else SetPhase(new OrganizerPhase.Failed(e.UserMessage));
+        else
+        {
+            SetPhase(new OrganizerPhase.Failed(e.UserMessage));
+            DropLink();
+        }
     }
 
     /// Ce que « Organiser » fera, d'après ce qu'est chaque son (modifiable), les noms écrits, les places et les options.
@@ -693,6 +701,11 @@ public sealed class OrganizerController
         _env.FocusFl();
         ApplyStep = null;
         SetPhase(new OrganizerPhase.Applying());
+        // Lien rendu pendant l'aperçu (13/11) : repris le temps du rangement, puis rendu de nouveau.
+        var fresh = _linkDropped && _env.UseLinkAgain();
+        _linkDropped = false;
+        _linkReleased = false;
+        var sleep = _env.Sleep;
         var applier = new OrganizerApplier(link, _env.MoveUp(link), _env.MoveLeft(link), _env.PlaceIcon, _env.DeleteSelected(link),
             wait: _env.Sleep, listen: _env.Timing.TrackListen, files: _env.ProjectFiles(),
             iconIds: FlIconIds.Rack, mixerIconIds: FlIconIds.Mixer,
@@ -705,6 +718,7 @@ public sealed class OrganizerController
         var styles = Styles.ToDictionary(kv => kv.Key, kv => kv.Value);
         _env.Background(() =>
         {
+            if (fresh) sleep(2);                         // FL voit l'appareil revenir et réveille son script
             var outcome = applier.Apply(plan, result, styles);
             _env.Post(() =>
             {

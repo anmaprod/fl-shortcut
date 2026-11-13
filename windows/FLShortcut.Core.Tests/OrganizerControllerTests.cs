@@ -135,15 +135,19 @@ public sealed class OrganizerControllerTests
         var later = new Later();
         var controller = new OrganizerController(Env(link, disk, later, linkLog: log));
         controller.Start();
-        Assert.True(controller.HoldsLink);
-        controller.Apply();
+        // 13/11 (comme le Mac, « si non utilisé il faut le fermer directement ») : l'aperçu n'envoie rien à FL, le lien
+        // est rendu dès la fin de l'écoute et repris le temps de « Organiser ».
+        Assert.IsType<OrganizerPhase.Preview>(controller.Phase);
         Assert.Equal(new[] { "rendu" }, log);
         Assert.False(controller.HoldsLink);
-        controller.Undo();
+        controller.Apply();
         Assert.Equal(new[] { "rendu", "repris", "rendu" }, log);
+        Assert.False(controller.HoldsLink);
+        controller.Undo();
+        Assert.Equal(new[] { "rendu", "repris", "rendu", "repris", "rendu" }, log);
         controller.Close();
         later.Run();
-        Assert.Equal(new[] { "rendu", "repris", "rendu" }, log);
+        Assert.Equal(new[] { "rendu", "repris", "rendu", "repris", "rendu" }, log);
 
         // Fermé en plein travail : rendu une seule fois (tout de suite ou au plus tard 3 s après).
         log.Clear();

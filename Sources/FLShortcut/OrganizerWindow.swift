@@ -990,9 +990,18 @@ final class OrganizerController: ObservableObject {
             } else {
                 phase = .failed(String(localized: "Aucun son à organiser dans ce projet."))
             }
+            // 13/11 (« quand j'ouvre organiser et que je ferme ça re rame… si non utilisé il faut le fermer
+            // directement ») : l'aperçu n'envoie rien à FL ; le lien est rendu tout de suite (FL ne voit plus
+            // l'appareil) et repris le temps de « Organiser ».
+            dropLink()
         case .failure(let error):
             projectMissing = error == .projectNotFound
-            if let reason = waitingReason(for: error) { wait(reason) } else { phase = .failed(error.message) }
+            if let reason = waitingReason(for: error) {
+                wait(reason)
+            } else {
+                phase = .failed(error.message)
+                dropLink()
+            }
         }
     }
 
@@ -1304,6 +1313,10 @@ final class OrganizerController: ObservableObject {
         env.focusFL()                                         // ⌥↑, ⌥← et les clics des icônes vont à FL
         phase = .applying
         applyStep = nil
+        // Lien rendu pendant l'aperçu (13/11) : repris le temps du rangement, puis rendu de nouveau.
+        let fresh = linkDropped && env.useLinkAgain()
+        linkDropped = false
+        let sleep = env.sleep
         let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), moveLeft: env.moveLeft(link),
                                        placeIcon: env.placeIcon, deleteSelected: env.deleteSelected(link),
                                        moveTrack: env.moveTrack(link), moveClips: env.moveClips(link),
@@ -1316,6 +1329,7 @@ final class OrganizerController: ObservableObject {
                                        })
         let plan = self.plan, styles = self.styles
         queue.async { [weak self] in
+            if fresh { sleep(2) }                         // FL voit l'appareil revenir et recharge son script
             let outcome = applier.apply(plan, result: result, styles: styles)
             DispatchQueue.main.async {
                 self?.env.saveIconIDs(outcome.learnedIconIDs)
