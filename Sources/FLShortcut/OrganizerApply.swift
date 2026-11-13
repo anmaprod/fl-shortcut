@@ -253,6 +253,33 @@ extension OrganizerResult {
             map[c.index] = kept.count
             kept.append(ChannelInfo(index: kept.count, type: c.type, mixerTrack: c.mixerTrack, color: c.color, name: c.name))
         }
+        var out = remapped(map, channels: kept)
+        let keptTracks = Set(kept.map(\.mixerTrack))
+        out.freed = freed.union(channels.filter { deleted.contains($0.index) }.map(\.mixerTrack))
+            .filter { $0 > 0 && !keptTracks.contains($0) }
+        return (out, map)
+    }
+
+    /// Pur (testé) : le projet une fois ses canaux rangés dans l'ordre `order` (place → index d'avant, chaque canal une
+    /// fois) dans la copie (13/11), et l'index de chaque canal, avant → maintenant. nil si `order` n'est pas un ordre
+    /// de tous les canaux.
+    func reordering(_ order: [Int]) -> (result: OrganizerResult, map: [Int: Int])? {
+        let byIndex = Dictionary(channels.map { ($0.index, $0) }, uniquingKeysWith: { first, _ in first })
+        guard order.count == channels.count, Set(order) == Set(byIndex.keys) else { return nil }
+        var map: [Int: Int] = [:]
+        var placed: [ChannelInfo] = []
+        for (place, index) in order.enumerated() {
+            guard let c = byIndex[index] else { return nil }
+            map[index] = place
+            placed.append(ChannelInfo(index: place, type: c.type, mixerTrack: c.mixerTrack, color: c.color, name: c.name))
+        }
+        var out = remapped(map, channels: placed)
+        out.freed = freed
+        return (out, map)
+    }
+
+    /// Les mêmes sons sous leur nouvel index (`map` : avant → maintenant ; un son absent de `map` est retiré).
+    private func remapped(_ map: [Int: Int], channels kept: [ChannelInfo]) -> OrganizerResult {
         func moved(_ set: Set<Int>) -> Set<Int> { Set(set.compactMap { map[$0] }) }
         let items = self.items.compactMap { item -> OrganizerItem? in
             guard let now = map[item.index] else { return nil }
@@ -271,10 +298,7 @@ extension OrganizerResult {
         out.unused = moved(unused)
         for (channel, position) in soundAt { if let now = map[channel] { out.soundAt[now] = position } }
         out.project = project?.moving(map)
-        let keptTracks = Set(kept.map(\.mixerTrack))
-        out.freed = freed.union(channels.filter { deleted.contains($0.index) }.map(\.mixerTrack))
-            .filter { $0 > 0 && !keptTracks.contains($0) }
-        return (out, map)
+        return out
     }
 }
 
@@ -681,6 +705,22 @@ final class OrganizerApplier {
             outcome.trace.append("icônes copie rack \(written.channels.count)/\(rackIcons.count) "
                                  + "mixer \(written.inserts.count)/\(mixerIcons.count)")
         }
+        // 13/11 (« tout est génial sauf dans channel rack ça n'a pas tout rangé ») : le Channel rack rangé dans la copie,
+        // ses sons à leur place avant que FL l'ouvre (plus de ⌥↑ que FL pouvait couper) ; la suite travaille sur les
+        // nouvelles places. Un fichier d'une forme inattendue : rangé dans FL comme avant.
+        var rackOrder: [Int]?
+        let final = plan.rack.final
+        if !final.isEmpty, final != Array(0..<final.count) {
+            if let reordered = FLPProject.reorderingChannels(copy, order: final), let moved = result.reordering(final) {
+                copy = reordered
+                rackOrder = final
+                result = moved.result
+                plan = plan.reordered(moved.result, map: moved.map, styles: styles)
+                outcome.trace.append("rack copie \(final.count) reste \(plan.rack.moves.count)")
+            } else {
+                outcome.trace.append("rack copie non")
+            }
+        }
         guard var marked = ProjectFile.marking(copy, marker: marker) else {
             let what = "patterns"
             throw OrganizerError.failed(String(localized: "L'Organiser ne sait pas encore ranger ce projet sans risque (\(what)) : rien n'a été touché."))
@@ -746,7 +786,10 @@ final class OrganizerApplier {
             let name = plan.patterns.names[n - 1] ?? before ?? "Pattern \(n)"
             try retrying { try link.setNames(.patterns, [(index: n - 1, name: name)]) }
         case .channel(let c):
-            let before = read.project.channels[c].name.flatMap { ProjectFile.isMarker($0) ? nil : $0 }
+            // Channel rack rangé dans la copie : le canal marqué était à une autre place dans le projet d'origine.
+            let was = rackOrder.map { $0.indices.contains(c) ? $0[c] : c } ?? c
+            let before = read.project.channels.indices.contains(was)
+                ? read.project.channels[was].name.flatMap { ProjectFile.isMarker($0) ? nil : $0 } : nil
             let name = before ?? result.channels.first { $0.index == c }?.name ?? "Channel \(c + 1)"
             try retrying { try link.setNames(.channels, [(index: c, name: name)]) }
         }

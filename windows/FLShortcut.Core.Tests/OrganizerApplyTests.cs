@@ -852,6 +852,56 @@ public class OrganizerApplyTests
         Assert.Contains(outcome.Trace, t => t.StartsWith("icônes playlist "));
     }
 
+    /// 13/11 (comme le Mac, « tout est génial sauf dans channel rack ça n'a pas tout rangé ») : le Channel rack est rangé
+    /// dans la copie, avant que FL l'ouvre ; plus aucune touche envoyée, chaque son garde ses notes et ses clips.
+    [Fact]
+    public void RackIsOrderedInTheCopyWithoutKeys()
+    {
+        var disk = new FakeDisk();
+        disk.Files[disk.Original] = FlpSample.Sample(flOrder: true);
+        var (link, result) = FileProject(disk);
+        var styles = Initial();
+        var plan = Plan(result, styles, new OrganizerOptions { Mixer = false, DeleteUnused = false });
+        var final = plan.Rack.Final.ToList();
+        Assert.NotEqual(Enumerable.Range(0, final.Count), final);
+        var keys = 0;
+        var outcome = new OrganizerApplier(link, n => { keys++; return link.MoveSelectedUp(n); }, wait: _ => { }, listen: 0,
+                files: disk.Access, marker: "FL Shortcuts 1234")
+            .Apply(plan, result, styles);
+        Assert.Null(outcome.Error);
+        Assert.Equal(0, keys);
+        Assert.Contains("rack copie 5 reste 0", outcome.Trace);
+        Assert.DoesNotContain(outcome.Trace, t => t.Contains("rack ordre"));
+        var names = new[] { "Pad", "Kick", "ZENOLOGY", "Snare", "808" };
+        var copy = new FlpProject(disk.Files[outcome.Copy!]);
+        Assert.Equal(final.Select(i => names[i]), copy.Channels.Select(c => c.Name));
+        var place = final.Select((index, at) => (index, at)).ToDictionary(x => x.index, x => x.at);
+        Assert.Equal(new Dictionary<int, int> { [place[2]] = 3 }, copy.Notes[1]);
+        Assert.Equal(new Dictionary<int, int> { [place[1]] = 1 }, copy.Notes[3]);
+        Assert.Contains(copy.Clips, c => c.Source == ClipSource.Channel(place[1]));
+    }
+
+    /// Un son qui pourrait être désigné autrement (un clip d'automation) : la copie garde l'ordre d'origine et le Channel
+    /// rack est rangé dans FL, comme avant.
+    [Fact]
+    public void RackStaysInFLWhenTheFileIsNotSafe()
+    {
+        var disk = new FakeDisk();
+        disk.Files[disk.Original] = FlpSample.Sample(types: new() { [0] = ChannelInfo.AutomationType }, flOrder: true);
+        var (link, result) = FileProject(disk);
+        var styles = Initial();
+        var plan = Plan(result, styles, new OrganizerOptions { Mixer = false, DeleteUnused = false });
+        var keys = 0;
+        var outcome = new OrganizerApplier(link, n => { keys++; return link.MoveSelectedUp(n); }, wait: _ => { }, listen: 0,
+                files: disk.Access, marker: "FL Shortcuts 1234")
+            .Apply(plan, result, styles);
+        Assert.Null(outcome.Error);
+        Assert.Contains("rack copie non", outcome.Trace);
+        Assert.True(keys > 0);
+        var copy = new FlpProject(disk.Files[outcome.Copy!]);
+        Assert.Equal(new[] { "Pad", "Kick", "ZENOLOGY", "Snare", "808" }, copy.Channels.Select(c => c.Name));
+    }
+
     /// FL enregistre le projet, la copie rangée est écrite à côté et FL l'ouvre ; le reste se fait dans la copie, que FL
     /// enregistre ; « Revenir comme avant » rouvre l'original, qui n'a pas bougé.
     [Fact]

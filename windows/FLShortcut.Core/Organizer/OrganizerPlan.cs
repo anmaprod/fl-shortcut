@@ -269,6 +269,15 @@ public sealed class OrganizerPlan
             Moved(source.Slots, map));
     }
 
+    /// Le même plan sur le projet une fois ses canaux rangés dans la copie (`map` : index d'avant → maintenant, 13/11) :
+    /// les sons sans note restent à supprimer, plus rien à remonter dans le Channel rack.
+    public OrganizerPlan Reordered(OrganizerResult result, IReadOnlyDictionary<int, int> map, IReadOnlyDictionary<SoundFamily, FamilyStyle> styles)
+    {
+        if (Source is not { } source) return this;
+        return Make(result, Moved(source.Families, map), Moved(source.Kinds, map), styles, source.Options, Moved(source.Names, map),
+            Moved(source.Slots, map));
+    }
+
     /// Pur (testé) : les patterns à descendre pour qu'aucune piste de la Playlist ne mêle deux sons (sans fichier).
     public static List<PlaylistSplit> PlaylistSplits(OrganizerResult result, Func<HashSet<int>, (int, int, int)> key)
     {

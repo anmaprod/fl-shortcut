@@ -188,6 +188,40 @@ public sealed class OrganizerResult
         return (out_, map);
     }
 
+    /// Pur (testé) : le projet une fois ses canaux rangés dans l'ordre `order` (place → index d'avant, chaque canal une
+    /// fois) dans la copie (13/11), et l'index de chaque canal, avant → maintenant. null si `order` n'est pas un ordre de
+    /// tous les canaux.
+    public (OrganizerResult Result, Dictionary<int, int> Map)? Reordering(IReadOnlyList<int> order)
+    {
+        var byIndex = Channels.GroupBy(c => c.Index).ToDictionary(g => g.Key, g => g.First());
+        if (order.Count != Channels.Count || !order.ToHashSet().SetEquals(byIndex.Keys)) return null;
+        var map = new Dictionary<int, int>();
+        var placed = new List<ChannelInfo>();
+        for (var place = 0; place < order.Count; place++)
+        {
+            map[order[place]] = place;
+            placed.Add(byIndex[order[place]] with { Index = place });
+        }
+        HashSet<int> Moved(IEnumerable<int> set) => set.Where(map.ContainsKey).Select(i => map[i]).ToHashSet();
+        var out_ = new OrganizerResult
+        {
+            Channels = placed,
+            Items = Items.Where(i => map.ContainsKey(i.Index)).Select(i => i with { Index = map[i.Index] }).ToList(),
+            Patterns = Patterns,
+            PatternSounds = PatternSounds.ToDictionary(kv => kv.Key, kv => Moved(kv.Value)),
+            Mixer = Mixer,
+            Routes = Routes,
+            Playlist = Playlist,
+            TrackSounds = TrackSounds.ToDictionary(kv => kv.Key, kv => Moved(kv.Value)),
+            TrackItems = TrackItems,
+            Unused = Moved(Unused),
+            SoundAt = SoundAt.Where(kv => map.ContainsKey(kv.Key)).ToDictionary(kv => map[kv.Key], kv => kv.Value),
+            Project = Project?.Moving(map),
+            Freed = Freed.ToHashSet(),
+        };
+        return (out_, map);
+    }
+
     /// Pur (testé) : la Playlist une fois ces patterns descendus : leurs sons quittent leur piste pour la nouvelle,
     /// une piste vide (sans nom ; sa vraie couleur est relue dans FL avant d'y toucher).
     public OrganizerResult Splitting(IEnumerable<PlaylistSplit> splits)

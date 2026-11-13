@@ -223,14 +223,13 @@ final class OrganizerWindowTests: XCTestCase {
         controller.close()
     }
 
-    /// Capture du 31/10 : des icônes choisies sans « Enregistrement de l'écran » : c'est dit dans l'aperçu, avant
-    /// « Organiser » (« Autoriser »), plus seulement au moment de les poser ; « Reset » ne compte pas comme une icône.
-    func testIconsAskForScreenRecordingBeforeOrganising() throws {
+    /// 13/11 : chaque case de la grille a son numéro de FL (`FLIconNumbers`), écrit dans la copie : une icône choisie
+    /// ne demande plus « Enregistrement de l'écran » (avant, capture du 31/10 : « Autoriser » dans l'aperçu).
+    func testKnownIconsNeverAskForScreenRecording() throws {
         let link = FakeOrganizerLink()
         var e = env(link, FakeAudio(link: link), saved: { _ in })
-        var allowed = false
         var asked = 0
-        e.screenAllowed = { allowed }
+        e.screenAllowed = { false }
         e.askScreen = { asked += 1 }
         let controller = OrganizerController(env: e)
         controller.showDemo("apercu")
@@ -238,12 +237,11 @@ final class OrganizerWindowTests: XCTestCase {
         let family = try XCTUnwrap(controller.presentFamilies.first)
         controller.updateStyle(family) { $0.icon = FLIcon(code: "0-0") }
         XCTAssertFalse(controller.iconsNeedScreen, "Reset n'est pas une icône")
-        controller.updateStyle(family) { $0.icon = FLIcon(code: "7-4") }
-        XCTAssertTrue(controller.iconsNeedScreen)
-        controller.askScreen()
-        XCTAssertEqual(asked, 1)
-        allowed = true
-        XCTAssertFalse(controller.iconsNeedScreen)
+        for code in ["7-4", "1-5", "12-6"] {
+            controller.updateStyle(family) { $0.icon = FLIcon(code: code) }
+            XCTAssertFalse(controller.iconsNeedScreen, "\(code) : numéro connu, écrite dans la copie")
+        }
+        XCTAssertEqual(asked, 0)
         controller.close()
     }
 

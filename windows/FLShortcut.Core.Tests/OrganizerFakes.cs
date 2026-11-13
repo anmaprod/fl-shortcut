@@ -428,6 +428,22 @@ public sealed class FakeDisk
                 var n = link.PatternList.Count + 1;
                 link.PatternList.Add(new PatternInfo(n - 1, new RgbColor(0x48, 0x50, 0x58), $"Pattern {n}"));
             }
+            // Le Channel rack dans l'ordre du fichier (13/11 : rangé dans la copie), chaque son avec ce qu'il avait.
+            var fileNames = project.Channels.Select(c => c.Name ?? "").ToList();
+            var linkNames = link.Channels.Select(c => c.Name).ToList();
+            if (!fileNames.SequenceEqual(linkNames) && fileNames.OrderBy(x => x, StringComparer.Ordinal)
+                    .SequenceEqual(linkNames.OrderBy(x => x, StringComparer.Ordinal)))
+            {
+                var pool = link.Channels.ToList();
+                var placed = new List<ChannelInfo>();
+                foreach (var name in fileNames)
+                {
+                    var c = pool.First(x => x.Name == name);
+                    pool.Remove(c);
+                    placed.Add(c with { Index = placed.Count });
+                }
+                link.Channels = placed;
+            }
             if (AsksDataFolder)
             {
                 _waiting = link.Channels.ToList();

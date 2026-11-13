@@ -346,6 +346,19 @@ struct OrganizerPlan: Equatable {
                          options: source.options, names: moved(source.names), slots: moved(source.slots))
     }
 
+    /// Le même plan sur le projet une fois ses canaux rangés dans la copie (`result`, `map` : index d'avant →
+    /// maintenant, 13/11) : les sons sans note restent à supprimer, plus rien à remonter dans le Channel rack.
+    func reordered(_ result: OrganizerResult, map: [Int: Int], styles: [SoundFamily: FamilyStyle]) -> OrganizerPlan {
+        guard let source else { return self }
+        func moved<T>(_ values: [Int: T]) -> [Int: T] {
+            var out: [Int: T] = [:]
+            for (index, value) in values { if let now = map[index] { out[now] = value } }
+            return out
+        }
+        return Self.make(result, families: moved(source.families), kinds: moved(source.kinds), styles: styles,
+                         options: source.options, names: moved(source.names), slots: moved(source.slots))
+    }
+
     /// Pur (testé) : les patterns à descendre pour qu'aucune piste de la Playlist ne mêle deux sons. Seul un pattern
     /// sûr bouge : chacun de ses sons ne joue dans aucun autre pattern ni sur aucune autre piste, et une position de
     /// la chanson où il joue est connue (la vérification l'y écoute). Sur chaque piste où jouent au moins deux de ces

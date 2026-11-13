@@ -1212,6 +1212,57 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertTrue(outcome.trace.contains { $0.hasPrefix("icônes fichier rack 1 mixer 0 playlist ") }, "\(outcome.trace)")
     }
 
+    /// 13/11 (« tout est génial sauf dans channel rack ça n'a pas tout rangé ») : le Channel rack est rangé dans la
+    /// copie, avant que FL l'ouvre ; plus aucun ⌥↑ envoyé à FL, et chaque son garde ses notes et ses clips.
+    func testRackIsOrderedInTheCopyWithoutKeys() throws {
+        let disk = FakeDisk()
+        disk.files[disk.original] = FLPSample.sample(flOrder: true)
+        let (link, result) = try fileProject(disk)
+        let plan = self.plan(result, options: OrganizerOptions(mixer: false, deleteUnused: false))
+        let final = plan.rack.final
+        XCTAssertNotEqual(final, Array(0..<final.count), "l'exemple doit bouger")
+        var keys = 0
+        let outcome = OrganizerApplier(link: link, moveUp: { count in
+            keys += 1
+            return link.moveSelectedUp(count)
+        }, wait: { _ in }, listen: 0, files: disk.access, marker: "FL Shortcuts 1234")
+            .apply(plan, result: result, styles: FamilyStyles.initial)
+        XCTAssertNil(outcome.error, "\(outcome.trace)")
+        XCTAssertEqual(keys, 0, "aucun ⌥↑")
+        XCTAssertTrue(outcome.trace.contains("rack copie 5 reste 0"), "\(outcome.trace)")
+        XCTAssertFalse(outcome.trace.contains { $0.contains("rack ordre") }, "\(outcome.trace)")
+        XCTAssertTrue(outcome.unordered.isEmpty)
+        let names = ["Pad", "Kick", "ZENOLOGY", "Snare", "808"]
+        let copy = try FLPProject(XCTUnwrap(disk.files[XCTUnwrap(outcome.copy)]))
+        XCTAssertEqual(copy.channels.map(\.iid), Array(0..<5))
+        XCTAssertEqual(copy.channels.map { $0.name ?? "" }, final.map { names[$0] })
+        let place = Dictionary(uniqueKeysWithValues: final.enumerated().map { ($0.element, $0.offset) })
+        XCTAssertEqual(copy.notes[1], [place[2]!: 3], "ZENOLOGY garde ses notes")
+        XCTAssertEqual(copy.notes[3], [place[1]!: 1], "Kick aussi")
+        XCTAssertTrue(copy.clips.contains { $0.source == .channel(place[1]!) }, "et son clip")
+        XCTAssertEqual(link.channels.count, 5)
+    }
+
+    /// Un son qui pourrait être désigné autrement (ici un clip d'automation) : la copie garde l'ordre d'origine et le
+    /// Channel rack est rangé dans FL, comme avant.
+    func testRackStaysInFLWhenTheFileIsNotSafe() throws {
+        let disk = FakeDisk()
+        disk.files[disk.original] = FLPSample.sample(types: [0: ChannelInfo.automationType], flOrder: true)
+        let (link, result) = try fileProject(disk)
+        let plan = self.plan(result, options: OrganizerOptions(mixer: false, deleteUnused: false))
+        var keys = 0
+        let outcome = OrganizerApplier(link: link, moveUp: { count in
+            keys += 1
+            return link.moveSelectedUp(count)
+        }, wait: { _ in }, listen: 0, files: disk.access, marker: "FL Shortcuts 1234")
+            .apply(plan, result: result, styles: FamilyStyles.initial)
+        XCTAssertNil(outcome.error, "\(outcome.trace)")
+        XCTAssertTrue(outcome.trace.contains("rack copie non"), "\(outcome.trace)")
+        XCTAssertGreaterThan(keys, 0, "rangé dans FL")
+        let copy = try FLPProject(XCTUnwrap(disk.files[XCTUnwrap(outcome.copy)]))
+        XCTAssertEqual(copy.channels.map { $0.name ?? "" }, ["Pad", "Kick", "ZENOLOGY", "Snare", "808"])
+    }
+
     /// Le projet a changé depuis l'analyse, ou FL n'ouvre pas la copie : rien n'est touché dans FL, et dans le second
     /// cas « Revenir comme avant » rouvre l'original.
     func testCopyRefusedWhenTheProjectChangedOrDoesNotOpen() throws {
@@ -1279,6 +1330,15 @@ final class FakeDisk {
                 let n = link.patternList.count + 1
                 link.patternList.append(PatternInfo(index: n - 1, color: RGBColor(r: 0x48, g: 0x50, b: 0x58),
                                                     name: "Pattern \(n)"))
+            }
+            // Le Channel rack dans l'ordre du fichier (13/11 : rangé dans la copie), chaque son avec ce qu'il avait.
+            let fileNames = project.channels.map { $0.name ?? "" }
+            if fileNames != link.channels.map(\.name), fileNames.sorted() == link.channels.map(\.name).sorted() {
+                var pool = link.channels
+                link.channels = fileNames.enumerated().map { place, name in
+                    let c = pool.remove(at: pool.firstIndex { $0.name == name }!)
+                    return ChannelInfo(index: place, type: c.type, mixerTrack: c.mixerTrack, color: c.color, name: c.name)
+                }
             }
             if self.asksDataFolder {
                 self.waiting = link.channels

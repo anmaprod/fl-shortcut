@@ -60,7 +60,7 @@ enum FLPSample {
     static func sample(clips: [ClipSpec]? = nil, trackNames: [Int: String] = [:], trackCount: Int = 12,
                        group: Int? = nil, second: [ClipSpec]? = nil, current: Int? = nil,
                        names: [String] = ["Pad", "Kick", "ZENOLOGY", "Snare", "808"],
-                       samples: [Int: String] = [:], types: [Int: Int] = [:]) -> FLPFile {
+                       samples: [Int: String] = [:], types: [Int: Int] = [:], flOrder: Bool = false) -> FLPFile {
         var events: [FLPEvent] = [text(199, "26.1"), ev(0, 64), ev(100, 32896), ev(64, 2), ev(96, 0), ev(0, 71)]
         if let group { events.append(ev(146, group)) }
         events += [ev(65, 1), notes([(2, 60), (2, 64), (2, 67)]), ev(65, 2), notes([(3, 48), (4, 36)]),
@@ -69,11 +69,14 @@ enum FLPSample {
             events += [ev(64, i), ev(21, types[i] ?? (i == 2 ? 2 : 0)), text(201, i == 2 ? "Fruity Wrapper" : ""),
                        text(203, name)]
             if let path = samples[i] { events.append(text(196, path)) }
+            // `flOrder` : comme FL (projets du propriétaire), chaque canal finit par le même événement, avant les noms
+            // des patterns écrits après le premier.
+            if flOrder { events.append(ev(128, 0x404040)) }
             if i == 0 {
                 events += [ev(65, 1), text(193, "Mélodie"), ev(150, 0x404040), ev(65, 2), text(193, "Drums"),
                            ev(65, 4), text(193, "Vide")]
             }
-            events.append(ev(128, 0x404040))
+            if !flOrder { events.append(ev(128, 0x404040)) }
         }
         let spec = clips ?? [ClipSpec(pattern: 1, track: 0, bar: 1), ClipSpec(pattern: 2, track: 1, bar: 1),
                              ClipSpec(pattern: 1, track: 2, bar: 5), ClipSpec(pattern: 2, track: 3, bar: 5),

@@ -388,6 +388,17 @@ enum ScreenLook {
         return true
     }
 
+    /// Une seule fenêtre (13/11, capture de la demande de macOS : « cette page n'a pas besoin de s'ouvrir vu que l'autre
+    /// s'ouvre ») : FL Shortcuts déjà dans la liste (TCC « refusé ») → la page des Réglages seule (sur macOS 27, la
+    /// demande montrait sa petite fenêtre ET les Réglages) ; sinon, la toute première fois, la demande de macOS seule,
+    /// dont le bouton mène aux Réglages ; sinon la page seule. Vrai si c'est la fenêtre de macOS.
+    @discardableResult
+    static func askOneWindow() -> Bool {
+        if AudioCapturePermission.screenAndAudioStatus != .denied, requestOnce() { return true }
+        openSettings()
+        return false
+    }
+
     static func openSettings() {
         SingleInstance.watchForRelaunch()                // « Quitter et rouvrir » : l'app revient
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {

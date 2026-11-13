@@ -855,7 +855,17 @@
   Mac `FLIconNumbers.table` (passe avant les numéros appris en rangeant), Windows `FlIconIds` (essai
   `SameTableAsTheMac`). Plus aucun clic d'icône dans l'Organiser : toutes écrites dans la copie avant son ouverture.
   Bouton « Apprendre les icônes de FL » RETIRÉ de l'écran Démarrer (code gardé : `learnIcons`, à remettre seulement
-  si FL change ses icônes). Le 75/105 de crash out 3 = un clic mal tombé au Mixer (même numérotation).
+  si FL change ses icônes). Le 75/105 de crash out 3 = un clic mal tombé au Mixer (même numérotation). Plus aucune
+  icône ne demande « Enregistrement de l'écran » (`iconsNeedScreen` : numéros inconnus seulement).
+- **Channel rack rangé dans la copie** (13/11, « tout est génial sauf dans channel rack ça n'a pas tout rangé » ; avant :
+  ⌥↑ coupés, `remise rack touche sans effet 5` / `fenêtre playlist 5`) : avant que FL ouvre la copie, chaque canal à
+  sa place finale, renuméroté (64), ses notes (224) et clips audio (233) suivis, le reste en place
+  (`FLPProject.reorderingChannels`, Windows `FlpChannelOrder.Reordering`), puis projet et plan suivis
+  (`OrganizerResult.reordering`, `OrganizerPlan.reordered`). Garde-fous, sinon ⌥↑ comme avant : layer, clip
+  d'automation, 223/227/234, fin de canal différente. Diagnostic `rack copie N reste M` / `rack copie non`. Vérifié sur
+  ses 3 projets (code Windows) ; pas encore vu dans le vrai FL. Le Mixer reste rangé au clavier (⌥←).
+- Une seule fenêtre pour « Enregistrement de l'écran » (13/11, « cette page n'a pas besoin de s'ouvrir vu que l'autre
+  s'ouvre ») : `ScreenLook.askOneWindow()` (déjà dans la liste → Réglages seuls ; sinon la demande de macOS seule).
 - Mails du compte : 2 par heure (donc 2 inscriptions) tant que le propriétaire n'a pas fait l'étape 6 de
   `supabase/README.md` (11/11 : Gmail rien que pour l'app, 60 par heure ; plus tard Brevo avec le domaine du site).
   Bêta limitée (1 000 comptes, un compte = un ordinateur) mise de côté le 11/11 : choix dans HISTORIQUE.

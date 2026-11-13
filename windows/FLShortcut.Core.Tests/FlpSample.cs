@@ -67,7 +67,7 @@ public static class FlpSample
     /// noms des patterns, notes, Playlist (deux fois les mêmes patterns sur deux pistes), pistes, Mixer.
     public static FlpFile Sample(List<ClipSpec>? clips = null, Dictionary<int, string>? trackNames = null, int trackCount = 12,
         int? group = null, List<ClipSpec>? second = null, int? current = null, string[]? names = null,
-        Dictionary<int, string>? samples = null, Dictionary<int, int>? types = null)
+        Dictionary<int, string>? samples = null, Dictionary<int, int>? types = null, bool flOrder = false)
     {
         names ??= DefaultNames;
         trackNames ??= new Dictionary<int, string>();
@@ -81,10 +81,13 @@ public static class FlpSample
             events.AddRange(new[] { Ev(64, i), Ev(21, types.TryGetValue(i, out var t) ? t : (i == 2 ? 2 : 0)),
                 Text(201, i == 2 ? "Fruity Wrapper" : ""), Text(203, names[i]) });
             if (samples.TryGetValue(i, out var path)) events.Add(Text(196, path));
+            // `flOrder` : comme FL (projets du propriétaire), chaque canal finit par le même événement, avant les noms
+            // des patterns écrits après le premier.
+            if (flOrder) events.Add(Ev(128, 0x404040));
             if (i == 0)
                 events.AddRange(new[] { Ev(65, 1), Text(193, "Mélodie"), Ev(150, 0x404040), Ev(65, 2), Text(193, "Drums"),
                     Ev(65, 4), Text(193, "Vide") });
-            events.Add(Ev(128, 0x404040));
+            if (!flOrder) events.Add(Ev(128, 0x404040));
         }
         var spec = clips ?? DefaultClips();
         var arrangements = new[] { spec, second };

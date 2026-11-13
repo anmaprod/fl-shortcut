@@ -282,6 +282,23 @@ public sealed class OrganizerApplier
             copy = written.File;
             outcome.Trace.Add($"icônes copie rack {written.Channels.Count}/{rackIcons.Count} mixer {written.Inserts.Count}/{mixerIcons.Count}");
         }
+        // 13/11 (comme le Mac, « tout est génial sauf dans channel rack ça n'a pas tout rangé ») : le Channel rack rangé
+        // dans la copie, ses sons à leur place avant que FL l'ouvre (plus de touches que FL pouvait couper) ; la suite
+        // travaille sur les nouvelles places. Un fichier d'une forme inattendue : rangé dans FL comme avant.
+        List<int>? rackOrder = null;
+        var final = plan.Rack.Final.ToList();
+        if (final.Count > 0 && !final.SequenceEqual(Enumerable.Range(0, final.Count)))
+        {
+            if (FlpChannelOrder.Reordering(copy, final) is { } reordered && result.Reordering(final) is { } moved)
+            {
+                copy = reordered;
+                rackOrder = final;
+                result = moved.Result;
+                plan = plan.Reordered(moved.Result, moved.Map, styles);
+                outcome.Trace.Add($"rack copie {final.Count} reste {plan.Rack.Moves.Count}");
+            }
+            else outcome.Trace.Add("rack copie non");
+        }
         if (ProjectFile.Marking(copy, _marker) is not { } marked)
             throw OrganizerError.Failed(Loc.F("Projet pas encore rangeable sans risque : %@.", "patterns"));
         var markedFile = marked.File;
@@ -343,7 +360,10 @@ public sealed class OrganizerApplier
         else
         {
             var c = marked.Mark.Number;
-            var beforeName = read.Project.Channels[c].Name is { } bn && !ProjectFile.IsMarker(bn) ? bn : null;
+            // Channel rack rangé dans la copie : le canal marqué était à une autre place dans le projet d'origine.
+            var was = rackOrder is not null && c >= 0 && c < rackOrder.Count ? rackOrder[c] : c;
+            var beforeName = was >= 0 && was < read.Project.Channels.Count && read.Project.Channels[was].Name is { } bn
+                && !ProjectFile.IsMarker(bn) ? bn : null;
             var name = beforeName ?? result.Channels.FirstOrDefault(x => x.Index == c)?.Name ?? $"Channel {c + 1}";
             Retrying(() => { _link.SetNames(ItemKind.Channels, new[] { (c, name) }); return 0; });
         }

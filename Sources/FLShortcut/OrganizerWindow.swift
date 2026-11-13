@@ -175,12 +175,9 @@ struct OrganizerEnvironment {
             // 12/11 : « il ne rouvre pas automatiquement FL Studio »).
             restartFL: { _ = FLRelauncher.shared.restart() },
             screenAllowed: { ScreenLook.allowed },
-            // Retour du 31/10 (« aucune page ne s'ouvre ») : la page des Réglages toujours ouverte, l'app inscrite
-            // dans sa liste par la demande.
-            askScreen: {
-                ScreenLook.requestAccess()
-                ScreenLook.openSettings()
-            },
+            // 13/11 (« cette page n'a pas besoin de s'ouvrir vu que l'autre s'ouvre ») : une seule fenêtre, la demande
+            // de macOS (qui mène aux Réglages) ou la page des Réglages, jamais les deux.
+            askScreen: { ScreenLook.askOneWindow() },
             scriptPlace: { FLScriptInstaller.installedScript() },
             reveal: { NSWorkspace.shared.activateFileViewerSelecting([$0]) },
             wrongInput: { MIDILink.shared.core.snapshot.wrongInput },
@@ -202,7 +199,7 @@ struct OrganizerEnvironment {
             audioPermission: { AudioCapturePermission.screenAndAudioStatus },
             requestAudioPermission: { done in
                 NSApp.activate(ignoringOtherApps: true)        // la fenêtre de macOS devant FL, pas derrière
-                if !ScreenLook.requestOnce() { ScreenLook.openSettings() }
+                ScreenLook.askOneWindow()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1) { done(false) }
                 return true
             },
@@ -860,8 +857,12 @@ final class OrganizerController: ObservableObject {
 
     /// Des icônes choisies, mais FL Shortcuts ne peut pas lire la fenêtre de FL : dit avant « Organiser » (capture du
     /// 31/10 : l'échec ne venait qu'au moment de les poser).
+    /// Seules les icônes au numéro de FL inconnu passent encore par la fenêtre de FL (« Enregistrement de l'écran ») ;
+    /// toutes les cases de la grille sont dans `FLIconNumbers` (13/11) : rien à demander pour elles.
     var iconsNeedScreen: Bool {
-        presentFamilies.contains { style(of: $0).icon.map { !$0.isReset } ?? false } && !env.screenAllowed()
+        presentFamilies.contains { family in
+            style(of: family).icon.map { !$0.isReset && FLIconNumbers.table[$0.code] == nil } ?? false
+        } && !env.screenAllowed()
     }
 
     func askScreen() { env.askScreen() }

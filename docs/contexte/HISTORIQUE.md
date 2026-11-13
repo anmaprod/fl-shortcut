@@ -1074,3 +1074,24 @@ entrée 1 ≈ 0,5 s.
   « j'ai pas eu pour Playlist ? » → mêmes numéros : une seule liste chez FL, et la Playlist marchait déjà le 12/11 avec
   ceux du Channel rack). Table dans l'app : Mac `FLIconNumbers.swift` (avant les numéros appris en rangeant),
   Windows `FlIconIds` (essai qui compare avec le Mac). Bouton d'apprentissage retiré (« c'est juste pour moi »).
+- 13/11 (3) : capture après 69d8b4a (« tout est génial sauf dans channel rack ça n'a pas tout rangé » : Playlist,
+  groupes et icônes bons ; Channel rack dans le désordre). Ses diagnostics d'avant disaient déjà `remise rack touche
+  sans effet 5` puis `remise rack fenêtre playlist 5` : en remontant les sons par ⌥↑, FL donnait la main à la Playlist
+  et, au 5e accroc, le Channel rack était laissé tel quel. → Channel rack RANGÉ DANS LA COPIE, avant que FL l'ouvre
+  (comme la Playlist et les icônes) : FL écrit ses canaux dans l'ordre du Channel rack, numérotés par leur place (64 =
+  0, 1, 2…), et les notes (224, canal à la place 6) et les clips audio (233, place 6) les désignent par ce numéro
+  (vu sur ses 3 projets : deux canaux ajoutés décalaient les suivants avec leurs notes). Chaque canal déplacé avec ses
+  événements jusqu'au canal suivant, aux patterns (FL écrit leurs noms après le premier canal), à l'arrangement ou au
+  Mixer ; ce qui suit chaque place y reste. Garde-fous (sinon ⌥↑ comme avant, `rack copie non`) : numéros 0, 1, 2…
+  dans l'ordre, aucun layer (3) ni clip d'automation (5), aucun 223/227/234, aucun 94 dans un canal, tous les canaux
+  finissent par le même événement (51 chez FL). Le projet et le plan suivent (`OrganizerResult.reordering`,
+  `OrganizerPlan.reordered` : les sons sans note restent à supprimer) ; la marque d'un canal remise à son nom d'avant.
+  Mac `FLPChannelOrder.swift`, Windows `FlpChannelOrder.cs`. Vérifié avec le code de Windows sur ses 3 projets
+  (original, copie, crash out 3 : noms, notes, 49 clips audio, patterns suivis ; ranger puis remettre = même fichier).
+  Diagnostic : `rack copie N reste M` (M : remontées encore à faire dans FL, 0 attendu).
+- 13/11 (4) : capture de la demande de macOS « Enregistrement de l'écran » (« cette page n'a pas besoin de s'ouvrir
+  vu que l'autre s'ouvre ») : l'« Autoriser » des icônes de l'Organiser ouvrait la demande de macOS ET la page des
+  Réglages. → `ScreenLook.askOneWindow()` : app déjà dans la liste → la page seule ; sinon la demande de macOS seule
+  (la toute première fois) ; sinon la page seule (Organiser, son de FL de l'Organiser, créateur de macros). Et plus
+  aucune icône ne demande l'écran : toutes ont leur numéro (`iconsNeedScreen` ne compte que les inconnues). Windows :
+  aucune autorisation de ce genre (rien à changer).
