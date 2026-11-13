@@ -135,6 +135,10 @@ struct OrganizerEnvironment {
     /// « Garder » de l'écran de fin (13/11) : la version rangée devient le projet tout de suite (fenêtre de la question,
     /// directement sur « FL enregistre la version organisée… »). Fil principal.
     var keepCopy: (_ copy: URL) -> Void = { _ in }
+    /// « Pas content ? › Le Mixer » (13/11) : un bus par famille et le pré-master, gardés pour les prochains rangements
+    /// (nil : jamais choisis, les réglages d'origine).
+    var loadMixerChoices: () -> (buses: Bool, premaster: Bool)? = { nil }
+    var saveMixerChoices: (_ buses: Bool, _ premaster: Bool) -> Void = { _, _ in }
 
     static func live() -> OrganizerEnvironment {
         OrganizerEnvironment(
@@ -257,7 +261,16 @@ struct OrganizerEnvironment {
             },
             copyMade: { CopyApproval.shared.record(original: $0, copy: $1) },
             copyUndone: { CopyApproval.shared.discard(copy: $0) },
-            keepCopy: { copy in MainActor.assumeIsolated { CopyApprovalWindow.shared.show(keeping: copy) } })
+            keepCopy: { copy in MainActor.assumeIsolated { CopyApprovalWindow.shared.show(keeping: copy) } },
+            loadMixerChoices: {
+                let d = UserDefaults.standard
+                guard d.object(forKey: "organize.buses") != nil else { return nil }
+                return (d.bool(forKey: "organize.buses"), d.bool(forKey: "organize.premaster"))
+            },
+            saveMixerChoices: { buses, premaster in
+                UserDefaults.standard.set(buses, forKey: "organize.buses")
+                UserDefaults.standard.set(premaster, forKey: "organize.premaster")
+            })
     }
 
     /// La Playlist devant (FL au premier plan), lue dans sa fenêtre.
@@ -623,6 +636,10 @@ final class OrganizerController: ObservableObject {
         self.env = env
         styles = env.loadStyles()
         options.familyOrder = OrganizerOptions.completeOrder(env.loadFamilyOrder())
+        if let choices = env.loadMixerChoices() {
+            options.buses = choices.buses
+            options.premaster = choices.premaster
+        }
         // Lien pas encore installé : « Installer le lien » d'abord, « Démarrer » ensuite (retour du 01/11).
         if !env.linkInstalled() { phase = .setup }
     }
@@ -1425,7 +1442,24 @@ final class OrganizerController: ObservableObject {
     }
 
     /// « Envoyer » : les sons corrigés retenus (et partagés si la case est cochée), le reste dit à l'équipe.
+    /// « Pas content ? › La Playlist » (13/11) : les familles dans cet ordre (« À vérifier » toujours à la fin).
+    func setFamilyOrder(_ order: [SoundFamily]) {
+        options.familyOrder = OrganizerOptions.completeOrder(order)
+    }
+
+    /// « Pas content ? › Annuler » (13/11) : couleurs, départs du Mixer, bus, pré-master et ordre comme à l'ouverture.
+    func restore(styles: [SoundFamily: FamilyStyle], options: OrganizerOptions) {
+        self.styles = styles
+        self.options = options
+        env.saveStyles(styles)
+    }
+
+    /// « C'est noté » (13/11) : les sons corrigés appris, le message pour l'équipe s'il y en a un, et ce qui a été changé
+    /// (couleurs, départs du Mixer, bus, pré-master, ordre des familles) gardé pour les prochains rangements.
     func submitFeedback(_ feedback: OrganizerFeedback) {
+        env.saveStyles(styles)
+        env.saveFamilyOrder(options.familyOrder)
+        env.saveMixerChoices(options.buses, options.premaster)
         if !feedback.fixes.isEmpty { env.corrections()?.partage = feedback.share }
         learned += learn(feedback.fixes, reasons: feedback.reasons.map(\.rawValue).sorted())
         if let message = feedback.teamMessage() { env.sendFeedback(message, diagnosticText) }

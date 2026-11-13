@@ -537,6 +537,35 @@ final class OrganizerWindowTests: XCTestCase {
         controller.close()
     }
 
+    /// 13/11 (« Pas content ? » en pages, maquette validée) : les choix gardés reviennent à l'ouverture ; « Annuler »
+    /// remet tout comme avant ; « C'est noté » garde l'ordre des familles, le bus par famille et le pré-master.
+    func testFeedbackPagesKeepOrRestoreChoices() {
+        let link = FakeOrganizerLink()
+        var e = env(link, FakeAudio(link: link), saved: { _ in })
+        var savedChoices: (buses: Bool, premaster: Bool)?
+        var savedOrder: [SoundFamily]?
+        e.loadMixerChoices = { (buses: false, premaster: false) }
+        e.saveMixerChoices = { savedChoices = (buses: $0, premaster: $1) }
+        e.saveFamilyOrder = { savedOrder = $0 }
+        let controller = OrganizerController(env: e)
+        XCTAssertFalse(controller.options.buses, "le choix gardé revient")
+        XCTAssertFalse(controller.options.premaster)
+        let styles = controller.styles, options = controller.options
+        controller.options.buses = true
+        controller.setFamilyOrder([.drums, .bass, .melody, .vocals, .fx])
+        XCTAssertEqual(controller.options.familyOrder.first, .drums)
+        controller.restore(styles: styles, options: options)
+        XCTAssertFalse(controller.options.buses, "Annuler : comme à l'ouverture")
+        XCTAssertNotEqual(controller.options.familyOrder.first, .drums)
+        controller.setFamilyOrder([.drums, .bass, .melody, .vocals, .fx])
+        controller.options.buses = true
+        controller.options.premaster = true
+        controller.submitFeedback(OrganizerFeedback())
+        XCTAssertEqual(savedOrder?.first, .drums, "C'est noté : l'ordre gardé")
+        XCTAssertEqual(savedChoices?.buses, true)
+        XCTAssertEqual(savedChoices?.premaster, true)
+    }
+
     /// Fermé sans avoir démarré : rien n'a été demandé à FL, le lien est rendu quand même (aucun port).
     func testCloseBeforeStartReleasesLink() {
         let link = FakeOrganizerLink()

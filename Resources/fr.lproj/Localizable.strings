@@ -83,6 +83,7 @@
 "%lld raccourcis" = "%lld raccourcis";
 "%lld résultats chez %@" = "%lld résultats chez %@";
 "%lld s" = "%lld s";
+"%lld sons corrigés" = "%lld sons corrigés";
 "%lld sons envoyés au Master reliés chacun à une piste libre du Mixer" = "%lld sons envoyés au Master reliés chacun à une piste libre du Mixer";
 "%lld sons sans aucune note laissés de côté (ni rangés, ni colorés, ni renommés)" = "%lld sons sans aucune note laissés de côté (ni rangés, ni colorés, ni renommés)";
 "%lld sons sans aucune note supprimés du Channel rack (on ne peut pas les remettre avec « Revenir comme avant »)" = "%lld sons sans aucune note supprimés du Channel rack (on ne peut pas les remettre avec « Revenir comme avant »)";
@@ -121,6 +122,7 @@
 "1 partage trouvé" = "1 partage trouvé";
 "1 raccourci" = "1 raccourci";
 "1 résultat chez %@" = "1 résultat chez %@";
+"1 son corrigé" = "1 son corrigé";
 "1 sortie" = "1 sortie";
 "1 touche" = "1 touche";
 "1 à %lld" = "1 à %lld";
@@ -197,6 +199,7 @@
 "Aide" = "Aide";
 "Aide, compte, profil, import et export" = "Aide, compte, profil, import et export";
 "Aide, guide et contact" = "Aide, guide et contact";
+"Aider l'ordinateur de tout le monde" = "Aider l'ordinateur de tout le monde";
 "Aider l'ordinateur de tout le monde : envoyer des nombres qui décrivent ces sons (jamais le son, son nom ni ce que tu écris)" = "Aider l'ordinateur de tout le monde : envoyer des nombres qui décrivent ces sons (jamais le son, son nom ni ce que tu écris)";
 "Aides de notes" = "Aides de notes";
 "Ajoute ce bloc sous la ligne choisie" = "Ajoute ce bloc sous la ligne choisie";
@@ -358,6 +361,7 @@
 "Autorisé" = "Autorisé";
 "Autre" = "Autre";
 "Autre (lettres soulignées)…" = "Autre (lettres soulignées)…";
+"Autre chose ?" = "Autre chose ?";
 "Autre dossier de FL…" = "Autre dossier de FL…";
 "Autres" = "Autres";
 "Avance rapide" = "Avance rapide";
@@ -411,10 +415,12 @@
 "Bureau de droite" = "Bureau de droite";
 "Bureau de gauche" = "Bureau de gauche";
 "Bypass des effets de la piste" = "Bypass des effets de la piste";
+"C'est bon" = "C'est bon";
 "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout, sauf les sons supprimés." = "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout, sauf les sons supprimés.";
 "C'est fait : ton projet est rangé" = "C'est fait : ton projet est rangé";
 "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « %@ », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre et met la copie à la Corbeille." = "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « %@ », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre et met la copie à la Corbeille.";
 "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « %@ », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre." = "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « %@ », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre.";
+"C'est noté" = "C'est noté";
 "C'est parti" = "C'est parti";
 "Cacher le mot de passe" = "Cacher le mot de passe";
 "Canal" = "Canal";
@@ -482,6 +488,7 @@
 "Changer le raccourci de la macro" = "Changer le raccourci de la macro";
 "Changer ta photo" = "Changer ta photo";
 "Changer…" = "Changer…";
+"Changé" = "Changé";
 "Channel Rack" = "Channel Rack";
 "Channel rack" = "Channel rack";
 "Channel rack : %lld sons regroupés et colorés, %lld renommés" = "Channel rack : %lld sons regroupés et colorés, %lld renommés";
@@ -531,6 +538,8 @@
 "Choisis d'abord la page dans « Ouvrir une page de FL » juste au-dessus : seules ses options " = "Choisis d'abord la page dans « Ouvrir une page de FL » juste au-dessus : seules ses options ";
 "Choisis d'abord quelle version garder : celle de ce Mac ou celle de ton compte." = "Choisis d'abord quelle version garder : celle de ce Mac ou celle de ton compte.";
 "Choisis l'option à cliquer dans %@." = "Choisis l'option à cliquer dans %@.";
+"Choisis la bonne famille du son qui n'est pas à sa place." = "Choisis la bonne famille du son qui n'est pas à sa place.";
+"Choisis la couleur de chaque famille." = "Choisis la couleur de chaque famille.";
 "Choisis la macro à partager." = "Choisis la macro à partager.";
 "Choisis la page de FL à ouvrir : les options de « Cliquer sur… » en dessous viennent d'elle." = "Choisis la page de FL à ouvrir : les options de « Cliquer sur… » en dessous viennent d'elle.";
 "Choisis la page de FL à ouvrir." = "Choisis la page de FL à ouvrir.";
@@ -1167,6 +1176,7 @@
 "La Communauté" = "La Communauté";
 "La Communauté n'est pas encore ouverte" = "La Communauté n'est pas encore ouverte";
 "La Communauté n'est pas encore ouverte dans cette version." = "La Communauté n'est pas encore ouverte dans cette version.";
+"La Playlist" = "La Playlist";
 "La Playlist n'est pas bien rangée" = "La Playlist n'est pas bien rangée";
 "La carte devient la sortie et l'entrée du Mac. Une seule fois, dans FL › Options › Audio settings : " = "La carte devient la sortie et l'entrée du Mac. Une seule fois, dans FL › Options › Audio settings : ";
 "La carte son branchée (USB, Thunderbolt…) devient la sortie et l'entrée du Mac ; FL la suit tout seul s'il est réglé une fois sur « Default audio device » (Output) et « Default input device » (Input) dans Options › Audio settings." = "La carte son branchée (USB, Thunderbolt…) devient la sortie et l'entrée du Mac ; FL la suit tout seul s'il est réglé une fois sur « Default audio device » (Output) et « Default input device » (Input) dans Options › Audio settings.";
@@ -1192,6 +1202,8 @@
 "Last devient aussi First" = "Last devient aussi First";
 "Le %@ du canal est basculé par le lien avec FL : ni souris, ni touche. Sans " = "Le %@ du canal est basculé par le lien avec FL : ni souris, ni touche. Sans ";
 "Le Channel rack a changé depuis l'analyse : relance Organiser." = "Le Channel rack a changé depuis l'analyse : relance Organiser.";
+"Le Channel rack et le Mixer suivent le même ordre." = "Le Channel rack et le Mixer suivent le même ordre.";
+"Le Mixer" = "Le Mixer";
 "Le Mixer n'est pas bien rangé" = "Le Mixer n'est pas bien rangé";
 "Le REC démarre à la première note jouée" = "Le REC démarre à la première note jouée";
 "Le bandeau en bas du créateur dit à quel bloc elle s'est arrêtée (« Montrer le bloc »). Si FL a changé de taille ou d'écran, remontre l'endroit de ce bloc. Un bouton qui porte un nom (« FILE », « Insert 1 ») est retrouvé par son nom même s'il bouge, si l'app peut lire l'écran (autorisation « Enregistrement de l'écran ») ; un bouton sans nom qui bouge (le « + » du Channel rack) : active « Retrouver ce bouton s'il bouge » sur ce clic. Si une fenêtre de FL met du temps à s'ouvrir, ajoute un bloc « Attendre » juste avant." = "Le bandeau en bas du créateur dit à quel bloc elle s'est arrêtée (« Montrer le bloc »). Si FL a changé de taille ou d'écran, remontre l'endroit de ce bloc. Un bouton qui porte un nom (« FILE », « Insert 1 ») est retrouvé par son nom même s'il bouge, si l'app peut lire l'écran (autorisation « Enregistrement de l'écran ») ; un bouton sans nom qui bouge (le « + » du Channel rack) : active « Retrouver ce bouton s'il bouge » sur ce clic. Si une fenêtre de FL met du temps à s'ouvrir, ajoute un bloc « Attendre » juste avant.";
@@ -1249,6 +1261,7 @@
 "Les blocs ajoutés maintenant (palette à gauche) vont à la fin de cette liste. Tu peux aussi y glisser une ligne." = "Les blocs ajoutés maintenant (palette à gauche) vont à la fin de cette liste. Tu peux aussi y glisser une ligne.";
 "Les blocs ajoutés vont à la fin de cette liste." = "Les blocs ajoutés vont à la fin de cette liste.";
 "Les comptes ne sont pas encore ouverts" = "Les comptes ne sont pas encore ouverts";
+"Les couleurs" = "Les couleurs";
 "Les couleurs ou les noms ne me plaisent pas" = "Les couleurs ou les noms ne me plaisent pas";
 "Les endroits appris (clics montrés dans FL) ne sont pas exportés : ils se montrent sur chaque Mac." = "Les endroits appris (clics montrés dans FL) ne sont pas exportés : ils se montrent sur chaque Mac.";
 "Les macros" = "Les macros";
@@ -1581,6 +1594,7 @@
 "Ouvrir une page de FL" = "Ouvrir une page de FL";
 "Ouvrir…" = "Ouvrir…";
 "Où" = "Où";
+"Où commence chaque famille dans le Mixer ?" = "Où commence chaque famille dans le Mixer ?";
 "Pad" = "Pad";
 "Page" = "Page";
 "Page %lld sur %lld" = "Page %lld sur %lld";
@@ -1611,6 +1625,7 @@
 "Partir d'un modèle…" = "Partir d'un modèle…";
 "Partout" = "Partout";
 "Pas" = "Pas";
+"Pas content" = "Pas content";
 "Pas content ?" = "Pas content ?";
 "Pas d'icône" = "Pas d'icône";
 "Pas d'icône avec un dégradé (FL la pose sur un seul élément)." = "Pas d'icône avec un dégradé (FL la pose sur un seul élément).";
@@ -1738,6 +1753,7 @@
 "Près du clic précédent" = "Près du clic précédent";
 "Près du curseur au départ" = "Près du curseur au départ";
 "Pré-master" = "Pré-master";
+"Pré-master avant le Master" = "Pré-master avant le Master";
 "Précisions (facultatif)" = "Précisions (facultatif)";
 "Précédent" = "Précédent";
 "Préparation de l'analyse…" = "Préparation de l'analyse…";
@@ -1789,6 +1805,7 @@
 "Raccourcis partagés" = "Raccourcis partagés";
 "Raison" = "Raison";
 "Raison : 3 à 500 caractères." = "Raison : 3 à 500 caractères.";
+"Range les familles dans l'ordre que tu veux, de haut en bas." = "Range les familles dans l'ordre que tu veux, de haut en bas.";
 "Range, colore et renomme tout le projet" = "Range, colore et renomme tout le projet";
 "Range, colore et renomme tout le projet." = "Range, colore et renomme tout le projet.";
 "Rangement automatique" = "Rangement automatique";
@@ -2115,6 +2132,7 @@
 "Tester dans FL" = "Tester dans FL";
 "Texte" = "Texte";
 "Thème" = "Thème";
+"Tire la case vers le haut ou le bas, comme dans FL, ou clique pour écrire." = "Tire la case vers le haut ou le bas, comme dans FL, ou clique pour écrire.";
 "Titre" = "Titre";
 "Titre : %lld à %lld caractères." = "Titre : %lld à %lld caractères.";
 "Titres" = "Titres";
@@ -2144,6 +2162,7 @@
 "Touche" = "Touche";
 "Touche %u" = "Touche %u";
 "Touche aussi utilisée par « %@ ». Clique sur la touche pour en choisir une autre." = "Touche aussi utilisée par « %@ ». Clique sur la touche pour en choisir une autre.";
+"Touche ce qui ne va pas et corrige-le. L'ordinateur s'en souviendra la prochaine fois." = "Touche ce qui ne va pas et corrige-le. L'ordinateur s'en souviendra la prochaine fois.";
 "Touche de FL" = "Touche de FL";
 "Touche de FL : %@." = "Touche de FL : %@.";
 "Touche de FL à choisir" = "Touche de FL à choisir";
@@ -2220,6 +2239,7 @@
 "Un problème" = "Un problème";
 "Un son a le mauvais nom (Kick, Snare, Pad…)" = "Un son a le mauvais nom (Kick, Snare, Pad…)";
 "Un son est dans la mauvaise famille" = "Un son est dans la mauvaise famille";
+"Un son est mal rangé" = "Un son est mal rangé";
 "Un son rangé d'après son nom : ta réponse est retenue pour ce nom, sur ce Mac." = "Un son rangé d'après son nom : ta réponse est retenue pour ce nom, sur ce Mac.";
 "Un « ! » apparaît sur l'icône en haut de l'écran" = "Un « ! » apparaît sur l'icône en haut de l'écran";
 "Un « ! » sur l'icône : autorise le clavier." = "Un « ! » sur l'icône : autorise le clavier.";
@@ -2379,6 +2399,7 @@
 "dans la colonne du curseur" = "dans la colonne du curseur";
 "de FL (F5, F6, F7, F9…), qui la referme si elle est déjà devant." = "de FL (F5, F6, F7, F9…), qui la referme si elle est déjà devant.";
 "de l'endroit appris jusqu'à l'autre" = "de l'endroit appris jusqu'à l'autre";
+"des nombres, jamais le son" = "des nombres, jamais le son";
 "donne un nom ou une couleur." = "donne un nom ou une couleur.";
 "données trop longues" = "données trop longues";
 "dégradé #%@ → #%@" = "dégradé #%@ → #%@";
@@ -2431,6 +2452,7 @@
 "la liste « More plugins… » de FL ne s'est pas ouverte" = "la liste « More plugins… » de FL ne s'est pas ouverte";
 "la page de FL a changé pendant les icônes" = "la page de FL a changé pendant les icônes";
 "la piste visée est hors de FL : clique d'abord sur ta piste dans le Mixer" = "la piste visée est hors de FL : clique d'abord sur ta piste dans le Mixer";
+"la playlist" = "la playlist";
 "la souris est hors de FL" = "la souris est hors de FL";
 "le bloc précédent a échoué" = "le bloc précédent a échoué";
 "le glisser du preset n'a pas démarré (une fenêtre couvre la piste ?)" = "le glisser du preset n'a pas démarré (une fenêtre couvre la piste ?)";
@@ -2452,6 +2474,7 @@
 "le menu de la piste ne sait qu'armer la piste." = "le menu de la piste ne sait qu'armer la piste.";
 "le menu du clic droit de FL ne s'est pas ouvert : clique d'abord sur le nom d'un son, d'une piste du Mixer ou de la Playlist, puis relance" = "le menu du clic droit de FL ne s'est pas ouvert : clique d'abord sur le nom d'un son, d'une piste du Mixer ou de la Playlist, puis relance";
 "le menu « Arrangement » de FL ne s'est pas ouvert" = "le menu « Arrangement » de FL ne s'est pas ouvert";
+"le mixer" = "le mixer";
 "le nom contient un caractère invisible." = "le nom contient un caractère invisible.";
 "le point visé est hors de FL" = "le point visé est hors de FL";
 "le serveur n'a pas répondu." = "le serveur n'a pas répondu.";
@@ -2459,6 +2482,8 @@
 "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le bouton ne peut pas être cherché" = "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le bouton ne peut pas être cherché";
 "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le plugin ne peut pas être cherché dans « More plugins… » de FL" = "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le plugin ne peut pas être cherché dans « More plugins… » de FL";
 "lecture de l'état de FL : demande l'extension du lien avec FL" = "lecture de l'état de FL : demande l'extension du lien avec FL";
+"les couleurs" = "les couleurs";
+"les sons" = "les sons";
 "lettre de menu non prise en charge" = "lettre de menu non prise en charge";
 "lettres de menu invalides (a à z)." = "lettres de menu invalides (a à z).";
 "lien avec FL" = "lien avec FL";
@@ -2538,8 +2563,10 @@
 "page de FL à choisir dans la macro" = "page de FL à choisir dans la macro";
 "page à choisir" = "page à choisir";
 "partout" = "partout";
+"pas content" = "pas content";
 "pas de serveur." = "pas de serveur.";
 "pause hors limites." = "pause hors limites.";
+"piste" = "piste";
 "piste visée" = "piste visée";
 "plugin ajouté à tes favoris de FL : quitte FL et rouvre-le une fois pour qu'il apparaisse dans son menu Add" = "plugin ajouté à tes favoris de FL : quitte FL et rouvre-le une fois pour qu'il apparaisse dans son menu Add";
 "plugin introuvable dans le menu Add de FL : choisis-le de nouveau dans « Cliquer sur… »" = "plugin introuvable dans le menu Add de FL : choisis-le de nouveau dans « Cliquer sur… »";
@@ -2690,6 +2717,7 @@
 "Écris au moins quelques mots (%lld caractères)." = "Écris au moins quelques mots (%lld caractères).";
 "Écris le nom que tu veux" = "Écris le nom que tu veux";
 "Écris un titre (%lld caractères au moins)" = "Écris un titre (%lld caractères au moins)";
+"Écris-le ici, ça part à l'équipe" = "Écris-le ici, ça part à l'équipe";
 "Écrit comme dans FL." = "Écrit comme dans FL.";
 "Écrit exactement comme dans le menu Add › %@ de FL." = "Écrit exactement comme dans le menu Add › %@ de FL.";
 "Édition" = "Édition";
