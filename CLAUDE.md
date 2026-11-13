@@ -5,8 +5,8 @@
 - Branche la plus récente : **`claude/great-hopper-qihaiy`** (en avance de 138 commits sur `claude/relaxed-mayer-ndguzv`).
   Pas de nouvelle PR sans demande (anmaprod/fl-shortcut#1 existe). Un push lance la CI ; ne pas la relancer à la main
   sans demande. Derniers tests Mac verts : commit 1843b87 (502 tests, lancés par le propriétaire sur son Mac) ; CI
-  entièrement verte sur 40ce8e1 (12/11 : 671 essais Mac, 475 Windows ; icônes écrites dans la copie, apprentissage des
-  icônes) ; avant, sur 8ba1b2c (665 essais Mac) puis a82dee2 (04/11 : 617 essais Mac, 384 Windows, logo A, clic intelligent Windows ; Mac macOS 26
+  entièrement verte sur 39eb10a (13/11 : 679 essais Mac, 482 Windows ; Channel rack rangé dans la copie, une seule
+  fenêtre d'autorisation) ; avant, sur 40ce8e1 (12/11 : 671 essais Mac, 475 Windows) puis 8ba1b2c (665 essais Mac) puis a82dee2 (04/11 : 617 essais Mac, 384 Windows, logo A, clic intelligent Windows ; Mac macOS 26
   obtenu après 8 refus de GitHub à 15 min, relancé à sa demande « jusqu'à que ça fonctionne ») ; avant, sur 8861883 (plugins par « More plugins… », preset déposé sur Windows, tous les essais PASS ;
   lancée à la main avec `mac_runner=macos-15-intel` à sa demande : le 28/10 GitHub n'a donné aucun Mac arm64 en 15 min,
   deux fois). La lecture de GitHub (CI, artefacts, images) marche : vérifier chaque push dessus. Les essais de macro
