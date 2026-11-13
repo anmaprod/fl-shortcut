@@ -851,6 +851,11 @@
   cases posées 8 sons à la fois, ⌘S, numéros relus ; Channel rack puis Mixer ; « Copier la table » → à mettre dans
   l'app (Mac par défaut + `FlIconIds` Windows). Essais `OrganizerIconLearnerTests`. CI : .pkg publié dès
   la compilation (artefact `FLShortcuts-mac-rapide`).
+  13/11 : TABLE APPRISE (123 cases, rack = Mixer, aucun doublon ; Playlist = mêmes numéros, une seule liste chez FL) :
+  Mac `FLIconNumbers.table` (passe avant les numéros appris en rangeant), Windows `FlIconIds` (essai
+  `SameTableAsTheMac`). Plus aucun clic d'icône dans l'Organiser : toutes écrites dans la copie avant son ouverture.
+  Bouton « Apprendre les icônes de FL » RETIRÉ de l'écran Démarrer (code gardé : `learnIcons`, à remettre seulement
+  si FL change ses icônes). Le 75/105 de crash out 3 = un clic mal tombé au Mixer (même numérotation).
 - Mails du compte : 2 par heure (donc 2 inscriptions) tant que le propriétaire n'a pas fait l'étape 6 de
   `supabase/README.md` (11/11 : Gmail rien que pour l'app, 60 par heure ; plus tard Brevo avec le domaine du site).
   Bêta limitée (1 000 comptes, un compte = un ordinateur) mise de côté le 11/11 : choix dans HISTORIQUE.

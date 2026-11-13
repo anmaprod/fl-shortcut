@@ -1070,3 +1070,7 @@ entrée 1 ≈ 0,5 s.
   alignés → un seul nom attendu et lu UNE seule fois est pris (deux fois : doute) ; lignes renommées « Rack N » et
   pistes « Mix N » (jamais le même texte) ; un Channel rack raté n'empêche plus le Mixer ; « Copie la table… »
   seulement si quelque chose est appris.
+- 13/11 (2) : apprentissage réussi chez lui (123/123 au Channel rack ET au Mixer, tables IDENTIQUES, aucun doublon ;
+  « j'ai pas eu pour Playlist ? » → mêmes numéros : une seule liste chez FL, et la Playlist marchait déjà le 12/11 avec
+  ceux du Channel rack). Table dans l'app : Mac `FLIconNumbers.swift` (avant les numéros appris en rangeant),
+  Windows `FlIconIds` (essai qui compare avec le Mac). Bouton d'apprentissage retiré (« c'est juste pour moi »).

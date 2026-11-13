@@ -147,6 +147,14 @@ final class OrganizerIconLearnerTests: XCTestCase {
         XCTAssertTrue(outcome.mixer.isEmpty)
     }
 
+    /// 13/11 : la table apprise sur le Mac du propriétaire couvre exactement les cases proposées, un numéro différent
+    /// pour chacune.
+    func testLearnedTableCoversTheGrid() {
+        XCTAssertEqual(Set(FLIconNumbers.table.keys), Set(FLIconGrid.pickable.map(\.code)))
+        XCTAssertEqual(Set(FLIconNumbers.table.values).count, FLIconNumbers.table.count)
+        XCTAssertEqual(FLIconNumbers.table["7-4"], 30)
+    }
+
     func testTableText() {
         var outcome = OrganizerIconLearner.Outcome()
         outcome.rack = ["7-4": 75, "1-0": 12, "10-2": 3]

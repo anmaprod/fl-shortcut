@@ -162,9 +162,14 @@ struct OrganizerEnvironment {
                 guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.image-line.flstudio") else { return }
                 NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
             },
-            loadIconIDs: { OrganizerEnvironment.storedIconIDs() },
+            // La table apprise une fois pour toutes (13/11) passe avant ce qui a été appris en rangeant (un clic mal
+            // tombé avait donné 105 au lieu de 75 au Mixer).
+            loadIconIDs: { OrganizerEnvironment.storedIconIDs().merging(FLIconNumbers.table) { _, table in table } },
             saveIconIDs: { OrganizerEnvironment.storeIconIDs($0) },
-            loadMixerIconIDs: { OrganizerEnvironment.storedIconIDs(key: OrganizerEnvironment.mixerIconIDsKey) },
+            loadMixerIconIDs: {
+                OrganizerEnvironment.storedIconIDs(key: OrganizerEnvironment.mixerIconIDsKey)
+                    .merging(FLIconNumbers.table) { _, table in table }
+            },
             saveMixerIconIDs: { OrganizerEnvironment.storeIconIDs($0, key: OrganizerEnvironment.mixerIconIDsKey) },
             // Une relance à la fois ; FL relancé dès qu'il est parti, puis relancé s'il n'apparaît pas (FLRelauncher,
             // 12/11 : « il ne rouvre pas automatiquement FL Studio »).
@@ -2125,9 +2130,8 @@ struct OrganizerView: View {
             .padding(.vertical, 10)
             .morphIn(1)
             HStack(spacing: 12) {
-                // 12/11 : une fois pour toutes, sur un projet vide (les numéros des icônes de FL).
-                Button(String(localized: "Apprendre les icônes de FL")) { controller.learnIcons() }
-                    .buttonStyle(SwissLinkButtonStyle())
+                // « Apprendre les icônes de FL » (12/11) retiré le 13/11 : la table est apprise (FLIconNumbers) ; à
+                // remettre ici (`controller.learnIcons()`) seulement si une version de FL change ses icônes.
                 Spacer()
                 Button(String(localized: "Fermer")) { controller.close() }
                     .secondaryButton()

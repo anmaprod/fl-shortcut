@@ -85,6 +85,21 @@ public class FlpIconsTests
         Assert.Empty(FlpIcons.PlaylistIcons(layout, styles, new Dictionary<string, uint>(), Family));
     }
 
+    /// 13/11 : la table des numéros d'icônes est celle apprise sur le Mac (FLIconNumbers.swift), case pour case.
+    [Fact]
+    public void SameTableAsTheMac()
+    {
+        var root = Path.GetDirectoryName(typeof(FlpIconsTests).Assembly.Location)!;
+        while (!File.Exists(Path.Combine(root, "PROTOCOL.md"))) root = Path.GetDirectoryName(root)!;
+        var swift = File.ReadAllText(Path.Combine(root, "Sources", "FLShortcut", "FLIconNumbers.swift"));
+        var mac = System.Text.RegularExpressions.Regex.Matches(swift, "\"(\\d+-\\d+)\": (\\d+)")
+            .ToDictionary(m => m.Groups[1].Value, m => uint.Parse(m.Groups[2].Value));
+        Assert.Equal(123, mac.Count);
+        Assert.Equal(mac.OrderBy(kv => kv.Key), FlIconIds.Rack.OrderBy(kv => kv.Key));
+        Assert.Same(FlIconIds.Rack, FlIconIds.Mixer);
+        Assert.Equal(FlIconIds.Rack.Count, FlIconIds.Rack.Values.Distinct().Count());
+    }
+
     [Fact]
     public void OnlyKnownNumbersAreWritten()
     {
