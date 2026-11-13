@@ -85,6 +85,33 @@ final class MacroPluginDropTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(PluginDrop.channelRackPoint(in: rack)).y, 133, accuracy: 0.5)
     }
 
+    /// 13/11 (vidéo : Diva.fst glissé à la main marche, la macro passait par le menu Add) : le titre est trouvé même avec
+    /// l'icône du haut-parleur lue devant, un mot collé derrière ou en deux mots, comme sur Windows ; deux sons suffisent.
+    func testTheChannelRackTitleIsFoundWithItsIconOrAnotherWord() throws {
+        func rack(_ title: TextLook.Item...) -> [TextLook.Item] {
+            title + [item("bass", 360, 140, w: 34), item("kick", 360, 170, w: 30)]
+        }
+        let alone = try XCTUnwrap(PluginDrop.channelRackPoint(in: rack(item("Channel rack", 300, 100, w: 90))))
+        XCTAssertEqual(alone.y, 191, accuracy: 0.5, "sous « kick », jamais dessus")
+        XCTAssertEqual(PluginDrop.channelRackPoint(in: rack(item("4) Channel rack", 270, 100, w: 120))), alone)
+        XCTAssertEqual(PluginDrop.channelRackPoint(in: rack(item("Channel rack All", 300, 100, w: 130))), alone)
+        XCTAssertEqual(PluginDrop.channelRackPoint(in: rack(item("Channel", 300, 100, w: 50), item("rack", 354, 100, w: 30))), alone)
+        XCTAssertTrue(PluginDrop.pageShown(effect: false, in: [item("◁ Channel rack", 280, 100, w: 110)]))
+        XCTAssertFalse(PluginDrop.pageShown(effect: false, in: [item("Channel racks", 300, 100, w: 90)]))
+        XCTAssertFalse(PluginDrop.pageShown(effect: false, in: [item("Open the Channel rack", 300, 100, w: 160)]))
+    }
+
+    /// 13/11 : la page que le bloc d'avant vient d'ouvrir est attendue avant d'appuyer sur sa touche (une 2e touche la
+    /// refermait) ; la touche une seule fois ; jamais quand la page est là.
+    func testTheDropWaitsForThePageBeforePressingItsKey() {
+        XCTAssertEqual(DropPageWait.next(waited: 0, sinceKey: nil, seen: false), .read)
+        XCTAssertEqual(DropPageWait.next(waited: 1.25, sinceKey: nil, seen: false), .read)
+        XCTAssertEqual(DropPageWait.next(waited: 1.5, sinceKey: nil, seen: false), .pressKey)
+        XCTAssertEqual(DropPageWait.next(waited: 1.5, sinceKey: nil, seen: true), .giveUp)
+        XCTAssertEqual(DropPageWait.next(waited: 3, sinceKey: 2.25, seen: false), .read)
+        XCTAssertEqual(DropPageWait.next(waited: 4, sinceKey: 2.5, seen: false), .giveUp)
+    }
+
     func testInDoubtThereIsNoDropPoint() {
         XCTAssertNil(PluginDrop.channelRackPoint(in: [item("Kick", 360, 140), item("Snare", 360, 166)]))
         XCTAssertNil(PluginDrop.channelRackPoint(in: [item("Channel rack", 300, 100, w: 90), item("Kick", 360, 140)]))

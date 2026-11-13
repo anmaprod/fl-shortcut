@@ -1140,3 +1140,15 @@ entrée 1 ≈ 0,5 s.
   où on corrige, gardé pour les prochains rangements (famille et sorte d'un son, départ de chaque famille dans le
   Mixer + bus + pré-master, ordre des familles, couleurs de base) ; « Autre chose ? » part à l'équipe. À valider avant
   l'app. Déjà fait dans l'app (Mac et Windows) : « l'IA » → « l'ordinateur » dans tous les textes affichés.
+- 13/11 (10) : « Ouvre un VST » : « ça ne fonctionne toujours pas pourtant c'est pas compliqué image line > fl studio >
+  presets > plugin database > installed > generators > vst3 » (vidéo : Diva.fst glissé à la main dans le Channel rack,
+  Diva s'ouvre). Le fichier était bien cherché là. Deux défauts trouvés dans le code (Mac et Windows), sans le journal
+  pour dire lequel le bloquait : (1) le bloc d'avant du modèle (« Ouvrir une page › Channel rack ») appuie sur F6 et
+  rend la main aussitôt ; le dépôt lisait la fenêtre tout de suite, ne voyait pas encore le Channel rack et appuyait
+  de nouveau sur F6 : FL le REFERMAIT, puis menu Add (c'était « ça ouvre le Channel rack mais ça ne cherche pas à faire
+  le drag and drop »). Maintenant la page est lue jusqu'à 1,5 s sans rien toucher, sa touche une seule fois si elle
+  n'est toujours pas là, relue jusqu'à 2,5 s (`DropPageWait`) ; (2) Mac : le titre « Channel rack » n'était reconnu que
+  lu seul (Windows acceptait déjà « Channel rack All » et les deux mots) ; maintenant les deux acceptent aussi l'icône
+  du haut-parleur lue devant (« 4) Channel rack », `PluginDrop.titles` / `Titles`). Journal `PLUGIN … (title seen|not
+  seen, N reads, key pressed|not pressed)`. Essais : Windows sur le faux FL (`PluginDropWaitsForThePageThePreviousBlock
+  Opened`, rouge avant), Mac sur les parties pures. Pas encore vu chez lui.

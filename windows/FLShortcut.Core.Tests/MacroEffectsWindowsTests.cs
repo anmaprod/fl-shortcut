@@ -1040,6 +1040,55 @@ public class MacroEffectsWindowsTests
         Assert.Equal(alone, PluginDrop.ChannelRackPoint(Rack(new TextItem("Channel", 200, 100, 50, 14), new TextItem("rack", 254, 100, 30, 14))));
         Assert.True(PluginDrop.PageShown(false, new List<TextItem> { new("Channel rack All", 200, 100, 130, 14) }));
         Assert.False(PluginDrop.PageShown(false, new List<TextItem> { new("Channel", 200, 100, 50, 14) }));
+        // 13/11 : l'icône du haut-parleur lue juste devant le titre (« 4) Channel rack »).
+        Assert.Equal(alone, PluginDrop.ChannelRackPoint(Rack(new TextItem("4) Channel rack", 170, 100, 120, 14))));
+        Assert.True(PluginDrop.PageShown(false, new List<TextItem> { new("◁ Channel rack", 180, 100, 110, 14) }));
+        Assert.False(PluginDrop.PageShown(false, new List<TextItem> { new("Channel racks", 200, 100, 90, 14) }));
+    }
+
+    /// Le Channel rack du faux FL : titre et deux sons, comme dans la vidéo du propriétaire (13/11).
+    private static List<TextItem> RackTexts() => new()
+    {
+        new("Channel rack", 200, 100, 90, 14), new("bass", 120, 140, 34, 14), new("kick", 120, 170, 30, 14),
+    };
+
+    /// 13/11 (« ça ne fonctionne toujours pas », vidéo : Diva.fst glissé à la main marche) : le bloc d'avant (« Ouvrir
+    /// une page › Channel rack ») vient d'appuyer sur la touche de FL ; FL met un moment à montrer la page. Avant, le
+    /// dépôt la lisait aussitôt, ne la voyait pas, appuyait de nouveau (FL la REFERMAIT) puis passait par le menu Add.
+    [Fact]
+    public void PluginDropWaitsForThePageThePreviousBlockOpened()
+    {
+        var (fl, fx, state) = Start(f => f.Presets["Diva"] = @"C:\db\Installed\Generators\VST3\Diva.fst");
+        fl.After(600, () => fl.Texts[FakeFl.Main] = RackTexts());            // F6 du bloc d'avant, montré plus tard
+        fl.OnKey = _ => fl.After(800, () => fl.Texts.Remove(FakeFl.Main));    // une 2e touche la refermerait
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.PageOption("channelRack.addInstrument", "Diva"), state));
+        Assert.Empty(fl.Sent);                                                // jamais la touche une 2e fois
+        var drop = Assert.Single(fl.Drops);
+        Assert.Equal(@"C:\db\Installed\Generators\VST3\Diva.fst", drop.Path);
+        Assert.True(drop.Y > 177 && drop.Y < 200);                            // sous « kick », jamais dessus
+    }
+
+    [Fact]
+    public void DropPageWaitPressesTheKeyOnlyAfterWaiting()
+    {
+        Assert.Equal(DropPageWait.Step.Read, DropPageWait.Next(0, null, false));
+        Assert.Equal(DropPageWait.Step.Read, DropPageWait.Next(1_250, null, false));
+        Assert.Equal(DropPageWait.Step.PressKey, DropPageWait.Next(1_500, null, false));
+        Assert.Equal(DropPageWait.Step.GiveUp, DropPageWait.Next(1_500, null, true));    // la page est là : jamais sa touche
+        Assert.Equal(DropPageWait.Step.Read, DropPageWait.Next(3_000, 2_250, false));
+        Assert.Equal(DropPageWait.Step.GiveUp, DropPageWait.Next(4_000, 2_500, false));
+    }
+
+    /// Page vraiment fermée : sa touche, une seule fois, après l'attente, puis le dépôt.
+    [Fact]
+    public void PluginDropOpensAClosedPageOnce()
+    {
+        var (fl, fx, state) = Start(f => f.Presets["Diva"] = @"C:\db\Diva.fst");
+        fl.OnKey = _ => fl.After(300, () => fl.Texts[FakeFl.Main] = RackTexts());
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.PageOption("channelRack.addInstrument", "Diva"), state));
+        Assert.Single(fl.Sent);
+        Assert.Single(fl.Drops);
+        Assert.Contains(fl.Lines, l => l.Contains("not shown, opened"));
     }
 
     // ---------- Menu de FL ----------

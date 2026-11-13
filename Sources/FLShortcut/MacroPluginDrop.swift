@@ -137,9 +137,45 @@ enum PluginDrop {
     static func pageShown(effect: Bool, in items: [TextLook.Item]) -> Bool {
         items.contains { item in
             let t = TextLook.normalized(item.text)
-            return effect ? (t == TextLook.normalized("Mixer") || t.hasPrefix(TextLook.normalized("Mixer -")))
-                          : t == TextLook.normalized("Channel rack")
+            return effect && (t == TextLook.normalized("Mixer") || t.hasPrefix(TextLook.normalized("Mixer -")))
+        } || (!effect && !titles(in: items, "Channel rack").isEmpty)
+    }
+
+    /// Pure (testée) : le titre `title` (« Channel rack ») parmi les textes lus, comme Windows (`Titles`, 09/11) : lu
+    /// seul, au début d'une ligne plus longue (« Channel rack All »), en deux mots voisins sur la même ligne, ou (13/11)
+    /// avec l'icône du haut-parleur de FL lue juste devant (« 4) Channel rack » : un signe ou deux, pas un mot). Avant,
+    /// sur Mac, seul le titre lu seul comptait : sinon pas de dépôt, le menu Add à la place.
+    static func titles(in items: [TextLook.Item], _ title: String) -> [TextLook.Item] {
+        let key = TextLook.normalized(title)
+        guard !key.isEmpty else { return [] }
+        var out: [TextLook.Item] = []
+        for t in items {
+            let n = TextLook.normalized(t.text)
+            if n == key {
+                out.append(t)
+                continue
+            }
+            let width = max(1, t.box.width * CGFloat(key.count) / CGFloat(max(n.count, 1)))
+            if n.hasPrefix(key + " ") {
+                out.append(TextLook.Item(text: title, box: CGRect(x: t.box.minX, y: t.box.minY, width: width, height: t.box.height)))
+            } else if n.hasSuffix(" " + key) {
+                let before = n.dropLast(key.count + 1)
+                guard (1...3).contains(before.count), !before.contains(where: \.isWhitespace) else { continue }
+                out.append(TextLook.Item(text: title, box: CGRect(x: t.box.maxX - width, y: t.box.minY, width: width,
+                                                                  height: t.box.height)))
+            }
         }
+        let words = key.split(separator: " ").map(String.init)
+        guard words.count == 2 else { return out }
+        for first in items where TextLook.normalized(first.text) == words[0] {
+            let line = max(first.box.height, 8)
+            let second = items.filter {
+                TextLook.normalized($0.text) == words[1] && abs($0.center.y - first.center.y) < line * 0.6
+                    && $0.box.minX >= first.box.maxX - 2 && $0.box.minX - first.box.maxX <= line * 2
+            }.min { $0.box.minX < $1.box.minX }
+            if let second { out.append(TextLook.Item(text: title, box: first.box.union(second.box))) }
+        }
+        return out
     }
 
     /// Un nom de son qu'on peut lire : 2 à 40 caractères, au moins une lettre.
@@ -157,8 +193,7 @@ enum PluginDrop {
     /// ~100 points à gauche du titre) : les noms sont cherchés jusqu'à 240 points à gauche du titre, une colonne est
     /// faite des noms de même bord gauche OU de même centre, et la colonne la plus proche du titre l'emporte.
     static func channelRackPoint(in items: [TextLook.Item], bottom: CGFloat? = nil) -> CGPoint? {
-        let titleKey = TextLook.normalized("Channel rack")
-        for title in items.filter({ TextLook.normalized($0.text) == titleKey }).sorted(by: { $0.box.minY < $1.box.minY }) {
+        for title in titles(in: items, "Channel rack").sorted(by: { $0.box.minY < $1.box.minY }) {
             let top = title.box.maxY
             let below = items.filter {
                 $0.box.minY > top + 2 && $0.box.minY < top + 1500 && $0.box.minX > title.box.minX - 240
@@ -201,6 +236,26 @@ enum PluginDrop {
             }
         }
         return nil
+    }
+}
+
+/// Quand appuyer sur la touche de la page avant de déposer un plugin (13/11, miroir de `DropPageWait` de Windows). Le bloc
+/// d'avant vient souvent d'appuyer sur cette touche : une 2e la refermerait. Donc : la page est lue jusqu'à 1,5 s sans
+/// rien toucher ; toujours absente, sa touche une seule fois, puis relue jusqu'à 2,5 s ; titre lu mais aucune place sûre
+/// (moins de deux sons lus…) : pas de touche, on arrête après la même attente.
+enum DropPageWait {
+    enum Step: Equatable { case read, pressKey, giveUp }
+
+    static let pause: TimeInterval = 0.25
+    static let beforeKey: TimeInterval = 1.5
+    static let afterKey: TimeInterval = 2.5
+
+    /// Pure (testée) : `waited` depuis le début ; `sinceKey` depuis la touche (nil : pas encore appuyée) ; `seen` : titre
+    /// déjà lu.
+    static func next(waited: TimeInterval, sinceKey: TimeInterval?, seen: Bool) -> Step {
+        if let sinceKey { return sinceKey < afterKey ? .read : .giveUp }
+        if waited < beforeKey { return .read }
+        return seen ? .giveUp : .pressKey
     }
 }
 
@@ -250,24 +305,39 @@ extension MacroEffectsMac {
         // quand son titre est lu : la touche la refermerait) puis relue, avant de déposer. Instrument : sous le dernier son
         // (au-dessus du premier si le Channel rack est coupé) ; effet : la première case libre de la piste choisie du
         // Mixer. 07/11 (vidéo : l'effet allait sur la piste sous la souris) : plus jamais la piste du dernier clic.
+        // 13/11 (« ça ne fonctionne toujours pas », vidéo : Diva.fst glissé à la main marche) : le bloc d'avant (« Ouvrir
+        // une page › Channel rack ») vient souvent d'appuyer sur la touche de la page, et FL met un moment à la montrer.
+        // Avant, elle était lue aussitôt, pas vue, et sa touche appuyée de nouveau : FL la REFERMAIT, puis le menu Add.
+        // Maintenant : lue jusqu'à 1,5 s sans rien toucher, sa touche une seule fois si elle n'est toujours pas là, puis
+        // relue jusqu'à 2,5 s (`DropPageWait`, comme Windows).
         var target: CGPoint?
-        var opened = false
-        for _ in 0..<4 {
+        let start = Date()
+        var keyAt: Date?
+        var seen = false
+        var reads = 0
+        while true {
             if let stop = stopReason() { return .cancel(stop) }
             let read = readDropPoint(effect: effect, ctx: ctx)
+            reads += 1
+            seen = seen || read.shown
             target = read.point
             if target != nil { break }
-            if !read.shown, !opened {
+            let next = DropPageWait.next(waited: Date().timeIntervalSince(start),
+                                         sinceKey: keyAt.map { Date().timeIntervalSince($0) }, seen: seen)
+            if next == .giveUp { break }
+            if next == .pressKey {
                 let page: FLPage = effect ? .mixer : .channelRack
                 guard let key = page.nativeKey(layout: SystemKeyboardLayout()) else { break }
                 postKey(key, pid: ctx.pid)
-                opened = true
+                keyAt = Date()
                 MacroLog.shared.write("PLUGIN", "drop: page \(page.rawValue) not shown, opened")
             }
-            usleep(400_000)
+            usleep(useconds_t(DropPageWait.pause * 1_000_000))
         }
         guard let at = target else {
-            MacroLog.shared.write("PLUGIN", effect ? "drop: no free slot read, Add menu used" : "drop: Channel rack not read, Add menu used")
+            let why = effect ? "drop: no free slot read, Add menu used" : "drop: Channel rack not read, Add menu used"
+            MacroLog.shared.write("PLUGIN", "\(why) (title \(seen ? "seen" : "not seen"), \(reads) reads, key "
+                                  + (keyAt == nil ? "not pressed)" : "pressed)"))
             dropHint(effect ? String(localized: "Case libre du Mixer introuvable : effet ouvert par le menu.")
                             : String(localized: "Channel rack illisible : instrument ouvert par le menu."))
             return nil

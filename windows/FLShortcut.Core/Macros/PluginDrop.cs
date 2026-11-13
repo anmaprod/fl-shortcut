@@ -207,6 +207,13 @@ public static class PluginDrop
             if (n == key) yield return t;
             else if (n.StartsWith(key + " ", StringComparison.Ordinal))
                 yield return t with { Width = Math.Max(1, (int)Math.Round(t.Width * key.Length / (double)n.Length)) };
+            // 13/11 : l'icône du haut-parleur de FL lue juste devant (« 4) Channel rack ») : un signe ou deux, pas un mot.
+            else if (n.EndsWith(" " + key, StringComparison.Ordinal) && n.Length - key.Length - 1 is > 0 and <= 3
+                     && !n[..(n.Length - key.Length - 1)].Any(char.IsWhiteSpace))
+            {
+                var width = Math.Max(1, (int)Math.Round(t.Width * key.Length / (double)n.Length));
+                yield return t with { X = t.X + t.Width - width, Width = width };
+            }
         }
         var words = key.Split(' ');
         if (words.Length != 2) yield break;
@@ -267,5 +274,26 @@ public static class PluginDrop
             }
         }
         return null;
+    }
+}
+
+/// Quand appuyer sur la touche de la page avant de déposer un plugin (13/11, miroir de `DropPageWait` du Mac). Le bloc
+/// d'avant vient souvent d'appuyer sur cette touche : une 2e la refermerait. Donc : la page est lue jusqu'à 1,5 s sans
+/// rien toucher ; toujours absente, sa touche une seule fois, puis relue jusqu'à 2,5 s ; titre lu mais aucune place sûre
+/// (moins de deux sons lus…) : pas de touche, on arrête après la même attente.
+public static class DropPageWait
+{
+    public enum Step { Read, PressKey, GiveUp }
+
+    public const int PauseMs = 250;
+    public const int BeforeKeyMs = 1_500;
+    public const int AfterKeyMs = 2_500;
+
+    /// `waited` : depuis le début ; `sinceKey` : depuis la touche (null : pas encore appuyée) ; `seen` : titre déjà lu.
+    public static Step Next(int waited, int? sinceKey, bool seen)
+    {
+        if (sinceKey is { } k) return k < AfterKeyMs ? Step.Read : Step.GiveUp;
+        if (waited < BeforeKeyMs) return Step.Read;
+        return seen ? Step.GiveUp : Step.PressKey;
     }
 }

@@ -674,27 +674,40 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
     {
         if (_fl.PluginPreset(name, effect) is not { } file) return null;
         (int X, int Y)? target = null;
-        var opened = false;
-        for (var attempt = 0; attempt < 4; attempt++)
+        // 13/11 (« ça ne fonctionne toujours pas ») : le bloc d'avant (« Ouvrir une page ») vient souvent d'appuyer sur la
+        // touche de la page et FL met un moment à la montrer. Avant, elle était lue aussitôt, pas vue, et sa touche
+        // appuyée de nouveau : FL la REFERMAIT, puis le menu Add. Maintenant : lue jusqu'à 1,5 s sans rien toucher, sa
+        // touche une seule fois seulement si elle n'est toujours pas là, puis relue jusqu'à 2,5 s (`DropPageWait`).
+        var waited = 0;
+        int? sinceKey = null;
+        var seen = false;
+        var reads = 0;
+        while (true)
         {
             if (StopReason() is { } halted) return new StepResult.Cancel(halted);
             var (point, shown) = ReadDropPoint(effect);
+            reads++;
+            seen |= shown;
             target = point;
             if (target is not null) break;
-            // Absente, la page est ouverte (sa touche), jamais quand son titre est lu : la touche la refermerait.
-            if (!shown && !opened)
+            var next = DropPageWait.Next(waited, sinceKey, seen);
+            if (next == DropPageWait.Step.GiveUp) break;
+            if (next == DropPageWait.Step.PressKey)
             {
                 var page = effect ? FlPage.Mixer : FlPage.ChannelRack;
                 if (page.NativeKey() is not { } key || MacKeys.ToWindows(key) is not { } combo || !_fl.Send(combo)) break;
-                opened = true;
+                sinceKey = 0;
                 _fl.Log("PLUGIN", $"drop: page {page.Raw()} not shown, opened");
             }
-            _fl.Sleep(400);
+            _fl.Sleep(DropPageWait.PauseMs);
+            waited += DropPageWait.PauseMs;
+            if (sinceKey is { } k) sinceKey = k + DropPageWait.PauseMs;
         }
         // 07/11 (comme le Mac) : plus jamais la piste du dernier clic : l'effet n'allait pas sur la piste choisie.
         if (target is not { } at)
         {
-            _fl.Log("PLUGIN", effect ? "drop: no free slot read, Add menu used" : "drop: Channel rack not read, Add menu used");
+            var why = effect ? "drop: no free slot read, Add menu used" : "drop: Channel rack not read, Add menu used";
+            _fl.Log("PLUGIN", $"{why} (title {(seen ? "seen" : "not seen")}, {reads} reads, key {(sinceKey is null ? "not pressed" : "pressed")})");
             return null;
         }
         if (_fl.At(at.X, at.Y).Window is null) return null;
