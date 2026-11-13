@@ -863,7 +863,8 @@
   (`FLPProject.reorderingChannels`, Windows `FlpChannelOrder.Reordering`), puis projet et plan suivis
   (`OrganizerResult.reordering`, `OrganizerPlan.reordered`). Garde-fous, sinon ⌥↑ comme avant : layer, clip
   d'automation, 223/227/234, fin de canal différente. Diagnostic `rack copie N reste M` / `rack copie non`. Vérifié sur
-  ses 3 projets (code Windows) ; pas encore vu dans le vrai FL. Le Mixer reste rangé au clavier (⌥←).
+  ses 3 projets (code Windows) ; VU MARCHER chez lui le 13/11 (« tout fonctionne bravo », avec l'autorisation en une
+  seule fenêtre). Le Mixer reste rangé au clavier (⌥←).
 - Une seule fenêtre pour « Enregistrement de l'écran » (13/11, « cette page n'a pas besoin de s'ouvrir vu que l'autre
   s'ouvre ») : `ScreenLook.askOneWindow()` (déjà dans la liste → Réglages seuls ; sinon la demande de macOS seule).
 - Mails du compte : 2 par heure (donc 2 inscriptions) tant que le propriétaire n'a pas fait l'étape 6 de

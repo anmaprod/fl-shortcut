@@ -1095,3 +1095,5 @@ entrée 1 ≈ 0,5 s.
   (la toute première fois) ; sinon la page seule (Organiser, son de FL de l'Organiser, créateur de macros). Et plus
   aucune icône ne demande l'écran : toutes ont leur numéro (`iconsNeedScreen` ne compte que les inconnues). Windows :
   aucune autorisation de ce genre (rien à changer).
+- 13/11 (5) : essayé chez lui avec 39eb10a : « tout fonctionne bravo » (Channel rack rangé dans la copie, une seule
+  fenêtre pour « Enregistrement de l'écran »).
