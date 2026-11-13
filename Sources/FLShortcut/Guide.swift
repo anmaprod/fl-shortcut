@@ -161,7 +161,10 @@ private struct GuidePageView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .lastTextBaseline, spacing: 14) {
+                // 13/11 (essai 1.3 : « il faut que les carrés deviennent orange sur chaque page ») : la partie ouverte
+                // a son carré plein d'orange, comme la page ouverte dans la barre de gauche.
                 MorphIcon(page: page, size: 14, morph: morph, id: MorphIcon.id(page))
+                    .environment(\.hoverFilled, true)
                     .alignmentGuide(.lastTextBaseline) { d in d[.bottom] - 4 }
                 SwissPageTitle(text: page.title, size: 40)
                     .morphIn(0)

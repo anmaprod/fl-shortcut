@@ -529,15 +529,10 @@ extension Store {
             if let t = r.trigger { owners[t, default: []].append(r.id.uuidString) }
         }
         let titles = Dictionary(rows.map { ($0.id, $0.entry.title) }, uniquingKeysWith: { a, _ in a })
+        // Seule sa touche de maintenant compte : une entrée déplacée sur une autre touche a laissé celle de FL (13/11).
         for i in rows.indices {
-            var keys: [KeyCombo] = []
-            if case .native(let k) = rows[i].entry.kind { keys.append(k) }
-            if let c = rows[i].current, !keys.contains(c) { keys.append(c) }
-            for k in keys {
-                if let other = owners[k]?.first(where: { $0 != rows[i].id }) {
-                    rows[i].takenBy = titles[other] ?? String(localized: "un raccourci personnalisé")
-                    break
-                }
+            if let k = rows[i].current, let other = owners[k]?.first(where: { $0 != rows[i].id }) {
+                rows[i].takenBy = titles[other] ?? String(localized: "un raccourci personnalisé")
             }
         }
         return (rows, othersList)
@@ -565,7 +560,10 @@ extension Store {
         for other in rows where other.id != row.id {
             if let r = other.remap, r.enabled, r.trigger == trigger {
                 out.append(KeyClash(row: other, remap: r, title: other.entry.title, section: other.entry.section.title))
-            } else if case .native(let k) = other.entry.kind, k == trigger {
+            } else if case .native(let k) = other.entry.kind, k == trigger, other.current == k {
+                // Sa touche d'origine, seulement si elle l'utilise encore. Essai 2.1 du 13/11 (« ça fait 1>2>1 ») : une
+                // entrée déplacée sur une autre touche la comptait encore, deux touches échangées se renvoyaient l'une
+                // à l'autre sans fin.
                 out.append(KeyClash(row: other, remap: nil, title: other.entry.title, section: other.entry.section.title))
             }
         }

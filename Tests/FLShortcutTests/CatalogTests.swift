@@ -113,6 +113,40 @@ final class CatalogTests: XCTestCase {
         XCTAssertTrue(store.clashes(for: try XCTUnwrap(pianoP.entry.defaultTrigger), editing: pianoP).isEmpty)
     }
 
+    /// Essai 2.1 du 13/11 (« ça fait 1>2>1 ») : deux raccourcis de FL échangent leurs touches sans boucle. Le premier
+    /// prend la touche du second (on propose de rechoisir pour le second), puis le second prend l'ancienne touche du
+    /// premier : plus aucun conflit, aucune touche signalée prise.
+    func testTwoFLKeysCanBeSwapped() throws {
+        let store = makeStore()
+        var rows = store.catalogRows().rows
+        func key(_ row: CatalogRow) -> KeyCombo? {
+            if case .native(let k) = row.entry.kind { return k }
+            return nil
+        }
+        let used = Set(store.remaps.filter(\.enabled).compactMap(\.trigger))
+        let natives = rows.filter { key($0) != nil }
+        let unique = natives.filter { row in
+            natives.filter { key($0) == key(row) }.count == 1 && !used.contains(key(row)!) && row.current == key(row)
+        }
+        XCTAssertGreaterThanOrEqual(unique.count, 2)
+        let first = unique[0], second = unique[1]
+        let a = try XCTUnwrap(key(first)), b = try XCTUnwrap(key(second))
+
+        let found = store.clashes(for: b, editing: first)
+        XCTAssertTrue(found.contains { $0.id == second.id && $0.isFLKey })
+        XCTAssertEqual(store.release(found), second.id, "on propose de rechoisir pour le second")
+        store.setTrigger(b, for: first)
+        rows = store.catalogRows().rows
+        let secondNow = try XCTUnwrap(rows.first { $0.id == second.id })
+        XCTAssertTrue(store.clashes(for: a, editing: secondNow).isEmpty, "le premier a quitté sa touche : elle est libre")
+        store.setTrigger(a, for: secondNow)
+        rows = store.catalogRows().rows
+        XCTAssertEqual(rows.first { $0.id == first.id }?.current, b)
+        XCTAssertEqual(rows.first { $0.id == second.id }?.current, a)
+        XCTAssertNil(rows.first { $0.id == first.id }?.takenBy)
+        XCTAssertNil(rows.first { $0.id == second.id }?.takenBy)
+    }
+
     func testTakingAnFLKeyIsAnnouncedAndFlagged() throws {
         let store = makeStore()
         let rows = store.catalogRows().rows

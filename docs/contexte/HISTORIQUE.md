@@ -1097,3 +1097,12 @@ entrée 1 ≈ 0,5 s.
   aucune autorisation de ce genre (rien à changer).
 - 13/11 (5) : essayé chez lui avec 39eb10a : « tout fonctionne bravo » (Channel rack rangé dans la copie, une seule
   fenêtre pour « Enregistrement de l'écran »).
+- 13/11 (6) : ses réponses dans l'artefact « Essais FL Shortcuts » (23 essais Mac cochés ; notes sous des cases OK) :
+  1.3 guide « il faut que les carrés deviennent orange sur chaque page » → le carré du titre d'une partie est plein
+  d'orange (Mac `.environment(\.hoverFilled, true)` sur `MorphIcon`, Windows `GuideView.Part`) ; 2.1 « ça fait
+  1>2>1 » (le 1er raccourci prend la touche du 2e, puis le 2e prend l'ancienne touche du 1er : renvoyé au 1er sans fin)
+  → une touche d'origine de FL ne compte plus quand son entrée a été déplacée sur une autre touche (`clashes` /
+  `CatalogRows.Clashes` : `current == k` ; « touche prise » seulement sur la touche de maintenant), essais
+  `testTwoFLKeysCanBeSwapped` / `TwoFlKeysCanBeSwapped` (rouge sans la correction) ; 3.1/3.2 « Ouvre un VST : ça ne
+  fait pas le drag and drop » : cause à lire dans son macro.log (lignes PLUGIN) ; 4.9-4.11 (Revenir, Valider, Pas
+  content ?) : « revoir la beauté et l'ergonomie de la page » → maquette à proposer.

@@ -108,6 +108,33 @@ public class CatalogRowsTests
             Assert.Contains(CatalogGroups.For(e.Section), g => g.Keys.Contains(CatalogGroups.Key(e)));
     }
 
+    /// Essai 2.1 du 13/11 (« ça fait 1>2>1 ») : deux raccourcis de FL échangent leurs touches sans boucle. Le premier
+    /// prend la touche du second (dite, on propose de rechoisir pour le second), puis le second prend l'ancienne touche
+    /// du premier : plus aucun conflit, aucune touche signalée prise.
+    [Fact]
+    public void TwoFlKeysCanBeSwapped()
+    {
+        var shortcuts = new List<Shortcut>();
+        var (rows, others) = CatalogRows.Build(Entries, shortcuts);
+        var natives = rows.Where(r => r.Entry.Kind is CatalogEntryKind.Native).ToList();
+        KeyCombo Key(CatalogRow r) => ((CatalogEntryKind.Native)r.Entry.Kind).Combo;
+        var unique = natives.Where(r => natives.Count(o => Key(o) == Key(r)) == 1).ToList();
+        var (first, second) = (unique[0], unique[1]);
+        var a = Key(first);
+        var b = Key(second);
+
+        Assert.Contains(CatalogRows.Clashes(rows, others, b, first, s => ""), c => c.IsFlKey && c.Row?.Id == second.Id);
+        shortcuts.Add(CatalogRows.Change(first, b).Upsert!);
+        (rows, others) = CatalogRows.Build(Entries, shortcuts);
+        Assert.Empty(CatalogRows.Clashes(rows, others, a, Row(rows, second.Id), s => ""));
+        shortcuts.Add(CatalogRows.Change(Row(rows, second.Id), a).Upsert!);
+        (rows, _) = CatalogRows.Build(Entries, shortcuts);
+        Assert.Equal(b, Row(rows, first.Id).Current);
+        Assert.Equal(a, Row(rows, second.Id).Current);
+        Assert.Null(Row(rows, first.Id).TakenBy);
+        Assert.Null(Row(rows, second.Id).TakenBy);
+    }
+
     /// Choisir une touche déjà prise : la touche de FL d'une autre entrée est dite, ton raccourci qui l'avait la perd.
     [Fact]
     public void Clashes_ThenRelease()

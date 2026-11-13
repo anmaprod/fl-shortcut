@@ -129,17 +129,12 @@ public static class CatalogRows
             if (s is { Enabled: true, Trigger: { } t }) Own(t, s.Id.ToString());
         var titles = new Dictionary<string, string>();
         foreach (var r in rows) titles.TryAdd(r.Id, r.Entry.Title);
+        // Seule sa touche de maintenant compte : une entrée déplacée sur une autre touche a laissé celle de FL (13/11).
         for (var i = 0; i < rows.Count; i++)
         {
-            var keys = new List<KeyCombo>();
-            if (rows[i].Entry.Kind is CatalogEntryKind.Native(var k)) keys.Add(k);
-            if (rows[i].Current is { } c && !keys.Contains(c)) keys.Add(c);
-            foreach (var key in keys)
-            {
-                if (!owners.TryGetValue(key, out var ids) || ids.FirstOrDefault(id => id != rows[i].Id) is not { } other) continue;
-                rows[i] = rows[i] with { TakenBy = titles.TryGetValue(other, out var title) ? title : Loc.T("un raccourci personnalisé") };
-                break;
-            }
+            if (rows[i].Current is not { } key || !owners.TryGetValue(key, out var ids)
+                || ids.FirstOrDefault(id => id != rows[i].Id) is not { } other) continue;
+            rows[i] = rows[i] with { TakenBy = titles.TryGetValue(other, out var title) ? title : Loc.T("un raccourci personnalisé") };
         }
         return (rows, others);
     }
@@ -180,7 +175,9 @@ public static class CatalogRows
             if (other.Id == editing.Id) continue;
             if (other.Shortcut is { Enabled: true } s && s.Trigger == trigger)
                 out_.Add(new KeyClash(other, s, other.Entry.Title, other.Entry.Section.Title()));
-            else if (other.Entry.Kind is CatalogEntryKind.Native(var k) && k == trigger)
+            // Sa touche d'origine, seulement si elle l'utilise encore (essai 2.1 du 13/11, comme le Mac : deux touches
+            // échangées se renvoyaient l'une à l'autre sans fin).
+            else if (other.Entry.Kind is CatalogEntryKind.Native(var k) && k == trigger && other.Current == k)
                 out_.Add(new KeyClash(other, null, other.Entry.Title, other.Entry.Section.Title()));
         }
         foreach (var s in others)

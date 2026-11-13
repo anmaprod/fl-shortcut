@@ -197,7 +197,12 @@ internal sealed class GuideView
     private static FrameworkElement Part(GuidePage page)
     {
         var stack = new StackPanel();
-        stack.Children.Add(Heading(page.Title, 40, Square(14)));
+        // 13/11 (essai 1.3 : « il faut que les carrés deviennent orange sur chaque page ») : la partie ouverte a son
+        // carré plein d'orange, comme la page ouverte dans la barre de gauche.
+        var mark = Square(14);
+        mark.BorderBrush = Brush(BrandRed);
+        mark.Background = Brush(BrandRed);
+        stack.Children.Add(Heading(page.Title, 40, mark));
         for (var i = 0; i < page.Steps.Count; i++)
         {
             var number = Label((i + 1).ToString("00", System.Globalization.CultureInfo.InvariantCulture), 11, Red, bold: true);
