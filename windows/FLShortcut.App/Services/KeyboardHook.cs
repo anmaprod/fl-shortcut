@@ -72,8 +72,6 @@ internal sealed class KeyboardHook : IDisposable
     /// Appuis sur Échap (de l'utilisateur) vus pendant que FL est devant : une macro en cours s'arrête.
     public int EscapePresses => Volatile.Read(ref _escapes);
 
-    public bool IsHookInstalled => _kbHook != IntPtr.Zero;
-
     /// Dernier appui gauche de l'utilisateur dans une fenêtre normale de FL (pas un menu), de moins de 10 minutes.
     public AimedClick? LastAimedClick
     {

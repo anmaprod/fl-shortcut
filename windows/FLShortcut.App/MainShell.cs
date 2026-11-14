@@ -638,20 +638,20 @@ internal sealed partial class MainShell
         foreach (var s in Enum.GetValues<FlSection>())
         {
             var section = s;
-            fl.Children.Add(SidebarRow(IconName(s), Tint(s), s.Title(),
+            fl.Children.Add(SidebarRow(s.Title(),
                 !searching && _kind == PageKind.Section && _section == s, () => Choose(PageKind.Section, section)));
         }
         _sidebarGroups.Children.Add(fl);
         var automate = Group(Loc.T("Automatiser"));
-        automate.Children.Add(SidebarRow("macros", Purple, Loc.T("Macros"),
+        automate.Children.Add(SidebarRow(Loc.T("Macros"),
             !searching && _kind == PageKind.Macros, () => Choose(PageKind.Macros, _section)));
         _sidebarGroups.Children.Add(automate);
         var custom = Group(Loc.T("Personnalisé"));
-        custom.Children.Add(SidebarRow("custom", Pink, Loc.T("Mes raccourcis"),
+        custom.Children.Add(SidebarRow(Loc.T("Mes raccourcis"),
             !searching && _kind == PageKind.Custom, () => Choose(PageKind.Custom, _section)));
         _sidebarGroups.Children.Add(custom);
         var share = Group(Loc.T("Partager"));
-        var communityRow = SidebarRow("community", CommunityPage.Tint, Loc.T("Communauté"),
+        var communityRow = SidebarRow(Loc.T("Communauté"),
             !searching && _kind == PageKind.Community, () =>
             {
                 // Déjà sur la page d'une personne : « Communauté » ramène à la liste.
@@ -677,9 +677,9 @@ internal sealed partial class MainShell
         }
         _sidebarGroups.Children.Add(share);
         var help = Group(Loc.T("Compte et aide"));
-        help.Children.Add(SidebarRow("account", AccountPage.Tint, Loc.T("Mon compte"),
+        help.Children.Add(SidebarRow(Loc.T("Mon compte"),
             !searching && _kind == PageKind.Account, () => Choose(PageKind.Account, _section)));
-        help.Children.Add(SidebarRow("help", HelpPage.Tint, Loc.T("Aide"),
+        help.Children.Add(SidebarRow(Loc.T("Aide"),
             !searching && _kind == PageKind.Help, () => Choose(PageKind.Help, _section)));
         _sidebarGroups.Children.Add(help);
     }
@@ -698,7 +698,7 @@ internal sealed partial class MainShell
     /// Une ligne de la barre de gauche (style suisse) : le carré de la page, puis le nom ; choisie (et au survol) :
     /// pleine d'encre, texte en gras, comme le Mac. Carré (proposition A choisie le 05/11, « le A est parfait ») :
     /// creux, d'un trait fin à l'encre ; rouge plein pour la page ouverte ; au survol, du trait de la couleur du fond.
-    private static Button SidebarRow(string icon, Color tint, string title, bool selected, Action choose)
+    private static Button SidebarRow(string title, bool selected, Action choose)
     {
         Color ink = Text, paper = WindowColor;          // pris maintenant : la barre a ses couleurs sous Orange
         var square = new Rectangle
@@ -716,7 +716,7 @@ internal sealed partial class MainShell
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         row.Children.Add(tile);
         row.Children.Add(Label(title, 13));
-        var button = Option(row, tint, 0, choose, selected, on => square.Stroke = Brush(on ? paper : ink));
+        var button = Option(row, choose, selected, on => square.Stroke = Brush(on ? paper : ink));
         AutomationProperties.SetName(button, title);
         return button;
     }
@@ -1050,10 +1050,10 @@ internal sealed partial class MainShell
             tint = Tint(_section);
             var mine = rows.Where(r => r.Entry.Section == _section).ToList();
             cards = CatalogGroups.Cards(_section, mine.Where(r => r.Entry.IsNative), r => r.Entry)
-                .Select(c => new PageCard(c.Title, c.Rows.Select(r => CatalogRowView(r, tint)).ToList())).ToList();
+                .Select(c => new PageCard(c.Title, c.Rows.Select(r => CatalogRowView(r)).ToList())).ToList();
             var extras = mine.Where(r => !r.Entry.IsNative).ToList();
             if (extras.Count > 0)
-                cards.Add(new PageCard(Loc.T("Actions en plus"), extras.Select(r => CatalogRowView(r, tint)).ToList()));
+                cards.Add(new PageCard(Loc.T("Actions en plus"), extras.Select(r => CatalogRowView(r)).ToList()));
         }
         ShowCards(cards);
     }
@@ -1069,12 +1069,12 @@ internal sealed partial class MainShell
         foreach (var s in Enum.GetValues<FlSection>())
         {
             var found = rows.Where(r => r.Entry.Section == s && Matches(r)).ToList();
-            if (found.Count > 0) cards.Add(new PageCard(s.Title(), found.Select(r => CatalogRowView(r, Tint(s))).ToList()));
+            if (found.Count > 0) cards.Add(new PageCard(s.Title(), found.Select(r => CatalogRowView(r)).ToList()));
         }
         var mine = others.Where(o => o.Kind != ShortcutKind.Macro && (_keySearch is { } k
             ? o.Trigger == k
             : $"{_app.TitleOf(o)} {o.Trigger}".Contains(q, StringComparison.CurrentCultureIgnoreCase))).ToList();
-        if (mine.Count > 0) cards.Add(new PageCard(Loc.T("Mes raccourcis"), mine.Select(o => CustomRowView(o, Pink)).ToList()));
+        if (mine.Count > 0) cards.Add(new PageCard(Loc.T("Mes raccourcis"), mine.Select(o => CustomRowView(o)).ToList()));
         return cards;
     }
 
@@ -1138,7 +1138,7 @@ internal sealed partial class MainShell
 
     /// Ligne d'un raccourci de FL : son nom ; ⚠ si la touche est prise ; ↺ juste avant une touche changée ; la touche
     /// (bleue si changée). Un clic ouvre « Changer la touche ».
-    private FrameworkElement CatalogRowView(CatalogRow row, Color tint)
+    private FrameworkElement CatalogRowView(CatalogRow row)
     {
         var grid = new Grid { ColumnSpacing = 8 };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -1171,7 +1171,7 @@ internal sealed partial class MainShell
         Grid.SetColumn(keys, 3);
         grid.Children.Add(keys);
 
-        var option = Option(grid, tint, 10, () => EditKey(row), minHeight: 36);
+        var option = Option(grid, () => EditKey(row), minHeight: 36);
         AutomationProperties.SetName(option, $"{row.Entry.Title} : {row.Current?.ToString() ?? Loc.T("aucune")}");
         AutomationProperties.SetHelpText(option, Loc.T("Changer la touche"));
         var menu = new MenuFlyout();
@@ -1203,7 +1203,7 @@ internal sealed partial class MainShell
         grid.Children.Add(keys);
         Grid.SetColumn(trailing, 3);
         grid.Children.Add(trailing);
-        var option = Option(grid, Text, 8, open, minHeight: 40);
+        var option = Option(grid, open, minHeight: 40);
         AutomationProperties.SetName(option, $"{title} : {combo?.ToString() ?? Loc.T("aucune")}");
         var cell = new Grid();
         cell.Children.Add(option);
@@ -1214,7 +1214,7 @@ internal sealed partial class MainShell
     }
 
     /// Ligne d'un raccourci que tu as créé : son nom (et sa fenêtre de FL), sa touche, « Supprimer ».
-    private FrameworkElement CustomRowView(Shortcut s, Color tint)
+    private FrameworkElement CustomRowView(Shortcut s)
     {
         var grid = new Grid { ColumnSpacing = 8 };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -1240,7 +1240,7 @@ internal sealed partial class MainShell
         var delete = RoundIcon("trash", Loc.T("Supprimer"), () => Delete(s), 28);
         Grid.SetColumn(delete, 3);
         grid.Children.Add(delete);
-        var option = Option(grid, tint, 10, async () => await EditCustomAsync(s), minHeight: 40);
+        var option = Option(grid, async () => await EditCustomAsync(s), minHeight: 40);
         option.Opacity = s.Enabled ? 1 : 0.5;
         AutomationProperties.SetName(option, $"{_app.TitleOf(s)} : {s.Trigger?.ToString() ?? Loc.T("aucune")}");
         var menu = new MenuFlyout();

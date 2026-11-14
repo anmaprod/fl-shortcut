@@ -50,10 +50,8 @@ public sealed class OrganizerFeedback
     /// Aider l'ordinateur de tout le monde avec ces corrections (des nombres seulement).
     public bool Share { get; set; }
 
-    public bool AsksSounds => Reasons.Any(AboutSounds);
     // 13/11 (comme le Mac) : « Autre chose ? » est un simple champ, tout texte écrit compte.
     private string Text => OtherText.Trim();
-    public bool CanSend => Reasons.Count > 0 || Text.Length > 0 || Fixes.Count > 0;
 
     /// Le message pour l'équipe : ce que l'IA ne peut pas apprendre (Playlist, Mixer, aspect) et « Autre » ; null :
     /// rien à lui dire.

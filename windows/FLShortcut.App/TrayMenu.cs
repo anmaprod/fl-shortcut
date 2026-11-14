@@ -199,7 +199,7 @@ internal sealed class TrayMenu
         var title = Label(entry.Title, 13, bold: true);
         title.VerticalAlignment = VerticalAlignment.Center;
         content.Children.Add(title);
-        var row = Option(content, entry.Tint, 9, () => Run(entry.Run), minHeight: 34, padding: new Thickness(10, 0, 8, 0),
+        var row = Option(content, () => Run(entry.Run), minHeight: 34, padding: new Thickness(10, 0, 8, 0),
                          hover: on =>
                          {
                              square.Background = Brush(on ? BrandRed : Colors.Transparent);

@@ -252,7 +252,7 @@ public static class ProjectFile
         || path.StartsWith("\\\\", StringComparison.Ordinal);
 
     /// Pur (testé) : boîte de FL qui arrête l'ouverture d'un projet jusqu'à une réponse (titre de sa fenêtre).
-    public static bool IsBlockingDialog(string title) => title.ToLowerInvariant().Contains("invalid project data folder");
+    public static bool IsBlockingDialog(string title) => title.Contains("invalid project data folder", StringComparison.OrdinalIgnoreCase);
 
     /// Ce qui porte la marque de la copie : un pattern (1 = pattern 1) ou un canal (rang dans le Channel rack).
     public readonly record struct Mark(bool IsPattern, int Number)
@@ -315,7 +315,7 @@ public static class ProjectFile
                     break;
             }
         }
-        var free = described.Where(d => !named.Contains(d.Pattern)).Cast<(int Index, int Pattern)?>().FirstOrDefault();
+        var free = described.Where(d => !named.Contains(d.Pattern)).Select(d => ((int Index, int Pattern)?)d).FirstOrDefault();
         if (free is { } f)
         {
             out_.Events.Insert(f.Index + 1, name);

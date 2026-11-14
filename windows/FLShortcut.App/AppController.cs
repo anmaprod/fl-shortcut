@@ -119,7 +119,6 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         Raise(nameof(Onboarded));
     }
     public bool Enabled => _settings.Enabled;
-    public ProfilePreset CurrentPreset => Enum.TryParse<ProfilePreset>(_settings.Profile, out var p) ? p : ProfilePreset.Recommended;
     public IReadOnlyList<Shortcut> Shortcuts => _shortcuts;
     /// Les pages comme le Mac (29/10) : chaque raccourci de FL et action du script avec sa touche actuelle (`Rows`),
     /// et tes autres raccourcis (`Others` : créés, macros). Recalculé quand le profil ou ses avertissements changent.
@@ -149,12 +148,6 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         _settings.Enabled = !_settings.Enabled;
         _settings.Save();
         RefreshAll();
-    }
-
-    public void SetEnabled(bool on)
-    {
-        if (_settings.Enabled == on) return;
-        Toggle();
     }
 
     public void CompleteOnboarding()
@@ -264,14 +257,6 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         return s;
     }
 
-    public void LoadPreset(ProfilePreset preset)
-    {
-        _shortcuts = preset.Shortcuts();
-        _settings.Profile = preset.ToString();
-        _settings.Save();
-        Persist();
-    }
-
     /// Un profil de Windows, ou d'un Mac (touches traduites pour le clavier de ce PC).
     public ImportPreview PrepareImport(string json) => ProfileImporter.Prepare(json, KeyLayout);
 
@@ -298,14 +283,6 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     /// Les raccourcis de ce PC écrits comme sur le Mac (partage « Tous mes raccourcis », sauvegarde du compte).
     public string MacProfileJson(bool withMacros) =>
         MacProfile.ToMac(withMacros ? _shortcuts : _shortcuts.Where(s => s.Kind != ShortcutKind.Macro), KeyLayout);
-
-    public void ApplyImport(ImportPreview preview)
-    {
-        _shortcuts.AddRange(preview.Shortcuts);
-        Persist();
-    }
-
-    public string ExportJson() => ProfileCodec.Encode(_shortcuts);
 
     public void SetRecording(bool recording) => _hook.Config = _hook.Config with { Recording = recording };
 

@@ -628,9 +628,6 @@ final class OrganizerController: ObservableObject {
     /// « Pas content ? » ouvert, puis envoyé.
     @Published var feedbackShown = false
     @Published private(set) var feedbackSent = false
-    /// Tuto en images affiché à la place de l'étape (OrganizerTutorial.swift) : à la première ouverture, avant
-    /// « Démarrer » ; « Revoir le tuto » le remontre sans rien relancer.
-    @Published private(set) var tutorial = false
 
     init(env: OrganizerEnvironment) {
         self.env = env
@@ -722,18 +719,6 @@ final class OrganizerController: ObservableObject {
     func copyIconTable(_ outcome: OrganizerIconLearner.Outcome) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(OrganizerIconLearner.tableText(outcome), forType: .string)
-    }
-
-    /// Montre le tuto (première ouverture, ou « Revoir le tuto ») ; rien n'est lancé à sa fin.
-    func showTutorial() {
-        tutorial = true
-    }
-
-    /// Tuto fini ou passé : noté comme vu.
-    func finishTutorial(defaults: UserDefaults = .standard) {
-        guard tutorial else { return }
-        tutorial = false
-        OrganizerTutorial.markSeen(defaults: defaults)
     }
 
     /// `quiet` : nouvel essai pendant une attente ; l'écran d'attente reste jusqu'au premier son écouté (pas
@@ -1507,7 +1492,6 @@ final class OrganizerController: ObservableObject {
     func showDemo(_ screen: String) {
         waitSerial += 1
         showLinkHelp = screen == "aide"
-        tutorial = screen == "tuto"
         demoColors = screen == "couleurs"
         // Des récentes d'exemple, jamais écrites dans les réglages (comme au premier lancement sinon : cases vides).
         RecentColors.demoList = demoColors ? Self.demoRecentColors : nil
@@ -1624,9 +1608,7 @@ enum OrganizerWindow {
     }
 
     /// Ouvre l'Organiser sur « Démarrer » (ou le ramène devant) : rien n'est envoyé à FL avant ce clic. Fil principal.
-    /// `tutorial` (avec `start`) : le tuto d'abord s'il n'a jamais été vu (pas à la reprise après « Quitter et
-    /// rouvrir », ni en mode capture).
-    static func open(env: OrganizerEnvironment = .live(), start: Bool = true, tutorial: Bool = true) {
+    static func open(env: OrganizerEnvironment = .live(), start: Bool = true) {
         if let panel {
             panel.orderFrontRegardless()
             return
@@ -1785,8 +1767,8 @@ struct OrganizerView: View {
     /// Espace des places des familles : celui de leurs colonnes dans la liste qui défile.
     static let familySpace = "organiser-familles"
 
-    /// L'aperçu est à l'écran (pas le tuto, revu par-dessus : il prend la hauteur de son contenu).
-    private var isPreview: Bool { controller.phase == .preview && !controller.tutorial }
+    /// L'aperçu est à l'écran.
+    private var isPreview: Bool { controller.phase == .preview }
 
     /// Pendant l'application : l'étape en cours (« FL ouvre la copie rangée… 12 s »), sinon le texte général.
     private var applyingText: String {
@@ -1800,7 +1782,6 @@ struct OrganizerView: View {
 
     /// Étape affichée : une nouvelle étape remplace l'ancienne en fondu (la progression de l'écoute, non).
     private var stepKey: String {
-        if controller.tutorial { return "tutorial" }
         switch controller.phase {
         case .ready: return "ready"
         case .starting: return "starting"
@@ -1822,13 +1803,7 @@ struct OrganizerView: View {
         VStack(alignment: .leading, spacing: 16) {
             header
             ZStack(alignment: .topLeading) {
-                Group {
-                    if controller.tutorial {
-                        OrganizerTutorialView { controller.finishTutorial() }
-                    } else {
-                        content
-                    }
-                }
+                content
                 .id(stepKey)
                 .transition(Motion.pageMorph)
             }

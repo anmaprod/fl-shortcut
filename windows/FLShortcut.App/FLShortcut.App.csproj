@@ -87,9 +87,6 @@
   <!-- Le script FL (modèle avec le marqueur de clé), embarqué dans l'exécutable. -->
   <ItemGroup>
     <EmbeddedResource Include="..\..\Resources\device_FLShortcut.py" LogicalName="device_FLShortcut.py" />
-    <!-- Tuto de l'Organiser : les images du Mac (Resources/{fr,en}.lproj/OrganiserTuto1…4.png). -->
-    <EmbeddedResource Include="..\..\Resources\fr.lproj\OrganiserTuto*.png" LogicalName="%(Filename)-fr.png" />
-    <EmbeddedResource Include="..\..\Resources\en.lproj\OrganiserTuto*.png" LogicalName="%(Filename)-en.png" />
     <!-- Les 4 cases de MIDI Settings (aide de l'Organiser, comme le Mac) : l'image du Mac, découpée à l'affichage. -->
     <EmbeddedResource Include="..\..\Resources\MIDISettings.png" LogicalName="MIDISettings.png" />
     <!-- Logo « A » de la zone de notification (04/11, scripts/icone.py, option tray) : cercle blanc sur une barre des

@@ -1139,8 +1139,9 @@ public static class TextLook
                                      || i.Y <= r.Y + 1 || i.Y + i.Height >= r.Y + r.Height - 1))).ToList();
         foreach (var pad in new[] { 0, (int)Math.Round(6 * scale) })
         {
-            var near = usable.Where(i => x >= i.X - pad && x < i.X + i.Width + pad && y >= i.Y - pad && y < i.Y + i.Height + pad);
-            if (near.Any()) return near.MaxBy(i => i.Width);
+            var near = usable.Where(i => x >= i.X - pad && x < i.X + i.Width + pad && y >= i.Y - pad && y < i.Y + i.Height + pad)
+                .ToList();
+            if (near.Count > 0) return near.MaxBy(i => i.Width);
         }
         return null;
     }

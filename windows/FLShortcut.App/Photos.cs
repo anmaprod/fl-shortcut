@@ -1,6 +1,6 @@
 // Mode photos de la CI (`--photos <dossier>`) : la fenêtre principale (plusieurs pages, dont Macros avec des macros d'exemple
 // en mémoire : liste et créateur), le menu de l'icône, puis chaque écran de l'Organiser avec des sons d'exemple
-// (OrganizerController.ShowDemo) et son tuto, enregistrés en PNG, puis l'appli se ferme. Rien n'est envoyé à FL, aucun hook ni port MIDI n'est ouvert, aucune macro
+// (OrganizerController.ShowDemo), enregistrés en PNG, puis l'appli se ferme. Rien n'est envoyé à FL, aucun hook ni port MIDI n'est ouvert, aucune macro
 // n'est écrite ; seuls des « principale*.png », « menu-icone.png », « theme-<thème>-<page>.png », des « organiser-<écran>.png » et des « macros-<écran>.png » sont écrits, dans
 // un dossier qui existe déjà.
 using System.Runtime.InteropServices.WindowsRuntime;

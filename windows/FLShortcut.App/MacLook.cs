@@ -106,19 +106,6 @@ internal static class MacLook
         _ => Gray,
     };
 
-    /// Dessin de l'icône d'une page (mêmes dessins que le Mac et le tuto).
-    public static string IconName(FlSection s) => s switch
-    {
-        FlSection.Transport => "transport",
-        FlSection.Patterns => "patterns",
-        FlSection.Playlist => "playlist",
-        FlSection.PianoRoll => "pianoroll",
-        FlSection.ChannelRack => "channelrack",
-        FlSection.Mixer => "mixer",
-        FlSection.Browser => "browser",
-        _ => "general",
-    };
-
     internal static Color Mix(Color a, Color b, double t) => Color.FromArgb(255,
         (byte)Math.Round(a.R + (b.R - a.R) * t), (byte)Math.Round(a.G + (b.G - a.G) * t), (byte)Math.Round(a.B + (b.B - a.B) * t));
 
@@ -131,16 +118,6 @@ internal static class MacLook
     }
 
     // ---------- Plaques et textes ----------
-
-    /// Plaque claire des maquettes : dégradé blanc (plus clair en haut), bord fin un peu plus clair en haut.
-    /// Bloc (style suisse) : noir, cadre fin #333, coins carrés (`radius` et les dégradés d'avant ne servent plus).
-    public static Border Plate(UIElement? child, double radius, double top = 0.10, double bottom = 0.045, double border = 0.15) => new()
-    {
-        Background = Brush(WindowColor),
-        BorderBrush = Brush(LineColor),
-        BorderThickness = new Thickness(1),
-        Child = child,
-    };
 
     /// Libellé en petites capitales espacées (« MES MACROS », « PROJET »), gris par défaut (swissLabel du Mac).
     public static TextBlock SwissLabel(string text, double size = 11, Color? color = null)
@@ -381,15 +358,15 @@ internal static class MacLook
 
     /// Repère d'une page ou d'une rubrique (style suisse) : un petit carré plein de sa couleur, centré dans la place
     /// de l'ancienne tuile (`size`), comme la barre de gauche du Mac.
-    public static Border Tile(string icon, Color tint, double size = 22)
+    public static Border Tile(Color tint, double size = 22)
     {
         var tile = new Border { Width = size, Height = size, IsHitTestVisible = false };
-        SetTileHover(tile, icon, tint, hovered: false);
+        SetTileHover(tile, tint);
         return tile;
     }
 
     /// Le carré garde sa couleur au survol (la ligne devient blanche, le carré reste lisible dessus).
-    public static void SetTileHover(Border tile, string icon, Color tint, bool hovered)
+    public static void SetTileHover(Border tile, Color tint)
     {
         var side = Math.Max(8, Math.Round(tile.Width * 0.38));
         tile.Child = new Rectangle
@@ -482,9 +459,9 @@ internal static class MacLook
         return style;
     }
 
-    /// Une option cliquable (style suisse) : au survol comme choisie, blanc plein et texte noir, coins carrés (`tint` et
-    /// `radius` ne servent plus). `hover` : ce qui change en plus (texte de couleur fixe à noircir).
-    public static Button Option(UIElement content, Color tint, double radius, Action? click, bool selected = false,
+    /// Une option cliquable (style suisse) : au survol comme choisie, blanc plein et texte noir, coins carrés. `hover` :
+    /// ce qui change en plus (texte de couleur fixe à noircir).
+    public static Button Option(UIElement content, Action? click, bool selected = false,
                                 Action<bool>? hover = null, double minHeight = 32, Thickness? padding = null)
     {
         Color ink = Text, paper = WindowColor;          // pris maintenant : une partie inversée garde les siens

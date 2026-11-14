@@ -48,7 +48,7 @@ internal static class CopyApprovalPrompt
             {
                 var p = kept ?? approval.Pending[0];
                 var answer = kept is not null ? ContentDialogResult.Primary
-                    : await Question(root, app, p, approval.Pending.Count - 1);
+                    : await Question(root, app, approval.Pending.Count - 1);
                 kept = null;
                 if (answer == ContentDialogResult.None)
                 {
@@ -57,7 +57,7 @@ internal static class CopyApprovalPrompt
                 }
                 var keep = answer == ContentDialogResult.Primary;
                 var working = Dialog(root);
-                working.Content = Message("square.stack.3d.up", Indigo, keep ? Loc.T("FL enregistre la version organisée…") : Loc.T("FL rouvre ton projet d'avant…"),
+                working.Content = Message(Indigo, keep ? Loc.T("FL enregistre la version organisée…") : Loc.T("FL rouvre ton projet d'avant…"),
                     new ProgressRing { IsActive = true, Width = 20, Height = 20, Foreground = Brush(Indigo) });
                 var shown = working.ShowAsync();
                 var files = approval.Files;
@@ -93,10 +93,10 @@ internal static class CopyApprovalPrompt
     };
 
     /// Le contenu centré : une icône de couleur, un texte en gras, puis ce qui suit (attente, boutons).
-    private static StackPanel Message(string icon, Windows.UI.Color tint, string title, params UIElement[] then)
+    private static StackPanel Message(Windows.UI.Color tint, string title, params UIElement[] then)
     {
         var body = new StackPanel { Spacing = 10, Width = 340, Padding = new Thickness(0, 6, 0, 0) };
-        var tile = Tile(icon, tint, 44);
+        var tile = Tile(tint, 44);
         tile.HorizontalAlignment = HorizontalAlignment.Center;
         body.Children.Add(tile);
         var heading = Label(title, 13.5, Text, bold: true);
@@ -135,7 +135,7 @@ internal static class CopyApprovalPrompt
     /// « tu gardes la version rangée » (13/11, maquette validée, comme le Mac) : deux grandes cases, GARDER (une mini
     /// Playlist rangée aux couleurs choisies pour les familles) et REVENIR COMME AVANT (la même en désordre), soulevées
     /// au survol ; « Plus tard » en bas à droite. Primary = garder, Secondary = revenir, None = plus tard.
-    private static async Task<ContentDialogResult> Question(XamlRoot root, AppController app, PendingCopy p, int remaining)
+    private static async Task<ContentDialogResult> Question(XamlRoot root, AppController app, int remaining)
     {
         var answer = ContentDialogResult.None;
         var dialog = Dialog(root);
@@ -189,7 +189,7 @@ internal static class CopyApprovalPrompt
                   dialog.Hide();
               }))
             : Primary(Loc.T("OK"), dialog.Hide);
-        var body = Message("warning", Orange, "", message, buttons);
+        var body = Message(Orange, "", message, buttons);
         body.Children.RemoveAt(1);                    // pas de titre : le message suffit
         dialog.Content = body;
         await dialog.ShowAsync();

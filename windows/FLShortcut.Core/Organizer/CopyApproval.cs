@@ -196,7 +196,6 @@ public static class CopyApprovalRules
 /// Les copies en attente (réglages de l'appli) et la question, posée à la réouverture de FL Shortcuts.
 public sealed class CopyApproval
 {
-    private readonly Func<string?> _load;
     private readonly Action<string?> _save;
     public CopyFiles Files { get; set; }
     public List<PendingCopy> Pending { get; private set; }
@@ -206,7 +205,6 @@ public sealed class CopyApproval
 
     public CopyApproval(Func<string?> load, Action<string?> save, CopyFiles files)
     {
-        _load = load;
         _save = save;
         Files = files;
         Pending = CopyApprovalRules.Decode(load());

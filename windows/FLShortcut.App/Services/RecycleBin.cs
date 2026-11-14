@@ -23,7 +23,7 @@ internal static class RecycleBin
     /// Le fichier à la Corbeille ; renvoie sa copie de secours (pour le remettre), ou null.
     private static string? Trash(string path)
     {
-        string? spare = null;
+        string? spare;
         try
         {
             Directory.CreateDirectory(Spare);

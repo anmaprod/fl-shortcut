@@ -199,7 +199,8 @@ internal static class Specs
     private static string Upper(string letters) => string.Join(" › ", letters.Select(ch => char.ToUpperInvariant(ch).ToString()));
 
     /// Nom du fichier d'un chemin (écrit sur un Mac ou sur un PC).
-    private static string FileName(string path) => path[(path.LastIndexOfAny(new[] { '/', '\\' }) + 1)..];
+    private static string FileName(string path) => path[(path.LastIndexOfAny(Slashes) + 1)..];
+    private static readonly char[] Slashes = { '/', '\\' };
 
     public static string? KeyProblem(KeyRef key, ValidationContext ctx, string? what = null)
     {

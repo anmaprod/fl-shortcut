@@ -70,7 +70,7 @@ internal sealed class MacrosPage
 
     /// Carré d'un bloc : orange pour tous (08/11, « carré violet, carré bleu… carré orange pour tous », comme le
     /// créateur du Mac depuis le 05/11 : plus de couleur par catégorie).
-    private static Color CategoryTint(BlockCategory c) => MacLook.BrandRed;
+    private static Color CategoryTint => MacLook.BrandRed;
 
     /// Bibliothèque d'exemple du mode photos (CI) : en mémoire, jamais écrite ; `Sample` s'ouvre dans le créateur.
     public static (MacroLibraryStore Store, Guid Sample) DemoStore()
@@ -226,7 +226,7 @@ internal sealed class MacrosPage
         {
             actions.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             var card = StartCard((i + 1).ToString("00", System.Globalization.CultureInfo.InvariantCulture),
-                                 starts[i].Title, starts[i].Text, starts[i].Run, primary: i == 0);
+                                 starts[i].Title, starts[i].Text, starts[i].Run);
             Grid.SetColumn(card, i);
             actions.Children.Add(card);
         }
@@ -276,7 +276,7 @@ internal sealed class MacrosPage
     private static Button SmallTextButton(string title, Action click)
     {
         var label = SwissLabel(title, 10.5, Secondary);
-        var button = Option(label, Text, 0, click, minHeight: 22, padding: new Thickness(6, 0, 6, 0));
+        var button = Option(label, click, minHeight: 22, padding: new Thickness(6, 0, 6, 0));
         button.PointerEntered += (_, _) => label.Foreground = Brush(WindowColor);
         button.PointerExited += (_, _) => label.Foreground = Brush(Secondary);
         return button;
@@ -285,8 +285,8 @@ internal sealed class MacrosPage
     /// Une façon de commencer (maquette du 05/11, comme le Mac) : son numéro en haut, le titre en grand (minuscules)
     /// en bas, une phrase dessous. 06/11 (comme le Mac) : les trois pareilles au repos (fond de la page, numéro gris,
     /// trait fin) ; survolée, une carte se remplit (blanc sous Noir et Orange, noir sous Papier), son numéro passe à
-    /// l'orange et elle se soulève sur son ombre nette (effet Gumroad). `primary` ne change plus rien.
-    private static FrameworkElement StartCard(string number, string title, string text, Action click, bool primary)
+    /// l'orange et elle se soulève sur son ombre nette (effet Gumroad).
+    private static FrameworkElement StartCard(string number, string title, string text, Action click)
     {
         Color ink = Text, paper = WindowColor, fill = PrimaryFill, onFill = PrimaryInk;
         var num = Label(number, 15, Secondary, bold: true);
@@ -1256,7 +1256,7 @@ internal sealed class MacrosPage
         var block = doc.Blocks[index];
         var body = block.Body;
         var spec = body.Type is { } type ? BlockRegistry.Spec(type) : null;
-        var tint = spec is null ? Gray : CategoryTint(spec.Category);
+        var tint = spec is null ? Gray : CategoryTint;
         var symbol = spec?.Symbol ?? "warning";
         var selected = block.Id == _selected;
 
@@ -1371,23 +1371,6 @@ internal sealed class MacrosPage
             cell.Children.Add(new Rectangle { Height = 1, Fill = Brush(White(0.06)), VerticalAlignment = VerticalAlignment.Top,
                                               Margin = new Thickness(10, 0, 10, 0), IsHitTestVisible = false });
         return cell;
-    }
-
-    private static Border ValuePill(string text)
-    {
-        var label = Label(text, 13, Text, semibold: true);
-        label.TextWrapping = TextWrapping.NoWrap;
-        label.TextTrimming = TextTrimming.CharacterEllipsis;
-        return new Border
-        {
-            Child = label,
-            Padding = new Thickness(9, 3, 9, 3),
-            CornerRadius = new CornerRadius(0),
-            Background = Brush(MacLook.WindowColor),
-            BorderBrush = Brush(White(0.2)),
-            BorderThickness = new Thickness(1),
-            VerticalAlignment = VerticalAlignment.Center,
-        };
     }
 
     /// Interrupteur suisse (SwissSwitch du Mac) : rectangle bordé de blanc ; allumé, blanc plein et carré noir à
@@ -1586,7 +1569,7 @@ internal sealed class MacrosPage
         var header = new Grid { ColumnSpacing = 10 };
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var tile = Tile(spec?.Symbol ?? "warning", spec is null ? Gray : CategoryTint(spec.Category), 28);
+        var tile = Tile(spec is null ? Gray : CategoryTint, 28);
         tile.VerticalAlignment = VerticalAlignment.Top;
         header.Children.Add(tile);
         var titles = new StackPanel { Spacing = 3 };

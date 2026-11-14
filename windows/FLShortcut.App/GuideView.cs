@@ -177,7 +177,7 @@ internal sealed class GuideView
             row.Children.Add(piece);
         }
 
-        var button = Option(row, ink, 0, () => Go(page.Id), minHeight: 52, padding: new Thickness(0), hover: on =>
+        var button = Option(row, () => Go(page.Id), minHeight: 52, padding: new Thickness(0), hover: on =>
         {
             title.Foreground = Brush(on ? paper : ink);
             foreach (var soft in new[] { number, first, arrow }) soft.Foreground = Brush(on ? WithOpacity(paper, 0.7) : gray);

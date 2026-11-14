@@ -538,7 +538,6 @@ public static class Organize
 /// Égalités de valeur pour les ensembles et les tables (comme `==` du Mac).
 public static class Same
 {
-    public static bool Sets(ISet<int>? a, ISet<int>? b) => (a?.Count ?? 0) == (b?.Count ?? 0) && (a is null || b is null || a.SetEquals(b));
 
     public static bool SetMaps(IReadOnlyDictionary<int, HashSet<int>> a, IReadOnlyDictionary<int, HashSet<int>> b) =>
         a.Count == b.Count && a.All(kv => b.TryGetValue(kv.Key, out var other) && kv.Value.SetEquals(other));

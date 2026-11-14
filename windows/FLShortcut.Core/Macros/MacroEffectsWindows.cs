@@ -673,7 +673,7 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
     private StepResult? DropPlugin(string name, bool effect)
     {
         if (_fl.PluginPreset(name, effect) is not { } file) return null;
-        (int X, int Y)? target = null;
+        (int X, int Y)? target;
         // 13/11 (« ça ne fonctionne toujours pas ») : le bloc d'avant (« Ouvrir une page ») vient souvent d'appuyer sur la
         // touche de la page et FL met un moment à la montrer. Avant, elle était lue aussitôt, pas vue, et sa touche
         // appuyée de nouveau : FL la REFERMAIT, puis le menu Add. Maintenant : lue jusqu'à 1,5 s sans rien toucher, sa

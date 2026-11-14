@@ -135,24 +135,6 @@ internal sealed partial class MainShell
         BorderThickness = new Thickness(1),
     };
 
-    /// Pastille d'état à droite d'une carte (Prêts, En attente…).
-    /// État au style suisse (maquette) : en petites capitales dans un cadre de 2 points ; fait : à l'encre ; à faire :
-    /// plein de rouge.
-    private static Border State(string text, Color tint)
-    {
-        var done = tint == Green;
-        return new Border
-        {
-            Padding = new Thickness(12, 6, 12, 6),
-            CornerRadius = new CornerRadius(0),
-            Background = Brush(done ? Colors.Transparent : Red),
-            BorderBrush = Brush(done ? Text : Red),
-            BorderThickness = new Thickness(2),
-            VerticalAlignment = VerticalAlignment.Center,
-            Child = SwissLabel(text, 11, done ? Text : MacLook.OnRed),
-        };
-    }
-
     /// Ligne de la carte d'accueil (comme le Mac) : le nom en gras, une phrase grise dessous, l'état à droite.
     private static Grid WelcomeRow(string title, string text, UIElement state)
     {

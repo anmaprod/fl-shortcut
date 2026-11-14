@@ -60,19 +60,9 @@ internal sealed partial class OrganizerWindow : Window
     private const double TwoColumns = 600;
     private const double PreviewHeight = 720;
 
-    /// Les pages du tuto (comme OrganizerTutorial du Mac) : une image, un titre, une phrase.
-    private static (string Title, string Text)[] TutorialPages => new[]
-    {
-        (Loc.T("Ouvre ton projet dans FL"), Loc.T("Puis menu de l'icône › Organiser…")),
-        (Loc.T("Il écoute chaque son"), Loc.T("Ne touche pas à FL pendant l'écoute.")),
-        (Loc.T("Vérifie le rangement"), Loc.T("Change une famille, un nom ou une piste si tu veux.")),
-        (Loc.T("Une copie rangée"), Loc.T("Ton projet ne bouge pas : tu valides la copie, ou tu reviens en arrière.")),
-    };
-
     private readonly AppController _app;
     private readonly OrganizerController _controller;
     private readonly IntPtr _hwnd;
-    private readonly bool _demo;
     // Créés dans le constructeur, APRÈS celui de Window : un élément de XAML créé avant (initialiseur de champ) fait
     // tomber WinUI quand c'est la première fenêtre (CI, mode photos : 0xC000027B dans Microsoft.UI.Xaml.dll).
     private readonly Grid _root;
@@ -87,9 +77,6 @@ internal sealed partial class OrganizerWindow : Window
     private SoundFamily? _dragging;
     /// Son pris par sa poignée, glissé vers une autre famille (comme le Mac).
     private int? _draggingSound;
-    private bool _tutorial;
-    private int _tutorialPage;
-    private bool _startAfterTutorial;
     private bool _fitQueued;
     private int _columns = 2;
 
@@ -100,7 +87,6 @@ internal sealed partial class OrganizerWindow : Window
     {
         Photos.Note("fenêtre : constructeur");
         _app = app;
-        _demo = demo is not null;
         _content = new StackPanel { Spacing = 12 };
         _left = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         _right = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
@@ -171,7 +157,7 @@ internal sealed partial class OrganizerWindow : Window
             var columns = e.NewSize.Width >= TwoColumns ? 2 : 1;
             if (columns == _columns) return;
             _columns = columns;
-            if (_controller?.Phase is OrganizerPhase.Preview && !_tutorial) Render();
+            if (_controller?.Phase is OrganizerPhase.Preview) Render();
         };
         Photos.Note("fenêtre : contenu");
 
@@ -188,18 +174,14 @@ internal sealed partial class OrganizerWindow : Window
             _open = null;
             OrganizerClosed?.Invoke();
         };
-        // Tuto en images la première fois, avant l'écoute (rien n'est envoyé à FL tant qu'il est là).
-        // Plus de tuto (05/11, comme le Mac) : « Installer le lien » directement ; la photo de la CI le montre encore.
-        _tutorial = demo == "tuto";
-        _startAfterTutorial = _tutorial && demo is null;
         Render();
         Photos.Note("fenêtre : premier dessin");
         if (demo is null)
         {
             // Comme le Mac : l'écran « Démarrer » d'abord ; lien pas encore installé : « Installer le lien » tout de suite.
-            if (!_tutorial && !app.Midi.HasKey) _controller.Start();
+            if (!app.Midi.HasKey) _controller.Start();
         }
-        else if (demo != "tuto") _controller.ShowDemo(demo);
+        else _controller.ShowDemo(demo);
         Photos.Note("fenêtre : prête");
     }
 
@@ -219,23 +201,6 @@ internal sealed partial class OrganizerWindow : Window
         BorderBrush = Brush(WithOpacity(tint ?? Tint, 0.4)),
         BorderThickness = new Thickness(1),
     };
-
-    /// 06/11 (comme le Mac : « une petite baguette magique… ignoble », « un petit point d'exclamation, enlève-le ») :
-    /// plus aucune pastille d'icône dans l'Organiser, le texte seul.
-    private static readonly bool BadgesShown = false;
-
-    /// Pastille de couleur avec son dessin blanc (résultat, écoute, attente) ; cachée (BadgesShown).
-    private static Grid Badge(string icon, Color tint, double size = 34)
-    {
-        if (!BadgesShown) return new Grid { Visibility = Visibility.Collapsed };
-        var grid = new Grid { Width = size, Height = size, VerticalAlignment = VerticalAlignment.Center };
-        grid.Children.Add(new Rectangle { Fill = Brush(tint) });
-        var glyph = Icon(icon, size * 0.46, Colors.White, tint);
-        glyph.HorizontalAlignment = HorizontalAlignment.Center;
-        glyph.VerticalAlignment = VerticalAlignment.Center;
-        grid.Children.Add(glyph);
-        return grid;
-    }
 
     /// Une ligne : une pastille (ou une icône), puis le texte qui prend la place.
     private static Grid Row(UIElement first, UIElement rest, double spacing = 12)
@@ -277,12 +242,6 @@ internal sealed partial class OrganizerWindow : Window
         return button;
     }
 
-    /// 06/11 (comme le Mac : « ça me fait tourner un petit truc à gauche… enlève-le ») : plus de roue qui tourne.
-    private static ProgressRing Spinner(double size = 18) => new()
-    {
-        IsActive = false, Width = size, Height = size, Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center,
-    };
-
     private static TextBlock Note(string text, Color? color = null) => Paragraph(text, 11, color ?? Secondary);
 
     // ---------- Les étapes ----------
@@ -296,16 +255,10 @@ internal sealed partial class OrganizerWindow : Window
         _headerTools.Children.Clear();
         _right.Spacing = 8;
         _title.Text = _controller.Title.ToLower(System.Globalization.CultureInfo.CurrentCulture);
-        var preview = _controller.Phase is OrganizerPhase.Preview && !_tutorial;
+        var preview = _controller.Phase is OrganizerPhase.Preview;
         // Aperçu : un trait fin au-dessus des boutons (comme le Mac).
         _footer.BorderThickness = new Thickness(0, preview ? 1 : 0, 0, 0);
         _footer.BorderBrush = Brush(LineColor);
-        if (_tutorial)
-        {
-            Tutorial();
-            FitSoon();
-            return;
-        }
         switch (_controller.Phase)
         {
             case OrganizerPhase.Starting:
@@ -380,7 +333,7 @@ internal sealed partial class OrganizerWindow : Window
         if (_closing) return;
         var scale = Win32.GetDpiForWindow(_hwnd) / 96.0;
         // Comme le Mac (07/11) : écrans de texte de 480 de large ; l'aperçu s'ouvre à 720 et se tire (440 au moins).
-        var preview = _controller.Phase is OrganizerPhase.Preview && !_tutorial;
+        var preview = _controller.Phase is OrganizerPhase.Preview;
         var current = AppWindow.ClientSize.Width / scale;
         var width = preview ? (_wasPreview ? Math.Max(current, 440) : StartWidth) : TextWidth;
         _wasPreview = preview;
@@ -802,93 +755,6 @@ internal sealed partial class OrganizerWindow : Window
 
     private Button DiagnosticButton() => SoftButton(_controller.Copied ? Loc.T("Copié") : Loc.T("Copier le diagnostic"), _controller.CopyDiagnostic,
         Loc.T("Copie un texte technique, sans aucun nom de son."));
-
-    // ---------- Le tuto ----------
-
-    /// Une page du tuto : l'image en grand, son titre et sa phrase, les points de page, « Passer » et « Suivant »
-    /// (« C'est parti » sur la dernière). Vu une fois : plus montré tout seul.
-    private void Tutorial()
-    {
-        var pages = TutorialPages;
-        var index = Math.Clamp(_tutorialPage, 0, pages.Length - 1);
-        var last = index == pages.Length - 1;
-        var picture = new Border
-        {
-            CornerRadius = new CornerRadius(0),
-            BorderBrush = Brush(LineColor),
-            BorderThickness = new Thickness(1),
-            Background = Brush(MacLook.WindowColor),
-        };
-        if (TutorialImage(index + 1) is { } bitmap)
-            picture.Child = new Image { Source = bitmap, Stretch = Stretch.Uniform };
-        else
-            picture.Height = 300;
-        _content.Children.Add(picture);
-        _content.Children.Add(Stack(4, Label(pages[index].Title, 17, Text, bold: true), Paragraph(pages[index].Text, 13)));
-
-        var dots = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
-        for (var i = 0; i < pages.Length; i++)
-            dots.Children.Add(new Ellipse { Width = 7, Height = 7, Fill = Brush(i == index ? Accent : White(0.25)) });
-        AutomationProperties.SetName(dots, Loc.F("Page %lld sur %lld", index + 1, pages.Length));
-        _left.Children.Add(dots);
-        if (!last) _right.Children.Add(SoftButton(Loc.T("Passer"), FinishTutorial));
-        _right.Children.Add(BlueButton(last ? Loc.T("C'est parti") : Loc.T("Suivant"), () =>
-        {
-            if (last) FinishTutorial();
-            else
-            {
-                _tutorialPage++;
-                Render();
-            }
-        }));
-    }
-
-    /// L'image d'une page, dans la langue de l'app (embarquée dans l'exécutable) ; null si elle manque.
-    private static BitmapImage? TutorialImage(int n)
-    {
-        try
-        {
-            var name = $"OrganiserTuto{n}-{(Loc.English ? "en" : "fr")}.png";
-            using var stream = typeof(OrganizerWindow).Assembly.GetManifestResourceStream(name);
-            if (stream is null) return null;
-            var memory = new MemoryStream();
-            stream.CopyTo(memory);
-            memory.Position = 0;
-            var bitmap = new BitmapImage();
-            bitmap.SetSource(memory.AsRandomAccessStream());
-            return bitmap;
-        }
-        catch (Exception)
-        {
-            return null;
-        }
-    }
-
-    private void FinishTutorial()
-    {
-        _tutorial = false;
-        _tutorialPage = 0;
-        if (!_demo && !_app.Settings.OrganizerTutorialSeen)
-        {
-            _app.Settings.OrganizerTutorialSeen = true;
-            _app.Settings.Save();
-        }
-        if (_startAfterTutorial)
-        {
-            _startAfterTutorial = false;
-            _controller.Start();
-        }
-        Render();
-    }
-
-    /// « Revoir le tuto » (Options de l'aperçu) : l'aperçu revient ensuite tel quel.
-    private void ShowTutorialAgain()
-    {
-        _tutorial = true;
-        _tutorialPage = 0;
-        _startAfterTutorial = false;
-        Render();
-    }
 
     // ---------- L'aperçu ----------
 

@@ -715,7 +715,7 @@ internal sealed partial class CommunityPage
         for (var i = 0; i < Reasons.Length; i++)
         {
             var index = i;
-            var option = Option(Label(Loc.T(Reasons[i]), 12.5), Tint, 0, () =>
+            var option = Option(Label(Loc.T(Reasons[i]), 12.5), () =>
             {
                 _reason = index;
                 RenderAbove();
@@ -815,7 +815,7 @@ internal sealed partial class CommunityPage
         foreach (var (profile, label) in new[] { (false, Loc.T("Une macro")), (true, Loc.T("Tous mes raccourcis")) })
         {
             var p = profile;
-            var chip = Option(Label(label, 12.5, bold: true), Tint, 0, () =>
+            var chip = Option(Label(label, 12.5, bold: true), () =>
             {
                 _composeProfile = p;
                 RenderAbove();

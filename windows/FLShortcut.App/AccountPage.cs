@@ -30,7 +30,6 @@ internal sealed class AccountPage
 {
     /// Couleur de la page Mon compte (comme SidebarItem.account du Mac).
     public static readonly Color Tint = Teal;
-    private static readonly Color Sky = Rgb(0x5A, 0xC8, 0xFA);
     /// Couleurs des initiales, dans l'ordre du Mac (ProfilePhoto.initialColors).
     private static readonly Color[] InitialColors = { Teal, Blue, Indigo, Purple, Pink, Orange, Green, Rgb(0xFF, 0x45, 0x3A) };
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
@@ -1419,21 +1418,6 @@ internal sealed class AccountPage
         }
     }
 
-    private static Border Badge(string glyph, Color color) => new()
-    {
-        Width = 64,
-        Height = 64,
-        Background = Brush(color),
-        HorizontalAlignment = HorizontalAlignment.Center,
-        Child = new FontIcon
-        {
-            Glyph = glyph,
-            FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
-            FontSize = 27,
-            Foreground = Brush(Colors.Black),
-        },
-    };
-
     /// Carte des pages du compte (05/11, comme le Mac) : pleine du fond, trait de 2 points à l'encre, sur l'ombre nette du
     /// thème.
     private static FrameworkElement Card(UIElement content)
@@ -1529,34 +1513,6 @@ internal sealed class AccountPage
         return button;
     }
 
-    /// Bouton rouge bordé (danger du Mac) ; au survol, rouge plein, texte noir.
-    private static Button DangerButton(string text, Action click)
-    {
-        var label = Label(text.ToUpper(System.Globalization.CultureInfo.CurrentCulture), 12, Red, bold: true);
-        label.CharacterSpacing = 80;
-        var button = new Button
-        {
-            Style = PlainButton,
-            Content = label,
-            MinHeight = 32,
-            Padding = new Thickness(16, 0, 16, 0),
-            Background = Brush(Colors.Transparent),
-            BorderBrush = Brush(Red),
-            BorderThickness = new Thickness(1),
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        void Set(bool on)
-        {
-            button.Background = Brush(on ? Red : Colors.Transparent);
-            label.Foreground = Brush(on ? MacLook.WindowColor : Red);
-        }
-        button.PointerEntered += (_, _) => Set(true);
-        button.PointerExited += (_, _) => Set(false);
-        button.PointerCanceled += (_, _) => Set(false);
-        button.Click += (_, _) => click();
-        AutomationProperties.SetName(button, text);
-        return button;
-    }
 }
 
 /// Photo du profil préparée sur ce PC avant l'envoi (comme ProfilePhoto du Mac) : l'image choisie, à l'endroit, le carré

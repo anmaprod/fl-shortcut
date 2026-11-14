@@ -185,7 +185,7 @@ internal sealed class HelpPage
         var chevron = Label(open ? "⌄" : "›", 15, Secondary);
         Grid.SetColumn(chevron, 1);
         head.Children.Add(chevron);
-        var button = Option(head, Tint, 0, () =>
+        var button = Option(head, () =>
         {
             _open = open ? null : entry.Id;
             _render();
@@ -295,7 +295,7 @@ internal sealed class HelpPage
         foreach (var kind in Enum.GetValues<SupportKind>())
         {
             var k = kind;
-            var b = Option(Label(k.Label(), 12.5, bold: true), Tint, 0, () =>
+            var b = Option(Label(k.Label(), 12.5, bold: true), () =>
             {
                 _message.Kind = k;
                 _render();

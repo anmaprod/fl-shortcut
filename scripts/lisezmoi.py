@@ -50,8 +50,6 @@ def images(langue="fr"):
     for i, (x, y, w, h) in enumerate(cases, 1):
         vals[f"MIDI{i}"] = uri(midi.crop((round(x * k), round(y * k), round((x + w) * k), round((y + h) * k))))
     vals["MIDIFULL"] = uri(midi.resize((1000, round(midi.height * 1000 / midi.width)), Image.LANCZOS))
-    for i in (1, 2, 3, 4):
-        vals[f"TUTO{i}"] = uri(Image.open(os.path.join(RES, f"{langue}.lproj", f"OrganiserTuto{i}.png")).convert("RGBA"))
     return vals
 
 

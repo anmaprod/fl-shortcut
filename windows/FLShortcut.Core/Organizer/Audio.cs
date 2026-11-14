@@ -215,10 +215,9 @@ public static class SampleAudio
         try
         {
             using var stream = File.OpenRead(path);
-            var max = (long)Math.Min(stream.Length, 2L << 30);
             using var reader = new BinaryReader(stream);
             var id = Encoding.ASCII.GetString(reader.ReadBytes(4));
-            if (id is "RIFF" or "RF64") return ReadWave(reader, max);
+            if (id is "RIFF" or "RF64") return ReadWave(reader);
             if (id == "FORM") return ReadAiff(reader);
             return null;
         }
@@ -228,7 +227,7 @@ public static class SampleAudio
         }
     }
 
-    private static SampleSound? ReadWave(BinaryReader r, long length)
+    private static SampleSound? ReadWave(BinaryReader r)
     {
         r.ReadUInt32();
         if (Encoding.ASCII.GetString(r.ReadBytes(4)) != "WAVE") return null;

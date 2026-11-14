@@ -102,8 +102,6 @@ public sealed record Shortcut
     public static Shortcut RunsMacro(KeyCombo? trigger, Guid macro, ShortcutContext ctx = ShortcutContext.Everywhere) =>
         new() { Trigger = trigger, Kind = ShortcutKind.Macro, MacroRef = macro, Context = ctx };
 
-    public RoutedAction? Routed => IndexedAction(null);
-
     /// `programs` : macros de la bibliothèque déjà compilées (MacroLibraryStore.Programs). Jamais d'action pour une
     /// macro absente ou qui ne peut pas tourner.
     public RoutedAction? IndexedAction(IReadOnlyDictionary<Guid, MacroProgram>? programs) => Kind switch

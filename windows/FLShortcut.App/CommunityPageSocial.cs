@@ -345,7 +345,7 @@ internal sealed partial class CommunityPage
                 if (on) dot.Fill = Brush(MacLook.WindowColor);
                 content.Children.Add(dot);
             }
-            var chip = Option(content, Tint, 0, () => Choose(t), on, minHeight: 36, padding: new Thickness(12, 0, 12, 0));
+            var chip = Option(content, () => Choose(t), on, minHeight: 36, padding: new Thickness(12, 0, 12, 0));
             if (!on) chip.Background = Brush(MacLook.WindowColor);
             chip.BorderBrush = Brush(MacLook.Text);
             chip.BorderThickness = new Thickness(2);
@@ -394,7 +394,7 @@ internal sealed partial class CommunityPage
         row.Children.Add(left);
         if (more is not null)
         {
-            var all = Option(SwissLabel(Loc.T("Tout voir →"), 11, Text), Tint, 0, more, minHeight: 24, padding: new Thickness(6, 0, 6, 0));
+            var all = Option(SwissLabel(Loc.T("Tout voir →"), 11, Text), more, minHeight: 24, padding: new Thickness(6, 0, 6, 0));
             Grid.SetColumn(all, 2);
             row.Children.Add(all);
         }
@@ -611,7 +611,7 @@ internal sealed partial class CommunityPage
             {
                 var s = sort;
                 var on = _personSort == s;
-                var box = Option(SwissLabel(s.Title(), 10.5, on ? MacLook.WindowColor : Text), Tint, 0, () => SortPerson(s), on,
+                var box = Option(SwissLabel(s.Title(), 10.5, on ? MacLook.WindowColor : Text), () => SortPerson(s), on,
                                  minHeight: 30, padding: new Thickness(11, 0, 11, 0));
                 if (!on) box.Background = Brush(MacLook.WindowColor);
                 box.BorderBrush = Brush(MacLook.Text);

@@ -334,8 +334,6 @@ public static class SoundNames
 
     public static bool IsRecording(string name) => RecordedTrack(name) is not null;
 
-    public static SoundFamily? FamilyOf(string name) => KindOf(name)?.Family();
-
     /// Synthés de mélodies : FL donne au canal le nom du plugin (« ZENOLOGY », « Serum 2 »). Ce son n'est ni des drums
     /// ni un FX : entendu comme tel, il reste une mélodie.
     public static readonly HashSet<string> MelodicSynthWords = new()
