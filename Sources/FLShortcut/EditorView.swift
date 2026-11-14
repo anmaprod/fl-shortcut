@@ -1442,35 +1442,6 @@ private struct EmptyState: View {
     }
 }
 
-/// En-tête de page (maquette validée le 28/10 : « trop de détails inutiles ») : le titre en gras, seul ; `detail`
-/// seulement quand il dit qui est connecté (Compte, Communauté). Le résumé de la page reste dans sa bulle d'aide.
-/// `symbol` et `tint` : gardés pour les appels, plus dessinés.
-/// Dans la fenêtre principale, le titre est déjà dans l'en-tête de la fenêtre (maquette) : seul `detail` reste.
-struct PageHeader: View {
-    let symbol: String
-    let tint: Color
-    let title: String
-    let subtitle: String
-    var detail: String? = nil
-    @Environment(\.pageTitleShown) private var titleShown
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            if titleShown {
-                Text(title).font(Swiss.title(28)).tracking(Swiss.titleTracking(28))
-            }
-            if let detail {
-                Text(detail).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 2)
-        .help(subtitle)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isHeader)
-    }
-}
-
 private struct PageTitleShownKey: EnvironmentKey {
     static let defaultValue = true
 }

@@ -407,19 +407,6 @@ final class MacroEditorModel: ObservableObject {
         notice = String(localized: "\(n) bloc\(n > 1 ? "s" : "") ajouté\(n > 1 ? "s" : "") d'après tes clics et tes touches.") + skipped
     }
 
-    func duplicateSelection() {
-        guard let block = selectedBlock, let draft else { return }
-        guard MacroValidation.count(draft.blocks) + MacroValidation.count([block]) <= MacroValidation.maxBlocks else {
-            notice = String(localized: "Macro trop longue : \(MacroValidation.maxBlocks) blocs au plus.")
-            return
-        }
-        guard let copy = MacroTemplates.freshIDs([block]).first, let row = selectedRow else { return }
-        let point = MacroOutline.insertionPoint(after: row, in: draft.blocks)
-        mutate(String(localized: "Dupliquer"), select: MacroStepRow.blockRowID(copy.id)) { doc in
-            _ = MacroOutline.insert(copy, into: &doc.blocks, at: point)
-        }
-    }
-
     func deleteSelection() {
         guard let row = selectedRow, row.kind == .block else { return }
         let position = rows.firstIndex(of: row) ?? 0

@@ -76,12 +76,7 @@ enum CommunityStats {
 
     /// Moyenne à une décimale, à la façon de la langue (« 4,6 » en français, « 4.6 » en anglais).
     static func rating(_ value: Double, locale: Locale = .current) -> String {
-        let f = NumberFormatter()
-        f.locale = locale
-        f.numberStyle = .decimal
-        f.minimumFractionDigits = 1
-        f.maximumFractionDigits = 1
-        return f.string(from: NSNumber(value: value)) ?? String(format: "%.1f", value)
+        formatter(locale, digits: 1).string(from: NSNumber(value: value)) ?? String(format: "%.1f", value)
     }
 
     /// « 1 abonné », « 1 284 abonnés ».
@@ -93,10 +88,25 @@ enum CommunityStats {
 
     /// Un nombre à la façon de la langue (« 1 284 », « 1,284 »).
     static func number(_ count: Int, locale: Locale = .current) -> String {
-        let f = NumberFormatter()
-        f.locale = locale
-        f.numberStyle = .decimal
-        return f.string(from: NSNumber(value: count)) ?? String(count)
+        formatter(locale, digits: 0).string(from: NSNumber(value: count)) ?? String(count)
+    }
+
+    /// Un formateur par langue et nombre de décimales, créé une seule fois (14/11, optimisation : chaque carte de la
+    /// Communauté en recréait deux à chaque dessin). NumberFormatter formate sans risque depuis plusieurs fils.
+    private static let formatters = Locked<[String: NumberFormatter]>([:])
+
+    private static func formatter(_ locale: Locale, digits: Int) -> NumberFormatter {
+        let key = "\(locale.identifier)|\(digits)"
+        return formatters.withLock { cache in
+            if let f = cache[key] { return f }
+            let f = NumberFormatter()
+            f.locale = locale
+            f.numberStyle = .decimal
+            f.minimumFractionDigits = digits
+            f.maximumFractionDigits = digits
+            cache[key] = f
+            return f
+        }
     }
 
     /// Partages arrivés après `since` (point rouge et « N nouvelles »).

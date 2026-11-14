@@ -1,8 +1,8 @@
 // Styles communs : polices et couleurs système, aucune animation infinie, aucun minuteur.
 // Plus aucun Liquid Glass (29/10, le propriétaire : « je veux que tout soit comme dans l'exemple… fond noir ») :
 // l'app est toujours sombre, fond de fenêtre noir (#161618), boutons en capsules pleines (bleu pour l'action, clair
-// sinon : `CapsuleButtonStyle`), cartes et touches en plaques claires dessinées (`GlassPlate`), comme la maquette du
-// 28/10. Le nom « Glass » des types est resté, rien n'y est plus du verre de macOS. Audit 05 : touches affichées
+// sinon : `CapsuleButtonStyle`). Depuis le 01/11, le style suisse : cartes à plat entre traits fins, coins carrés.
+// Le nom « Glass » de quelques types est resté, rien n'y est plus du verre de macOS. Audit 05 : touches affichées
 // avec leur nom en clair.
 // Mouvement : courtes transitions, remplacées par un simple fondu quand « Réduire les animations » est activé.
 import AppKit
@@ -382,21 +382,8 @@ enum Appearance {
     /// Liens : blancs, soulignés là où ils sont posés (style suisse).
     static let link = Swiss.text
 
-    /// Préférence « Effet Liquid Glass » (vrai par défaut) : ne règle plus que les plaques claires des cartes.
-    static let glassKey = "liquidGlass"
-
-    static var glassAvailable: Bool {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) { return true }
-        #endif
-        return false
-    }
 
 
-    /// Couleurs de l'icône (orange → rose → violet), reprises par l'accueil.
-    static let brand: [Color] = [Color(red: 1.0, green: 0.64, blue: 0.36),
-                                 Color(red: 0.95, green: 0.34, blue: 0.49),
-                                 Color(red: 0.48, green: 0.36, blue: 0.96)]
 }
 
 /// Surface flottante : verre natif sur macOS 26 quand la préférence est active et la fenêtre au premier plan ;
@@ -1115,15 +1102,6 @@ extension View {
         if #available(macOS 14.0, *) { controlSize(.extraLarge) } else { controlSize(.large) }
     }
 
-    /// Boutons qui prennent toute la largeur disponible (macOS 26), comme les fenêtres d'accueil d'Apple.
-    @ViewBuilder func flexibleButtons() -> some View {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) { buttonSizing(.flexible) } else { self }
-        #else
-        self
-        #endif
-    }
-
     /// Bouton secondaire (Annuler, Changer…, Apprendre…).
     func secondaryButton() -> some View {
         modifier(SecondaryButtonStyleModifier())
@@ -1240,10 +1218,6 @@ struct KeyLabel: View {
     let combo: KeyCombo?
     var accent = false
     var placeholder = String(localized: "Aucune")
-    @Environment(\.colorScheme) private var scheme
-    @AppStorage(Appearance.glassKey) private var glassEnabled = true
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
 
     private var shape: Rectangle { Rectangle() }
 
@@ -1312,32 +1286,6 @@ struct SectionIcon: View {
                 .foregroundStyle(Swiss.background))
             .frame(width: size, height: size)
             .accessibilityHidden(true)
-    }
-}
-
-/// Numéro d'étape dans une pastille (accueil, guide d'autorisation) ; coche verte une fois faite.
-struct StepBadge: View {
-    let number: Int
-    var done = false
-
-    var body: some View {
-        Group {
-            if done {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 10, weight: .heavy))
-                    .foregroundStyle(Swiss.background)
-                    .frame(width: 18, height: 18)
-                    .background(Rectangle().fill(Swiss.text))
-            } else {
-                Text("\(number)")
-                    .font(Swiss.font(11).monospacedDigit())
-                    .foregroundStyle(Swiss.background)
-                    .frame(width: 18, height: 18)
-                    .background(Rectangle().fill(Swiss.red))
-            }
-        }
-        .frame(width: 20)
-        .accessibilityHidden(true)
     }
 }
 
@@ -1414,15 +1362,6 @@ extension View {
         modifier(CardRowModifier(position: position, hover: hover, selected: selected, stamp: stamp))
     }
 
-    /// En-tête de page (28/10) : le titre posé sur la page, sans carte grise autour.
-    func pageTitleRow() -> some View {
-        padding(.horizontal, 12)
-            .padding(.top, 6)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .listRowInsets(EdgeInsets(top: 0, leading: CardRowBackground.inset, bottom: 0, trailing: CardRowBackground.inset))
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
-    }
 }
 
 /// La marge intérieure d'une ligne est dans la ligne elle-même (pas dans la liste) : le survol couvre toute la ligne,
@@ -1476,27 +1415,11 @@ private struct CardRowModifier: ViewModifier {
 struct CardRowBackground: View {
     static let inset: CGFloat = 10                       // marge de la carte dans la liste
     static let gap: CGFloat = 4                          // espace au-dessus et au-dessous d'une carte
-    /// Survol : la ligne s'élargit de 6 points de chaque côté (dans la marge de la carte, jamais rognée) ; ses coins
-    /// arrondis de 6 couvrent ceux de la carte.
-    static let liftOutset: CGFloat = 6
     let position: CardRowPosition
     var hover: Color? = nil
     /// Encoche de couleur sous la ligne soulevée (voir `cardRow(stamp:)`).
     var stamp: Color? = nil
     var grow = false
-    @Environment(\.colorScheme) private var scheme
-    @AppStorage(Appearance.glassKey) private var glassEnabled = true
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
-
-    private var plate: Bool {
-        GlassPlate.on(glass: glassEnabled, reduceTransparency: reduceTransparency, increasedContrast: contrast == .increased)
-    }
-
-    private var fill: Color {
-        if plate { return GlassPlate.fill(scheme) }
-        return scheme == .dark ? Color.white.opacity(0.07) : Color.black.opacity(0.045)
-    }
 
     var body: some View {
         Group {
@@ -1510,30 +1433,13 @@ struct CardRowBackground: View {
             } else if hover != nil {
                 // Survolée : blanc plein, coins carrés (style suisse, 01/11).
                 Rectangle().fill(Swiss.text)
-            } else if Swiss.flat {
+            } else {
                 // Style suisse : pas de carte, un trait fin sous chaque ligne (blanc au-dessus de la première).
                 Rectangle().fill(Swiss.background)
                     .overlay(alignment: .top) {
                         if position.roundsTop { Rectangle().fill(Swiss.line).frame(height: 1) }
                     }
                     .overlay(alignment: .bottom) { Rectangle().fill(Swiss.faint).frame(height: 1) }
-            } else {
-                CardRowShape(roundsTop: position.roundsTop, roundsBottom: position.roundsBottom)
-                    .fill(fill)
-                    .overlay {
-                        // Bord de verre : le reflet sur la première ligne, puis un bord fin ; ouvert entre deux
-                        // lignes, la carte reste d'un seul tenant.
-                        if plate {
-                            CardRimShape(roundsTop: position.roundsTop, roundsBottom: position.roundsBottom)
-                                .stroke(position.roundsTop ? AnyShapeStyle(GlassPlate.rim(scheme))
-                                                           : AnyShapeStyle(GlassPlate.edge(scheme)), lineWidth: 1)
-                        }
-                    }
-                    .overlay(alignment: .bottom) {
-                        if !position.roundsBottom {
-                            Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 0.5).padding(.leading, 12)
-                        }
-                    }
             }
         }
         .padding(.top, position.roundsTop ? Self.gap : 0)
@@ -1543,60 +1449,13 @@ struct CardRowBackground: View {
     }
 }
 
-extension Swiss {
-    /// Cartes à plat (vrai : le style suisse ; l'ancien dessin des plaques reste dans le code, éteint).
-    static let flat = true
-}
-
-/// Plaque de verre dessinée (maquette validée le 28/10 : « le verre seulement devant », fond de fenêtre plein) : un
-/// voile clair, un bord fin et un reflet en haut, comme le Liquid Glass posé sur un fond sombre. Dessinée plutôt que
-/// `glassEffect` : une couche de verre par ligne de liste coûtait cher (8fb66a8) et chaque ligne aurait eu son propre
-/// bord (des morceaux séparés) ; sur un fond plein, le vrai verre n'aurait rien d'autre à montrer. Effet Liquid Glass
-/// coupé, Réduire la transparence ou Contraste élevé : la carte grise de toujours.
-enum GlassPlate {
-    static func on(glass: Bool, reduceTransparency: Bool, increasedContrast: Bool) -> Bool {
-        glass && !reduceTransparency && !increasedContrast
-    }
-
-    /// Voile de la plaque.
-    static func fill(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color.white.opacity(0.085) : Color.white.opacity(0.62)
-    }
-
-    /// Bord fin.
-    static func edge(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.09)
-    }
-
-    /// Bord qui part du reflet, en haut, et s'éteint vers le bas.
-    static func rim(_ scheme: ColorScheme) -> LinearGradient {
-        LinearGradient(colors: [scheme == .dark ? Color.white.opacity(0.34) : Color.white, edge(scheme)],
-                       startPoint: .top, endPoint: .bottom)
-    }
-}
-
-/// Carte d'un seul tenant en plaque de verre (accueil, guide, panneau des autorisations) ; sans l'effet, voile clair
-/// et bord fin.
+/// Carte d'un seul tenant (accueil, guide, panneau des autorisations) : style suisse, un cadre fin, sans voile.
 struct GlassPlateBackground: View {
     var cornerRadius: CGFloat = 14
-    @Environment(\.colorScheme) private var scheme
-    @AppStorage(Appearance.glassKey) private var glassEnabled = true
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
         let shape = Rectangle()
-        if Swiss.flat {
-            // Style suisse : un cadre fin, sans voile.
-            shape.fill(Swiss.background).overlay(shape.strokeBorder(Swiss.line, lineWidth: 1))
-        } else if GlassPlate.on(glass: glassEnabled, reduceTransparency: reduceTransparency,
-                         increasedContrast: contrast == .increased) {
-            shape.fill(GlassPlate.fill(scheme))
-                .overlay(shape.strokeBorder(GlassPlate.rim(scheme), lineWidth: 1))
-        } else {
-            shape.fill(Color.primary.opacity(0.045))
-                .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1))
-        }
+        shape.fill(Swiss.background).overlay(shape.strokeBorder(Swiss.line, lineWidth: 1))
     }
 }
 
@@ -1629,78 +1488,6 @@ struct WaitingRing: View {
                 .rotationEffect(.degrees(-45)))
             .frame(width: size, height: size)
             .accessibilityHidden(true)
-    }
-}
-
-/// Bord d'une ligne de carte : ses côtés, plus le haut et/ou le bas arrondis aux bouts de la carte (rien entre deux
-/// lignes). Tracé à un demi-point du bord, dans la ligne, avec les mêmes arrondis que `CardRowShape`.
-private struct CardRimShape: Shape {
-    let roundsTop: Bool
-    let roundsBottom: Bool
-    var radius: CGFloat = 10
-
-    func path(in full: CGRect) -> Path {
-        let rect = full.insetBy(dx: 0.5, dy: 0)
-        let top = roundsTop ? rect.minY + 0.5 : rect.minY
-        let bottom = roundsBottom ? rect.maxY - 0.5 : rect.maxY
-        let r = max(0, min(radius, full.height / 2) - 0.5)
-        let t = roundsTop ? r : 0
-        let b = roundsBottom ? r : 0
-        var p = Path()
-        // Côté gauche de bas en haut, le haut s'il est arrondi, puis le côté droit vers le bas et le bas arrondi.
-        p.move(to: CGPoint(x: rect.minX, y: bottom - b))
-        p.addLine(to: CGPoint(x: rect.minX, y: top + t))
-        if roundsTop {
-            p.addArc(tangent1End: CGPoint(x: rect.minX, y: top), tangent2End: CGPoint(x: rect.minX + t, y: top), radius: t)
-            p.addLine(to: CGPoint(x: rect.maxX - t, y: top))
-            p.addArc(tangent1End: CGPoint(x: rect.maxX, y: top), tangent2End: CGPoint(x: rect.maxX, y: top + t), radius: t)
-        } else {
-            p.move(to: CGPoint(x: rect.maxX, y: top))
-        }
-        p.addLine(to: CGPoint(x: rect.maxX, y: bottom - b))
-        if roundsBottom {
-            p.addArc(tangent1End: CGPoint(x: rect.maxX, y: bottom), tangent2End: CGPoint(x: rect.maxX - b, y: bottom),
-                     radius: b)
-            p.addLine(to: CGPoint(x: rect.minX + b, y: bottom))
-            p.addArc(tangent1End: CGPoint(x: rect.minX, y: bottom), tangent2End: CGPoint(x: rect.minX, y: bottom - b),
-                     radius: b)
-        }
-        return p
-    }
-}
-
-/// Rectangle aux coins arrondis en haut et/ou en bas (UnevenRoundedRectangle n'existe qu'à partir de macOS 14).
-private struct CardRowShape: Shape {
-    let roundsTop: Bool
-    let roundsBottom: Bool
-    var radius: CGFloat = 10
-
-    func path(in rect: CGRect) -> Path {
-        let t = roundsTop ? min(radius, rect.height / 2) : 0
-        let b = roundsBottom ? min(radius, rect.height / 2) : 0
-        var p = Path()
-        p.move(to: CGPoint(x: rect.minX, y: rect.minY + t))
-        if t > 0 {
-            p.addArc(tangent1End: CGPoint(x: rect.minX, y: rect.minY),
-                     tangent2End: CGPoint(x: rect.minX + t, y: rect.minY), radius: t)
-        }
-        p.addLine(to: CGPoint(x: rect.maxX - t, y: rect.minY))
-        if t > 0 {
-            p.addArc(tangent1End: CGPoint(x: rect.maxX, y: rect.minY),
-                     tangent2End: CGPoint(x: rect.maxX, y: rect.minY + t), radius: t)
-        }
-        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - b))
-        if b > 0 {
-            p.addArc(tangent1End: CGPoint(x: rect.maxX, y: rect.maxY),
-                     tangent2End: CGPoint(x: rect.maxX - b, y: rect.maxY), radius: b)
-        }
-        p.addLine(to: CGPoint(x: rect.minX + b, y: rect.maxY))
-        if b > 0 {
-            p.addArc(tangent1End: CGPoint(x: rect.minX, y: rect.maxY),
-                     tangent2End: CGPoint(x: rect.minX, y: rect.maxY - b), radius: b)
-        }
-        p.closeSubpath()
-        return p
     }
 }
 

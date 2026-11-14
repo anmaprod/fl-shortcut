@@ -517,8 +517,7 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
 
 echo "| Effet | Mémoire (barre des menus) | Processeur | Mémoire (fenêtre ouverte) | Processeur (fenêtre ouverte, au repos) | Processeur (fenêtre, 10 s plus tard) | Mémoire (page Macros) | Mémoire (créateur ouvert) | Processeur (créateur ouvert, au repos) | Mémoire (créateur refermé) | Mémoire (page Mixer) | Mémoire (recherche « e », presque tout) | Mémoire (créateur cycle 2 ouvert) | Mémoire (créateur cycle 2 refermé) | Mémoire (créateur cycle 3 ouvert) | Mémoire (créateur cycle 3 refermé) | Modèles du créateur vivants (avant ouverture ; après fermeture, cycles 1 / 2 / 3) | Colonnes dans la fenêtre (Général / Macros / créateur) | Bloc glissé de la palette (lignes avant → après) | Bloc déplacé dans la liste (ordre changé) |"
 echo "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"
-run "verre" YES
-run "sans-verre" NO
+run "verre" YES                  # un seul passage : le réglage du verre ne change plus rien (style suisse)
 pkill -x FLShortcut 2>/dev/null
 
 restore debugSnapshots "$had_snap"; restore liquidGlass "$had_glass"; restore didOnboard "$had_onb"; restore guideSeen "$had_guide"

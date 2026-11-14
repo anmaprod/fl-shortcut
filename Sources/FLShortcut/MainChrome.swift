@@ -77,7 +77,8 @@ extension View {
     }
 }
 
-/// Plaque claire des maquettes : dégradé blanc (plus clair en haut), bord fin, reflet en haut, ombre douce.
+/// Plaque des maquettes, au style suisse (01/11) : plus de plaque, le noir de la fenêtre. Une carte (Mon compte,
+/// Aide, Communauté…) devient un bloc posé entre deux traits fins ; les colonnes (barre de gauche, créateur) n'ont rien.
 struct MockPlate: View {
     var cornerRadius: CGFloat
     var top = 0.10
@@ -85,46 +86,14 @@ struct MockPlate: View {
     var border = 0.15
 
     var body: some View {
-        if Swiss.flat {
-            // Style suisse (01/11) : plus de plaque, le noir de la fenêtre. Une carte (Mon compte, Aide, Communauté…)
-            // devient un bloc posé entre deux traits fins ; les colonnes (barre de gauche, créateur) n'ont rien.
-            if cornerRadius >= 19 {
-                Color.clear.accessibilityHidden(true)
-            } else {
-                Rectangle().fill(Swiss.background)
-                    .overlay(alignment: .top) { Rectangle().fill(Swiss.line).frame(height: 1) }
-                    .overlay(alignment: .bottom) { Rectangle().fill(Swiss.line).frame(height: 1) }
-                    .accessibilityHidden(true)
-            }
+        if cornerRadius >= 19 {
+            Color.clear.accessibilityHidden(true)
         } else {
-            plate
+            Rectangle().fill(Swiss.background)
+                .overlay(alignment: .top) { Rectangle().fill(Swiss.line).frame(height: 1) }
+                .overlay(alignment: .bottom) { Rectangle().fill(Swiss.line).frame(height: 1) }
+                .accessibilityHidden(true)
         }
-    }
-
-    private var plate: some View {
-        let shape = Rectangle()
-        return shape.fill(LinearGradient(colors: [Color.white.opacity(top), Color.white.opacity(bottom)],
-                                  startPoint: .top, endPoint: .bottom))
-            .overlay(shape.strokeBorder(Color.white.opacity(border), lineWidth: 1))
-            .overlay(shape.inset(by: 1).strokeBorder(LinearGradient(colors: [Color.white.opacity(0.2), Color.clear],
-                                                                    startPoint: .top, endPoint: .center),
-                                                     lineWidth: 1))
-            .shadow(color: Color.black.opacity(0.22), radius: 12, y: 8)
-            .accessibilityHidden(true)
-    }
-}
-
-/// Capsule claire de l'en-tête de page (maquette : le bouton du compte dedans).
-struct HeaderCapsule<Content: View>: View {
-    private let content: Content
-
-    init(@ViewBuilder content: () -> Content) {
-        self.content = content()
-    }
-
-    var body: some View {
-        // Style suisse : les boutons côte à côte, sans capsule.
-        HStack(spacing: 8) { content }
     }
 }
 
@@ -154,30 +123,6 @@ struct HeaderAccountLabel: View {
         .background(Rectangle().fill(filled ? Swiss.text : Swiss.background))
         .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 2))
         .contentShape(Rectangle())
-    }
-}
-
-/// Bouton rond de l'en-tête (44 points) : une icône seule, son nom en bulle d'aide ; au survol, plein de bleu.
-struct HeaderIconButton: View {
-    let symbol: String
-    let help: String
-    let action: () -> Void
-    @Environment(\.isEnabled) private var enabled
-
-    var body: some View {
-        // Style suisse : un carré de 34 points bordé de blanc ; au survol, blanc plein.
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 15, weight: .semibold))
-                .frame(width: 34, height: 34)
-                .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .opacity(enabled ? 1 : 0.35)
-        .menuHover(tint: Swiss.text, cornerRadius: 0, enabled: enabled)
-        .help(help)
-        .accessibilityLabel(help)
     }
 }
 

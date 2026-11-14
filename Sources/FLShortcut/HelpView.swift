@@ -476,10 +476,13 @@ private struct HelpEntryRow: View {
 }
 
 extension HelpEntry {
+    /// Numéro d'étape « 1. », compilé une seule fois (14/11, optimisation : une fois par question affichée avant).
+    private static let stepNumber = try? NSRegularExpression(pattern: "(?:^|\\s)(\\d)\\.\\s")
+
     /// Pur (testé) : une réponse « Vérifie trois choses. 1. … 2. … 3. … » coupée en son début et ses étapes
     /// (numérotées 1, 2, 3… à la suite) ; nil si elle n'en a pas au moins deux.
     static func steps(_ answer: String) -> (intro: String, steps: [String])? {
-        guard let regex = try? NSRegularExpression(pattern: "(?:^|\\s)(\\d)\\.\\s") else { return nil }
+        guard let regex = stepNumber else { return nil }
         let text = answer as NSString
         var cuts: [NSRange] = []
         for match in regex.matches(in: answer, range: NSRange(location: 0, length: text.length)) {

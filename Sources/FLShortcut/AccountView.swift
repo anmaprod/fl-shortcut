@@ -11,14 +11,20 @@ enum AccountText {
     /// « aujourd'hui à 21:07 », « hier à 9:12 », « 14 oct. 2026 à 18:00 » ; dans la langue de l'app (« today at
     /// 9:07 PM » sur un Mac en anglais).
     static func when(_ date: Date) -> String {
+        whenFormatter.string(from: date)
+    }
+
+    /// Créé une seule fois (la langue de l'app ne change pas sans la relancer) ; « aujourd'hui » reste calculé à
+    /// chaque appel.
+    private static let whenFormatter: DateFormatter = {
         let f = DateFormatter()
         let language = Bundle.main.preferredLocalizations.first ?? "fr"
         f.locale = Locale(identifier: Locale.current.region.map { "\(language)_\($0.identifier)" } ?? language)
         f.dateStyle = .medium
         f.timeStyle = .short
         f.doesRelativeDateFormatting = true
-        return f.string(from: date)
-    }
+        return f
+    }()
 }
 
 /// Déconnexion et suppression du compte, avec leurs confirmations (page Mon compte, menu de la Communauté).

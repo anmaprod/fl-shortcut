@@ -6,18 +6,6 @@ import SwiftUI
 
 // MARK: - Couleurs et carte
 
-/// Couleurs de la maquette (HTML du 30/10, fond sombre) ; en mode clair, les mêmes en gris légers.
-enum AuthLook {
-    /// Fond creusé des champs, des onglets, des cases du code et des cases de la sauvegarde.
-    static func well(_ scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color.black.opacity(0.28) : Color.primary.opacity(0.05)
-    }
-    static let wellStroke = Color.primary.opacity(0.12)
-    static let blue = Color(red: 0.04, green: 0.52, blue: 1)                     // #0a84ff
-    static let teal = [Color(red: 0.24, green: 0.85, blue: 0.79), Color(red: 0.12, green: 0.65, blue: 0.59)]
-    static let sky = [Color(red: 0.35, green: 0.78, blue: 0.98), blue]
-}
-
 /// Carte des pages du compte (05/11) : pleine du fond, trait de 2 points à l'encre, sur l'ombre nette du thème.
 struct AuthCard<Content: View>: View {
     var spacing: CGFloat = 18
@@ -66,38 +54,6 @@ struct AuthPitch: View {
             }
         }
         .accessibilityElement(children: .combine)
-    }
-}
-
-/// Pastille ronde en tête de carte (compte : personnage ; code : enveloppe).
-struct AuthBadge: View {
-    let symbol: String
-    let colors: [Color]
-    var size: CGFloat = 64
-
-    var body: some View {
-        Rectangle()
-            .fill(colors.first ?? Swiss.red)
-            .overlay(Image(systemName: symbol).font(.system(size: size * 0.42, weight: .semibold)).foregroundStyle(Swiss.background))
-            .frame(width: size, height: size)
-            .accessibilityHidden(true)
-    }
-}
-
-/// Petite pastille d'un avantage (« Sauvegarde », « Tous tes Mac », « Communauté »).
-struct AuthPill: View {
-    let symbol: String
-    let text: String
-    let tint: Color
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: symbol).font(.system(size: 11, weight: .semibold)).foregroundStyle(tint)
-            Text(text).font(.system(size: 11.5, weight: .semibold)).foregroundStyle(.secondary)
-        }
-        .padding(.horizontal, 10)
-        .frame(height: 26)
-        .background(Rectangle().fill(Color.primary.opacity(0.07)))
     }
 }
 

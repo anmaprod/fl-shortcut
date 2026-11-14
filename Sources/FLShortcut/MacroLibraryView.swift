@@ -633,33 +633,6 @@ enum MacroFileActions {
 
 // MARK: - Fiche d'un raccourci relié à la bibliothèque
 
-struct LibraryMacroFields: View {
-    @ObservedObject var library: MacroLibraryStore
-    let ref: UUID
-    let open: () -> Void
-
-    var body: some View {
-        LabeledContent("Macro") {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(library.doc(ref)?.name.displaySafe(max: 60) ?? String(localized: "Macro introuvable (supprimée ?)"))
-                    .fontWeight(.medium)
-                Text("Macro en blocs de la bibliothèque (Macros). Ses étapes se modifient dans le créateur.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                if library.doc(ref) != nil {
-                    Button {
-                        open()
-                    } label: {
-                        Label("Ouvrir dans le créateur…", systemImage: "wand.and.stars")
-                    }
-                    .secondaryButton()
-                }
-            }
-        }
-    }
-}
-
 // MARK: - Barre latérale
 
 /// « Macros » dans la barre latérale : le nombre de macros est tenu à jour par la bibliothèque seule (la fenêtre

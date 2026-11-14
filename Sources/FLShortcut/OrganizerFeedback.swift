@@ -53,10 +53,8 @@ struct OrganizerFeedback: Equatable {
     /// Aider l'ordinateur de tout le monde avec ces corrections (des nombres seulement).
     var share = false
 
-    var asksSounds: Bool { reasons.contains { $0.aboutSounds } }
     /// 13/11 : « Autre chose ? » est un simple champ (plus de case « Autre ») : tout texte écrit compte.
     private var text: String { otherText.trimmingCharacters(in: .whitespacesAndNewlines) }
-    var canSend: Bool { !reasons.isEmpty || !text.isEmpty || !fixes.isEmpty }
 
     /// Le message pour l'équipe : ce que l'IA ne peut pas apprendre (Playlist, Mixer, aspect) et « Autre » ; nil :
     /// rien à lui dire.

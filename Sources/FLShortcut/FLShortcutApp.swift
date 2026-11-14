@@ -535,11 +535,6 @@ final class AppStatus: ObservableObject {
         if s != scriptState { scriptState = s }
     }
 
-    /// Guide : ouvre Accessibilité et le Finder sur l'app, puis détecte l'autorisation tout seul.
-    func requestAccessibility() { AccessibilityGuide.start() }
-
-    func openAccessibilitySettings() { AccessibilityGuide.start() }
-
     /// Revérifie tout de suite (autorisation accordée pendant le guide).
     func recheck() {
         lastStartAttempt = .distantPast

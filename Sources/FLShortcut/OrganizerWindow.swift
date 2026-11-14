@@ -1245,13 +1245,6 @@ final class OrganizerController: ObservableObject {
 
     var doneText: String { doneLines(short: false).joined(separator: "\n") }
 
-    /// La fin en court (vidéo du 30/10 : « le message de fin allonge trop le logiciel ») : un titre, une ligne dessous,
-    /// puis les remarques, chacune en une phrase ; tout le texte (`doneText`) reste dans « Détails ».
-    var doneSummary: (title: String, detail: String, notes: [String]) {
-        let lines = doneLines(short: true)
-        return (String(localized: "C'est fait : ton projet est rangé"), lines.first ?? "", Array(lines.dropFirst()))
-    }
-
     private func doneLines(short: Bool) -> [String] {
         var lines = [short ? String(localized: "Coloré et renommé dans FL. « Revenir comme avant » défait tout, sauf les sons supprimés.")
                      : String(localized: "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout, sauf les sons supprimés.")]
@@ -1761,8 +1754,6 @@ struct OrganizerView: View {
     /// place de chaque son (espace `familySpace`).
     @State private var soundDrag: SoundDrag?
     @State private var soundFrames: [Int: CGRect] = [:]
-    /// « Détails » de la fin : tout le texte, dans une bulle.
-    @State private var showDetails = false
 
     /// Espace des places des familles : celui de leurs colonnes dans la liste qui défile.
     static let familySpace = "organiser-familles"
@@ -2696,40 +2687,23 @@ private struct OrganizerOptionsMenu: View {
     }
 }
 
-/// Carte de l'Organiser : plaque de verre (28/10, « le verre seulement devant ») ; sans l'effet, le voile clair et le
-/// liseré de sa couleur. Pas de survol : une carte n'est pas une option (29/10, le survol remplit l'option de sa
-/// couleur).
+/// Carte de l'Organiser au style suisse (01/11) : pas de voile, un trait fin dessus et dessous. Pas de survol : une
+/// carte n'est pas une option.
 private struct OrganizerCard: View {
-    var tint: Color = OrganizerView.tint
-    /// Traits fins dessus et dessous (style suisse) ; sans eux pour les sons d'une famille (05/11 : « juste en dessous
-    /// il y a un petit trait en plus… à enlever pour chaque famille »).
+    /// Traits fins dessus et dessous ; sans eux pour les sons d'une famille (05/11 : « juste en dessous il y a un petit
+    /// trait en plus… à enlever pour chaque famille »).
     var rules = true
-    @Environment(\.colorScheme) private var scheme
-    @AppStorage(Appearance.glassKey) private var glassEnabled = true
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
-        let shape = Rectangle()
-        if Swiss.flat {
-            // Style suisse (01/11) : pas de voile, un trait fin dessus et dessous.
-            shape.fill(Swiss.background)
-                .overlay(alignment: .top) { Rectangle().fill(rules ? Swiss.line : Color.clear).frame(height: 1) }
-                .overlay(alignment: .bottom) { Rectangle().fill(rules ? Swiss.line : Color.clear).frame(height: 1) }
-        } else if GlassPlate.on(glass: glassEnabled, reduceTransparency: reduceTransparency,
-                         increasedContrast: contrast == .increased) {
-            shape.fill(GlassPlate.fill(scheme))
-                .overlay(shape.strokeBorder(GlassPlate.rim(scheme), lineWidth: 1))
-        } else {
-            shape.fill(Color.primary.opacity(0.045))
-                .overlay(shape.strokeBorder(tint.opacity(0.24), lineWidth: 1))
-        }
+        Rectangle().fill(Swiss.background)
+            .overlay(alignment: .top) { Rectangle().fill(rules ? Swiss.line : Color.clear).frame(height: 1) }
+            .overlay(alignment: .bottom) { Rectangle().fill(rules ? Swiss.line : Color.clear).frame(height: 1) }
     }
 }
 
 private extension View {
     func organizerCard(_ tint: Color = OrganizerView.tint, rules: Bool = true) -> some View {
-        background(OrganizerCard(tint: tint, rules: rules))
+        background(OrganizerCard(rules: rules))
     }
 }
 

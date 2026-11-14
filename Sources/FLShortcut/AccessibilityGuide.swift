@@ -21,8 +21,6 @@ final class AccessibilityGuide: ObservableObject {
     private var panel: NSPanel?
     /// Réglages Système ouverts par nous pour le clavier : refermés une fois le clavier autorisé.
     private var openedSettings = false
-    /// La fenêtre d'accueil est cachée pendant la question du son de macOS.
-    private var accueilCache = false
     /// Le son de FL se donne dans les Réglages (« Enregistrement de l'écran et audio du système ») : on attend qu'il
     /// soit coché, tant que les Réglages sont ouverts, au lieu de conclure « refusé » à la première seconde.
     @Published private(set) var audioInSettings = false
@@ -137,14 +135,6 @@ final class AccessibilityGuide: ObservableObject {
         }
     }
 
-    /// Vidéo du 31/10 (« Autorisé » jamais affiché) : TCC peut ne noter la réponse qu'un instant après la question ;
-    /// relu encore quelques fois.
-    private func recheckAudioSoon() {
-        for delay in [0.5, 1.5, 3, 6] {
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in self?.refresh() }
-        }
-    }
-
     /// Relit les deux autorisations (accueil affiché : chaque seconde ; app réactivée). Le clavier autorisé est aussi
     /// dit tout de suite à `AppStatus` (l'accueil, la barre des menus et l'interception suivent ensemble).
     func refresh() {
@@ -192,19 +182,6 @@ final class AccessibilityGuide: ObservableObject {
         }
     }
 
-    private func hideWelcome() {
-        guard OnboardingWindow.shared.isOpen else { return }
-        accueilCache = true
-        OnboardingWindow.shared.stepAside()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 120) { [weak self] in self?.showWelcome() }
-    }
-
-    private func showWelcome() {
-        guard accueilCache else { return }
-        accueilCache = false
-        OnboardingWindow.shared.bringToFront()
-    }
-
     /// Réglages Système ouverts par « Tout autoriser… » : refermés une fois le clavier autorisé (vidéo du 30/10).
     /// macOS ne donne l'autorisation qu'après le code ou Touch ID : cocher la case seule ne suffit pas.
     private func closeSettings() {
@@ -237,7 +214,6 @@ final class AccessibilityGuide: ObservableObject {
                 audioInSettings = false
                 timer?.invalidate()                         // la coche se voit, puis tout est rangé
                 timer = nil
-                showWelcome()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { [weak self] in self?.close() }
                 return
             }
@@ -265,7 +241,6 @@ final class AccessibilityGuide: ObservableObject {
         asking = false
         audioInSettings = false
         AppResume.shared.noteAsking(nil)
-        showWelcome()                                       // cachée pendant une question : elle revient
         timer?.invalidate()
         timer = nil
         panel?.orderOut(nil)

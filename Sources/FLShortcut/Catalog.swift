@@ -627,6 +627,4 @@ extension Store {
     /// Revient à la touche d'origine.
     func reset(_ row: CatalogRow) { setTrigger(row.entry.defaultTrigger, for: row) }
 
-    /// Tout remettre comme à l'origine (profil Recommandé), annulable.
-    func resetAll() { apply(preset: .recommended) }
 }

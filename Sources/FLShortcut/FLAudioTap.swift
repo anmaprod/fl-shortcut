@@ -48,10 +48,6 @@ enum AudioCapturePermission: Equatable {
         return unsafeBitCast(symbol, to: Preflight.self)(service, nil)
     }
 
-    /// « Enregistrement de l'écran et de l'audio du système » (la liste du haut de la même page des Réglages), lue en
-    /// direct (celle de CoreGraphics ne change qu'après une relance) : elle comprend l'audio du système.
-    static var screenAndAudio: Bool { raw("kTCCServiceScreenCapture" as CFString) == 0 }
-
     /// L'autorisation demandée pour le son de FL depuis le 03/11 (« tu as mis Enregistrement audio du système
     /// uniquement, alors qu'il faut Enregistrement de l'écran et audio du système ») : la liste du haut de la page des
     /// Réglages. Lue en direct dans TCC, et par CoreGraphics (à jour après une relance).

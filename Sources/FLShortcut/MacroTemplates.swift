@@ -182,14 +182,6 @@ extension MacroTemplates {
         return (doc, MacroProgram.compile(doc, forbidden: forbidden).problem)
     }
 
-    /// Modèle de la galerie « Enregistrement rapide » : les blocs du modèle livré jusqu'à l'armement de la piste
-    /// (la suite sera refaite, plus rapide).
-    static func untilArm(_ macro: Macro) -> [Block] {
-        let all = enregistrementRapide(macro)
-        guard let arm = all.firstIndex(where: { $0.id == id(.arm) }) else { return all }
-        return Array(all[...arm])
-    }
-
     /// Les mêmes blocs sans aucune note, imbrications comprises (notes retirées à la demande de l'utilisateur).
     static func withoutNotes(_ blocks: [Block]) -> [Block] {
         blocks.map { b in

@@ -61,9 +61,6 @@ final class FLRelauncher {
     private var url: URL?
     private var clock = Date()
 
-    /// Une relance en cours : les clics suivants ne font rien (09/11, « plusieurs clics = autant de FL »).
-    var restarting: Bool { timer != nil }
-
     /// Faux si FL ne tourne pas ou si une relance est déjà en cours.
     @discardableResult
     func restart() -> Bool {

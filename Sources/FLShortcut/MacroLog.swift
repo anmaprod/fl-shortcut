@@ -43,9 +43,6 @@ final class MacroLog: @unchecked Sendable {
 
     private init() {}
 
-    /// `defaults write app.flshortcut.FLShortcut macroLogVerbose -bool YES` : liste complète des fenêtres à chaque changement.
-    var verbose: Bool { UserDefaults.standard.bool(forKey: "macroLogVerbose") }
-
     func beginRun(_ title: String, flPID: Int32) {
         run.withLock { $0 = (String(UUID().uuidString.prefix(6)), DispatchTime.now().uptimeNanoseconds) }
         queue.async { self.rotateIfNeeded() }

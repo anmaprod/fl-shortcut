@@ -13,8 +13,6 @@ enum FLPluginDatabase {
         case generators = "Generators"
         case effects = "Effects"
 
-        /// Élément du menu Add de FL qui montre ces favoris.
-        var addMenuItem: String { self == .generators ? "Channel" : "Effect" }
     }
 
     /// Un plugin installé : son format (dossier : VST, VST3, AU…), son nom, ses fichiers dans la base de FL.

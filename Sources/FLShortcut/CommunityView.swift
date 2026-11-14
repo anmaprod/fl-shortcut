@@ -28,12 +28,21 @@ enum CommunityText {
            iso.distance(from: dot, to: end) > 4 {
             iso.removeSubrange(iso.index(dot, offsetBy: 4)..<end)
         }
+        return withFraction.date(from: iso) ?? withoutFraction.date(from: iso)
+    }
+
+    /// Créés une seule fois (14/11, optimisation : un par carte et par dessin avant). ISO8601DateFormatter lit les
+    /// dates sans risque depuis plusieurs fils.
+    private static let withFraction: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = f.date(from: iso) { return d }
+        return f
+    }()
+    private static let withoutFraction: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime]
-        return f.date(from: iso)
-    }
+        return f
+    }()
 
     /// « Macro · par @leo.beats · 15/10/2026 ».
     static func byline(_ share: Share) -> String {

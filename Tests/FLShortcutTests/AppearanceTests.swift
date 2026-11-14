@@ -32,13 +32,4 @@ final class AppearanceTests: XCTestCase {
         XCTAssertEqual(CardRowPosition.position(index: 1, count: 3), .middle)
         XCTAssertEqual(CardRowPosition.position(index: 2, count: 3), .last)
     }
-
-    /// Verre dessiné sur les cartes seulement avec l'effet Liquid Glass, sans Réduire la transparence ni Contraste
-    /// élevé (sinon les cartes grises de toujours).
-    func testGlassPlatesOnlyWithGlassAndNormalTransparency() {
-        XCTAssertTrue(GlassPlate.on(glass: true, reduceTransparency: false, increasedContrast: false))
-        XCTAssertFalse(GlassPlate.on(glass: false, reduceTransparency: false, increasedContrast: false))
-        XCTAssertFalse(GlassPlate.on(glass: true, reduceTransparency: true, increasedContrast: false))
-        XCTAssertFalse(GlassPlate.on(glass: true, reduceTransparency: false, increasedContrast: true))
-    }
 }

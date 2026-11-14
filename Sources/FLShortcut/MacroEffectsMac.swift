@@ -43,20 +43,6 @@ enum FLWindows {
         list(pid: pid).contains { $0.bounds.insetBy(dx: -2, dy: -2).contains(p) }
     }
 
-    /// Appli qui recevrait VRAIMENT un clic à ce point, d'après le système (Accessibilité, permission déjà donnée) :
-    /// les fenêtres transparentes qui laissent passer la souris (enregistreurs d'écran, utilitaires, Dock, nos
-    /// bulles) ne comptent pas. Repli : fenêtre normale (niveau 0) tout devant.
-    static func receiverPID(at p: CGPoint) -> Int32? {
-        let system = AXUIElementCreateSystemWide()
-        AXUIElementSetMessagingTimeout(system, 0.3)
-        var element: AXUIElement?
-        if AXUIElementCopyElementAtPosition(system, Float(p.x), Float(p.y), &element) == .success, let element {
-            var pid: pid_t = 0
-            if AXUIElementGetPid(element, &pid) == .success, pid != 0 { return pid }
-        }
-        return topNormalWindow(at: p)?.pid
-    }
-
     /// Fenêtre normale (niveau 0) tout devant à ce point, sans les nôtres : (processus, nom de l'appli).
     static func topNormalWindow(at p: CGPoint) -> (pid: Int32, name: String)? {
         let me = getpid()
@@ -737,12 +723,6 @@ final class MacroEffectsMac: MacroEffects {
         var count: UInt32 = 0
         guard CGGetDisplaysWithPoint(p, 4, &ids, &count) == .success, count > 0 else { return CGDisplayBounds(CGMainDisplayID()) }
         return CGDisplayBounds(ids[0])
-    }
-
-    /// Haut de l'écran, sur la moitié qui ne contient pas `p` (le menu de FL s'ouvre près de `p`).
-    static func hintPoint(awayFrom p: CGPoint) -> CGPoint {
-        let d = displayBounds(containing: p)
-        return CGPoint(x: p.x > d.midX ? d.minX + d.width * 0.25 : d.minX + d.width * 0.75, y: d.minY + 60)
     }
 
     // MARK: Boîte de dialogue (suivie par son numéro de fenêtre, pas par un nombre de fenêtres)

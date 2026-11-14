@@ -164,19 +164,6 @@ struct SearchFocusGuard: NSViewRepresentable {
     }
 }
 
-/// La main de la recherche suivie par SwiftUI (macOS 15 et plus) ; avant, la garde n'agit que côté AppKit.
-struct SearchFocusBinding: ViewModifier {
-    var focused: FocusState<Bool>.Binding
-
-    func body(content: Content) -> some View {
-        if #available(macOS 15.0, *) {
-            content.searchFocused(focused)
-        } else {
-            content
-        }
-    }
-}
-
 /// Champ qui lâche la main au premier clic hors de lui, dans la fenêtre comme dehors (07/11 au soir, recherche de
 /// l'Aide : « quand j'appuie ailleurs ça ne m'enlève pas… comme la barre de recherche »). Posé en fond du champ : sa
 /// place dit où est le champ ; un clic ailleurs, et la fenêtre reprend la main si c'est ce champ qui l'avait (un autre
