@@ -1503,8 +1503,8 @@ final class OrganizerController: ObservableObject {
             names = [:]
             slots = [:]
             options.mixerEdits = MixerEdits()
-            // Une icône de FL sur les drums (« Kick drum »), pour voir sa case sur la photo ; jamais enregistrée.
-            styles[.drums]?.icon = FLIcon(column: 2, row: 7)
+            // Une icône de FL sur la première famille de la photo (Voix : « Microphone ») ; jamais enregistrée.
+            styles[.vocals]?.icon = FLIcon(column: 7, row: 4)
             phase = screen == "fini" ? .applied(nil) : .preview
         default: break
         }

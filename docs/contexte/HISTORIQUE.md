@@ -1225,8 +1225,8 @@ entrée 1 ≈ 0,5 s.
   cases de 88 pixels, blanches : posées sur du noir, lisibles dans les trois thèmes). Cœur : `FlIconGrid` (noms et
   titres, miroir de FLIconGrid du Mac ; essai `IconGridLikeTheMacAndEveryPickableIconHasItsNumber` : mêmes 123 noms
   que le Mac, chacune a son numéro dans `FlIconIds`, donc s'écrit dans la copie). App : `FlIconPicker.cs`, en-tête de
-  `OrganizerWindow.FamilySection`. Aperçu de démonstration (photos de la CI, Mac et Windows) : « Kick drum » sur les
-  drums, jamais enregistré. Bulle du Mac corrigée (« posée par la fenêtre de FL, F2 » n'était plus vrai depuis le
+  `OrganizerWindow.FamilySection`. Aperçu de démonstration (photos de la CI, Mac et Windows) : « Microphone » sur
+  Voix (1re famille de la photo), jamais enregistré. Bulle du Mac corrigée (« posée par la fenêtre de FL, F2 » n'était plus vrai depuis le
   13/11 : icônes écrites dans la copie). Pas encore vu sur un vrai PC.
 - 15/11 : capture de l'Organiser bloqué sur « En attente de FL Studio » : « vu qu'il y a quelque chose qui bloque le
   signal exprès pour pas que ça bug, à chaque fois je suis obligé d'aller dans MIDI Settings pour changer generic

@@ -874,8 +874,8 @@ public sealed class OrganizerController
                 Result = DemoResult;
                 Families = Organize.FamiliesOf(Result);
                 Kinds = Organize.KindsOf(Result);
-                // Une icône de FL sur les drums (« Kick drum »), pour voir sa case sur la photo ; jamais enregistrée.
-                Styles[SoundFamily.Drums] = StyleOf(SoundFamily.Drums) with { Icon = FlIcon.Make(2, 7) };
+                // Une icône de FL sur la première famille de la photo (Voix : « Microphone ») ; jamais enregistrée.
+                Styles[SoundFamily.Vocals] = StyleOf(SoundFamily.Vocals) with { Icon = FlIcon.Make(7, 4) };
                 SetPhase(screen == "fini" ? new OrganizerPhase.Applied(null) : new OrganizerPhase.Preview());
                 break;
         }
