@@ -195,7 +195,7 @@
   sur win ») : `MacLook.cs` (couleurs, plaques, icônes dessinées aux noms des symboles du Mac, survol plein), fenêtre
   principale `MainShell*.cs` (barre de gauche, cartes `CatalogGroups`, Mes raccourcis, recherche, accueil), Macros
   `MacrosPage.cs` (dans la fenêtre ; créateur 3 colonnes, palette `CreatorPalette`), Organiser `OrganizerWindow.cs`
-  (fond noir, 2 colonnes, Options, tuto aux images du Mac embarquées, réglage `OrganizerTutorialSeen`), menu de l'icône
+  (fond noir, 2 colonnes, Options ; tuto RETIRÉ le 14/11), menu de l'icône
   `TrayMenu.cs` (noir, sans « Mettre en pause »), question de validation sombre ; noms des touches en anglais si
   l'app l'est (`Vk.Name`). Photos CI : principale*, macros-*, organiser-* (dont tuto), menu-icone. La CI seule vérifie
   l'app (le propriétaire : « on s'en fout de Linux ») ; le cœur se teste avec `dotnet test`.
@@ -281,7 +281,7 @@
   boutons rectangulaires en capitales (principal blanc plein), rouge #FF3B1F seulement pour l'important (touche
   changée, avertissement, Désinstaller). Fait dans l'app le 01/11 (remplace l'aspect du 28/10 ci-dessous) : jetons
   `Swiss` (GlassStyle.swift : `swissLabel`, `swissTitle`, `swissRule`, `SwissSwitch`, `SwissProgress`, `SixDots`), survol
-  = blanc plein texte noir, tous les coins carrés, `Swiss.flat` éteint les plaques. Mixer de
+  = blanc plein texte noir, tous les coins carrés (14/11 : l'ancien dessin en verre et son réglage `liquidGlass` retirés du code). Mixer de
   l'Organiser : pré-master à côté du Master ; par défaut 808 → bus Drums, chaque bus → Pré-master, SEUL le pré-master
   → Master (sauf changé à la main) ; liens par les ports sous les pistes (flèches, pas « OUT »), plusieurs sorties
   possibles ; familles en bandes à 6 points glissées ; double-clic sur une piste : nom + couleur. MIDI Settings : les
@@ -680,8 +680,8 @@
   guide « Bienvenue » (une ligne par partie) puis pages en 3 étapes d'une ligne (plus d'astuce ni de résumé) ;
   panneau « Active FL Shortcuts » ; cartes `PlateRows`/`GlassPlateBackground`, plus aucune lueur (`BrandGlow` retiré).
 - **Tuto** (29/10) : page `site/tuto.html` (7 étapes dessinées comme l'app ; images du README `docs/images/tuto-*.png`
-  par `rendre-tuto.js`) ; Organiser : tuto en 4 images à la 1re ouverture, avant l'écoute (`OrganizerTutorial.swift`,
-  « Revoir le tuto » dans Options ; images `Resources/*.lproj/OrganiserTuto*.png` de `docs/images/organiser-tuto.html`).
+  par `rendre-tuto.js`) ; tuto en images de l'Organiser : plus montré depuis le 05/11, son code et ses images RETIRÉS le
+  14/11 (Mac et Windows ; dans git jusqu'à 7694271 si besoin).
 - Créateur de macros (30/10, « le bouton enregistrer ne fonctionne plus ») : « Enregistrer » toujours actif (chaque
   changement s'enregistre seul 0,5 s après) ; il enregistre et revient aux macros (Mac et Windows). 03/11 (« pour
   enregistrer et ré-enregistrer il n'y a pas besoin de demande, c'est seulement pour supprimer que ça doit

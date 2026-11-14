@@ -1203,3 +1203,18 @@ entrée 1 ≈ 0,5 s.
   donc l'appareil arriver sans être relancé (retiré de « Pas encore vérifié »). Proposé, sans réponse : phrase de
   l'accueil « FL le voit dans MIDI seulement pendant une action » et étape MIDI Settings du mode d'emploi « seulement
   si l'Organiser te le demande ».
+- 14/11 : « optimise à fond le code », puis « tout le code de A à Z ». Mesure de départ (CI, macOS 26) : 15 Mo et 0 %
+  de processeur au repos, 50 Mo fenêtre ouverte, créateur ~80 Mo stable sur 3 ouvertures ; 9 Mo de ressources (8 Mo
+  pour le modèle de l'IA, déjà compressé). Revu : script de FL (endormi hors usage, 20 passages/s au plus : inchangé,
+  un nouveau script obligerait FL à le recharger), trajet d'une touche (rien lu hors raccourci), analyse du son
+  (Accelerate), surveillances (avis de macOS, pas de boucle), pauses des macros (15-150 ms réglées sur son FL :
+  gardées), serveur (chaque requête de la Communauté a son index : rien à recoller). Fait : Windows, code jamais
+  utilisé retiré (analyseurs .NET + recherche des noms qui n'apparaissent qu'une fois), réglages passés à des fonctions
+  qui ne les lisaient plus retirés, conversion sans boîte, texte comparé sans copie en minuscules, liste lue une fois,
+  tableau créé une fois ; tuto de l'Organiser retiré partout (code, 8 images, photo de la CI, réglage) ; Mac, code
+  jamais utilisé retiré (dont `StyledMenu.swift` en entier), cartes, lignes et touches sans l'abonnement au réglage
+  « verre » ni aux réglages d'affichage qu'elles ne lisaient plus (environ 270 touches par page de raccourcis),
+  dessin en verre retiré (style suisse seul), formateurs des dates et nombres de la Communauté, de la date de la
+  sauvegarde et des étapes de l'Aide créés une fois ; mesure de la CI en un seul passage (le second, « sans verre »,
+  était identique). Gardés exprès : `learnIcons` (sa demande), `ResetPingBackoff` (le Mac s'en sert), `FlagsEx`
+  (forme des données de Windows).
