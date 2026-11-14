@@ -424,6 +424,33 @@ final class OrganizerLinkTests: XCTestCase {
 
     // MARK: Surveillant du lien (08/11 : « FL rame… le lien ne doit pas rester activé »)
 
+    /// 15/11 (« il faut qu'il y ait toujours le lien dans MIDI, mais que ça ne bug pas ») : l'appareil existe tant que
+    /// FL est fermé, reste pendant son démarrage jusqu'à sa réponse, et rien n'est fait si FL tournait déjà au lancement
+    /// de FL Shortcuts ou si le lien n'est pas installé.
+    func testDeviceKeptForFLStart() {
+        // FL fermé : l'appareil est créé (une seule fois).
+        var (state, action) = FLStartHold.next(.idle, flRunning: false, linkInstalled: true)
+        XCTAssertEqual(state, .flClosed); XCTAssertEqual(action, .hold)
+        (state, action) = FLStartHold.next(state, flRunning: false, linkInstalled: true)
+        XCTAssertEqual(state, .flClosed); XCTAssertEqual(action, .none)
+        // FL démarre : on attend sa réponse (une seule fois, même si l'état est redit à chaque changement d'app).
+        (state, action) = FLStartHold.next(state, flRunning: true, linkInstalled: true)
+        XCTAssertEqual(state, .flStarting); XCTAssertEqual(action, .awaitAnswer)
+        (state, action) = FLStartHold.next(state, flRunning: true, linkInstalled: true)
+        XCTAssertEqual(state, .flStarting); XCTAssertEqual(action, .none)
+        // Refermé pendant son démarrage : l'appareil reste pour la prochaine fois.
+        (state, action) = FLStartHold.next(state, flRunning: false, linkInstalled: true)
+        XCTAssertEqual(state, .flClosed); XCTAssertEqual(action, .hold)
+        // FL déjà ouvert au lancement de FL Shortcuts : rien (pas d'appareil, pas de saccades).
+        (state, action) = FLStartHold.next(.idle, flRunning: true, linkInstalled: true)
+        XCTAssertEqual(state, .idle); XCTAssertEqual(action, .none)
+        // Lien pas installé : rien ; désinstallé pendant qu'il était gardé : rendu.
+        (state, action) = FLStartHold.next(.idle, flRunning: false, linkInstalled: false)
+        XCTAssertEqual(state, .idle); XCTAssertEqual(action, .none)
+        (state, action) = FLStartHold.next(.flClosed, flRunning: false, linkInstalled: false)
+        XCTAssertEqual(state, .idle); XCTAssertEqual(action, .release)
+    }
+
     func testWatchdogDropsAHoldNobodyUses() {
         // Macro finie depuis longtemps, aucun bloc en cours : le lien est rendu.
         var v = LinkWatch.verdict(holders: [.macro], activeBorrows: 0, sinceLastBorrow: 10,

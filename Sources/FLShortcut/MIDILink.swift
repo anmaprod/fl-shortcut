@@ -649,6 +649,8 @@ final class MIDILink: ObservableObject {
     enum User: Hashable {
         case organizer
         case macro
+        /// 15/11 : FL fermé ou en train de démarrer (voir `FLStartHold`).
+        case flStart
     }
 
     private let users = Locked(Set<User>())
@@ -714,6 +716,66 @@ final class MIDILink: ObservableObject {
         guard AppMode.light, activeBorrows.value == 0, users.value.contains(.macro) else { return }
         macroGeneration.withLock { $0 += 1 }            // le retrait prévu 3 s après le dernier bloc n'a plus lieu
         release(.macro)
+    }
+
+    // MARK: Démarrage de FL (mode léger)
+
+    /// Retour du 15/11 (capture : « En attente de FL Studio », « je suis obligé d'aller dans MIDI Settings pour changer
+    /// generic controller… il faut qu'il y ait toujours le lien dans MIDI, mais que ça ne bug pas ») : FL ne relie son
+    /// script qu'à un appareil présent quand LUI démarre (01/11) ; l'appareil n'existant que pendant une action, FL le
+    /// découvrait en « generic controller ». Maintenant l'appareil existe tant que FL est fermé (rien ne tourne : aucune
+    /// saccade possible), FL le trouve en démarrant et relie le script ; dès sa première réponse (ou au bout de
+    /// `flStartLimit`), l'appareil est retiré (plus de saccades, comme avant) ; FL le reconnaît ensuite quand une action
+    /// le recrée, dans la même session. FL déjà ouvert au lancement de FL Shortcuts : rien (l'Organiser propose
+    /// « Quitter et rouvrir FL »).
+    private var flStart = FLStartHold.idle                 // fil principal
+    private var flStartGeneration = 0                      // fil principal
+    private let flUp = Locked(false)
+    static let flStartLimit: TimeInterval = 120
+
+    private func followFLStart(_ running: Bool) {
+        let (next, action) = FLStartHold.next(flStart, flRunning: running, linkInstalled: core.snapshot.hasKey)
+        flStart = next
+        switch action {
+        case .none:
+            break
+        case .hold:
+            flStartGeneration += 1
+            MacroLog.shared.write("MIDI", "FL closed: link ports kept for its next start")
+            use(.flStart)
+        case .awaitAnswer:
+            flStartGeneration += 1
+            let generation = flStartGeneration
+            MacroLog.shared.write("MIDI", "FL started: waiting for it to link the script")
+            DispatchQueue.global(qos: .utility).async { [weak self] in self?.awaitFLStart(generation) }
+        case .release:
+            flStartGeneration += 1
+            release(.flStart)
+        }
+    }
+
+    /// FL démarre (file de fond) : PING toutes les 2 s jusqu'à son HELLO, puis l'appareil est retiré (sauf si
+    /// quelqu'un d'autre s'en sert). FL refermé entre-temps : rien (l'appareil reste pour son prochain démarrage).
+    private func awaitFLStart(_ generation: Int) {
+        let started = Date()
+        let deadline = started.addingTimeInterval(Self.flStartLimit)
+        Thread.sleep(forTimeInterval: 3)
+        var answered = false
+        while Date() < deadline, flUp.value {
+            if core.runBriefly([], brief: true, timeout: 1) == nil {
+                answered = true
+                break
+            }
+            Thread.sleep(forTimeInterval: 2)
+        }
+        let seconds = String(format: "%.0f", Date().timeIntervalSince(started))
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.flStartGeneration == generation, self.flStart == .flStarting else { return }
+            MacroLog.shared.write("MIDI", answered ? "FL linked the script at its start (\(seconds) s)"
+                                                   : "no answer from FL at its start (\(seconds) s)")
+            self.flStart = .idle
+            self.release(.flStart)
+        }
     }
 
     // MARK: Surveillant (mode léger)
@@ -918,9 +980,14 @@ final class MIDILink: ObservableObject {
     }
 
     func setFLRunning(_ running: Bool) {
+        flUp.withLock { $0 = running }
+        if AppMode.light {
+            flRunning = running
+            followFLStart(running)
+            return
+        }
         guard running != flRunning else { return }
         flRunning = running
-        if AppMode.light { return }                    // mode léger : aucun lien MIDI
         core.resetPingBackoff()
         if running { core.ping(minInterval: 1) }
         refresh()
@@ -1005,6 +1072,25 @@ final class MIDILink: ObservableObject {
         if snap != snapshot { snapshot = snap }
         let s = LinkStatus.resolve(flRunning: flRunning, alive: core.routingView().linked)
         if s != status { status = s }
+    }
+}
+
+/// Appareil gardé pour le démarrage de FL (pur, essayé ; voir `MIDILink.followFLStart`).
+enum FLStartHold: Equatable {
+    /// Rien : lien pas installé, FL déjà ouvert au lancement de FL Shortcuts, ou FL déjà relié.
+    case idle
+    /// FL fermé : l'appareil existe, prêt pour son prochain démarrage.
+    case flClosed
+    /// FL vient de démarrer : l'appareil reste jusqu'à sa première réponse.
+    case flStarting
+
+    enum Action: Equatable { case none, hold, awaitAnswer, release }
+
+    static func next(_ state: FLStartHold, flRunning: Bool, linkInstalled: Bool) -> (FLStartHold, Action) {
+        guard linkInstalled else { return (.idle, state == .idle ? .none : .release) }
+        if !flRunning { return (.flClosed, state == .flClosed ? .none : .hold) }
+        if state == .flClosed { return (.flStarting, .awaitAnswer) }
+        return (state, .none)
     }
 }
 

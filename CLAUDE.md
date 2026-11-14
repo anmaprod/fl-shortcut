@@ -823,7 +823,13 @@
   (attendre son diagnostic suivant). « FL ne trouve pas FL Shortcuts dans MIDI » (12/11, puis 14/11 : « je n'ai rien
   dans midi ») : NORMAL sur Mac au repos, l'appareil n'existe que pendant une action ; VU MARCHER chez lui le 14/11
   (Organiser › Démarrer → « FL Shortcuts Link » dans MIDI Settings, « parfait ça fonctionne bien ») ; ne pas remettre
-  les ports permanents sur Mac.
+  les ports permanents sur Mac. 15/11 (capture « En attente de FL Studio », « obligé d'aller dans MIDI Settings pour
+  changer generic controller… toujours le lien dans MIDI, mais que ça ne bug pas ») : FL ne relie son script qu'à un
+  appareil présent à SON démarrage → appareil gardé TANT QUE FL EST FERMÉ (rien ne tourne) et pendant son démarrage
+  jusqu'à sa première réponse (120 s au plus), puis retiré comme avant (`MIDILink.User.flStart`, règle pure
+  `FLStartHold`, journal MIDI « FL closed: link ports kept… », « FL linked the script at its start ») ; FL déjà ouvert
+  au lancement de FL Shortcuts : rien, l'écran « En attente de FL Studio » propose « Quitter et rouvrir FL » (Mac et
+  Windows). Ce ne sont PAS des ports permanents : jamais pendant que FL tourne, hors démarrage et actions.
 - **Icônes de l'Organiser** (12/11, captures : icônes seulement sur Basse, Basse 2, Clap, Clap 2 du Channel rack, rien
   dans le Mixer ni la Playlist, « très long… il faut que ce soit à l'instant T ») : un raté (Perc) arrêtait TOUTES les
   icônes → maintenant sauté, les suivantes continuent (du haut vers le bas), une page abandonne après 3 ratés de

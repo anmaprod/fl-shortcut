@@ -413,7 +413,7 @@ internal sealed partial class OrganizerWindow : Window
     {
         OrganizerWait.RestartFl => ("arrow.clockwise", Loc.T("Quitte et rouvre FL"), ""),
         OrganizerWait.NoResponse => ("antenna.radiowaves.left.and.right", Loc.T("En attente de FL Studio"),
-            Loc.T("FL ne répond pas encore. Vérifie MIDI Settings ci-dessous.")),
+            Loc.T("FL ne répond pas encore : il se relie à FL Shortcuts en démarrant. Quitte et rouvre FL.")),
         OrganizerWait.WrongInput => ("link", Loc.T("Le lien est sur la mauvaise entrée"),
             Loc.T("Ta carte son a le Controller type « FL Shortcuts » : remets-la sur « (generic controller) ».")),
         OrganizerWait.OpenFl => ("macwindow", Loc.T("Ouvre FL Studio"), Loc.T("Organiser commence dès que FL est ouvert, avec ton projet.")),
@@ -430,9 +430,10 @@ internal sealed partial class OrganizerWindow : Window
         else
             _content.Children.Add(Ruled(Stack(4, Label(title, 14, Text, bold: true), Paragraph(detail, 12)), 14));
         _content.Children.Add(Note(Loc.T("Organiser continue tout seul dès que FL est prêt.")));
-        if (reason == OrganizerWait.RestartFl)
+        if (reason is OrganizerWait.RestartFl or OrganizerWait.NoResponse)
         {
-            // 07/11 (comme le Mac) : FL quitté et rouvert d'un clic ; FL fermé : l'ouvrir.
+            // 07/11 (comme le Mac) : FL quitté et rouvert d'un clic ; FL fermé : l'ouvrir. 15/11 : aussi quand FL ne
+            // répond pas (il ne voit le lien qu'en démarrant).
             var restart = FlControl.Process() is not null
                 ? BlueButton(Loc.T("Quitter et rouvrir FL"), _controller.RestartFl)
                 : BlueButton(Loc.T("Ouvrir FL Studio"), OrganizerLive.OpenFlStudio);

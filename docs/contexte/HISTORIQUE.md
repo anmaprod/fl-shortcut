@@ -1228,3 +1228,18 @@ entrée 1 ≈ 0,5 s.
   `OrganizerWindow.FamilySection`. Aperçu de démonstration (photos de la CI, Mac et Windows) : « Kick drum » sur les
   drums, jamais enregistré. Bulle du Mac corrigée (« posée par la fenêtre de FL, F2 » n'était plus vrai depuis le
   13/11 : icônes écrites dans la copie). Pas encore vu sur un vrai PC.
+- 15/11 : capture de l'Organiser bloqué sur « En attente de FL Studio » : « vu qu'il y a quelque chose qui bloque le
+  signal exprès pour pas que ça bug, à chaque fois je suis obligé d'aller dans MIDI Settings pour changer generic
+  controller, donc il faut trouver un moyen pour qu'il y ait toujours le lien dans MIDI, mais que ça ne bug pas ».
+  Cause (vue le 01/11, af2ed46) : FL ne relie le script (`supportedDevices`) qu'à un appareil présent quand LUI
+  démarre ; dans la même session, il le reconnaît ensuite quand il réapparaît. Depuis le 01/11, l'appareil n'existait
+  que pendant une action : FL démarré sans lui le découvrait en « generic controller ». Doc d'Image-Line lue : rien sur
+  le moment du relais automatique ni sur la mémoire des réglages d'un appareil absent. Fait (Mac) : appareil gardé tant
+  que FL est fermé (aucune saccade possible : FL ne tourne pas), FL le trouve en démarrant et relie le script ; PING
+  toutes les 2 s jusqu'à son HELLO (120 s au plus), puis appareil retiré (plus de saccades, comme depuis le 01/11) ;
+  FL déjà ouvert au lancement de FL Shortcuts : rien. Écran « En attente de FL Studio » (Mac et Windows) : « FL ne
+  répond pas encore : il se relie à FL Shortcuts en démarrant. Quitte et rouvre FL. » + bouton « Quitter et rouvrir
+  FL » (MIDI Settings reste dans « Ça ne marche toujours pas ? »). Windows : ports déjà créés au lancement de l'appli
+  et gardés (FL ne les voit qu'à son ouverture), rien d'autre à changer. Essai `testDeviceKeptForFLStart`. Pas encore
+  vu chez lui : à vérifier en quittant FL, puis en le rouvrant avec FL Shortcuts ouvert (Organiser › Démarrer doit
+  marcher sans MIDI Settings ; journal MIDI).

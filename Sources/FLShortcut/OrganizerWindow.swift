@@ -2229,7 +2229,7 @@ struct OrganizerView: View {
                     .primaryButton()
                     .controlSize(.large)
                     .morphIn(3)
-            } else if reason == .restartFL {
+            } else if reason == .restartFL || reason == .noResponse {
                 Button("Quitter et rouvrir FL") { controller.restartFL() }
                     .primaryButton()
                     .controlSize(.large)
@@ -2273,10 +2273,9 @@ struct OrganizerView: View {
                     String(localized: "Règle les 4 cases, dans l'ordre."))
         case .noResponse:
             return ("antenna.radiowaves.left.and.right", String(localized: "En attente de FL Studio"),
-                    String(localized: """
-                        FL ne répond pas encore. Dans FL › MIDI Settings › Output, « FL Shortcuts » doit s'afficher à côté \
-                        de « FL Shortcuts Link », seul sur son Port. Sinon : « Ça ne marche toujours pas ? » ci-dessous.
-                        """))
+                    // 15/11 : FL relie le script à l'appareil présent à SON démarrage (FL Shortcuts le garde prêt tant
+                    // que FL est fermé) : le rouvrir suffit ; MIDI Settings reste dans « Ça ne marche toujours pas ? ».
+                    String(localized: "FL ne répond pas encore : il se relie à FL Shortcuts en démarrant. Quitte et rouvre FL."))
         case .wrongInput:
             return ("cable.connector", String(localized: "Le lien est sur la mauvaise entrée"),
                     String(localized: """
