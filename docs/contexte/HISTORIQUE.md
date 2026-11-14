@@ -1196,3 +1196,10 @@ entrée 1 ≈ 0,5 s.
   `OrganizerFeedbackPages.cs` (Échap sur une page : retour à la liste) ; le message à l'équipe part enfin aussi sous
   Windows (`AppController.SendSupport` → `HelpPage.SendQuietly`, avec le compte s'il y en a un). Essais
   `testFeedbackPagesKeepOrRestoreChoices` / `FeedbackPagesKeepOrRestoreChoices`. Pas encore vu chez lui.
+- 14/11 : capture de MIDI Settings vide (« j'ai tout installé correctement et je n'ai rien dans midi »). Normal sur
+  Mac : « Lien avec FL : Installé » de l'accueil = le script posé dans FL, pas un appareil ; « FL Shortcuts Link »
+  n'existe que pendant une action (Organiser après « Démarrer », bloc qui emprunte le lien), choix du 01/11 contre les
+  saccades de FL. Essai expliqué (Organiser › Démarrer, puis MIDI Settings) : « parfait ça fonctionne bien ». FL voit
+  donc l'appareil arriver sans être relancé (retiré de « Pas encore vérifié »). Proposé, sans réponse : phrase de
+  l'accueil « FL le voit dans MIDI seulement pendant une action » et étape MIDI Settings du mode d'emploi « seulement
+  si l'Organiser te le demande ».

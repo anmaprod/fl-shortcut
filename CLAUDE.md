@@ -820,8 +820,10 @@
   réussi remet à zéro) ; cause de chaque remise dans le diagnostic (`remise rack FL derrière 3, rack fenêtre
   plugin 2`, `liveMove`/`Move` renvoient -1 si FL n'est pas devant) ; seul Échap/Arrêter arrête tout. Windows
   pareil (+ une icône ratée n'arrête plus rien, `IconsMissed`). CAUSE des remises chez lui : PAS ENCORE CONNUE
-  (attendre son diagnostic suivant). Ouvrir FL Shortcuts AVANT FL : FL ne trouve pas « FL Shortcuts » dans MIDI
-  (12/11) : à comprendre avec son macro.log (lignes MIDI) ; ne pas remettre les ports permanents sur Mac.
+  (attendre son diagnostic suivant). « FL ne trouve pas FL Shortcuts dans MIDI » (12/11, puis 14/11 : « je n'ai rien
+  dans midi ») : NORMAL sur Mac au repos, l'appareil n'existe que pendant une action ; VU MARCHER chez lui le 14/11
+  (Organiser › Démarrer → « FL Shortcuts Link » dans MIDI Settings, « parfait ça fonctionne bien ») ; ne pas remettre
+  les ports permanents sur Mac.
 - **Icônes de l'Organiser** (12/11, captures : icônes seulement sur Basse, Basse 2, Clap, Clap 2 du Channel rack, rien
   dans le Mixer ni la Playlist, « très long… il faut que ce soit à l'instant T ») : un raté (Perc) arrêtait TOUTES les
   icônes → maintenant sauté, les suivantes continuent (du haut vers le bas), une page abandonne après 3 ratés de
@@ -889,8 +891,6 @@
   Bêta limitée (1 000 comptes, un compte = un ordinateur) mise de côté le 11/11 : choix dans HISTORIQUE.
 
 ## Pas encore vérifié sur le vrai FL
-- Lien seulement pendant l'Organiser (01/11) : FL voit-il « FL Shortcuts Link » apparaître après « Démarrer » et y
-  relie-t-il son script (Controller type gardé) sans être relancé ? Journal `MIDI` (« link ports created / removed »).
 - Icônes (31/10) : clic droit › « Change icon… » sur le vrai FL (macro « Nom et couleur » après un clic sur le nom ;
   Organiser : noms du Channel rack et noms verticaux du Mixer retrouvés ?) ; journal `ICON` (`--diag-icon 7-4`).
 - Plugins (28/10) : la catégorie « FL Shortcuts » des menus Add a-t-elle disparu après un redémarrage de FL ? « Ouvre
