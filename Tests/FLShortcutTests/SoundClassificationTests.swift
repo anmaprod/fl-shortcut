@@ -65,17 +65,17 @@ enum SynthSounds {
         return place(2, [0, 0.5, 1, 1.5].map { ($0, hit) })
     }
 
-    static func snare(_ noise: inout Noise) -> [Double] {
+    static func snare(_ noise: inout Noise, total: Double = 2, at times: [Double] = [0.5, 1.5]) -> [Double] {
         let hit: [Double] = (0..<count(0.3)).map { i in
             let t = Double(i) / rate
             let rattle: Double = noise.gaussian() * exp(-t / 0.08) * 0.5
             let body: Double = 0.4 * sin(2 * Double.pi * 180 * t) * exp(-t / 0.05)
             return rattle + body
         }
-        return place(2, [(0.5, hit), (1.5, hit)])
+        return place(total, times.map { ($0, hit) })
     }
 
-    static func hat(_ noise: inout Noise) -> [Double] {
+    static func hat(_ noise: inout Noise, total: Double = 2, at times: [Double]? = nil) -> [Double] {
         var previous = noise.gaussian()
         let hit: [Double] = (0..<count(0.12)).map { i in
             let t = Double(i) / rate
@@ -83,7 +83,7 @@ enum SynthSounds {
             defer { previous = next }
             return (next - previous) * exp(-t / 0.02) * 0.3
         }
-        return place(2, (0..<8).map { (Double($0) * 0.25, hit) })
+        return place(total, (times ?? (0..<8).map { Double($0) * 0.25 }).map { ($0, hit) })
     }
 
     static func b808() -> [Double] {
@@ -153,6 +153,50 @@ enum SynthSounds {
         return mul(mix.map { $0 / peak * 0.7 }, env(1.6, attack: 0.05, release: 0.15))
     }
 
+    // Sons des retours de l'utilisateur (projet à 93 BPM) : un arpège renommé « Snare », une boucle de batterie
+    // renommée « Mélodie », un hi-hat renommé « Snare 3 ».
+
+    /// Arpège en doubles croches à 93 BPM : notes de pluck brèves, quatre hauteurs qui tournent.
+    static func arp() -> [Double] {
+        let step = 60.0 / 93 / 4
+        let notes: [Double] = [261.6, 329.6, 392.0, 523.3]
+        func pluck(_ f: Double, _ d: Double) -> [Double] {
+            let decay = (0..<count(d)).map { exp(-Double($0) / rate / 0.08) }
+            return mul(saw(f, d, maxHz: 6000), decay).map { $0 * 0.7 }
+        }
+        return place(2, (0..<Int(2 / step)).map { k in (Double(k) * step, pluck(notes[k % 4], step * 0.9)) })
+    }
+
+    /// Boucle de batterie à 93 BPM : kick sur 1 et 3, snare sur 2 et 4, charleston en croches.
+    static func drumLoop(_ noise: inout Noise) -> [Double] {
+        let beat = 60.0 / 93, total = 2.0
+        let hit = Array(kick().prefix(count(0.4)))
+        var out = place(total, [(0, hit), (2 * beat, hit)])
+        let snares = snare(&noise, total: total, at: [beat, 3 * beat])
+        let hats = hat(&noise, total: total, at: (0..<Int(total / (beat / 2))).map { Double($0) * beat / 2 })
+        for i in out.indices { out[i] += snares[i] + hats[i] * 0.8 }
+        return out
+    }
+
+    /// Charleston fermé et brillant : bruit filtré passe-haut (8 kHz), très bref, en doubles croches.
+    static func brightHat(_ noise: inout Noise) -> [Double] {
+        let raw = (0..<count(0.06)).map { _ in noise.gaussian() }
+        let smooth = onePole(raw, 8000)
+        let hit = raw.indices.map { i in (raw[i] - smooth[i]) * exp(-Double(i) / rate / 0.015) * 0.5 }
+        return place(2, (0..<16).map { (Double($0) * 0.125, hit) })
+    }
+
+    /// Les trois sons des retours, leur famille et leur sorte attendues.
+    static func reported() -> [(name: String, samples: [Float], expected: SoundFamily, drum: DrumKind?)] {
+        var noise = Noise()
+        let loop = drumLoop(&noise)
+        let hat = brightHat(&noise)
+        let list: [(String, [Double], SoundFamily, DrumKind?)] = [
+            ("arp", arp(), .melody, nil), ("loop", loop, .drums, .loop), ("hat", hat, .drums, .hiHat),
+        ]
+        return list.map { ($0.0, $0.1.map(Float.init), $0.2, $0.3) }
+    }
+
     /// Les 9 sons et leur famille attendue.
     static func all() -> [(name: String, samples: [Float], expected: SoundFamily)] {
         var noise = Noise()
@@ -206,9 +250,10 @@ final class SoundClassificationTests: XCTestCase {
     /// Une mesure par règle, dans l'ordre.
     func testFusionRules() {
         func f(len: Double, pitched: Double, f0: Double, low: Double, flat: Double, distinct: Int = 1,
-               vib: Double = 0) -> SoundFeatures {
+               vib: Double = 0, high: Double = 0, onsets: Double = 2) -> SoundFeatures {
             SoundFeatures(peakDB: -6, noteLength: len, pitchedFraction: pitched, medianF0: f0, lowRatio: low,
-                          flatness: flat, onsetsPerSecond: 2, distinctPitches: distinct, vibrato: vib)
+                          flatness: flat, onsetsPerSecond: onsets, distinctPitches: distinct, vibrato: vib,
+                          highRatio: high)
         }
         XCTAssertEqual(FamilyFusion.decide(f(len: 1, pitched: 1, f0: 150, low: 0, flat: 0), AILabels(voice: 0.8)).family, .vocals)
         XCTAssertEqual(FamilyFusion.decide(f(len: 0.9, pitched: 1, f0: 50, low: 0.9, flat: 0), .none).family, .bass)       // 808
@@ -216,11 +261,130 @@ final class SoundClassificationTests: XCTestCase {
         XCTAssertEqual(FamilyFusion.decide(f(len: 0.3, pitched: 0.9, f0: 50, low: 1, flat: 0), .none).family, .drums)      // kick
         XCTAssertEqual(FamilyFusion.decide(f(len: 0.1, pitched: 0, f0: 0, low: 0, flat: 0.3), .none).family, .drums)       // charleston
         XCTAssertEqual(FamilyFusion.decide(f(len: 2, pitched: 0, f0: 0, low: 0, flat: 0.45), AILabels(instrument: 0.9)).family, .fx)
-        XCTAssertEqual(FamilyFusion.decide(f(len: 1.5, pitched: 1, f0: 150, low: 0, flat: 0, vib: 0.3), .none).family, .vocals)
+        // Voix au vibrato : l'IA doit entendre un peu de voix (retour de l'utilisateur : un FX dont la hauteur bouge
+        // était classé « Voix » quand l'IA ne disait rien).
+        XCTAssertEqual(FamilyFusion.decide(f(len: 1.5, pitched: 1, f0: 150, low: 0, flat: 0, vib: 0.3), AILabels(voice: 0.2)).family, .vocals)
+        XCTAssertEqual(FamilyFusion.decideWithRule(f(len: 1.5, pitched: 1, f0: 150, low: 0, flat: 0, vib: 0.3), .none).rule, "melodie")
+        XCTAssertEqual(FamilyFusion.decideWithRule(f(len: 1.5, pitched: 1, f0: 150, low: 0, flat: 0, vib: 0.3), AILabels(voice: 0.1)).family, .melody)
+        XCTAssertEqual(FamilyFusion.decideWithRule(f(len: 1, pitched: 1, f0: 150, low: 0, flat: 0), AILabels(voice: 0.8)).rule, "voix-ia")
+        XCTAssertTrue(AILabels(scores: ["applause": 0.4]).heard, "l'IA a répondu, même hors table")
+        XCTAssertFalse(AILabels(scores: [:]).heard)
         XCTAssertEqual(FamilyFusion.decide(f(len: 0.45, pitched: 1, f0: 440, low: 0, flat: 0), AILabels(drums: 0.7)).family, .melody)
         XCTAssertEqual(FamilyFusion.decide(f(len: 2, pitched: 0.2, f0: 220, low: 0, flat: 0.1), .none).family, .melody)    // nappe
         XCTAssertEqual(FamilyFusion.decide(f(len: 2, pitched: 0.2, f0: 0, low: 0, flat: 0.2), .none).family, .fx)
-        XCTAssertEqual(FamilyFusion.decide(f(len: 0.2, pitched: 0.4, f0: 300, low: 0, flat: 0.2), .none).family, .unsure)
+        XCTAssertEqual(FamilyFusion.decide(f(len: 0.2, pitched: 0.4, f0: 300, low: 0, flat: 0.17), .none).family, .unsure)
+    }
+
+    /// Mesures des sons des retours de l'utilisateur (prises sur des sons plus proches des vrais : réverbération,
+    /// accords, bruits filtrés).
+    func testReportedSoundsByRule() {
+        func f(len: Double, pitched: Double, f0: Double, low: Double, flat: Double, high: Double = 0,
+               distinct: Int = 1, vib: Double = 0, onsets: Double = 2) -> SoundFeatures {
+            SoundFeatures(peakDB: -6, noteLength: len, pitchedFraction: pitched, medianF0: f0, lowRatio: low,
+                          flatness: flat, onsetsPerSecond: onsets, distinctPitches: distinct, vibrato: vib,
+                          highRatio: high)
+        }
+        // Arpège en accords, réverbéré : notes brèves, aucune hauteur nette, mais tonal.
+        XCTAssertEqual(FamilyFusion.decide(f(len: 0.32, pitched: 0.27, f0: 66, low: 0.04, flat: 0.07), .none).family, .melody)
+        XCTAssertEqual(FamilyFusion.decide(f(len: 2.5, pitched: 0.04, f0: 65, low: 0.03, flat: 0.12), .none).family, .melody)
+        // Arpège réverbéré : la réverbération fait trembler la hauteur, ce n'est pas une voix.
+        XCTAssertEqual(FamilyFusion.decide(f(len: 0.62, pitched: 0.75, f0: 398, low: 0.01, flat: 0.04, distinct: 4, vib: 0.42), .none).family, .melody)
+        // Arpège que l'IA prend pour des drums : tonal, il change de note.
+        XCTAssertEqual(FamilyFusion.decide(f(len: 0.16, pitched: 0.9, f0: 391, low: 0.01, flat: 0.01, distinct: 4), AILabels(drums: 0.7)).family, .melody)
+        // Boucle de batterie : grave du kick (comme une basse qui change de note) et aigus du charleston.
+        let loop = f(len: 0.17, pitched: 0.64, f0: 52, low: 0.5, flat: 0.26, high: 0.41, distinct: 2)
+        XCTAssertEqual(FamilyFusion.decide(loop, .none).family, .drums)
+        XCTAssertEqual(DrumNaming.kind(loop, scores: ["bass_drum": 0.6]), .loop, "le grave et les aigus : plus sûr que l'IA")
+        // Open hat : long, bruité, aigu, avec une attaque (une montée de bruit n'en a pas).
+        let open = f(len: 0.6, pitched: 0, f0: 0, low: 0, flat: 0.59, high: 0.94, onsets: 1.2)
+        XCTAssertEqual(FamilyFusion.decide(open, .none).family, .drums)
+        XCTAssertEqual(FamilyFusion.decide(f(len: 1.9, pitched: 0, f0: 0, low: 0.05, flat: 0.4, high: 0.31, onsets: 0), .none).family, .fx)
+        // Hi-hat : presque tout au-dessus de 6 kHz, même si l'IA dit snare.
+        let hat = f(len: 0.1, pitched: 0, f0: 0, low: 0, flat: 0.6, high: 0.9, onsets: 3)
+        XCTAssertEqual(FamilyFusion.decide(hat, .none).family, .drums)
+        XCTAssertEqual(DrumNaming.kind(hat, scores: ["snare_drum": 0.5]), .hiHat)
+        XCTAssertEqual(DrumNaming.kind(open, scores: [:]), .hiHat)
+    }
+
+    /// Les trois sons des retours, synthétisés : famille et sorte par les mesures seules.
+    func testReportedSynthSounds() {
+        for s in SynthSounds.reported() {
+            let f = SoundFeatures.measure(s.samples, rate: SynthSounds.rate)
+            let detail = String(format: "len=%.2f pitched=%.2f f0=%.0f low=%.2f flat=%.3f high=%.2f distinct=%d",
+                                f.noteLength, f.pitchedFraction, f.medianF0, f.lowRatio, f.flatness, f.highRatio,
+                                f.distinctPitches)
+            print("ORGANISER: \(s.name) \(detail)")
+            XCTAssertEqual(FamilyFusion.decide(f, .none).family, s.expected, "\(s.name) \(detail)")
+            if let drum = s.drum { XCTAssertEqual(DrumNaming.kind(f, scores: [:]), drum, "\(s.name) \(detail)") }
+        }
+    }
+
+    /// Retour du propriétaire : une mélodie (un ZENOLOGY) classée « Snare », une autre « FX ». Trois notes nettes :
+    /// une mélodie, même brève et bruitée ; un synthé de mélodies se reconnaît à son nom de plugin.
+    func testSeveralNotesAreAMelody() {
+        var stabs = SoundFeatures(peakDB: -6, noteLength: 0.15, pitchedFraction: 0.35, medianF0: 330, lowRatio: 0,
+                                  flatness: 0.4, onsetsPerSecond: 4, distinctPitches: 3, vibrato: 0, highRatio: 0.2)
+        XCTAssertEqual(FamilyFusion.decideWithRule(stabs, AILabels(drums: 0.8)).rule, "melodie-notes")
+        stabs.distinctPitches = 1
+        XCTAssertEqual(FamilyFusion.decide(stabs, .none).family, .drums, "une seule hauteur, bruitée et brève : drums")
+        XCTAssertTrue(SoundNames.isMelodicSynth("ZENOLOGY"))
+        XCTAssertTrue(SoundNames.isMelodicSynth("Serum 2"))
+        XCTAssertTrue(SoundNames.isMelodicSynth("Sylenth1 #2"))
+        XCTAssertTrue(SoundNames.isMelodicSynth("3x Osc"))
+        XCTAssertFalse(SoundNames.isMelodicSynth("Serum Kick"), "le nom dit ce qu'est le son")
+        XCTAssertFalse(SoundNames.isMelodicSynth("FPC"))
+        XCTAssertFalse(SoundNames.isMelodicSynth("Sampler"))
+    }
+
+    /// Sorte des drums (nom d'une piste de la Playlist) : l'IA d'abord, sinon les mesures.
+    func testDrumNaming() {
+        func f(len: Double, low: Double, flat: Double, f0: Double = 0, pitched: Double = 0,
+               high: Double = 0) -> SoundFeatures {
+            SoundFeatures(peakDB: -6, noteLength: len, pitchedFraction: pitched, medianF0: f0, lowRatio: low,
+                          flatness: flat, onsetsPerSecond: 4, distinctPitches: 1, vibrato: 0, highRatio: high)
+        }
+        let neutral = f(len: 0.2, low: 0.2, flat: 0.1)
+        XCTAssertEqual(DrumNaming.kind(neutral, scores: ["bass_drum": 0.8, "snare_drum": 0.4]), .kick)
+        XCTAssertEqual(DrumNaming.kind(neutral, scores: ["clapping": 0.5, "hi_hat": 0.5]), .hiHat, "égalité : l'ordre")
+        XCTAssertEqual(DrumNaming.kind(neutral, scores: ["drum_kit": 0.9, "bass_drum": 0.4]), .kit)
+        XCTAssertEqual(DrumNaming.kind(neutral, scores: ["snare_drum": 0.2, "speech": 0.9]), .perc, "trop peu sûr : mesures")
+        XCTAssertEqual(DrumNaming.kind(f(len: 0.3, low: 0.9, flat: 0.05), scores: [:]), .kick)
+        XCTAssertEqual(DrumNaming.kind(f(len: 0.3, low: 0.2, flat: 0.05, f0: 55, pitched: 0.8), scores: [:]), .kick)
+        XCTAssertEqual(DrumNaming.kind(f(len: 0.1, low: 0, flat: 0.5, high: 0.9), scores: [:]), .hiHat)
+        XCTAssertEqual(DrumNaming.kind(f(len: 1.2, low: 0, flat: 0.5, high: 0.9), scores: [:]), .cymbal)
+        XCTAssertEqual(DrumNaming.kind(f(len: 0.2, low: 0.2, flat: 0.3, high: 0.3), scores: [:]), .snare)
+        XCTAssertEqual(DrumNaming.kind(f(len: 0.3, low: 0, flat: 0.56), scores: [:]), .clap)
+        XCTAssertEqual(DrumNaming.kind(f(len: 0.1, low: 0, flat: 0.35, f0: 820, pitched: 1), scores: [:]), .perc)
+        XCTAssertEqual(DrumNaming.kind(f(len: 0.2, low: 0.6, flat: 0.26, high: 0.4), scores: [:]), .loop)
+        XCTAssertEqual(DrumKind.allCases.map(\.name), ["Kick", "Snare", "Hi-hat", "Clap", "Cymbal", "Perc", "Drums",
+                                                        "Drum loop"])
+        for label in DrumNaming.labels.keys {
+            XCTAssertEqual(FamilyFusion.labelTable[label], .drums, "\(label) : étiquette de drums connue")
+        }
+    }
+
+    /// Sorte d'une mélodie (retour du propriétaire : « si il repère un type de mélo il le renomme ») : l'IA d'abord
+    /// (piano, guitare, cordes…), sinon la forme du son ; rien de sûr : nil (elle reste « Mélodie »).
+    func testMelodyNaming() {
+        func f(len: Double, onsets: Double = 2, distinct: Int = 1, pitched: Double = 0.8) -> SoundFeatures {
+            SoundFeatures(peakDB: -6, noteLength: len, pitchedFraction: pitched, medianF0: 440, lowRatio: 0,
+                          flatness: 0.05, onsetsPerSecond: onsets, distinctPitches: distinct, vibrato: 0, highRatio: 0)
+        }
+        let line = f(len: 0.6)
+        XCTAssertEqual(MelodyNaming.kind(line, scores: ["piano": 0.7, "guitar": 0.4]), .piano)
+        XCTAssertEqual(MelodyNaming.kind(line, scores: ["electric_piano": 0.5]), .keys)
+        XCTAssertEqual(MelodyNaming.kind(line, scores: ["violin_fiddle": 0.6, "synthesizer": 0.9]), .strings,
+                       "« synthesizer » ne dit pas quelle sorte")
+        XCTAssertEqual(MelodyNaming.kind(line, scores: ["guitar": 0.2]), .lead, "trop peu sûr : les mesures")
+        XCTAssertEqual(MelodyNaming.kind(f(len: 0.15), scores: [:]), .pluck)
+        XCTAssertEqual(MelodyNaming.kind(f(len: 0.15, onsets: 6, distinct: 4), scores: [:]), .arp)
+        XCTAssertEqual(MelodyNaming.kind(f(len: 2, onsets: 0.5), scores: [:]), .pad)
+        XCTAssertNil(MelodyNaming.kind(f(len: 0.6, pitched: 0.3), scores: [:]), "rien de sûr")
+        XCTAssertNil(MelodyNaming.kind(.silent, scores: [:]))
+        for (label, kind) in MelodyNaming.labels {
+            XCTAssertEqual(FamilyFusion.labelTable[label], .instrument, "\(label) : étiquette d'instrument connue")
+            XCTAssertEqual(kind.family, .melody, label)
+        }
     }
 
     private func table(_ rows: [(String, SoundFamily, SoundFamily, String)]) -> Int {
@@ -232,13 +396,14 @@ final class SoundClassificationTests: XCTestCase {
         return ok
     }
 
-    /// Mesures seules (sans l'IA) : le réglage du prototype, 9 sur 9.
+    /// Mesures seules (sans l'IA) : 8 sur 9 au moins ; la voix demande l'IA (sans elle, une mélodie).
     func testSynthSoundsByFeatures() {
         var rows: [(String, SoundFamily, SoundFamily, String)] = []
         for s in SynthSounds.all() {
             let f = SoundFeatures.measure(s.samples, rate: SynthSounds.rate)
-            let detail = String(format: "len=%.2f pitched=%.2f f0=%.0f low=%.2f flat=%.3f distinct=%d vib=%.2f",
-                                f.noteLength, f.pitchedFraction, f.medianF0, f.lowRatio, f.flatness, f.distinctPitches, f.vibrato)
+            let detail = String(format: "len=%.2f pitched=%.2f f0=%.0f low=%.2f flat=%.3f high=%.2f distinct=%d vib=%.2f",
+                                f.noteLength, f.pitchedFraction, f.medianF0, f.lowRatio, f.flatness, f.highRatio,
+                                f.distinctPitches, f.vibrato)
             rows.append((s.name, FamilyFusion.decide(f, .none).family, s.expected, detail))
         }
         XCTAssertGreaterThanOrEqual(table(rows), 8)
@@ -253,6 +418,8 @@ final class SoundClassificationTests: XCTestCase {
         for s in sounds {
             let f = SoundFeatures.measure(s.samples, rate: SynthSounds.rate)
             let scores = ai.scores(s.samples, rate: SynthSounds.rate)
+            // La CI montrait « résultats 0, fenêtre 3.00 s » : l'IA ne disait jamais rien. Chaque son a un résultat.
+            XCTAssertGreaterThan(ai.lastResults, 0, "\(s.name) : l'IA doit répondre (\(ai.lastReport))")
             let top = scores.sorted { $0.value > $1.value }.prefix(3).map { "\($0.key) \(String(format: "%.2f", $0.value))" }
             let detail = "IA : " + top.joined(separator: ", ") + " (" + ai.lastReport + ")"
             rows.append((s.name, FamilyFusion.decide(f, AILabels(scores: scores)).family, s.expected, detail))
@@ -261,6 +428,15 @@ final class SoundClassificationTests: XCTestCase {
         print("ORGANISER: classement complet \(String(format: "%.0f", perSound * 1000)) ms par son")
         XCTAssertGreaterThanOrEqual(table(rows), 8)
         XCTAssertLessThan(perSound, 0.5)
+    }
+
+    /// Fenêtre d'analyse de l'IA : 1 s visée, dans ce que macOS permet.
+    func testAIWindowFitsShortSounds() {
+        XCTAssertEqual(SoundClassifier.pickWindow(allowed: [], range: 0.5...15), 1)
+        XCTAssertEqual(SoundClassifier.pickWindow(allowed: [], range: 1.5...15), 1.5)
+        XCTAssertEqual(SoundClassifier.pickWindow(allowed: [], range: 0.2...0.8), 0.8)
+        XCTAssertEqual(SoundClassifier.pickWindow(allowed: [3, 0.975, 2], range: nil), 0.975)
+        XCTAssertNil(SoundClassifier.pickWindow(allowed: [0, -1], range: nil))
     }
 
     /// Étiquettes de la table connues de macOS : les principales doivent y être ; les autres sont listées.

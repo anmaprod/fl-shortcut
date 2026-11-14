@@ -4,34 +4,15 @@
 //         audit 05 (pause clairement visible, avertissements de conflit).
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using FLShortcut.App.Native;
 using FLShortcut.App.Services;
 using FLShortcut.Core;
+using FLShortcut.Core.Macros;
 using Microsoft.UI.Dispatching;
 
 namespace FLShortcut.App;
 
-public sealed class ShortcutRow
-{
-    public required Shortcut Shortcut { get; init; }
-    public required IReadOnlyList<string> Caps { get; init; }
-    public required string Label { get; init; }
-    public required string Description { get; init; }
-    public required string Category { get; init; }
-    public required string Where { get; init; }
-    public required bool HasWarning { get; init; }
-    public required string WarningText { get; init; }
-    public double Opacity => Shortcut.Enabled ? 1.0 : 0.5;
-    public Microsoft.UI.Xaml.Visibility WhereVisibility => string.IsNullOrEmpty(Where) ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
-    public Microsoft.UI.Xaml.Visibility WarningVisibility => HasWarning ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
-}
-
-public sealed class ShortcutGroup
-{
-    public required string Title { get; init; }
-    public required List<ShortcutRow> Rows { get; init; }
-}
-
-internal enum StatusKind { Linked, Inactive, FlClosed, Paused, Elevated, Incompatible, NoKey, Tampered }
+internal enum StatusKind { Linked, Inactive, FlClosed, Paused, Elevated, Unrecognized, Incompatible, NoKey, Tampered }
 
 internal sealed class AppController : INotifyPropertyChanged, IDisposable
 {
@@ -42,6 +23,12 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     private readonly MidiLink _midi = new();
     private readonly KeyboardHook _hook;
     private List<Shortcut> _shortcuts;
+    /// Bibliothèque des macros en blocs (macros.json), écrite peu après chaque changement et à la fermeture.
+    private readonly MacroLibraryStore _macros = new(new MacroFileStorage());
+    private DispatcherQueueTimer? _macroSave;
+    private readonly MacroRunner _runner;
+    /// Macros compilées avec les règles de Windows : un bloc pas encore fait ici bloque sa macro.
+    private static readonly ValidationContext MacroContext = new() { PlatformProblem = MacroEffectsWindows.Unsupported };
     private Dictionary<Guid, List<ShortcutIssue>> _issues = new();
     private FlProcessInfo? _foreground;
     private FlVersion? _flVersion;
@@ -50,15 +37,56 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     public AppController(DispatcherQueue ui)
     {
         _ui = ui;
+        Approval = new Core.Organizer.CopyApproval(() => _settings.PendingCopies, json =>
+        {
+            _settings.PendingCopies = json;
+            _settings.Save();
+        }, RecycleBin.Files());
         _shortcuts = ProfileStore.Load(out var warning) ?? ProfilePreset.Recommended.Shortcuts();
         LoadWarning = warning;
         _midi.SetKey(SecretStore.Load());
+        _midi.Light = () => Light;
+        _midi.OrganizerHoldsLink = () => OrganizerWindow.HoldsLink;
         _midi.Changed += () => OnUi(RefreshAll);
-        _hook = new KeyboardHook(_midi.SendAction, () => OnUi(Toggle), fl => OnUi(() => OnForeground(fl)));
+        // La sauvegarde du compte suit chaque changement d'ici (pas un remplacement par la sauvegarde elle-même).
+        _macros.Changed += () =>
+        {
+            if (!_applying) DataChanged?.Invoke();
+        };
+        _macros.Changed += () => OnUi(() =>
+        {
+            ScheduleMacroSave();
+            RefreshAll();
+        });
+        _runner = new MacroRunner(_midi, _settings, () => Light, () => _hook!.EscapePresses, () => _hook!.LastAimedClick, OnUi,
+            () => OrganizerWindow.Show(this));
+        _runner.Finished += OnMacroFinished;
+        _hook = new KeyboardHook(_midi.SendAction, () => OnUi(Toggle), fl => OnUi(() => OnForeground(fl)),
+            program => OnUi(() => RunMacro(program)));
+    }
+
+    /// Mode photos de la CI : les pages de raccourcis seulement (ni hook clavier, ni port MIDI).
+    public void PreparePages()
+    {
+        _photoPages = true;                 // les pages, jamais l'accueil (sauf demandé : « accueil »)
+        _issues = ShortcutAnalyzer.Analyze(_shortcuts, NewAnalysisContext());
+        RebuildRows();
     }
 
     public void Start()
     {
+        // Les deux ports du lien créés dès le lancement (Windows MIDI Services, sinon le pilote de loopMIDI) et gardés
+        // jusqu'à la sortie : sous Windows, FL ne voit un port MIDI que s'il existait à son ouverture (08/11 au soir,
+        // « ports oui · lien muet »). Le lien, lui, ne s'ouvre que quand il sert (mode léger, MidiLink.Use).
+        Task.Run(async () =>
+        {
+            MidiServicesPorts.CheckAvailable();
+            // Lancée avec Windows, l'appli peut passer avant le pilote de loopMIDI : nouvel essai, 3 min au plus (un
+            // essai raté n'est refait qu'après 60 s), tant que l'appli sait créer le port.
+            for (var i = 0; i < 18 && MidiServicesPorts.Available && !MidiServicesPorts.EnsureIfNeeded(); i++)
+                await Task.Delay(TimeSpan.FromSeconds(10));
+        });
+        InstallScriptIfMissing();           // 13/11 : le lien avec FL posé dès l'installation (comme le Mac)
         if (!Light) _midi.Start();          // mode léger : aucun port MIDI ouvert, rien dans FL
         _hook.Start();
         RefreshAll();
@@ -67,20 +95,45 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     // ---------- État affiché ----------
 
     public string? LoadWarning { get; }
-    /// Mode léger (défaut) : FL Shortcut n'envoie que des touches d'origine de FL, sans script ni MIDI.
-    public bool Light => !(_settings.MidiActions ?? _settings.ScriptPath is not null);
-    /// En mode léger, rien à configurer : pas d'accueil (ni loopMIDI, ni MIDI Settings).
-    public bool Onboarded => _settings.Onboarded || Light;
+    /// Fin d'une macro (fil de l'interface) : réussie, et le texte du résultat.
+    public event Action<bool, string>? MacroFinished;
+
+    /// Bibliothèque des macros illisible, inaccessible ou impossible à enregistrer (jamais de macro perdue en silence).
+    public string? MacroProblem => _macros.Problem;
+    internal MacroLibraryStore Macros => _macros;
+    /// Mode léger (défaut) : FL Shortcuts envoie les touches d'origine de FL ; le lien MIDI ne s'ouvre que le temps
+    /// d'une action qui en a besoin (Organiser, bloc de macro), puis se ferme. 08/11 (diagnostic d'un ami : « léger=non »,
+    /// « mêmes logiciels pour les deux ») : comme le Mac, plus de lien permanent dès que le script est installé (FL rame
+    /// tant qu'il voit l'appareil) ; seul le réglage explicite MidiActions le garde ouvert.
+    public bool Light => !(_settings.MidiActions ?? false);
+    /// Mode léger : une page d'accueil au premier lancement, pour installer loopMIDI (08/11) ; sautée si les deux
+    /// ports sont déjà là (loopMIDI prêt, ou créés par Windows). Avec le lien : ports puis MIDI Settings, comme avant.
+    public bool Onboarded => _photoPages || (Light ? _settings.LoopMidiAsked || MidiLink.PortsUsable() : _settings.Onboarded);
+    private bool _photoPages;
+
+    /// « Continuer » de la page loopMIDI : elle ne revient plus.
+    public void LoopMidiSeen()
+    {
+        _settings.LoopMidiAsked = true;
+        _settings.Save();
+        Raise(nameof(Onboarded));
+    }
     public bool Enabled => _settings.Enabled;
-    public ProfilePreset CurrentPreset => Enum.TryParse<ProfilePreset>(_settings.Profile, out var p) ? p : ProfilePreset.Recommended;
     public IReadOnlyList<Shortcut> Shortcuts => _shortcuts;
-    public List<ShortcutGroup> Groups { get; private set; } = new();
-    public bool IsEmpty => Groups.Count == 0;
+    /// Les pages comme le Mac (29/10) : chaque raccourci de FL et action du script avec sa touche actuelle (`Rows`),
+    /// et tes autres raccourcis (`Others` : créés, macros). Recalculé quand le profil ou ses avertissements changent.
+    public (List<CatalogRow> Rows, List<Shortcut> Others) Catalog { get; private set; } = (new(), new());
+    /// Raccourcis de départ (profil Recommandé), jamais comptés comme « créés par toi ».
+    public IReadOnlyList<Shortcut> Starters { get; } = ProfilePreset.Recommended.Shortcuts();
     public StatusKind Status { get; private set; }
     public string StatusTitle { get; private set; } = "";
     public string StatusText { get; private set; } = "";
     public bool PortsPresent => _midi.PortsPresent || MidiLink.PortsExist();
     public bool Linked => _midi.Alive;
+    /// Pour l'Organiser : le lien MIDI, les réglages, les versions organisées en attente de validation.
+    internal MidiLink Midi => _midi;
+    internal AppSettings Settings => _settings;
+    internal Core.Organizer.CopyApproval Approval { get; }
 
     public string Query
     {
@@ -95,12 +148,6 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         _settings.Enabled = !_settings.Enabled;
         _settings.Save();
         RefreshAll();
-    }
-
-    public void SetEnabled(bool on)
-    {
-        if (_settings.Enabled == on) return;
-        Toggle();
     }
 
     public void CompleteOnboarding()
@@ -133,6 +180,49 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         }
     }
 
+    /// 13/11 (comme le Mac, « ça fonctionne mais que si j'installe le lien midi d'organiser… installer le lien midi
+    /// dès l'installation du logiciel ») : lien jamais installé (ni script ni clé) → posé tout seul, sans question,
+    /// dans le dossier « Settings\Hardware » de FL s'il existe (`FlScriptPlace`). FL le lit à son prochain lancement et
+    /// le relie tout seul à « FL Shortcuts » (`supportedDevices` du script). Vrai s'il vient d'être posé.
+    public bool InstallScriptIfMissing()
+    {
+        if (_photoPages || ScriptInstalled || _settings.ScriptPath is { Length: > 0 } || SecretStore.Load() is not null) return false;
+        if (FlScriptPlace.Hardware(FlDataFolders.HardwareCandidates(), Directory.Exists) is not { } hardware) return false;
+        var ok = InstallScript(hardware) is null;
+        AppLog.Write("LINK", ok ? "installed at launch" : "not installed at launch");
+        return ok;
+    }
+
+    /// « Garder » de l'écran de fin de l'Organiser (13/11) : la fenêtre principale garde la version rangée tout de suite.
+    public event Action<string>? KeepRequested;
+    public void RequestKeep(string copy) => KeepRequested?.Invoke(copy);
+
+    /// Message à l'équipe envoyé sans rien montrer (« Pas content ? » de l'Organiser, 13/11, comme le Mac) : posé par la
+    /// fenêtre principale (Aide : serveur, compte) ; null : pas encore de fenêtre, rien n'est envoyé.
+    public Func<SupportMessage, Task>? SendSupport { get; set; }
+
+    /// Script de FL Shortcuts présent dans FL (diagnostic).
+    public bool ScriptInstalled => _settings.ScriptPath is { Length: > 0 } path && File.Exists(path);
+
+    /// Le script a disparu de FL Studio (dossier vidé, FL réinstallé) : remis à sa place avec la même clé. Vrai s'il
+    /// vient d'être remis (FL ne le lira qu'à son prochain lancement).
+    public bool RepairScriptIfMissing()
+    {
+        if (_settings.ScriptPath is not { } path || File.Exists(path) || SecretStore.Load() is not { } key) return false;
+        try
+        {
+            var (installed, sha) = ScriptInstaller.Install(Path.GetDirectoryName(Path.GetDirectoryName(path)!)!, key);
+            _settings.ScriptPath = installed;
+            _settings.ScriptSha256 = sha;
+            _settings.Save();
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
     /// « Tester » : ouvre le Mixer dans FL (action 33).
     public bool TestLink() => _midi.SendAction(33);
 
@@ -140,7 +230,7 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     public bool TestAction(int id) => _midi.SendAction(id);
 
     public ActionAvailability Availability(int id) => Light
-        ? LightMode.Availability(id)
+        ? LightMode.Availability(id, _midi.HasKey)
         : AvailabilityResolver.Resolve(id, _midi.Hello?.Capabilities, _flVersion);
 
     public IReadOnlyList<ShortcutIssue> IssuesFor(Shortcut draft)
@@ -167,35 +257,210 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         return s;
     }
 
-    public void LoadPreset(ProfilePreset preset)
+    /// Un profil de Windows, ou d'un Mac (touches traduites pour le clavier de ce PC).
+    public ImportPreview PrepareImport(string json) => ProfileImporter.Prepare(json, KeyLayout);
+
+    /// Disposition du clavier de ce PC (traduction des raccourcis du Mac).
+    public IKeyLayout KeyLayout => WindowsKeyLayout.Current;
+
+    /// Raccourcis remplacés par ceux d'un partage (« Utiliser ces raccourcis ») ; ceux des macros de ce PC restent.
+    /// Renvoie les raccourcis d'avant, pour l'annulation.
+    public List<Shortcut> ReplaceShortcuts(IEnumerable<Shortcut> imported)
     {
-        _shortcuts = preset.Shortcuts();
-        _settings.Profile = preset.ToString();
-        _settings.Save();
+        var before = _shortcuts.ToList();
+        _shortcuts = imported.Where(s => s.Kind != ShortcutKind.Macro)
+            .Concat(before.Where(s => s.Kind == ShortcutKind.Macro)).ToList();
+        Persist();
+        return before;
+    }
+
+    public void RestoreShortcuts(List<Shortcut> before)
+    {
+        _shortcuts = before.ToList();
         Persist();
     }
 
-    public ImportPreview PrepareImport(string json) => ProfileImporter.Prepare(json);
-
-    public void ApplyImport(ImportPreview preview)
-    {
-        _shortcuts.AddRange(preview.Shortcuts);
-        Persist();
-    }
-
-    public string ExportJson() => ProfileCodec.Encode(_shortcuts);
+    /// Les raccourcis de ce PC écrits comme sur le Mac (partage « Tous mes raccourcis », sauvegarde du compte).
+    public string MacProfileJson(bool withMacros) =>
+        MacProfile.ToMac(withMacros ? _shortcuts : _shortcuts.Where(s => s.Kind != ShortcutKind.Macro), KeyLayout);
 
     public void SetRecording(bool recording) => _hook.Config = _hook.Config with { Recording = recording };
 
     // ---------- Interne ----------
 
-    private AnalysisContext NewAnalysisContext() => new(ProfilePresets.Toggle, ConflictTable.Default, Availability);
+    private AnalysisContext NewAnalysisContext() =>
+        new(ProfilePresets.Toggle, ConflictTable.Default, Availability, _macros.Programs(MacroContext));
+
+    // ---------- Page Macros ----------
+
+    /// Ce qui empêche la macro de tourner sous Windows (bloc pas encore fait ici…), sinon null.
+    public string? MacroIssue(Guid macro) =>
+        _macros.Programs(MacroContext).TryGetValue(macro, out var program) ? program.Problem : null;
+
+    /// « Montrer dans FL… » : FL mis devant, puis le prochain clic de l'utilisateur dans FL, rendu à `done` (sur le fil
+    /// de l'interface) : le bouton par son nom, sinon son image (`visual`), sinon sa place. Renvoie ce qui l'empêche (FL
+    /// fermé, apprentissage déjà en cours), sinon null.
+    public string? LearnClick(Action<ClickTarget?, string?> done, bool visual = false)
+    {
+        if (FlControl.Process() is not { } fl) return Loc.T("Ouvre FL Studio, puis recommence.");
+        return ClickLearner.Start(fl.Pid, visual, OnUi, done) ? null : Loc.T("Un clic est déjà en train d'être appris.");
+    }
+
+    /// Glisser-déposer montré dans FL (créateur, bloc « Glisser-déposer ») : renvoie ce qui empêche de commencer, sinon null.
+    public string? LearnDrag(Action<(ClickTarget From, ClickTarget To)?, string?> done)
+    {
+        if (FlControl.Process() is not { } fl) return Loc.T("Ouvre FL Studio, puis recommence.");
+        return ClickLearner.StartDrag(fl.Pid, OnUi, done) ? null : Loc.T("Un clic est déjà en train d'être appris.");
+    }
+
+    /// « Enregistrer une macro » : FL passe devant, ses clics et ses touches sont relevés jusqu'au retour dans FL
+    /// Shortcuts (MacroRecorder), puis changés en blocs. Renvoie ce qui empêche de commencer, sinon null.
+    public string? RecordMacro(Action<ClickSequenceCompiler.Result, string?> done)
+    {
+        if (FlControl.Process() is not { } fl) return Loc.T("Ouvre FL Studio, puis recommence.");
+        return MacroRecorder.Start(fl.Pid, OnUi, (inputs, why) => done(ClickSequenceCompiler.Compile(inputs), why))
+            ? null : Loc.T("Un enregistrement est déjà en cours.");
+    }
+
+    /// Bases de plugins de FL (Plugin database) : à côté du script installé, puis Documents › Image-Line.
+    public IReadOnlyList<string> PluginRoots =>
+        FlDataFolders.PluginRoots(_settings.ScriptPath);
+
+    /// Premier raccourci qui lance cette macro.
+    public Shortcut? MacroShortcut(Guid macro) => MacroDrafts.ShortcutsOf(macro, _shortcuts).FirstOrDefault();
+
+    /// Donne ce déclencheur à la macro (son raccourci est modifié, ou créé). Renvoie le problème qui l'en empêche
+    /// (doublon, touche réservée…), sinon null. Une macro pas encore prête garde son raccourci (bloqué jusque-là).
+    public string? SetMacroShortcut(Guid macro, KeyCombo trigger)
+    {
+        var draft = MacroShortcut(macro) is { } existing ? existing with { Trigger = trigger, Enabled = true }
+            : Shortcut.RunsMacro(trigger, macro);
+        var blocking = IssuesFor(draft).Where(i => i.IsBlocking && i is not ShortcutIssue.MacroInvalid).ToList();
+        if (blocking.Count > 0) return string.Join(" ", blocking.Select(i => i.Message));
+        Upsert(draft);
+        return null;
+    }
+
+    public void RemoveMacroShortcut(Guid macro)
+    {
+        foreach (var s in MacroDrafts.ShortcutsOf(macro, _shortcuts)) _shortcuts.Remove(s);
+        Persist();
+    }
+
+    /// Supprime la macro et ses raccourcis ; renvoie de quoi les remettre (« Annuler » de la notification).
+    public Action? DeleteMacro(Guid macro)
+    {
+        var shortcuts = MacroDrafts.ShortcutsOf(macro, _shortcuts).ToList();
+        var removed = _macros.Remove(macro);
+        RemoveMacroShortcut(macro);
+        if (removed is not { } r) return null;
+        return () =>
+        {
+            _macros.Add(r.Doc, r.Index);
+            foreach (var s in shortcuts.Where(s => _shortcuts.All(x => x.Id != s.Id))) _shortcuts.Add(s);
+            Persist();
+        };
+    }
+
+    /// « Enregistrer » du créateur : tout de suite, sans attendre l'enregistrement automatique (0,5 s).
+    public void SaveMacrosNow()
+    {
+        _macroSave?.Stop();
+        _macros.SaveNow();
+        if (_macros.SaveError is not null) Raise(nameof(MacroProblem));
+    }
+
+    /// Raccourci d'une macro (le hook l'a avalé) : une macro à la fois ; FL plus devant ou macro invalide : rien.
+    private void RunMacro(MacroProgram program)
+    {
+        var result = _runner.Start(program);
+        if (result != MacroRunner.StartResult.Started) AppLog.Write("MACRO", "not started: " + result);
+    }
+
+    private void OnMacroFinished(bool ok, string text)
+    {
+        if (!ok) Native.Win32.MessageBeep(Native.Win32.MB_ICONWARNING);
+        MacroFinished?.Invoke(ok, text);
+    }
+
+    private void ScheduleMacroSave()
+    {
+        if (_macroSave is null)
+        {
+            _macroSave = _ui.CreateTimer();
+            _macroSave.Interval = TimeSpan.FromMilliseconds(500);
+            _macroSave.IsRepeating = false;
+            _macroSave.Tick += (_, _) =>
+            {
+                _macros.SaveNow();
+                if (_macros.SaveError is not null) Raise(nameof(MacroProblem));
+            };
+        }
+        _macroSave.Stop();
+        _macroSave.Start();
+    }
 
     private void Persist()
     {
         try { ProfileStore.Save(_shortcuts); }
         catch { /* le profil reste en mémoire ; nouvel essai à la prochaine modification */ }
         RefreshAll();
+        if (!_applying) DataChanged?.Invoke();
+    }
+
+    // ---------- Sauvegarde du compte ----------
+
+    /// Raccourcis ou macros changés ici (jamais pendant un remplacement par la sauvegarde du compte).
+    public event Action? DataChanged;
+    private bool _applying;
+
+    /// Fichiers de ce PC pas lus entièrement au lancement : jamais envoyés à la place de la sauvegarde du compte.
+    public bool LocalUnreliable => LoadWarning is not null || _macros.LoadIncomplete || _macros.WritesDisabled;
+
+    public bool Untouched => BackupCodec.Untouched(_shortcuts, _macros.Macros.Count);
+
+    /// « 12 raccourcis · 3 macros » : ce qui est sur ce PC.
+    public string HereSummary => BackupRules.Summary(_shortcuts.Count, _macros.Macros.Count);
+
+    public BackupContent BackupContent() => BackupCodec.Of(_shortcuts, _macros.Macros, KeyLayout, RecentColors);
+
+    public bool SameAs(BackupContent remote) => BackupCodec.Same(remote, _shortcuts, _macros.Macros, KeyLayout, RecentColors);
+
+    /// Les 10 dernières couleurs choisies (Organiser), gardées avec le compte (08/11, comme le Mac).
+    public IReadOnlyList<string> RecentColors => RecentColorList.Normalize(_settings.RecentColors);
+
+    /// Une couleur choisie : en tête des récentes, et la sauvegarde du compte suit.
+    public void RememberColor(RgbColor color)
+    {
+        _settings.RecentColors = RecentColorList.Remember(_settings.RecentColors, color.Hex);
+        _settings.Save();
+        if (!_applying) DataChanged?.Invoke();
+    }
+
+    /// Couleurs revenues du compte (aucune : celles de ce PC restent), ou effacées à la déconnexion.
+    public void ReplaceRecentColors(IReadOnlyList<string> colors)
+    {
+        _settings.RecentColors = RecentColorList.Normalize(colors);
+        _settings.Save();
+    }
+
+    /// Copie datée des raccourcis et des macros d'ici (avant de les remplacer).
+    public bool KeepCopies(string label) => ProfileStore.KeepCopy(_shortcuts, label) is not null && _macros.KeepCurrentCopy(label) is not null;
+
+    public bool MacrosWritesDisabled => _macros.WritesDisabled;
+
+    /// Tout remplacé (sauvegarde reprise, déconnexion) : ce n'est pas un changement à envoyer.
+    public void ReplaceAllData(List<Shortcut> shortcuts, List<MacroDoc> macros)
+    {
+        _applying = true;
+        try
+        {
+            _shortcuts = shortcuts.ToList();
+            _macros.ReplaceAll(macros);
+            Persist();
+            SaveMacrosNow();
+        }
+        finally { _applying = false; }
     }
 
     private void OnForeground(FlProcessInfo? fl)
@@ -210,15 +475,25 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         if (_flVersion is null && FlPresence.RunningInstance() is { Version: { } v }) _flVersion = v;
         _issues = ShortcutAnalyzer.Analyze(_shortcuts, NewAnalysisContext());
         var blocked = ShortcutAnalyzer.Blocked(_issues);
+        var index = new ShortcutIndex(_shortcuts, blocked, _macros.Programs(MacroContext));
         _hook.Config = _hook.Config with
         {
             Enabled = _settings.Enabled,
-            Index = new ShortcutIndex(_shortcuts, blocked),
+            Index = index,
             Toggle = ProfilePresets.Toggle,
             ActionNatives = LightMode.ActionNatives(Light),
             AnyContext = Light,
         };
         _hook.Link = _midi.RoutingView();
+        // Crochet souris (piste visée) seulement si une macro prête vise la dernière piste cliquée.
+        var tracks = _macros.Programs(MacroContext).Values.Any(p => p.IsRunnable && p.Needs.HasFlag(BlockNeeds.AimedTrack));
+        // … ou si un raccourci se lance avec un bouton de souris (05/11).
+        if (tracks != _hook.TrackClicks || index.HasMouseTrigger != _hook.MouseTriggers)
+        {
+            _hook.TrackClicks = tracks;
+            _hook.MouseTriggers = index.HasMouseTrigger;
+            _hook.Refresh();
+        }
         UpdateStatus();
         RebuildRows();
         Raise(nameof(Enabled));
@@ -233,7 +508,10 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
             Set(StatusKind.Paused, "En pause", "FL Studio utilise ses raccourcis d'origine.");
         else if (_foreground is { Elevated: true })
             Set(StatusKind.Elevated, "FL Studio est lancé en administrateur",
-                "Relance FL Studio normalement : Windows empêche FL Shortcut d'agir sur une appli administrateur.");
+                "Relance FL Studio normalement : Windows empêche FL Shortcuts d'agir sur une appli administrateur.");
+        else if (!flRunning && FlPresence.NamedButUnrecognized())
+            Set(StatusKind.Unrecognized, "FL Studio n'est pas reconnu",
+                "Relance FL Studio, puis FL Shortcuts.");
         else if (Light)
         {
             if (flRunning) Set(StatusKind.Linked, "Actif dans FL Studio", "Tes raccourcis marchent quand FL Studio est au premier plan.");
@@ -255,8 +533,8 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
                     break;
                 case LinkStatus.Inactive:
                     Set(StatusKind.Inactive, "Lien inactif",
-                        PortsPresent ? "Dans FL Studio : Options › MIDI Settings, active « FL Shortcut »."
-                                     : "Les ports MIDI « FL Shortcut » sont introuvables.");
+                        PortsPresent ? "Dans FL Studio : Options › MIDI Settings, active « FL Shortcuts »."
+                                     : "Les ports MIDI « FL Shortcuts » sont introuvables.");
                     break;
                 default:
                     Set(StatusKind.FlClosed, "FL Studio n'est pas ouvert", "Tes raccourcis marcheront dès que tu l'ouvres.");
@@ -267,6 +545,8 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
 
     private void Set(StatusKind kind, string title, string text)
     {
+        // Journal : le changement d'état seulement (mots fixes), pour comprendre un « rien ne marche » à distance.
+        if (kind != Status || StatusTitle.Length == 0) AppLog.Write("STATUS", kind.ToString());
         Status = kind;
         StatusTitle = title;
         StatusText = text;
@@ -275,47 +555,94 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         Raise(nameof(StatusText));
     }
 
-    private void RebuildRows()
+    private List<CatalogEntry>? _entries;
+    private bool _entriesLight;
+    private string _catalogStamp = "";
+
+    /// Entrées des pages, selon le mode (léger : seules les actions qui ont une touche de FL).
+    private List<CatalogEntry> Entries()
     {
-        var q = _query.Trim();
-        var cats = new[] { "Composition", "Enregistrement", "Mix", "Navigation", "Touches de FL" };
-        var rows = _shortcuts.Select(ToRow)
-            .Where(r => q.Length == 0
-                        || r.Label.Contains(q, StringComparison.CurrentCultureIgnoreCase)
-                        || r.Description.Contains(q, StringComparison.CurrentCultureIgnoreCase)
-                        || string.Join(" ", r.Caps).Contains(q, StringComparison.CurrentCultureIgnoreCase))
-            .ToList();
-        Groups = cats
-            .Select(c => new ShortcutGroup { Title = c, Rows = rows.Where(r => CategoryOf(r.Shortcut) == c).ToList() })
-            .Where(g => g.Rows.Count > 0)
-            .ToList();
-        Raise(nameof(Groups));
-        Raise(nameof(IsEmpty));
+        if (_entries is null || _entriesLight != Light)
+        {
+            _entries = CatalogEntries.Build(Light);
+            _entriesLight = Light;
+        }
+        return _entries;
     }
 
-    private static string CategoryOf(Shortcut s) =>
-        s.Kind == ShortcutKind.Keystroke ? "Touches de FL"
-        : s.ActionId is { } id && FlActions.Info(id) is { } info ? info.CategoryLabel : "Navigation";
-
-    private ShortcutRow ToRow(Shortcut s)
+    /// Recalcule les pages ; prévient la fenêtre seulement si le profil ou ses avertissements ont changé (le premier
+    /// plan de FL change souvent, les 300 lignes ne sont pas redessinées pour rien).
+    private void RebuildRows()
     {
-        var issues = _issues.TryGetValue(s.Id, out var l) ? l : new List<ShortcutIssue>();
-        var desc = s.Kind == ShortcutKind.Keystroke
-            ? (s.Target is { } t && ConflictTable.Default.FlConflict(t) is { } fl ? "Dans " + fl : "Raccourci de FL Studio")
-            : s.ActionId is { } id && Availability(id) is ActionAvailability.Unavailable u ? u.Reason
-            : s.ActionId is { } id2 && FlActions.Info(id2) is { } info ? info.Detail()
-            : s.UnknownAction is { } unknown ? $"Action inconnue ({DisplayText.Safe(unknown)}) : mets FL Shortcut à jour" : "";
-        return new ShortcutRow
+        var stamp = string.Join(";", _shortcuts.Select(s => $"{s.Id}:{s.Enabled}:{s.Trigger}:{s.Target}:{s.Context}:{s.ActionId}:{s.MacroRef}"))
+                    + "|" + string.Join(";", _issues.Where(p => p.Value.Count > 0).Select(p => $"{p.Key}:{p.Value.Count}"))
+                    + "|" + Light + "|" + _macros.Macros.Count;
+        if (stamp == _catalogStamp) return;
+        _catalogStamp = stamp;
+        Catalog = CatalogRows.Build(Entries(), _shortcuts);
+        Raise(nameof(Catalog));
+    }
+
+    /// Avertissements d'un de tes raccourcis (touche prise, action indisponible…).
+    public IReadOnlyList<ShortcutIssue> IssuesOf(Guid id) =>
+        _issues.TryGetValue(id, out var list) ? list : (IReadOnlyList<ShortcutIssue>)Array.Empty<ShortcutIssue>();
+
+    /// Nom lisible d'un raccourci hors des pages (créé par toi, macro).
+    public string TitleOf(Shortcut s)
+    {
+        if (s.Kind == ShortcutKind.Keystroke) return Loc.T("Envoie ") + (s.Target?.ToString() ?? Loc.T("une touche"));
+        if (s.Kind == ShortcutKind.Macro)
+            return Loc.T("Macro : ") + (s.MacroRef is { } r && _macros.Doc(r) is { } doc
+                ? DisplayText.Safe(doc.Name, MacroValidation.MaxNameLength) : Loc.T("introuvable"));
+        return s.ActionId is { } id && FlActions.Info(id) is { } info ? Loc.T(info.Label) : Loc.T("Raccourci personnalisé");
+    }
+
+    /// Ligne grise sous ce nom : la fenêtre de FL où il agit, ou « désactivé ».
+    public string SubtitleOf(Shortcut s)
+    {
+        var parts = new List<string>();
+        if (s.Context != ShortcutContext.Everywhere) parts.Add(Loc.T(s.Context.Label()));
+        if (!s.Enabled) parts.Add(Loc.T("désactivé"));
+        return string.Join(", ", parts);
+    }
+
+    /// Ce qui utilise déjà `trigger` (affiché tout de suite, confirmé à la validation).
+    public List<KeyClash> Clashes(KeyCombo trigger, CatalogRow editing) =>
+        CatalogRows.Clashes(Catalog.Rows, Catalog.Others, trigger, editing, TitleOf);
+
+    /// Nouvelle touche d'une entrée (nil : aucune, actions seulement) ; `release` : les raccourcis qui la perdent.
+    public void SetKey(CatalogRow row, KeyCombo? trigger, IReadOnlyList<KeyClash> release)
+    {
+        var (upserts, deletes) = CatalogRows.Release(release);
+        foreach (var id in deletes) _shortcuts.RemoveAll(x => x.Id == id);
+        foreach (var s in upserts)
         {
-            Shortcut = s,
-            Caps = s.Trigger?.Caps ?? new[] { "?" },
-            Label = s.Label,
-            Description = desc,
-            Category = CategoryOf(s),
-            Where = s.Context == ShortcutContext.Everywhere ? "" : s.Context.Label(),
-            HasWarning = issues.Count > 0,
-            WarningText = string.Join(" ", issues.Select(i => i.Message)),
-        };
+            var i = _shortcuts.FindIndex(x => x.Id == s.Id);
+            if (i >= 0) _shortcuts[i] = s;
+        }
+        var (upsert, delete) = CatalogRows.Change(row, trigger);
+        if (delete is { } d) _shortcuts.RemoveAll(x => x.Id == d);
+        if (upsert is not null)
+        {
+            var i = _shortcuts.FindIndex(x => x.Id == upsert.Id);
+            if (i >= 0) _shortcuts[i] = upsert; else _shortcuts.Add(upsert);
+        }
+        Persist();
+    }
+
+    /// ↺ : la touche d'origine. Rend le profil d'avant (pour « Annuler »).
+    public List<Shortcut> ResetRow(CatalogRow row)
+    {
+        var before = _shortcuts.ToList();
+        SetKey(row, row.Entry.DefaultTrigger, Array.Empty<KeyClash>());
+        return before;
+    }
+
+    /// Remet un profil gardé (« Annuler » d'une remise à zéro).
+    public void Restore(List<Shortcut> shortcuts)
+    {
+        _shortcuts = shortcuts.ToList();
+        Persist();
     }
 
     private void OnUi(Action a)
@@ -329,7 +656,10 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
 
     public void Dispose()
     {
+        _macroSave?.Stop();
+        _macros.SaveNow();
         _hook.Dispose();
         _midi.Dispose();
+        MidiServicesPorts.RemoveCreated();
     }
 }

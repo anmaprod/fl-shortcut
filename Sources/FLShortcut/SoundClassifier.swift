@@ -9,20 +9,55 @@ final class SoundClassifier {
 
     init?() {
         guard let r = try? SNClassifySoundRequest(classifierIdentifier: .version1) else { return nil }
+        if let window = Self.window(allowedBy: r.windowDurationConstraint) {
+            r.windowDuration = CMTime(seconds: window, preferredTimescale: 48_000)
+        }
+        r.overlapFactor = 0.5
         request = r
+    }
+
+    /// Fenêtre d'analyse visée : 1 s. Celle de macOS par défaut (3 s sur macOS 26) dépasse les sons écoutés (1,5 à
+    /// 3 s) : l'IA ne rendait aucun résultat (journal de la CI : « résultats 0, fenêtre 3.00 s ») et seules les
+    /// mesures classaient (retour de l'utilisateur : un FX pris pour une voix).
+    static let wantedWindow = 1.0
+
+    /// La fenêtre que macOS permet la plus proche de `wantedWindow` (durées permises, ou intervalle).
+    private static func window(allowedBy c: SNTimeDurationConstraint) -> Double? {
+        switch c {
+        case .enumeratedDurations(let durations):
+            return pickWindow(allowed: durations.map(\.seconds), range: nil)
+        case .durationRange(let range):
+            let low = range.start.seconds, high = range.end.seconds
+            guard low.isFinite, high.isFinite, low > 0, low <= high else { return nil }
+            return pickWindow(allowed: [], range: low...high)
+        @unknown default:
+            return nil
+        }
+    }
+
+    /// Pur (testé) : dans l'intervalle permis, `wantedWindow` ramenée dedans ; sinon la durée permise la plus proche.
+    static func pickWindow(allowed: [Double], range: ClosedRange<Double>?) -> Double? {
+        if let range { return min(max(wantedWindow, range.lowerBound), range.upperBound) }
+        let usable = allowed.filter { $0.isFinite && $0 > 0 }
+        return usable.min { abs($0 - wantedWindow) < abs($1 - wantedWindow) }
     }
 
     /// Étiquettes que macOS connaît (pour le test de la table de FamilyFusion).
     var knownLabels: Set<String> { Set(request.knownClassifications) }
 
-    /// Confiance la plus forte de chaque étiquette sur tout le son (fenêtres d'environ 1 s) ; vide si le son est
-    /// trop court ou si l'analyse échoue.
+    /// Confiance la plus forte de chaque étiquette sur tout le son (fenêtres d'environ 1 s) ; vide si l'analyse
+    /// échoue. Un son plus court qu'une fenêtre est complété de silence : il a toujours au moins un résultat.
     func scores(_ samples: [Float], rate: Double) -> [String: Double] {
+        lastResults = 0
+        let window = request.windowDuration.seconds
+        let minimum = Int((window.isFinite && window > 0 ? window : Self.wantedWindow) * rate) + 1
+        let count = max(samples.count, minimum)
         guard !samples.isEmpty, let format = AVAudioFormat(standardFormatWithSampleRate: rate, channels: 1),
-              let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count)),
+              let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(count)),
               let channel = buffer.floatChannelData?[0] else { return [:] }
-        buffer.frameLength = AVAudioFrameCount(samples.count)
+        buffer.frameLength = AVAudioFrameCount(count)
         samples.withUnsafeBufferPointer { src in channel.update(from: src.baseAddress!, count: samples.count) }
+        if count > samples.count { (channel + samples.count).update(repeating: 0, count: count - samples.count) }
         let analyzer = SNAudioStreamAnalyzer(format: format)
         let collector = Collector()
         do {
@@ -36,11 +71,14 @@ final class SoundClassifier {
         let waited = collector.done.wait(timeout: .now() + 2)
         analyzer.removeAllRequests()
         lastReport = collector.report(timedOut: waited == .timedOut, window: request.windowDuration.seconds)
+        lastResults = collector.results
         return collector.scores
     }
 
     /// Bilan de la dernière analyse (nombre de résultats, échec, attente) pour le journal de la CI ; aucun nom de son.
     private(set) var lastReport = ""
+    /// Résultats rendus par l'IA à la dernière analyse (0 : elle n'a rien dit).
+    private(set) var lastResults = 0
 }
 
 private final class Collector: NSObject, SNResultsObserving {
@@ -57,6 +95,12 @@ private final class Collector: NSObject, SNResultsObserving {
     private var produced = 0
     private var failure: String?
     private var best = 0.0
+
+    var results: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return produced
+    }
 
     func report(timedOut: Bool, window: Double) -> String {
         lock.lock()

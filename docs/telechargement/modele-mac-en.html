@@ -1,0 +1,304 @@
+<title>FL Shortcuts README</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Mode d'emploi du téléchargement, au style suisse de l'app : fond plein, encre, traits fins, coins carrés, gros
+   titres en minuscules et leur point carré, rouge #FF3B1F pour ce qui compte. Les trois thèmes de l'app (Noir,
+   Papier, Orange) se choisissent dans la section « à ton goût » et changent toute la page, SANS JavaScript (08/11 :
+   « le changement de thème ne fonctionne pas » : l'aperçu du Finder, barre d'espace, n'exécute aucun script) : trois
+   cases radio cachées et `:root:has(#t-papier:checked)`. */
+:root {
+  --bg: #000000; --ink: #FFFFFF; --gray: #8A8A8A; --line: #333333; --faint: #222222; --dot: #FF3B1F;
+  --card: #000000; --cardInk: #FFFFFF; --btnBg: #FFFFFF; --btnInk: #000000; --btnShadow: none; --lift: #FF3B1F;
+}
+:root:has(#t-papier:checked) {
+  --bg: #FFFFFF; --ink: #000000; --gray: #6E6E6E; --line: #CFCFCF; --faint: #E6E6E6; --dot: #FF3B1F;
+  --card: #FFFFFF; --cardInk: #000000; --btnBg: #000000; --btnInk: #FFFFFF; --btnShadow: 6px 6px 0 #FF3B1F; --lift: #FF3B1F;
+}
+:root:has(#t-orange:checked) {
+  --bg: #FF3B1F; --ink: #000000; --gray: #3A0B03; --line: #A62614; --faint: #D5341B; --dot: #FFFFFF;
+  --card: #000000; --cardInk: #FFFFFF; --btnBg: #FFFFFF; --btnInk: #000000; --btnShadow: 6px 6px 0 #000000; --lift: #000000;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.45 "Helvetica Neue", Helvetica, Arial, sans-serif;
+  transition: background .25s, color .25s;
+}
+main { max-width: 980px; margin: 0 auto; padding: 0 16px 80px; }
+.label { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gray); font-weight: 700; }
+.dot { display: inline-block; width: .19em; height: .19em; background: var(--dot); margin-left: .07em; }
+h1, h2 { margin: 0; font-weight: 700; text-transform: lowercase; }
+h1 { font-size: clamp(72px, 16vw, 168px); line-height: .82; letter-spacing: -.07em; }
+h2 { font-size: clamp(40px, 7vw, 64px); line-height: .9; letter-spacing: -.06em; }
+p { margin: 0; }
+kbd {
+  display: inline-flex; align-items: center; min-width: 26px; height: 26px; padding: 0 7px; justify-content: center;
+  border: 2px solid var(--ink); font: 700 12px "Helvetica Neue", Helvetica, Arial, sans-serif; vertical-align: middle;
+}
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px; height: 48px; padding: 0 24px;
+  border: 2px solid var(--ink); background: var(--btnBg); color: var(--btnInk); box-shadow: var(--btnShadow);
+  font: 700 13px "Helvetica Neue", Helvetica, Arial, sans-serif; letter-spacing: 1.4px; text-transform: uppercase;
+  text-decoration: none; cursor: pointer; transition: transform .12s, box-shadow .12s;
+}
+.btn:hover { transform: translate(-2px, -2px); }
+:focus-visible { outline: 3px solid var(--dot); outline-offset: 3px; }
+
+/* Merci : la première page, seule. */
+.merci { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; gap: 28px; padding: 48px 0; }
+.merci p.lead { font-size: clamp(20px, 2.6vw, 28px); max-width: 30ch; letter-spacing: -.01em; }
+
+/* Une étape : son numéro, le titre, quelques lignes ; à droite, ce qui aide. « Commencer » : le trait de l'étape
+   tout en haut de l'écran. */
+section.step {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; align-items: start;
+  padding: 56px 0; border-top: 1px solid var(--line); scroll-margin-top: 0;
+}
+.step .head { display: flex; flex-direction: column; gap: 14px; }
+.step .num { color: var(--dot); }
+.step .say { font-size: 17px; }
+ol.do { list-style: none; margin: 8px 0 0; padding: 0; counter-reset: n; }
+ol.do li {
+  counter-increment: n; position: relative; padding: 12px 0 12px 36px;
+  border-top: 1px solid var(--faint); font-size: 16px;
+}
+ol.do li::before { content: counter(n); position: absolute; left: 0; font-weight: 700; }
+.panel { background: var(--card); color: var(--cardInk); border: 1px solid var(--line); padding: 20px; }
+.panel .label { color: var(--gray); }
+:root:has(#t-orange:checked) .panel .label { color: #B4B4B4; }
+
+/* Jeu : changer une touche. */
+.row {
+  display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 10px; border-top: 1px solid var(--faint);
+  cursor: pointer; user-select: none;
+}
+.row:hover, .row.listening { background: var(--cardInk); color: var(--card); }
+.row span.name { flex: 1; }
+.row kbd { border-color: currentColor; }
+.row kbd.changed { background: #FF3B1F; border-color: #FF3B1F; color: #000; }
+.row .reset { border: 0; background: none; color: inherit; font-size: 16px; font-weight: 700; cursor: pointer; visibility: hidden; }
+.row.changed .reset { visibility: visible; }
+.row .wait { font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; }
+.row.still { cursor: default; }
+.row.still:hover { background: none; color: inherit; }
+
+/* Les trois départs d'une macro, comme l'app : noirs au repos ; au survol, pleins, soulevés sur leur ombre rouge. */
+.cards { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.cards div {
+  border: 1px solid var(--line); background: var(--card); color: var(--cardInk); padding: 16px;
+  display: flex; flex-direction: column; gap: 6px; transition: transform .12s, box-shadow .12s, background .12s;
+}
+.cards div:hover {
+  background: var(--btnBg); color: var(--btnInk); border-color: var(--btnBg);
+  transform: translate(-3px, -3px); box-shadow: 4px 4px 0 var(--lift);
+}
+.cards b { font-size: 26px; letter-spacing: -.05em; line-height: 1; text-transform: lowercase; }
+.cards small { color: var(--gray); font-size: 13px; }
+.cards .n { color: var(--gray); font-weight: 700; font-size: 13px; }
+.cards div:hover small { color: inherit; opacity: .7; }
+.cards div:hover .n { color: #FF3B1F; opacity: 1; }
+
+/* MIDI Settings : les 4 cases. */
+.cases { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cases figure { margin: 0; border: 1px solid #333; background: #000; }
+.cases img { width: 100%; display: block; }
+.cases figcaption { font-size: 12px; padding: 6px 8px; color: #FFF; background: #000; }
+details.full { margin-top: 12px; }
+details.full summary { cursor: pointer; font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 700; }
+details.full img { width: 100%; margin-top: 10px; border: 1px solid #333; }
+
+/* Thèmes : trois aperçus (des étiquettes de cases radio) ; un clic change toute la page. */
+.theme-pick { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; opacity: 0; overflow: hidden; clip: rect(0 0 0 0); }
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.tiles label {
+  display: block; border: 1px solid var(--line); background: var(--bg); color: var(--ink); padding: 6px; cursor: pointer;
+  font: 700 14px "Helvetica Neue", Helvetica, Arial, sans-serif; transition: transform .12s, box-shadow .12s;
+}
+.tiles label:hover { transform: translate(-2px, -2px); }
+:root:has(#t-noir:checked) label[for="t-noir"],
+:root:has(#t-papier:checked) label[for="t-papier"],
+:root:has(#t-orange:checked) label[for="t-orange"] {
+  border: 2px solid var(--ink); transform: translate(-3px, -3px); box-shadow: 4px 4px 0 var(--lift);
+}
+:root:has(#t-noir:focus-visible) label[for="t-noir"],
+:root:has(#t-papier:focus-visible) label[for="t-papier"],
+:root:has(#t-orange:focus-visible) label[for="t-orange"] { outline: 3px solid var(--dot); outline-offset: 3px; }
+.tiles .mini { height: 72px; display: flex; border: 1px solid #333; margin-bottom: 8px; }
+.tiles .mini span:first-child { width: 32%; }
+.tiles .mini span:last-child { flex: 1; position: relative; }
+.tiles .mini span:last-child::after {
+  content: ""; position: absolute; left: 8px; bottom: 8px; width: 10px; height: 10px; border-radius: 50%; background: #FF3B1F;
+}
+
+.three { list-style: none; margin: 0; padding: 0; }
+.three li { display: grid; grid-template-columns: 36px 1fr; gap: 6px; padding: 14px 0; border-top: 1px solid var(--line); }
+.three li b { display: block; font-size: 17px; letter-spacing: -.02em; }
+.three li span { color: var(--gray); font-size: 14px; }
+.three li em { color: var(--dot); font-style: normal; font-weight: 700; font-size: 13px; }
+
+@media (max-width: 760px) {
+  section.step { grid-template-columns: 1fr; gap: 24px; padding: 48px 0; }
+  .cases { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; scroll-behavior: auto !important; }
+}
+</style>
+
+<main>
+  <section class="merci" aria-label="thanks">
+    <h1>thanks<span class="dot"></span></h1>
+    <p class="lead">Thanks for choosing speed.</p>
+    <div><a class="btn" href="#installer">Get started</a></div>
+  </section>
+
+  <section class="step" id="installer">
+    <div class="head">
+      <span class="label num">01</span>
+      <h2>install<span class="dot"></span></h2>
+      <ol class="do"><li>Open <b>FLShortcuts.pkg</b>.</li><li>Blocked? System Settings › Privacy &amp; Security › <b>Open Anyway</b>.</li></ol>
+    </div>
+  </section>
+
+  <section class="step" id="debut">
+    <div class="head">
+      <span class="label num">02</span>
+      <h2>allow<span class="dot"></span></h2>
+      <ol class="do"><li>Open FL Shortcuts.</li><li>Allow <b>Keyboard</b>, then <b>FL sound</b>.</li></ol>
+    </div>
+    <div class="panel"><span class="label">Welcome</span><div class="row still"><span class="name"><b>Keyboard</b></span><kbd style="border-color:currentColor">Allowed</kbd></div><div class="row still"><span class="name"><b>FL sound</b></span><kbd class="changed">To allow</kbd></div></div>
+  </section>
+
+  <section class="step" id="touches">
+    <div class="head">
+      <span class="label num">03</span>
+      <h2>change a key<span class="dot"></span></h2>
+      <ol class="do"><li>Click a shortcut.</li><li>Press your key.</li></ol>
+    </div>
+    <div class="panel" aria-label="change a key">
+      <span class="label">Playlist</span>
+      <div id="rows">
+        <div class="row" tabindex="0" data-key="Space"><span class="name">Play / Stop</span><button class="reset" aria-label="Reset">↺</button><kbd>Space</kbd></div>
+        <div class="row" tabindex="0" data-key="C"><span class="name">Cut</span><button class="reset" aria-label="Reset">↺</button><kbd>C</kbd></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" id="macros">
+    <div class="head">
+      <span class="label num">04</span>
+      <h2>macros<span class="dot"></span></h2>
+      <ol class="do"><li>Click Macros.</li></ol>
+    </div>
+    <div class="cards">
+      <div><span class="n">01</span><b>record a macro</b><small>Do it in FL, the app remembers it.</small></div>
+      <div><span class="n">02</span><b>empty macro</b><small>Place the blocks one by one.</small></div>
+      <div><span class="n">03</span><b>templates</b><small>Start from a ready-made macro.</small></div>
+    </div>
+  </section>
+
+  <section class="step" id="organiser">
+    <div class="head">
+      <span class="label num">05</span>
+      <h2>organize your project<span class="dot"></span></h2>
+      <ol class="do"><li>Open your project in FL.</li><li>Icon › Organize.</li><li>Follow the instructions.</li><li>Options › MIDI Settings: the 4 boxes.</li><li>Organize.</li></ol>
+    </div>
+    <div class="panel">
+      <div class="cases">
+        <figure><img src="{{MIDI1}}" alt=""><figcaption>1 · Output port</figcaption></figure>
+        <figure><img src="{{MIDI2}}" alt=""><figcaption>2 · Same port as input</figcaption></figure>
+        <figure><img src="{{MIDI3}}" alt=""><figcaption>3 · Enable</figcaption></figure>
+        <figure><img src="{{MIDI4}}" alt=""><figcaption>4 · Controller type: FL Shortcuts</figcaption></figure>
+      </div>
+      <details class="full"><summary>See the whole window</summary><img src="{{MIDIFULL}}" alt="MIDI Settings"></details>
+    </div>
+  </section>
+
+  <section class="step" id="theme">
+    <div class="head">
+      <span class="label num">06</span>
+      <h2>your way<span class="dot"></span></h2>
+      <p class="say">Three themes: Black, Paper, Orange. In My account.</p>
+    </div>
+    <div class="tiles" role="radiogroup" aria-label="Theme">
+      <input class="theme-pick" type="radio" name="theme" id="t-noir" checked>
+      <input class="theme-pick" type="radio" name="theme" id="t-papier">
+      <input class="theme-pick" type="radio" name="theme" id="t-orange">
+      <label for="t-noir"><span class="mini" style="background:#000"><span style="background:#000; border-right:1px solid #333"></span><span></span></span>Black</label>
+      <label for="t-papier"><span class="mini" style="background:#FFF"><span style="background:#FFF; border-right:1px solid #CFCFCF"></span><span></span></span>Paper</label>
+      <label for="t-orange"><span class="mini" style="background:#FF3B1F"><span style="background:#000"></span><span></span></span>Orange</label>
+    </div>
+  </section>
+
+  <section class="step" id="compte">
+    <div class="head">
+      <span class="label num">07</span>
+      <h2>your account<span class="dot"></span></h2>
+      <p class="say">In My account.</p>
+    </div>
+    <ul class="three">
+      <li><em>01</em><div><b>Backup</b><span>Your shortcuts and macros, online.</span></div></li>
+      <li><em>02</em><div><b>All your computers</b><span>The same on your Mac and your PC.</span></div></li>
+      <li><em>03</em><div><b>Community</b><span>Share and get macros.</span></div></li>
+    </ul>
+  </section>
+</main>
+
+<script>
+(function () {
+  // Les thèmes n'ont pas besoin de script (cases radio et :has, plus haut) : l'aperçu du Finder les change aussi.
+  // Jeu : un clic sur une ligne, puis une touche ; ↺ la remet. Échap annule.
+  var listening = null;
+  function names(e) {
+    var k = e.key;
+    if (k === " ") k = "Space";
+    else if (k.length === 1) k = k.toUpperCase();
+    var mods = [];
+    if (e.ctrlKey) mods.push("⌃");
+    if (e.altKey) mods.push("⌥");
+    if (e.shiftKey) mods.push("⇧");
+    if (e.metaKey) mods.push("⌘");
+    return mods.concat([k]);
+  }
+  function show(row, keys, changed) {
+    row.querySelectorAll("kbd, .wait").forEach(function (n) { n.remove(); });
+    keys.forEach(function (k) {
+      var kb = document.createElement("kbd");
+      kb.textContent = k;
+      if (changed) kb.className = "changed";
+      row.appendChild(kb);
+    });
+    row.classList.toggle("changed", changed);
+  }
+  document.querySelectorAll("#rows .row").forEach(function (row) {
+    function listen() {
+      if (listening) listening.classList.remove("listening");
+      listening = row;
+      row.classList.add("listening");
+      row.querySelectorAll("kbd").forEach(function (n) { n.remove(); });
+      var w = document.createElement("span");
+      w.className = "wait";
+      w.textContent = "Press a key…";
+      row.appendChild(w);
+    }
+    row.addEventListener("click", function (e) { if (!e.target.classList.contains("reset")) listen(); });
+    row.addEventListener("keydown", function (e) { if (!listening && e.key === "Enter") { e.preventDefault(); listen(); } });
+    row.querySelector(".reset").addEventListener("click", function (e) {
+      e.stopPropagation();
+      show(row, [row.getAttribute("data-key")], false);
+    });
+  });
+  document.addEventListener("keydown", function (e) {
+    if (!listening) return;
+    if (["Shift", "Control", "Alt", "Meta"].indexOf(e.key) >= 0) return;
+    e.preventDefault();
+    var row = listening;
+    listening = null;
+    row.classList.remove("listening");
+    if (e.key === "Escape") { show(row, [row.getAttribute("data-key")], false); return; }
+    var keys = names(e);
+    show(row, keys, keys.join("") !== row.getAttribute("data-key"));
+  });
+})();
+</script>

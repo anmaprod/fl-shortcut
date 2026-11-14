@@ -118,3 +118,1103 @@ entrée 1 ≈ 0,5 s.
   « e » 86 Mo ; processeur au repos 0,0 % (échantillon : fil principal en attente d'événements). 222 tests, 0 échec.
 - Méthode demandée par l'utilisateur : rapide, économe, plugins seulement quand leur spécialité sert. Priorité
   macOS ; Windows et Linux plus tard.
+
+## 16 octobre : relevé de la grille des icônes
+- 16/10/2026 : grille de FL de 619 × 679 points (liste des fenêtres, niveau 101) ; Échap ne ferme pas la grille
+  ouverte par « Change icon… » du menu de piste du Mixer (deux essais, souris sur la grille puis en dehors) ; une
+  fois elle s'est fermée seule quelques secondes après son ouverture, une autre fois elle a disparu entre deux
+  sessions sans action de notre part. Cases Two, Three et Five à Eight de Number non survolées (noms déduits).
+
+## 16 octobre : nouveau nom « FL Shortcuts »
+- Demande de l'utilisateur : « FL Shortcut » devient « FL Shortcuts » partout où le nom se voit (app, menus, textes,
+  script et port MIDI dans FL, sujet des mails d'aide « [FL Shortcuts] », site, Windows, fichiers téléchargés
+  FLShortcuts.dmg / .pkg / -Windows-Setup.exe). Les documents d'audit et cet historique gardent l'ancien nom.
+- Gardés exprès : identifiant app.flshortcut.FLShortcut (réglages, autorisation Accessibilité, Trousseau),
+  exécutable FLShortcut, device_FLShortcut.py, certificat local « FL Shortcut Dev » (sinon l'autorisation
+  Accessibilité serait redemandée), texte d'entropie DPAPI Windows (sinon la clé enregistrée deviendrait illisible).
+- Reprise de l'ancien nom (`AppPaths.oldName`) : Application Support et Documents › « FL Shortcut » renommés une
+  fois (rename(2), jamais un lien) ; script FL déplacé dans « FL Shortcuts » à sa mise à jour, ancien dossier retiré
+  s'il ne contient que notre script ; .pkg et build local retirent les anciennes apps (même identifiant vérifié) ;
+  le désinstalleur retire les deux noms. Après la mise à jour du script, réactiver le port « FL Shortcuts » dans
+  Options › MIDI Settings de FL (seulement si le lien MIDI était utilisé).
+
+## 17 octobre : compte et sauvegarde en ligne
+- Demande de l'utilisateur (gratuit exigé) : avec un compte, raccourcis et macros gardés en ligne ; déconnexion =
+  retirés du Mac, gardés dans le compte ; reconnexion (ce Mac ou un autre) = tout revient.
+- Serveur : `supabase/sauvegarde.sql` (table `backups`, une ligne par compte, RLS « soi seul » ; `save_backup` avec
+  révision : refuse d'écraser une sauvegarde plus récente sauf choix forcé ; `delete_my_account`). Testé sur
+  PostgreSQL (`supabase/tests/regles-sauvegarde.sql`), à coller dans Supabase après `schema.sql`.
+- App : `AccountBackup` (envoi 4 s après un changement, reprise à la connexion, décision pure `BackupRules.decide` :
+  envoyer / reprendre / à jour / demander), page **Mon compte** (barre latérale, avant Communauté), déconnexion
+  confirmée (refusée si les derniers changements ne sont pas en ligne, sauf « quand même »), copie datée
+  « avant-compte » avant de remplacer ce Mac, « Supprimer mon compte » (garde tout sur ce Mac).
+- Gardé sur le Mac, jamais envoyé : réglages (pause, autorisations), endroits appris hors des macros, journal.
+- Supabase par défaut n'envoie les mails de confirmation qu'aux membres de l'organisation (2 par heure) : serveur de
+  mail à soi (Gmail de l'équipe) obligatoire avant l'ouverture à tous.
+
+## 21–22 octobre : l'Organiser lit le fichier du projet
+- Vidéo du propriétaire (00:32) : des mélodies classées « FX » alors qu'il n'y en a pas, des patterns mal placés dans
+  la Playlist, des mélodies ni renommées ni colorées ; « je veux quelque chose de solide qui fasse qu'à 100 % il rende
+  le travail sûr ». Cause : tout reposait sur des devinettes. Ce que FL disait jouer (relevé d'activité) ne voyait pas
+  les canaux ZENOLOGY : leurs patterns sans son connu (ni nom ni couleur), leurs pistes classées à l'écoute (« FX »),
+  et la réunion des clips par lecture de la fenêtre de FL n'a déplacé qu'un clip sur trois.
+- Son projet de test lu : chaque pattern et chaque clip y sont exactement (26 clips, 88 octets chacun). Le pattern 1
+  « ZENOLOGY » n'a aucune note (rien n'y joue), « ZENOLOGY #4 » une seule.
+- Maintenant (PROTOCOL.md §9, `FLPFile`, `FLPProject`, `OrganizerProjectFile`, `OrganizerProjectLive`) : FL enregistre
+  le projet, l'Organiser lit le fichier ; sons de chaque pattern et de chaque piste d'après les notes et les clips
+  (plus de relevé des patterns, de chanson jouée ni de piste écoutée : l'analyse est bien plus courte) ; chaque son
+  reste reconnu à son nom ou écouté seul dans son pattern. « Organiser » écrit une copie « <nom>_2.flp » (nommée comme « Save new version » de FL, demande du propriétaire) où
+  chaque clip est sur la piste de ses sons (les mêmes sons, la même piste ; un clip qui en chevaucherait un autre :
+  une piste de plus, juste dessous ; patterns vides en bas), FL l'ouvre, puis Channel rack, patterns, Mixer, noms et
+  couleurs s'y font par le script ; FL l'enregistre. L'original ne bouge jamais : « Revenir comme avant » le rouvre
+  (tout revient, sons supprimés compris). Plus aucune lecture de l'écran pour la Playlist.
+- Rien n'est touché si le fichier n'est pas le projet ouvert, a une forme inattendue, ou a changé depuis l'analyse.
+- Pas encore vérifié sur le vrai FL : ⌘S enregistre-t-il bien, le fichier est-il retrouvé (titre de la fenêtre,
+  Spotlight), FL ouvre-t-il la copie sans rien demander ?
+- Relecture : piste coupée (mute) portant des clips → arrêt (sinon la copie sonnerait autrement), pistes touchées
+  réactivées ; textes d'autorisation des dossiers (Documents, Bureau, Téléchargements, disques) ; dossier refusé dit
+  avec où l'autoriser ; Channel rack réduit à un groupe signalé ; 3 minutes pour que FL ouvre la copie ; une marque
+  restée n'est jamais reprise comme nom.
+- Réponses du propriétaire : ⌘S enregistre bien dans FL ; ouvrir un autre projet sans avoir enregistré fait demander
+  à FL s'il faut enregistrer. Idée de sa part : un « point de retour » (⌘Z, ou une macro). Ici le point de retour est
+  le projet enregistré avant de commencer : « Revenir comme avant » le rouvre, la copie étant enregistrée, FL ne
+  demande rien. Pour les macros, un bloc « Point de retour » (historique d'annulation de FL, `general.getUndoHistoryPos`
+  / `setUndoHistoryPos` du script) reste à proposer.
+- Vidéo du 22/10 (10:34) : la Playlist rangée (un pattern par piste) plaît, mais le pattern 1 « ZENOLOGY » est parti en
+  bas et le reste (couleurs, noms, Channel rack, Mixer) ne s'est pas fait. Causes : (1) l'événement 172 de FL 2025 a
+  une taille à part ; lu comme les autres, la lecture se décalait et se recalait par hasard, en sautant les 13 notes
+  du pattern 1 (pattern pris pour vide, son ZENOLOGY « sans note ») ; corrigé, et un contrôle arrête tout si des notes
+  sont vues hors d'un début d'événement. (2) Juste après l'ouverture de la copie, FL chargeait encore ses plugins
+  (« Opening: Fruity Wrapper ») et n'a pas confirmé le premier renommage : tout s'arrêtait. L'Organiser attend
+  maintenant que FL réponde vite trois fois de suite, puis réessaie ses premières demandes.
+
+- Retours du 22/10 (prods, projets de voix, « Mechanical ») :
+  - « All » du Channel rack automatique : l'analyse sur le fichier compte tous les canaux même si un groupe est
+    affiché (script v16 : genre 5 de l'opération 2, drapeau 1 des opérations 3 et 6, API 33 ; avant : le groupe affiché,
+    comme avant). La copie s'ouvre sur « All » (événement 146) et elle est faite même si « Playlist » est décochée.
+  - Deux arrangements : celui qui est ouvert (événement 100) est rangé, les autres ne bougent pas.
+  - « Mechanical » (un seul pattern, jamais nommé) refusé « (patterns) » : la marque de la copie va alors sur le
+    premier canal nommé, qui reprend son nom ensuite. Ouverture aussi reconnue au titre de la fenêtre de FL.
+  - « bug ne fait rien » (resté longtemps sur « FL ouvre la copie… ») : l'attente dit où elle en est (secondes, « FL
+    charge les sons… », « Rangement dans la copie… ») et le diagnostic donne `application=ouverture=… ; calme … s`.
+  - Capture « La page de FL a changé » (Channel rack à moitié rangé) : la page qui n'est plus devant est remise devant
+    (4 fois au plus) et le rangement continue ; diagnostic `page remise N`.
+  - Règle du propriétaire pour le Mixer : une piste qui envoie déjà à une autre piste que le Master (groupe, sidechain,
+    effet) reste avec sa famille sans que ses envois changent ; reliée au seul Master : famille et bus. Un bus déjà là
+    reçoit des pistes qui n'envoient qu'à lui (le Master est maintenant gardé dans les envois lus).
+  - Voix (« test voix » : des voix enregistrées rangées en Mélodies, FX et Drums) : sortes « Voix lead », « Back »,
+    « Ambiance » (d'après les mots d'un nom de voix, ou au choix dans l'aperçu). Un enregistrement de FL
+    (« <projet>_<date> <heure>_Insert 5 ») n'est PAS une voix d'office (guitare, piano, synthé aussi : retour du
+    propriétaire) : seul le nom de sa piste du Mixer, après la date, compte ; sinon il est écouté, une fois qu'il sonne
+    (une prise commence souvent par un silence, qui était classé ; 10 s d'attente au plus). Dans la Playlist, les
+    clips des voix et des enregistrements d'une même sorte vont sur une seule piste, ceux qui se chevauchent dessous.
+  - Mélodies : à l'écoute, leur sorte (Piano, Keys, Orgue, Guitare, Strings, Flûte, Brass, Bell d'après l'IA de
+    macOS ; sinon Arp, Pluck, Pad ou Lead d'après la forme du son ; rien de sûr : « Mélodie »), changeable dans l'aperçu.
+  - Fenêtre de l'Organiser redimensionnable ; sa hauteur suit le contenu mesuré à chaque changement (elle restait
+    grande après l'aperçu, le texte en haut) ; l'aperçu garde la hauteur qu'on lui donne.
+- « Quitter et rouvrir » ne rouvrait toujours pas (troisième retour). La relance ne se faisait que si la demande de
+  fermeture venait de l'app Réglages Système (identifiant « com.apple.systempreferences ») ; or la page
+  « Confidentialité et sécurité » est une extension à part (macOS 13 et plus), souvent sans identifiant d'app :
+  l'app quittait sans revenir. Maintenant : reconnue aussi par le chemin de son programme (« Settings »,
+  « Privacy », TCC, ou tout processus du système sans nom d'app), et un surveillant, posé dès que l'app ouvre les
+  Réglages pour une autorisation, la rouvre une fois partie, même fermée de force ; jamais après ⌘Q, le menu, le Dock
+  ou la fin de session. Le journal dit qui a demandé la fermeture (« QUIT asked by … »).
+- Vidéo bug-4 (prod « dafftttt ») : un pattern de plusieurs sons restait un seul bloc (« il a pas split by
+  channel »), les drums en clips audio étaient mal nommés (kick en « Keys », hi-hat en « Snare », clap en « Drums »,
+  d'où l'impression de deux bus Drums). Maintenant : dans la copie, chaque pattern de plusieurs sons est séparé son par
+  son (comme « Split by channel » de FL : nouveaux patterns, chaque clip doublé à la même place), l'analyse et la
+  Playlist se font sur ce projet séparé (aperçu : « N sons sortis des patterns… ») ; le nom du fichier de son
+  (« D30 Kick 85 », « ANMA - Hat House ») reconnaît un son quand le nom du canal ne dit rien ou a été donné par
+  l'Organiser. L'écoute se fait toujours dans les patterns d'avant (le projet ouvert dans FL).
+- Essais du propriétaire : les prods se rangent très bien, mais les voix restent mal reconnues et les projets de voix
+  « chargent sans rien faire ». Cause probable : chaque prise était jouée dans FL et attendue jusqu'à ce qu'elle
+  sonne (prises qui commencent par un long silence, 10 s d'attente chacune, puis un passage de bruit ou de souffle
+  écouté). Maintenant, analyse sur le fichier : le fichier de chaque clip audio (événement 196) est lu directement par
+  l'app (`SampleFiles.swift`, AVAudioFile), son passage le plus fort (3 s) est classé, en un instant et sans rien
+  jouer dans FL ; le fichier est retrouvé à son chemin (dossiers de FL à la place de « %FLStudioUserData% »…), à côté
+  du projet, sinon par Spotlight à son nom ; introuvable : joué dans FL comme avant (attente ramenée à 5 s). Le nom du
+  dossier du son compte aussi quand celui du fichier ne dit rien (« …/Hat/BX 17.wav »). Règle `+fichier` dans le
+  diagnostic, et chaque étape notée dans le journal (`grep ORGANIZE ~/Library/Logs/"FL Shortcuts"/macro.log`) pour
+  voir où ça bloque s'il bloque encore. Même principe prévu pour Windows (Media Foundation). Prochain grand chantier
+  convenu : une IA embarquée dans l'app (YAMNet, licence Apache 2.0, plus une petite tête entraînée sur des sons
+  libres d'usage commercial), la même sur Mac et Windows, gratuite.
+- Vérification complète demandée par le propriétaire (« refait un test… tu as mon accord »), CI lue jusqu'au bout :
+  « Quitter et rouvrir » abandonnait trop tôt l'attente de l'ancienne copie sur un Mac chargé (test AppResume rouge,
+  0,38 s) ; `build.sh` : « write: Permission denied » ×4 sur macOS 27 (`plutil -o /dev/null`, remplacé par
+  `-o -`) ; trois alertes « erreur en Swift 6 » du compte (valeur par défaut `.shared` lue hors du fil principal) ;
+  armement sans lien MIDI : le sous-menu « Select » n'était attendu que 0,45 s alors qu'il est apparu à 0,63 s sur
+  la CI (plafond 1 s, rien de plus lent quand il s'ouvre vite). Captures « apercu » et « fini » de l'Organiser
+  parfois restées sur l'écoute (runs d7c7f55 et 289f215, pas sur 0c18d51) : pas de plantage (même processus), écrans
+  vérifiés par `testDemoScreensRender` ; le script de mesure note le processus après chaque écran et joint les
+  rapports de plantage et le journal, au cas où ça revient. CI entièrement verte sur 0c18d51 (512 tests).
+
+## 22–23 octobre : animations « morph », faites puis retirées
+- Conception et plan validés (`docs/superpowers/specs/2026-10-22-animations-morph-design.md`, `docs/superpowers/plans/`),
+  9 tâches codées et vérifiées sur la CI (commits 541d81c → dcd01f0) : moteur de mouvement, couche de vol, fenêtres
+  qui sortent du clic, cartes au lieu des feuilles, gouttes du créateur, Organiser en morph, relecture indépendante.
+- Le propriétaire les a essayées sur son Mac : « c'est vraiment nul, je veux que tu enlèves tout ce qui a été rajouté
+  de 1 à 9 ». Tout est retiré : le code est revenu à 7f68c9f (seuls les noms des fichiers de la CI restent changés :
+  FLShortcuts-mac, FLShortcuts-windows, FLShortcuts-mac-mesure). Ne pas les refaire sans qu'il le demande.
+- 24/10 : « tu n'as pas enlevé les choses que je voulais » ; sur les animations d'avant le chantier, il a choisi de
+  retirer seulement celle du changement de page (fondu et flou au clic dans la barre de gauche) : la page s'affiche
+  maintenant d'un coup. Guide, accueil, menu de l'icône, Organiser et créateur gardent les leurs.
+
+## 23 octobre : IA intégrée (classement des sons, Mac et Windows)
+- Demande du propriétaire : « viens on bosse sur l'IA intégrée », priorité aux voix (« rangées ailleurs mais jsp
+  pourquoi »), apprentissage sur des sons libres (ses packs seulement pour essayer), essai directement dans
+  l'Organiser ; puis cahier des charges détaillé (hors-ligne, Mac et Windows, ONNX, quelques ms, quantification,
+  faux positifs voix/FX) ; puis « la même classification qu'on avait fait sur le logiciel avec les options qu'on peut
+  changer » ; puis « toute l'organisation dans Organiser ne doit pas changer même si on change d'IA […] le + c'est de
+  l'entraîner pour qu'elle reconnaisse extrêmement facilement les sons en lui en donnant plein ».
+- Cause des voix mal rangées : la première règle demandait à l'IA de macOS au moins 0,5 de « voix » ; une voix de
+  production (réverb, pitch, chop) restait souvent dessous et, ayant des notes nettes, finissait en Mélodies.
+- Fait (`ia/`, voir `ia/README.md`) : YAMNet (Google, Apache 2.0) + 192 mesures du spectre + 5 têtes moyennées
+  (famille + sorte parmi les choix de l'aperçu, sauf Back et Synth), apprises sur 39 459 sons libres (VocalSet,
+  LibriSpeech dev/test-clean, NSynth test/valid dans leur tessiture, Freesound one-shot CC0/CC BY, sons fabriqués)
+  déclinés comme en production ; validation sur des chanteurs, locuteurs, instruments et sons jamais entendus.
+  Résultats (`ia/RESULTATS.md`) : famille juste 93 %, voix reconnues 94 % (YAMNet seul 66 %), voix normales ou
+  traitées 98–100 %, chops 79–90 %, stutters 66 %, autres sons pris pour des voix 1,7 %.
+- Modèle ≈ 8 Mo (poids en 8 bits, calculs en 32 bits) en Core ML (`Resources/ClasseurSons.mlpackage`) et en ONNX
+  (`ia/modele/classeur_sons.onnx`, exemple C# pour Windows) ; ≈ 21 ms pour un sample court sur un processeur. Essayé
+  et refusé : calculs en 8 bits d'ONNX Runtime (même famille pour 78 % / 37 % des tranches seulement).
+- Dans l'app : l'organisation ne change pas, l'IA intégrée prend la place de l'IA de macOS dans les mêmes règles
+  (nom d'abord, mesures sûres d'abord) : `voix-iv` après `voix-ia`, ses drums/instruments mis avec ceux de macOS,
+  `famille-iv` quand les règles hésitent, sortes des drums et mélodies à la place des étiquettes de macOS, sortes des
+  voix, basses et FX ; diagnostic `+ivNN`. Crédits et licence de YAMNet copiés dans l'app.
+- Erreurs en route : préparation plantée sur des accords de notes de longueurs différentes (30 min perdues ; chaque
+  étape est maintenant gardée) ; poids des têtes illisibles par nom (`.weights.h5`) ; sorties Core ML renommées
+  après conversion ; ONNX Runtime ne calibre pas un Softmax qui est une sortie.
+- Le propriétaire veut « 99 % minimum pour tout ». Plus de sons : NSynth train (≈ 1000 instruments, 24 Go) et
+  Medley-solos-DB (vraies chanteuses et instruments, 8 Go ; flux coupé en route, une partie seulement) lus au fil du
+  téléchargement (rien sur le disque), voix hachées en plus, notes NSynth gardées dans leur tessiture : 67 043 sons.
+  Résultats (6 837 sons jamais entendus) : voix 97,6 % (chops 93–96 %, stutters 86 %), drums 96,6 %, FX 94,2 %,
+  basse 93,5 %, mélodies 84,4 % (notes graves prises pour des basses, synthés étranges pour des FX) ; 99 % pas
+  encore atteint. Prochain levier : réapprendre aussi la fin de YAMNet, et les corrections des utilisateurs.
+- Couche 14 de YAMNet réapprise sur nos sons (`ia/affiner.py`, préparation refaite : 72 643 sons, Medley complet,
+  tessitures plus nettes ; ≈ 1 h 10 de préparation + 25 min) : sur les mêmes 7 379 sons jamais entendus, 92,6 %
+  avec ou sans elle, et 92,7 % pour le modèle livré. Aucun gain : rien n'a changé dans l'app. Erreurs restantes :
+  notes seules de NSynth ambiguës (claviers graves → basse 46, cuivres → FX 45, plucks → drums 28, guitares → voix
+  26). Premier essai tué par la mémoire (écriture du jeu d'un coup) : écrit maintenant étape par étape.
+- « Pas content ? » (demande du propriétaire : questions à cocher avec « Autre » en bas, pour que l'IA apprenne de
+  ses erreurs ; choix : apprend sur le Mac + pour tout le monde avec accord ; bouton à la fin, pas de question à
+  chaque fois) : `OrganizerFeedback.swift`, `CorrectionsIA.swift`, table `corrections_ia`
+  (`supabase/corrections-ia.sql`, à coller par le propriétaire), `ia/corrections.py`. Le modèle rend maintenant
+  aussi ses 1216 mesures par tranche (sortie « mesures »).
+
+## 24 octobre : premier essai de l'Organiser sur le vrai Mac
+- Le propriétaire avait encore la version du 23/10 avec le chantier des animations (la bulle qui sort de l'icône) :
+  le code ne l'a plus depuis e6d0d52, il faut installer une version plus récente.
+- Sur chaque projet ouvert, pourtant enregistré : « FL n'a pas enregistré ton projet », `fichier=non`. Causes
+  possibles, aucune prouvée : titre de la fenêtre principale de FL sans le nom du projet, Spotlight en retard (1,5 s
+  d'attente seulement sans fichier connu), dossiers trop gros parcourus en 3 s, projet déjà enregistré que FL ne
+  réécrit pas (l'ancien code exigeait une écriture). Corrigé : titres et documents de toutes les fenêtres de FL,
+  6 s d'attente avec Spotlight relu chaque seconde, Documents › Image-Line › FL Studio › Projects parcouru d'abord,
+  projet non réécrit pris tel quel (sa lecture vérifie toujours que c'est le projet ouvert), sinon l'erreur
+  `projectNotFound` et le bouton « Choisir le fichier… ». Diagnostic : ligne `recherche` (fenêtres, noms, candidats,
+  récents, parcourus, pris=écrit|récent|dossier|déjà-enregistré|aucun).
+- Autorisations au premier lancement (retour du propriétaire) : « Tout autoriser… » n'ouvre plus que la page
+  Accessibilité de Réglages Système (plus de fenêtre du Finder sur Applications, plus de petit panneau depuis
+  l'accueil), puis demande le son de FL (Audio du système, pour l'Organiser) au lieu de « Enregistrement de
+  l'écran ». Celui-ci n'est plus demandé qu'au créateur de macros, quand un bloc en a besoin.
+- 2e essai de l'Organiser (version 842a969) : le fichier est trouvé, la copie « _5 » écrite et ouverte par FL (la
+  marque « FL Shortcuts 4922 » se voit dans la liste des patterns), résultat jugé à 99 % par le propriétaire. Mais
+  l'app reste sur « FL charge les sons de la copie… » : elle attendait 3 réponses de FL en moins d'une seconde
+  (jusqu'à 240 essais de plusieurs secondes, sans compteur). Maintenant : 2 réponses en moins de 3 s, 2 min 30 au
+  plus, compteur de secondes, et l'application note `réponses=N lente=Nds` pour savoir si FL répondait.
+- Interface (vidéo du propriétaire) : « Réinitialiser » et « Supprimer » gardent la même couleur au survol de la
+  ligne (le gris « secondaire » de macOS s'éteignait sous l'ombre du survol : une vague quand la souris passait
+  vite ; couleur simple maintenant, `RowActionStyle`) ; la recherche lâche la main aussi quand la fenêtre la perd
+  (clic dans une autre app, le bureau, une autre fenêtre) et ne la reprend pas au retour ; pendant une recherche,
+  la barre latérale n'a plus de page choisie : un clic sur une page (même celle d'avant) vide la recherche et
+  l'ouvre (`sidebarSelection`).
+- Recherche « toujours là » (25/10, après ces corrections) : la garde rend aussi la main côté SwiftUI
+  (`searchFocused` à faux, macOS 15 et plus) et reconnaît la recherche par ses parents et à son nom de classe (au cas
+  où). Essai à vrais clics sur la CI (`search_test` de `mesure-interface.sh`, 15dcdc0) : la recherche de
+  `.searchable` est un `AppKitSearchField` de SwiftUI (une NSSearchField, éditée par `SearchTextView`) ; cliquée,
+  elle a la main (contour bleu) ; un clic sur la barre de titre, l'en-tête de la page, le bureau, le retour dans
+  l'app ou Mixer dans la barre latérale (la page change) la lui reprend à chaque fois (photos `recherche-*.png`).
+  Le 1er essai (9eda6c2) cliquait au milieu de la fenêtre (la 1re ligne « recherche » du rapport était la garde) :
+  le rapport marque `[champ …]` ce que la garde reconnaît, l'essai clique dessus. Pas encore vérifié sur le Mac du
+  propriétaire (macOS 27 ?).
+- Retours du 25/10 (capture du survol, 4 macros) : survol sans changement de couleur (l'ombre posée sur le contenu
+  ternissait les gris et les boutons « Modifier… », « Réinitialiser ») et sans carte grise au-delà du contour (la
+  liste met sa propre marge autour du contenu : c'est maintenant le fond de la ligne qui s'allume, `CardRowBackground`,
+  halo `HoverGlow` découpé dehors) ; page choisie de la barre latérale et bloc choisi du créateur : pas de survol (le
+  fond de la sélection, plus grand, dépassait). Modèles : les 4 macros du propriétaire à la place de l'ancien
+  « Enregistrement rapide », d'« Organiser » et d'« Enregistrer puis exporter en WAV » ; preset vide : « preset à
+  choisir dans le créateur ». « Choisir… » du preset ouvert dans Mixer presets. Enregistrement : clics intelligents
+  (`SmartClicks`, voir CLAUDE.md), les noms lus aussi dans les menus de FL. Glisser-déposer : sur la CI, palette →
+  liste (15 → 16 lignes) et rangement marchent, le bloc est dans la palette : question posée. Stems : FL ne documente
+  pas les noms des fichiers d'un deuxième export : question posée avant de toucher aux fichiers.
+- Retours du 25/10 (suite) : le survol « fait bizarre à l'œil nu » : le contenu ne grossit plus (un texte agrandi par
+  `scaleEffect` est redessiné flou), seul le contour s'écarte ; le menu de l'icône mène toujours à sa page, même
+  fenêtre ouverte ailleurs (« Modifier les raccourcis… » restait sur Macros ; « c'est tous les menus de l'icône ») ;
+  glisser-déposer « ne fonctionne pas » chez lui : l'essai de la CI attendait 0,3 s entre l'appui et le glisser, un
+  essai « vite » (comme une vraie main) est ajouté pour le reproduire.
+- Organiser et la boîte « Invalid project data folder » (capture du propriétaire, 25/10) : FL la montre en ouvrant la
+  copie quand le dossier de données du projet n'existe plus (projet déplacé) ; l'Organiser comptait alors les sons
+  d'un Channel rack pas encore rempli et s'arrêtait sur « pas les mêmes sons ». Trois parades : la copie est écrite
+  sans ce dossier introuvable (événement 202 du .flp, chemin absolu ou à côté du projet qui n'existe pas, chemin de
+  Windows ; un dossier qui existe ou une variable %…% de FL est gardé) ; si FL montre quand même la boîte (titre lu
+  par l'Accessibilité, pas l'écran), Entrée valide son choix par défaut « Do nothing » ; et les sons ne sont comptés
+  qu'une fois FL calme ET tous les sons là (2 min 30 au plus). Tests sur le faux disque.
+- Organiser rétréci ou agrandi (retour du 25/10) : hors aperçu, la fenêtre ne se tire plus qu'en largeur (sa hauteur
+  est celle de l'étape : plus de boutons coupés en bas ni de vide) ; l'aperçu se tire en hauteur jusqu'à 420 au moins
+  (sa liste défile, jamais écrasée) ; largeur bornée à 440-760 (au-delà les cartes s'étiraient) ; les cartes ne
+  grossissent plus au survol (liseré de leur couleur et halo, comme le reste de l'app).
+- Drums : sortes « Drum loop » et « Fill » (demande du propriétaire). Noms : « Drum Loop », « Hat Loop »,
+  « DrumLoop », « Top Loop » → Drum loop ; « Snare Fill », « Fill 1 » → Fill (« Piano Fill » reste un piano,
+  « Melody Loop » une mélodie, « Loop 4 » ne dit rien). Boucle mesurée (grave d'un kick + aigus) : Drum loop, ou
+  Fill si l'IA l'entend ainsi. IA réapprise (44 sortes) avec le Groove MIDI Dataset (batteurs enregistrés, boucles
+  et fills, CC BY 4.0), les packs de batterie donnés par le propriétaire (Google Drive, 437 sons uniques, 7 packs ;
+  jamais dans le dépôt ; « tu lui montres les sons du drive et tu lui expliques que là ça s'appelle comme ça ») et
+  600 boucles + 600 fills trap fabriqués avec leurs sons seuls. Sorte de chaque son de pack d'après son type avant
+  « -- » (« © FILL -- … », « TEXTURE -- … » = FX). Essai d'abord sans 2 packs : boucles
+  trap clairsemées encore souvent prises pour des voix hachées (28 %), fills courts pris pour des boucles ; « deux
+  tranches voix au lieu d'une » essayé, pas retenu. Modèle livré appris sur tous les packs : 92,9 % (voix 96,5,
+  drums 97,3 ; Drum loop 86, Fill 91), seuil des voix 0,37. Note d'essai des tests (guitare) prise au-dessus du
+  do 4 : le sol 3 d'avant, déjà à 59 % mélodie, passait à 57 % basse.
+- « Il y a des pièges, il faut lire les noms dans les dossiers » (propriétaire) : chaque dossier et chaque type de
+  son relus et écoutés (YAMNet). Piège : les « LOW -- NOM (C) » n'étaient pas des 808 mais des sons graves de toutes
+  sortes (basses de synthé, nappes, grondements ; 30 sur 31 ont plus de 75 % de leur énergie sous 150 Hz) : appris
+  comme Basse sans sorte, et un son « basse » d'après son nom qui n'est pas grave est écarté. Un dossier ne nomme
+  plus un son que si son nom ne dit rien, et jamais un dossier mélangé (« fill + chop »). Le reste suit bien les
+  noms (CLAP, HAT, KICK, SNARE, TOM, PERCUSSION, FILL, LOOP, FX, TEXTURE ; LAYER ignoré). Réappris : 92,4 %
+  (voix 96,3, drums 97,2, basse 95,4 ; Drum loop 86, Fill 88), seuil 0,37 ; l'écart avec 92,9 % vient surtout des
+  mélodies (86,0 contre 87,3), sans lien avec ce changement : variation d'un apprentissage à l'autre.
+- Validation de la copie rangée (demande du propriétaire) : après un Organiser, la copie « _N.flp » et son original
+  sont retenus (`OrganizerCopyApproval.swift`, réglage `organizerPendingCopies`). Une fois l'Organiser fermé, à la
+  réouverture de FL Shortcuts (icône, lancement, app rouverte), la question « Tu gardes la version organisée ? » :
+  « Oui, valider » = l'original à la Corbeille, la copie prend son nom (si FL montre la copie : ⌘S d'abord, puis FL
+  rouvre le fichier renommé ; s'il montre l'original : il ouvre d'abord la copie) ; « Garder l'original » = la copie
+  à la Corbeille (FL rouvre l'original s'il avait la copie) ; « Plus tard » = plus demandé avant le prochain
+  lancement, ligne « Valider la version organisée… » dans le menu de l'icône. Rien n'est supprimé pour de bon ; un
+  renommage raté remet l'original. Organiser relancé sur une copie en attente : la nouvelle la remplace (même
+  original, l'ancienne copie part à la Corbeille avec la réponse). « Revenir comme avant » : plus de question.
+  Puis (propriétaire) : « Tu valides la version organisée ? », et « Retourner en arrière » à la place de « Garder
+  l'original » : la version organisée part à la Corbeille et FL rouvre toujours le projet d'avant (même s'il montrait
+  autre chose ; FL fermé : lancé sur ce projet). Projet d'avant disparu : rien n'est touché, la version reste.
+
+## 25 octobre : sécurité (demande du propriétaire : « pas de hackers qui s'en servent pour accéder à des infos perso »)
+- Revue de tout ce qu'un autre programme du Mac pourrait détourner (l'app a l'Accessibilité, le son du système,
+  parfois l'écran, un compte en ligne). Trouvé et corrigé :
+  - l'adresse du serveur du compte pouvait être remplacée par un simple `defaults write` : un logiciel malveillant
+    recevait alors le mot de passe à la connexion, la session (jeton du Trousseau) et la sauvegarde. Maintenant
+    l'adresse scellée dans l'app gagne toujours (`CommunityConfig.resolve`, test) ;
+  - le mode capture (activable par `defaults`) acceptait un « vrai clic » dans la fenêtre de l'app, fait avec ses
+    autorisations : retiré (la CI clique elle-même, `fls_click`, `ui-pilote.sh click`) ;
+  - les modes d'essai de la CI (`--selftest-macro`) envoyaient touches et clics au PID donné, n'importe quelle app :
+    seulement le faux FL de l'essai maintenant (ce même programme), rapports .txt et état .json seulement ;
+  - la liste des versions organisées (réglages) pouvait désigner n'importe quel fichier à mettre à la Corbeille,
+    renommer ou ouvrir : seulement des .flp et leurs « _N » du même dossier ; le projet d'avant s'ouvre dans FL Studio.
+- Vérifié bon : commandes shell et AppleScript (chemins entre guillemets, jamais une donnée extérieure), macros (au
+  seul FL, devant, liste noire, import borné), script FL (fonctions fixes, messages signés HMAC), Trousseau, HTTPS.
+
+## 28 octobre : macros sous Windows (« les fonctionnalités pareil »)
+- Cœur (`windows/FLShortcut.Core/Macros/`, essais `dotnet test`) : programme compilé et interpréteur (miroir du Mac,
+  mêmes essais avec de faux effets), bibliothèque `macros.json` au même format que le Mac (copies de secours, jamais
+  écrasée sans copie, fichier illisible ou plus récent gardé), raccourcis de type macro (`macroRef` + lien caché, comme
+  le Mac), effets Windows derrière un pilote (`IFlDriver`) essayés sur un faux FL : touches à FL seul (liste noire
+  revérifiée), Échap et FL plus devant arrêtent, lettres et flèches seulement dans un menu ouvert par la macro (Entrée
+  apprise, menu refermé après un échec), boîte de dialogue suivie, actions de FL par le lien ou leur touche, pages
+  (F5, F6, F7, F9, Alt+F8), Organiser.
+- Appli : le hook avale le raccourci et lance la macro sur son propre fil (une à la fois, FL devant, pas en
+  administrateur) ; fenêtres de FL reconnues par leur classe et leur style, jamais leur titre ; journal enfin écrit
+  (`%LOCALAPPDATA%\FL Shortcuts\journal.txt`, mots fixes et nombres) ; page Macros (liste, modèles, créateur simple)
+  et 3e type « Macro » dans la fiche d'un raccourci.
+- Puis (même jour, demande « fait aussi ce qui manque encore ») : clics appris (« Montrer dans FL… »), glisser, Menu
+  de FL (menu standard lu par Windows, sinon texte lu dans la seule fenêtre de FL au moment du clic), menu de la
+  piste (piste visée suivie par un crochet souris posé seulement si une macro la vise), preset déposé (glisser
+  d'OLE) ou écrit dans la boîte « Open », « Cliquer sur… », Nom et couleur. Essai CI sur un faux FL dans l'appli
+  (`--selftest-macros`). Reste : bouton à son image, entrée, larsen, carte son, menu Arrangement, icône, blocs
+  imbriqués dans le créateur ; tout est à essayer sur un vrai PC avec FL.
+- Mac, captures du propriétaire : « Ouvre un VST » ajoutait les plugins hors favoris dans une catégorie « FL
+  Shortcuts » des menus Add de FL (Channel et effets du Mixer) : « je ne veux absolument pas […] et si ça le fait ça
+  l'enlève ». Plus jamais rien d'ajouté ; la catégorie part à la Corbeille au lancement (FL la voit disparaître à son
+  prochain démarrage) ; un ancien choix « FL Shortcuts › X » vise le plugin seul. Puis : « il ne faut pas que ça soit
+  que les favoris qu'on puisse choisir » → tous les plugins installés restent proposés ; hors favoris, la macro ouvre
+  Add › Channel/Effect › More plugins..., lit la liste au moment du clic (autorisation « Enregistrement de
+  l'écran »), la fait défiler, et double-clique le nom (jamais la case de favori). Mac et Windows ; essai CI sur le
+  faux FL (SKIP sans l'autorisation). 1er passage sur la CI (Mac Intel, écran non Retina) : nom trouvé mais plugin 30
+  double-cliqué au lieu du 37 → la capture à 2 pixels par point n'avait la fenêtre que dans son quart haut-gauche
+  (positions lues divisées par deux, aussi pour le menu « Arrangement ») : image remplie (`scalesToFit`). Windows :
+  preset déposé depuis une petite fenêtre de l'app (bouton enfoncé hors de FL, sinon le glisser ne démarrait pas).
+- Nouvel aspect Mac (28/10), d'après deux vidéos du propriétaire (« backed. », app Mac de la barre des menus, et un
+  tableau de bord en verre) et une maquette validée écran par écran (page de dessin privée sur claude.ai). Ses
+  réponses : « garder que le Liquid Glass, pas de fond », logo à faire plus tard (par lui), pas de navigation éclatée
+  en morceaux, aucune animation en plus (« on reste comme on est »), le bleu. Retours sur la maquette : « ça paraît
+  trop IA », « trop de détails inutiles » ; enlevés : cartes à gros chiffres, lueurs, phrases d'explication,
+  « Connecté à FL », pause, recherche et « Tester » du créateur, catégorie Contrôle ; un seul « Attendre » (horloge).
+  Fait dans l'app : plus de lavis ni de lueur de couleur (fenêtre principale, créateur, Organiser, menu de l'icône) ;
+  en-tête de page = le titre seul (résumé dans la bulle d'aide ; « Connecté en tant que… » gardé) ; raccourcis sur
+  deux colonnes quand la page fait 760 points ou plus (`CardColumns`, liste toujours paresseuse : une ligne = deux
+  raccourcis, colonne de gauche = 1re moitié) ; touche changée teintée de bleu + ↺ seulement sur elle (plus de
+  « D'origine : » ni de « Réinitialiser » grisé) ; menu de l'icône : « Mettre en pause » retiré (« Reprendre » seulement
+  si l'app est en pause par ⌃⌥⌘F), pied « Ouvrir FL Shortcuts » (bleu) / « Quitter ⌘Q » ; palette des macros sans
+  Répéter ni Si… sinon (toujours compris dans les anciennes macros), rubrique « Attente » ; Organiser : titre seul,
+  sans phrases, chaque famille sur une ligne (poignée, rond de couleur — « Une couleur / Dégradé » dans sa fenêtre —,
+  nom, départ du Mixer, icône), chaque son : ancien nom → nom qu'il prendra (remis comme avant le 28/10 : « le nom
+  qui passe d'un nom à un autre »), sorte, case du Mixer à droite.
+  Menu de l'icône (28/10, « enlève prêt, FL Shortcuts, le logo ») : plus d'en-tête ; seule une ligne d'état quand
+  quelque chose cloche (en pause, clavier non autorisé, FL fermé…), puis les lignes.
+  « Pas tant de Liquid Glass » : maquette avec la fenêtre en verre et les cartes en verre ; retour : « je préfère
+  sans le Liquid Glass derrière », puis « parfait, go ». Fait : fenêtre principale et créateur au fond plein (plus
+  de matériau translucide, `windowGlass` retiré) ; cartes des listes, touches et cartes de l'Organiser en plaques de
+  verre dessinées (`GlassPlate` : voile clair, bord fin, reflet en haut ; ligne par ligne sans couture,
+  `CardRimShape`) ; effet coupé, Réduire la transparence ou Contraste élevé : les cartes grises d'avant. Pas de
+  `glassEffect` par ligne : coûteux (8fb66a8) et chaque ligne aurait son propre bord.
+- Vidéo du propriétaire (29/10, 00 h 24) : « le bouton FL n'est pas ouvert, tu peux l'enlever aussi » et « pas du tout
+  de changement comparé avec la version que j'ai validée ». Écarts vus entre l'app et la maquette, corrigés : pastille
+  « FL Studio n'est pas ouvert » (fenêtre) et ligne du menu de l'icône retirées (FL fermé n'est pas un problème) ; titre
+  de la page en double (barre d'outils + grand titre) → barre d'outils sans titre ; raccourcis sur deux colonnes dès
+  640 points (760 avant : à sa taille de fenêtre, une seule colonne) ; touches en petites cases, une par touche (⌘ puis
+  A, `KeyLabel.parts`) ; palette FL Studio d'abord (`BlockCategory.paletteOrder`) ; plus de phrases d'explication dans
+  la page Macros vide, la fenêtre des modèles, la carte « Enregistrer clics et touches » (seulement pendant
+  l'enregistrement) et l'installation du lien de l'Organiser ; réglages d'un bloc sans « À savoir » ni « Bloc actif »
+  (la case de la ligne et ses pastilles le disent). Restent différents : sélection de la barre latérale (gris du
+  système, bleue quand la liste a le focus), case à cocher des blocs à gauche (interrupteur à droite sur la maquette).
+  « Oui change tout pour que ça soit comme ça » : barre latérale sans sélection de la liste (plus de gris du
+  système) ; la page choisie dans une pastille bleue, titre blanc en gras, un clic choisit (`sidebarRow`) ; plus de
+  compteurs (sauf le « ! » du compte) ; interrupteur à droite de chaque bloc à la place de la case à gauche. Les
+  flèches du clavier ne parcourent plus la barre latérale (plus de sélection de liste).
+  Dans l'app, la page principale n'avait déjà ni bouton pause ni « Connecté à FL » (seulement dans la maquette).
+- Textes courts (28/10, suite) : « Pose le preset sur la dernière piste cliquée du Mixer » → « Ouvre le preset que tu
+  veux dans ton Mixer », le bloc s'appelle « Ouvrir un preset » (ligne : « Ouvrir le preset [fichier] », plus de « sur
+  la dernière piste cliquée ») ; puis « fais ça pour tous les blocs où il y a trop d'explications inutiles, il faut que
+  ça soit clair sans détail » : une phrase courte par bloc (registre, palette, modèles), réglages des blocs sans
+  phrases sur la façon de faire (clics appris : « Retenu dans… » / « Pas encore montré. », options de « Cliquer
+  sur… » : la touche seulement, plus rien sous Preset, carte son, plugin, mute/solo), bulle de la palette = la
+  phrase seule. Organiser : plus de paragraphe pendant l'analyse (« Ne touche pas à FL. » seul), plus de résumé ni de
+  paragraphe dans l'aperçu (« 3 sons sans note seront retirés. L'original ne bouge pas. » : « j'aime pas ») ; cases en
+  mots courts (Renommer, Un bus par famille, Supprimer les sons sans note) ; seul avertissement gardé : Playlist trop
+  grande pour FL (`playlistTooBig`). Windows non touché (en pause).
+- Début de l'app (29/10) : « il faut aussi rebosser l'ouverture au tout début lors des activations et du guide ».
+  Maquettes faites (autorisations, activation dans Réglages, relier FL, guide « Bienvenue », une page du guide) ;
+  le nom « FL Shortcuts » écrit en animation a été essayé (écriture, machine à écrire, lettres en fondu) puis
+  abandonné : « on enlève cette idée d'animation et tu peux lancer tout ça ». Fait comme les maquettes : plus d'icône,
+  de sous-titre, de phrase d'aide ni de mention de vie privée sur l'écran des autorisations ; une carte en verre
+  Clavier / Son de FL (pour l'Organiser) avec l'état de chacun ; « Relier FL Studio » en trois étapes d'une ligne
+  (Installe le lien, Quitte et rouvre FL, Choisis FL Shortcuts dans MIDI Settings), aperçu de MIDI Settings, statut
+  « En attente de FL Studio… » / « FL Studio est relié » (plus de « Tester » ni de « À faire une seule fois ») ; guide :
+  « Bienvenue », une ligne par partie, puis chaque partie en trois étapes d'une ligne (résumés et astuces retirés),
+  « Passer », points et boutons en bleu ; panneau d'autorisation : « Active FL Shortcuts » / « Autorise le son de
+  FL » / « Tout est prêt » et une carte Clavier / Son de FL. Plus aucune lueur de couleur (accueil, guide, menus
+  stylés, validation de l'Organiser, désinstallation). Depuis l'accueil, toujours sans panneau (règle du 24/10).
+- Retours du 29/10 au matin : ne pas montrer le petit panneau d'autorisation depuis l'accueil (« on est bien comme
+  ça », dessin de l'interrupteur gardé) ; survol des options : exemple en 3 versions dans la maquette (contour,
+  intérieur teinté, intérieur plein) → « je veux intérieur plein » : option survolée pleine de sa couleur, texte en
+  blanc, icône en blanc translucide, partout ; plus de contour ni de halo ; cartes de l'Organiser sans survol. Menu
+  de l'icône : « plus de Liquid Glass… fond noir » comme la maquette (fond noir plein, fond du système caché,
+  « Désinstaller » en texte gris). Vidéo de l'Organiser : en tirant le numéro de piste du Mixer, la flèche restait
+  sur le chiffre ; comme FL, elle disparaît et se gare à droite de la case pendant qu'on tire, puis revient où elle
+  était (`HiddenDrag`). Vu sur la CI : l'aperçu de l'Organiser figeait l'app ~15 s (photos restées sur l'écoute) ;
+  relevé de la pile ajouté à la mesure (`organiser-apercu-sample.txt`) avant toute correction.
+- Lien avec FL (29/10) : « un read me avec dans le tuto tu entoures ce qu'il y a à changer dans ce screen donc les
+  deux ports, controller type et enable, et que dans FL Shortcuts ça soit beaucoup plus simple et mieux expliqué pour
+  installer, fermer FL… ». Sa capture de MIDI Settings redessinée (docs/images/midi-settings.html, rendue en
+  Resources/MIDISettings.png) avec les 4 cases entourées et numérotées : Port de l'Output, Enable, Controller type,
+  Port de l'Input. README : section « Relier FL Studio (pas à pas) » (4 étapes, l'image, un tableau, 3 pièges) ;
+  l'intro ne dit plus « rien à installer dans FL ». App (`LinkGuide`) : partout les mêmes 4 étapes d'une ligne
+  (Installe le lien, Quitte FL (⌘Q) puis rouvre-le, Options › MIDI Settings, Règle les 4 cases entourées) et
+  l'image (un clic l'agrandit) : accueil, aide du lien de l'Organiser (les 4 longs paragraphes remplacés, 3 pièges
+  en une ligne), fenêtre « Lien installé » (l'image dessous).
+- Organiser (29/10, « tu n'as pas changé les pages Organiser ») : aperçu refait comme la maquette du 28/10 (titre
+  « Organiser », « Rangement automatique » et « Options » en haut, familles sur deux colonnes avec leur en-tête
+  au-dessus d'une carte de verre, ancien nom → [nouveau nom ▾] [piste], « Annuler » / « Organiser » bleu). Les cases
+  (pages de FL, Renommer, bus, sons sans note) et « Copier le diagnostic » passent dans « Options » : la maquette
+  n'en avait pas, rien n'est perdu. Le bouton « Organiser » paraissait gris (panneau jamais actif) : style à lui.
+- « À l'identique » (29/10, « tu ne m'as pas tout ajouté sur la version que tu as faite, j'ai vraiment besoin que tu
+  fasses à l'identique ») puis, pour ce que la maquette n'avait pas : « recherche en tapant touche tu le laisses et
+  enregistrer clic et touche tu laisses aussi, sinon le reste ça part ». Plus aucun Liquid Glass : app toujours
+  sombre, boutons en capsules pleines (`CapsuleButtonStyle`), surfaces dessinées. Fenêtre principale refaite comme
+  `Main.dc.html` : fond #161618, barre de gauche dans une plaque claire de 252 points (boutons fermer / réduire /
+  agrandir dedans : barre de titre transparente et barre d'outils vide, `MainWindowChrome`), recherche dans une
+  capsule (une NSSearchField sans cadre, toujours gardée par `SearchFocusGuard`, ⌘F) avec le bouton clavier,
+  groupes FL Studio / Automatiser / Personnalisé / Partager / Compte et aide ; en-tête de la page : titre en gras et
+  capsule du compte (« + » seulement sur Macros et Communauté, → sur Macros) ; raccourcis en cartes titrées par
+  groupe (`CatalogGroups` : Playlist = Outils, Sélection, Édition, Zoom, Marqueurs, Affichage…, chaque raccourci de
+  FL dans un groupe, vérifié par les tests), sur deux colonnes dès 660 points, ↺ avant la touche changée, touches
+  bleues quand changées. Retirés : menu ⋯ (profils, import/export, annuler le remplacement, tout réinitialiser,
+  effet Liquid Glass, désinstaller — encore dans le menu de l'icône), « + » et « Nouveau raccourci… » des pages de
+  raccourcis. Créateur refait comme `Macros.dc.html` : palette dans la plaque de gauche, en-tête ← rond / nom en
+  grand / touches du raccourci / « Enregistrer » bleu, « Enregistrer clics et touches » gardé, étapes de 48 points
+  dans une carte, zone en pointillés « Glisse un bloc ici… », réglages du bloc dans une plaque à droite avec
+  « Retirer ce bloc » ; retirés : barre d'outils, Exporter (encore sur la page Macros), Dupliquer, « Si le bloc
+  échoue », Note (les macros gardent leurs valeurs). Menu de l'icône comme `Menu.dc.html` : pendant l'écoute de
+  l'Organiser, une carte « Organiser · 12 sons sur 40 » en haut, sa barre et « Arrêter » (`OrganizerProgress`).
+  Essai CI : vrai clic sur Mon compte en haut de la fenêtre (`entete-essai.txt`), photo du menu pendant l'écoute
+  (`menu-icone-organiser.png`), positions du glisser-déposer du créateur recalculées. Reste de la maquette : le nom
+  d'une famille modifiable dans l'aperçu de l'Organiser (il touche le nom des bus et des pistes : à part).
+- Vu sur la CI de 891e083 (verte) : SwiftUI remettait le titre de la fenêtre et une bande opaque en haut (titre de la
+  page et bouton Mon compte cachés dessous) ; la bande de 52 points ne laisse passer aucun clic (vrai clic à y 30 :
+  rien ; à y 60 : Mon compte) ; un clic dans la recherche ne lui donnait pas la main (la garde ne la trouvait pas
+  sous la souris, vue hébergée par SwiftUI) ; créateur : pastille « Pause fixe » repliée lettre par lettre, phrases
+  coupées. Corrigé : `.windowStyle(.hiddenTitleBar)` + `hiddenWindowChrome()` + réglage AppKit gardé
+  (`MainWindowChrome.keep`), en-têtes posés sous la barre de titre (`contentTop`), recherche reconnue à sa place
+  (`SearchFocusGuard.GuardView.fields`) et capsule cliquable, réglages du bloc en largeur fixe (270), pastilles
+  jamais repliées. Graphify branché (graphe du code sur cette branche : `graphify update .`, dossier `graphify-out/`
+  hors du dépôt).
+- Tuto (29/10, « fait moi un tuto beau visuellement dans la même DA que le logiciel et pareil pour le read me / peut
+  être même mettre dans le logiciel la première fois qu'on ouvre organiser on a un tuto en gros avec aide image ») :
+  page `site/tuto.html` en 7 étapes dessinées comme l'app (aussi en artefact privé), README illustré par ses images
+  (`docs/images/tuto-*.png`, `docs/images/rendre-tuto.js`). Ses retours sur la page : « (Raccourcis) » /
+  « (Organiser) », légende de MIDI Settings retirée, « Menu de l'icône › Organiser… » avant « Installer le lien »,
+  fenêtre des raccourcis comme la vraie (pages, icônes, couleurs, cartes de la Playlist), plus rien qui déborde
+  (texte au-dessus de l'image sous 1080 de large). Dans l'app : tuto en 4 images à la première ouverture de
+  l'Organiser, avant l'écoute (rien n'est envoyé à FL tant qu'il est là ; `OrganizerTutorial.swift`, clé
+  `organizerTutorialSeen`), « Revoir le tuto » dans Options ; images `Resources/{fr,en}.lproj/OrganiserTuto1…4.png`
+  (`docs/images/organiser-tuto.html`, `rendre-organiser-tuto.js`) ; photo CI `organiser-tuto.png`.
+- Macros (29/10, « dans macro tu peux enlever les blocs mute track et solo track pour mac et win ») : « Mute de la
+  piste » et « Solo de la piste » retirés de la palette du Mac (toujours compris dans les anciennes macros). Windows
+  n'avait pas ces deux blocs (seulement « Action de FL », où mute et solo restent des actions parmi les autres).
+  Confirmé le 30/10 (« retire les blocs oui mais pas la possibilité d'y acceder dans le bloc "action de FL" ») :
+  mute et solo restent dans « Action de FL » (et dans « Cliquer sur… » › Mixer), sur Mac et Windows.
+- Windows comme le Mac (29/10, « j'ai aussi envie que tu fasses exactement la meme interface sur win normalement on a
+  enlevé tout le liquid glass donc ça ne devrait pas bloquer », puis « verifie ce qui a deja ete fait et ce qui a
+  besoin d'etre rajouter pour win avant de tout recreer ») : toute la logique Windows gardée, seul l'aspect refait.
+  Cœur : raccourcis de FL par page (`CatalogRows.cs` : touche changée, ↺, cartes, Mes raccourcis), palette du
+  créateur du Mac (`MacroDrafts.CreatorPalette`), noms et aides courtes des blocs du Mac, colonnes des familles
+  (`OrganizerController.FamilyColumns`), titre « Organiser », `PlaylistTooBig`, noms des touches dans la langue de
+  l'app. Appli : `MacLook.cs`, fenêtre principale (`MainShell*.cs`), page Macros et créateur dans la fenêtre
+  (`MacrosPage.cs`, remplace `MacrosWindow.cs` ; glisser depuis la palette et pour ranger), Organiser (`OrganizerWindow.cs`,
+  tuto en 4 images à la 1re ouverture), menu de l'icône noir (`TrayMenu.cs`), question de validation sombre. Vérifié
+  sur les photos de la CI Windows (principale, Playlist, Mes raccourcis, recherche, macros, Organiser, tuto). Pas
+  encore sur Windows (hors demande) : compte, Communauté, Aide, enregistrement des macros, icônes de FL de l'Organiser.
+  Menu de l'icône : l'appli tombait à sa création (photos CI) ; sous page heap, la cause : retirer la barre de titre
+  d'une fenêtre WinUI déjà créée (`SetBorderAndTitleBar` ou présentation « menu ») fait libérer deux fois par le
+  Windows App SDK 1.6 l'objet d'accessibilité de ses boutons (`CTitleBarCaptionButtonsFragmentProvider`). Le menu
+  est une `AppWindow` créée d'emblée en présentation « menu », panneau posé par `DesktopWindowXamlSource`, fermé au
+  premier clic ailleurs (`WM_ACTIVATE`) ; photo `menu-icone.png`, toutes les photos passent sous page heap.
+- Désinstallation (29/10, « il faut aussi refaire la désinstallation dans le style du nouveau style, mais il faut pas
+  toucher à sa fonctionnalité juste a l'image ») : seule la vue change (`UninstallView`) : fond noir plein, icône et
+  titre en gras, risque dans une plaque bordée d'orange (lien vers Mon compte), « Supprimer aussi mes fichiers
+  exportés » en interrupteur dans une plaque, « Annuler » / « Désinstaller » en capsules (bleu), attente et bilan
+  centrés (icônes de couleur, coche verte). Mêmes étapes, mêmes textes, même `UninstallFlow` et même `Uninstaller` ;
+  photos CI `desinstaller-*.png`.
+- Retours du 30/10 (3 vidéos et une capture : « le bouton enregistrer ne fonctionne plus mdr », familles de
+  l'Organiser « + beau que tu vois ce que tu bouges… prendre le bloc de famille », « quand on change de place de mixer
+  la souris reste apparente », « que ça prenne sa couleur et ça ne reste pas en bleu », pages Macros, Communauté, Mon
+  compte, Aide « pas beau… plus ergonomique », « le menu icone a réduire un peu ») : « Enregistrer » du créateur
+  toujours actif (il restait grisé sur « Enregistrée » : sauvegarde automatique à 0,5 s), il enregistre et revient
+  aux macros ; famille prise en entier, sa copie nette suit la souris (`FamilyDrag`, `dropTarget` testé) ; flèche
+  cachée pendant qu'on tire la case du Mixer même FL devant (`NSCursor.hide` n'agit que pour l'app active :
+  réglage « SetsCursorInBackground » de la connexion au serveur de fenêtres, `BackgroundCursor`) ; page choisie de la
+  barre de gauche dans sa couleur (Mac et Windows) ; menu de l'icône plus petit. CI verte sur cfd68b8 (photos du
+  menu et de la barre vérifiées). Pages Macros, Communauté, Mon compte, Aide : maquette en 4 écrans proposée avant de
+  coder (artefact privé). Ses commentaires sur la maquette : tuiles de thèmes de l'Aide « tu peux enlever »,
+  pastilles des blocs des macros « enlever les détails comme ça pour tous », ⇧⌘R « retire ce raccourci » ; puis « go
+  change ça » : les 4 pages faites dans l'app Mac (ffdfa86) comme la maquette, ses retraits compris. Retirés au passage :
+  « Comment ça marche » de la Communauté, menu ⋯ des macros (tout passe par le clic droit), « + » en haut de Macros
+  (« Partager » bleu en haut de la Communauté à la place, connecté seulement). Windows : liste des macros en cartes
+  aussi (sans « Enregistrer une macro » : pas encore fait sur Windows). CI verte sur e23717a ; vu sur les photos et
+  corrigé : « Écrire… » de l'Aide sortait « Type a name… » en anglais (texte déjà pris par l'Organiser : « Écrire un
+  message… »), nom d'auteur sur deux lignes et pastille « Raccourcis » coupée dans les cartes de la Communauté. La
+  mesure photographie maintenant la page Macros remplie (`macros-exemples.png`, macros d'exemple en mémoire).
+- 30/10 (après-midi) : maquette « Mon compte — connexion et profil » (PDF puis HTML du propriétaire) faite par-dessus
+  le nouvel aspect des pages (autre session, 62 envois depuis le 28/10 sur la même branche : mes doublons Windows de
+  l'interpréteur et de la bibliothèque des macros abandonnés, les siens gardés). Vidéo de l'Organiser du 30/10 (« tout
+  fonctionne parfaitement ») : chargement plus beau, familles posées où on veut (« je ne peux pas mettre en dessous à
+  gauche » : la coupe automatique des deux colonnes renvoyait la famille ailleurs), « Pas content ? » avec tous les
+  sons (seul Serum 2, écouté, y était), message de fin court.
+- 30/10 (13 h, deux vidéos et une capture) : « Enregistrer » de « Modifier le profil » restait grisé après le choix
+  d'une photo (pseudo posé après l'ouverture, encore « à vérifier » : posé dès l'ouverture, pseudo inchangé = toujours
+  enregistrable) ; chargement de l'Organiser remis comme avant (« j'aime pas ce que tu as fait ») ; icône d'une
+  famille jamais posée : la fenêtre du nom de FL (F2) s'ouvrait SOUS l'Organiser, la bulle « Une seule fois : clique
+  sur le bouton de l'icône » attendait un clic impossible (panneau retiré de l'écran pendant la pose) ; onglets Se
+  connecter / Créer un compte plus fluides ; règles du mot de passe coupées au milieu des mots (pastilles sur deux
+  lignes).
+- 30/10 (vidéo des autorisations) : Réglages Système refermés tout seuls une fois le clavier autorisé (seulement après
+  le code ou Touch ID : avant, macOS ne l'accorde pas) ; pendant la question « FL Shortcuts souhaite pouvoir
+  enregistrer l'audio », la fenêtre d'accueil reste cachée jusqu'à la réponse (2 min au plus) ; « Son de FL » montre
+  « En attente… » pendant la demande (`AccessibilityGuide.asking`).
+- 31/10 (vidéos de 14 h et de 2 h 28) : « le changement d'icône pour une famille ne fonctionne pas » : le bouton à
+  gauche du nom dans « Rename, color and icon » (F2) propose des noms tout faits (Drums, Kick…), pas la grille des
+  icônes. Sa vidéo montre « Change icon… » dans le menu du clic droit du Channel rack, du Mixer et de la Playlist, qui
+  ouvre la grille. Pose refaite : clic droit sur le nom de l'élément, « Change icon… » lu dans le menu (ou place
+  retenue, ou montrée une fois sans « Enregistrement de l'écran »), case de la grille. Organiser : le nom de chaque son
+  et de chaque piste est retrouvé dans la fenêtre de FL au moment du clic (noms du Mixer écrits à la verticale : image
+  tournée d'un quart de tour). Essai de bout en bout sur la CI avec une grille dans le faux FL.
+- 31/10 (capture de la fin de l'Organiser) : « Pour poser les icônes, FL Shortcuts doit voir la fenêtre de FL… » et
+  pas de diagnostic. Une icône manquée arrêtait tout ce qui suivait (Mixer pas rangé) : elle n'arrête plus que les
+  icônes, la raison est dite à la fin ; l'autorisation manquante est dite dans l'aperçu, avant « Organiser », avec
+  « Autoriser » (une app recompilée perd l'autorisation, même cochée : décocher puis recocher) ; « Copier le
+  diagnostic » sur chaque fin. « Reset » de la grille de FL n'est pas une icône : retiré du sélecteur (« Aucune »).
+  « Installer le lien » depuis l'Organiser : « ça se ferme » (FL Shortcuts passait devant, ⌘Q le quittait) ; la
+  fenêtre reste, demande de rouvrir FL, puis montre l'image des 4 cases de MIDI Settings.
+- 31/10 (vidéo des autorisations, 13 h 42) : à la question « FL Shortcuts souhaite pouvoir enregistrer l'audio », la
+  fenêtre d'accueil revenait au clic sur « Autoriser », pendant le fondu de la question (« n'attend pas ») : elle
+  revient 0,8 s après la réponse. « Son de FL » restait « À autoriser » une fois autorisé : la vérification toutes les
+  secondes pouvait s'arrêter pendant la question (TCC lu « refusé » avant la réponse) ; plus rien n'est conclu pendant
+  la question, la réponse de macOS compte, TCC est relu après (0,5 à 6 s) et quand l'app revient devant ; ligne `AUDIO`
+  du journal pour le vérifier. Icônes : « Autoriser » n'ouvrait aucune page (la demande de macOS ne montre rien sur
+  les derniers macOS) : la page « Enregistrement de l'écran » des Réglages s'ouvre. Rappel : l'accueil ne demande que
+  l'audio du système ; l'écran (pour lire la fenêtre de FL) est un autre interrupteur de la même page.
+- 31/10 → 01/11 : « fl shortcuts fait buger fl studio ça saccade » (image de FL : Playlist au zoom, tout le temps). FL
+  Shortcuts à 0 %, WindowServer 2,3 %, pause et fenêtres fermées sans effet. Échantillon de FL (Moniteur d'activité)
+  pendant les saccades : aucune trace du script (Python) ni de FL Shortcuts dans FL ; le fil principal de FL bloqué
+  ~0,2 s d'un coup, à attendre 5 fils qui testent des fichiers (stat/access + conversions de chemins), cause interne
+  à FL non identifiée. Essais du propriétaire : quitter FL Shortcuts PUIS relancer FL règle tout, relancer FL seul
+  non ; Enable / Send master sync éteints SANS relancer FL : rien ; entrée « FL Shortcuts Link » éteinte (Enable) PUIS
+  FL relancé : plus de saccades. Donc : FL saccade dès qu'il a chargé le script de « FL Shortcuts Link » (depuis
+  l'installation du lien le 31/10, ports présents dès le lancement de l'app), et ça dure jusqu'au redémarrage de FL.
+  Sa décision : « désactivé quand Organiser n'est pas ouvert… un bouton Démarrer… dès qu'elle clique sur fermer ça se
+  désactive ». Fait : l'Organiser s'ouvre sur « Démarrer » (rien envoyé à FL avant) ; ports créés au clic, retirés
+  à la fermeture (une fois FL remis comme avant) ; plus de ports au lancement de l'app (`MIDILink.use/release`) ;
+  blocs de macro sans touche de repli (nom et couleur, dégradé, son par numéro) : ports le temps du bloc ; les
+  autres blocs passent au clavier. À vérifier chez lui : après avoir fermé l'Organiser, FL redevient-il fluide sans
+  être relancé (appareil retiré, script déchargé) ?
+- 01/11, première version « Démarrer » (af2ed46) : « lorsqu'on relance FL il n'est pas dans les MIDI, il y apparaît
+  quand j'installe le lien mais il faut que je redémarre pour changer le generic controller et à chaque fois que je
+  redémarre FL il disparaît » : FL ne relie son script qu'à un appareil présent quand il démarre, et l'appareil
+  n'existait plus qu'après « Démarrer ». Réglage du lien : depuis l'installation jusqu'à la première réponse de FL
+  (HELLO), ports gardés même Organiser fermé (`User.setup`, `linkHeardByFL`) ; ensuite seulement à la demande.
+- 01/11, avec 0caaa38 : tout marche ; après « Fermer », FL ne saccade plus SANS être relancé. Mais FL saccadait dès
+  l'ouverture (réglage qui gardait l'appareil). Sa demande : « d'abord le bouton installer le lien, après un bouton
+  démarrer… là ça saccade mais on s'en fiche parce que ça travaille… après fermer ça ne saccade plus ». Fait :
+  Organiser ouvert sur « Installer le lien » si le lien manque, puis FL relancé (aucun port), puis « Démarrer » ;
+  réglage permanent retiré.
+- 01/11 : « dans la Playlist il y a des groupes, il y en a qui ont été faits, il y en a qui n'ont pas été faits ;
+  j'aimerais qu'il y ait un groupe pour chaque famille (la flèche, comme dans Pro Tools) ». Cause : la copie rangée
+  gardait la case « Group with above track » des anciennes pistes (octet 46 de l'événement 238, vérifié dans PyFLP
+  2.2.1). Fait : pistes d'une famille groupées sous sa première, les autres dégroupées. Demandé aussi (pas encore
+  fait, maquette d'abord) : pistes de mix créées dans l'Organiser (pré-master par défaut, supprimable), renommées,
+  liens d'un son ou d'une famille vers une piste ; pistes sans son supprimables, celles des sons non.
+- 01/11 au soir : « dans le mixeur, on puisse bouger chacune des sonorités… basse, on la met dans mélodie… relié à bus
+  mélodie et pas à bus drums » ; pareil dans l'aperçu (« comme un channel rack… juste en drag and drop ») ; famille
+  posée en bas à droite : trois à droite, une à gauche, « ça se chevauchait… la famille en haut à droite redescend en
+  bas à gauche ». Fait : son glissé par sa ligne (aperçu) ou sa piste (Mixer) vers une autre famille, relié au bus de
+  celle-ci ; colonnes rééquilibrées dans l'ordre. Et : « pour la deuxième autorisation (Enregistrement de l'écran),
+  FL Shortcuts n'attend toujours pas que j'appuie sur Autoriser pour se rouvrir… et ça ne fait pas l'encoche
+  Autorisé ». Trouvé dans le code : son déjà refusé → page des Réglages ouverte, mais la vérification de chaque
+  seconde concluait « refusé » aussitôt et arrêtait l'attente (rien noté pour la copie relancée) ; et cocher dans
+  les Réglages passe par une page à deux listes (écran / audio seul) puis « Quitter et rouvrir ». Corrigé : la réponse
+  de macOS est effacée pour FL Shortcuts (audio seulement) et la vraie question « Autoriser » revient ; Réglages en
+  dernier recours, attendus tant qu'ils sont ouverts ; autorisation notée dès la demande (copie relancée cachée).
+- 01/11 au soir : « quand on valide Organiser ça rame toujours, il faut que dès que la page Organiser se ferme le MIDI
+  se ferme ». Le lien restait tenu pendant tout l'écran de fin (jusqu'à la fermeture), et une demande de l'Organiser
+  arrivée après la fermeture pouvait recréer l'appareil (emprunt comme un bloc de macro). Fait : lien rendu dès que
+  tout est rangé ; « Revenir comme avant » le reprend puis le rend ; demandes de l'Organiser refusées une fois le lien
+  rendu (jamais d'appareil recréé). Fermeture : rendu comme avant (3 s au plus).
+- 02/11 : retours sur l'app et le mode d'emploi. App : « Enregistrer » du créateur lisible (largeur fixe) ; « À
+  autoriser » en boutons à encoche (comme les blocs des macros) ; Son de FL qui ne passait pas à « Autorisé » (voir
+  CLAUDE.md, Autorisations) ; « pour l'Organiser » retiré ; icône de l'app et de la barre des menus = le petit clavier
+  (choisi par le propriétaire). Valider la version organisée met déjà l'original à la Corbeille (vérifié dans
+  `OrganizerCopyApproval.swift`) : dit dans le mode d'emploi et le tuto. Téléchargement : .pkg seul, LISEZMOI.html au
+  style suisse (Mac, Windows), ports de MIDI Settings en 1 et 2, Communauté en étape 6 (Mac). Anglais : après sa
+  validation.
+- 02/11 (2) : « les trois boutons de la page Macros ne sont pas réactifs » (page vide : Enregistrer une macro, Macro
+  vide, Partir d'un modèle) → survol sur tous les boutons suisses ; « Partir d'un modèle » et « Fermer » au style
+  suisse ; « Enregistrer » = le mot seul ; contour bleu de sélection autour des blocs retiré (encoche gardée) ;
+  « Enregistrer la nouvelle macro ? » et toutes les questions de l'app au style suisse ; écran Mixer de l'Organiser
+  retiré (« il sert à rien, tout ce qu'on fait on peut le faire dans FL »). README en anglais : README-Mac/Windows.html.
+- 02/11 (3) : « la palette de couleurs de chaque famille : les 10 premières couleurs utilisées enregistrées comme dans
+  FL ; une 11e remplace la 10e mais va en première place ; ils n'ont qu'à cliquer sur la petite couleur » et « le
+  bouton Fermer de l'Organiser au début est en Liquid Glass ; vérifie partout si le style est respecté ». Les 10
+  récentes existaient déjà (retenues à « Accept », petites, en bas) : montées en haut de la roue, plus grandes, un
+  clic les pose. Audit : 55 boutons sans style (Fermer, Réessayer, Arrêter, OK…), contrôles segmentés, listes
+  déroulantes, cases à cocher, liens bleus, champs arrondis, feuilles grises, 4 NSAlert : tous au style suisse.
+- 02/11 (4), capture de la Playlist d'une copie rangée : le groupe des voix s'appelait « Adlib » (sa première piste).
+  Demande : « la famille Voix, et dans Voix il y a Adlib, Voix, Voix 2 ; dans Drums, Kick, Snare… il faut créer des
+  tracks en plus ». Fait : une piste de tête vide par famille, à son nom et à sa couleur, ses pistes groupées dessous.
+  Vu sur la même capture : des icônes d'anciennes pistes restées en place (clé de fa sur « Snare 3 ») → icônes
+  retirées ; puis « si aucune icône n'est mise et qu'il y en a déjà dans la Playlist, il faut les enlever » → plus aucune
+  icône dans la Playlist de la copie, pistes vides comprises.
+- 02/11 (5) : vidéo « ouverture icône, enlever animation » → menu de l'icône sans animation (ni à l'ouverture ni à la
+  fermeture) ; deux captures sans nom (recherche « Outil crayon », question « Enregistrer « Nouvelle macro » ? ») :
+  bande grise de l'en-tête collé « Playlist » retirée, coins arrondis de la question remplacés par des coins carrés.
+  Précisions du propriétaire : la question « Enregistrer… » « ne fonctionnait pas » (boutons sans effet) et ses
+  boutons étaient collés → refaite en AppKit (boutons qui répondent, espacés de 10) ; dans la recherche, les anciens
+  logos → les petits carrés de couleur de la barre de gauche.
+- 03/11 : vidéo « quand je clique sur la recherche, le mot Rechercher se décale sur la loupe… et pareil quand on tape »
+  → la zone de frappe d'une recherche de macOS sans cadre partait du bord gauche : posée après la loupe. Capture
+  « quand on rétrécit trop Macro ça fait chelou » → largeur mini du créateur. « Le logo attention… en noir et
+  blanc » (le triangle jaune de « La macro est vide. ») → blanc. Puis : le rouge des numéros 01/02/03 de la page
+  Macros suit la souris (aucun rouge au repos) ; une macro s'ouvre sans bloc choisi.
+- 03/11 (2) : autorisation du son de FL dans la mauvaise liste (« audio du système uniquement ») → « Enregistrement de
+  l'écran et audio du système » (liste du haut), Mac ; Windows n'a pas cette autorisation. Panneau des réglages qui
+  dépassait à droite → listes qui se coupent. Effet : champ à écrire au lieu de la liste → liste relue au changement
+  d'option. Vidéo « Analog Lab V ne s'ouvre pas » : la liste « More plugins… » montrait Analog Lab V en haut, jamais
+  reconnu (étoile ou ligne lue d'un bloc) → menu Add d'abord, puis « Find » + nom tapé, lecture tolérante, VST3 puis
+  VST pour un instrument, AU d'abord pour le Mixer (idée du propriétaire).
+- 03/11 (3) : vidéo du créateur de macros, « les mots se superposent avec les 3 options en haut à gauche pour fermer
+  l'app » : la liste des blocs commençait dans la barre de titre (46 points sous le haut, barre de 52) et, en défilant,
+  montait jusqu'en haut de la fenêtre, sous les boutons fermer / réduire / agrandir → palette et réglages commencent
+  sous la barre (56 points) et ne dessinent rien au-dessus d'eux (`clipped`). Capture de la question « Enregistrer les
+  modifications de « VST » ? » à « Enregistrer » : « pour enregistrer et ré-enregistrer il n'y a pas besoin de
+  demande, c'est seulement pour supprimer que ça doit demander » → plus aucune question au retour du créateur (← ou
+  « Enregistrer » : macro gardée telle quelle, une neuve restée vide retirée ; « Enregistrer » garde même une vide) ;
+  « Annuler les modifications » retiré (⌘Z reste) ; « Supprimer » d'une macro (clic droit, page Macros) demande
+  d'abord « Supprimer « … » ? ».
+- 03-04/11 (Windows, un ami : « rien ne marche », « pas le même logiciel que le Mac ») : FL reconnu (signataire
+  « Image Line ») ; app en icône près de l'horloge comme le Mac ; puis tout l'aspect et les pages du Mac : style
+  suisse, Aide (FAQ, message à l'équipe), Mon compte (connexion, inscription par code, mot de passe oublié, photo et
+  pseudo, déconnexion, suppression), Communauté (partages, fiche étape par étape, ajouter, signaler, partager une
+  macro ; même fichier .flsmacro que le Mac). Choix : pas de sauvegarde en ligne sur Windows tant qu'elle n'est pas
+  séparée par système (les codes des touches du Mac et de Windows diffèrent : un PC écraserait la sauvegarde du Mac) ;
+  les raccourcis partagés depuis un Mac se lisent sur Windows mais ne s'ajoutent pas. Modes d'emploi : « pour
+  regarder, non » (Communauté) était faux, corrigé (compte nécessaire pour regarder aussi).
+- 04/11 (CI du 03/11 « à relire ») : essais Mac « plugin hors des favoris » et « clics et touches » cassés par
+  401f2c8 : la recherche du plugin dans Add › Channel appuyait par l'Accessibilité sur « Channel », menu Add fermé ;
+  le faux FL restait dans un menu invisible qui avalait le clic sur « More plugins… » puis tous les clics de l'essai
+  suivant. Correctif : menus de FL ouverts seulement depuis la barre, niveau par niveau (`MenuBarAX`).
+- 04/11 (« donc les raccourcis ne fonctionnent pas sur pc ? » puis « il faudrait une sorte d'interpréteur qui modifie le
+  raccourci selon le type de pc ») : traducteur des raccourcis Mac ↔ PC (même place sur le clavier, disposition du PC
+  lue par Windows, ⌘ → Ctrl) avec aller-retour sans perte ; Communauté Windows : raccourcis d'un Mac utilisables et
+  partage de tous ses raccourcis ; sauvegarde en ligne sur Windows, la même que celle du Mac (mêmes règles, copie
+  datée avant remplacement, déconnexion qui vide le PC).
+- 04/11 (« test le win… toutes les precisions et les parentheses enleve les, je veux juste des mini descriptions ») :
+  plus de 200 textes de Windows raccourcis en une phrase, sans parenthèse ; l'essentiel gardé là où il faut agir
+  (MIDI Settings, « Revenir comme avant », « Rien n'a été touché ») ; avertissements d'un raccourci et noms des
+  conflits enfin traduits en anglais ; titres de quelques raccourcis de FL sans parenthèse sur Windows seulement.
+- 04/11 (« ce fichier est utile ? » puis « enlève le pour mac aussi ») : plus de fichier .sha256 dans les
+  téléchargements Mac et Windows ni dans la page des versions ; l'empreinte reste écrite dans le journal de la CI et
+  l'attestation de provenance reste publiée.
+- 04/11 (« tu valides aussi que la desinstallation fonctionne en passant par l'icone sur win ? ») : la
+  désinstallation Windows gardait raccourcis, macros, réglages, session du compte et script FL ; elle retire tout
+  comme le Mac, vérifiée sur la CI par une vraie installation puis désinstallation. Trouvé en regardant les photos :
+  l'app Windows n'avait aucune adresse de serveur (secrets vides sur la CI) ; elle prend celle du Mac.
+- 04/11 (« dans la capture 5 il manque l'option 3 ? ») : « Enregistrer une macro » fait sur Windows, comme le Mac :
+  clics et touches faits dans FL relevés puis changés en blocs ; fin en revenant dans FL Shortcuts. Les clics restent
+  appris par leur place ; le menu de FL retrouvé à son nom n'est pas encore fait sur Windows.
+- 04/11 (vidéo) : barre de recherche du Mac qui bougeait au clic et curseur bleu → simple champ de texte, rien ne
+  bouge, curseur blanc ; photo de profil : zoom impossible sur la photo déjà enregistrée → réglable tout de suite
+  (Mac et Windows, molette sur Windows, pincement sur Mac). Règle : chaque changement aussi sur Windows.
+- 04/11 (« la macro export stems… ne fonctionne pas a part si je clique sur le vrai file ») : FL ne met à jour l'état
+  grisé qu'à l'ouverture de SES menus ; sur Mac, « Menu de FL » clique maintenant FILE dans la fenêtre de FL puis chaque
+  élément lu à son nom, comme sur Windows ; la barre de macOS reste le secours.
+- 04/11 (« ouvrir un vst… trop lent… faire comme le drag and drop ») : essais du propriétaire : le .fst de Plugin
+  database › Installed (Generators › VST3, Effects › AudioUnit) déposé ouvre le plugin, pas le .nfo ; sur un son il le
+  remplace, ailleurs rien ; sous le dernier son du Channel rack, ou sur la piste du Mixer visée. Fait sur Mac et
+  Windows, avec le menu Add en secours.
+- 04/11 (« la macro clic a un endroit appris peut etre intelligent… si c'est un bouton il va l'apprendre le bouton en
+  lui meme ») : déjà le cas sur Mac (nom lu sous le clic, image avec « Retrouver ce bouton s'il bouge ») ; fait sur
+  Windows (« oui stp ») : « Montrer dans FL… » et l'enregistrement retiennent le nom du bouton, sinon son image, et la
+  macro le retrouve même s'il a bougé ; vérifié sur la CI avec le faux FL.
+- 04/11 (capture : clic droit sur un bloc entouré de bleu) : le menu Désactiver / Supprimer s'ouvre sans contour, la
+  ligne garde son encoche ; Windows n'avait pas ce contour.
+- 04/11 (session du site, puis confirmé ici : « Oui, mets le A partout ») : nouveau logo « A », rond rouge devant un
+  grand cercle fin, toujours en couleurs ; icône de l'app Mac et Windows, barre des menus du Mac et zone de
+  notification de Windows (cercle blanc ou noir selon la barre), accueil Windows, modes d'emploi. Il remplace le petit
+  clavier du 02/11.
+- 04/11 (« recadre bien pour que le rond blanc soit au centre ») : le grand cercle blanc du logo au centre de l'icône,
+  le rond rouge devant en bas à gauche ; partout (icônes, barre des menus, zone de notification, accueil Windows,
+  modes d'emploi, maquettes).
+- 05/11 : thèmes Noir, Papier et Orange (choix dans Mon compte, Mac et Windows ; maquettes de toutes les pages,
+  puis barre de gauche refaite à l'identique de l'app dans les maquettes). Barre de gauche : les couleurs des pages
+  remplacées par un carré creux à l'encre, rouge plein pour la page ouverte (proposition A sur 3). Icônes : l'icône de
+  l'app devient « fl. » (session du site, confirmé ici) ; la barre des menus du Mac et la zone de notification de
+  Windows gardent le rond A, tout en blanc, noir sur une barre claire (image modèle de macOS) ; l'ancien logo A en
+  couleurs trouvé « pas fou… bof à côté des autres ».
+- 05/11 : souris. Bloc « Clic de souris » dans les macros (là où est la souris ; gauche, droit, milieu ; simple ou
+  double) ; raccourcis et macros lancés par la molette cliquée ou les boutons du côté (souris à macros), sur Mac et
+  Windows, codés comme des touches (seulement des déclencheurs).
+
+- 05/11 au soir (vidéo + capture + long message, « fait tout ce que j'ai dis ») : essais du propriétaire : export des
+  stems parfait, raccourci et macro au bouton de souris qui marchent. « Ouvre un VST » cherchait encore dans le menu
+  Add : dans le Channel rack de FL 2025, le titre est ~100 points à droite des noms (centrés) ; ils sont maintenant
+  cherchés jusqu'à 240 points à gauche, le .fst est déposé (essais tirés de la vidéo, Mac et Windows). Puis tout aux
+  maquettes de style suisse : titres en minuscules à point carré, compte encadré, boutons principaux sur ombre nette
+  (rouge sous Papier, noire sous Orange), boutons bordés pleins (plus de traits de la grille dedans), ligne entière
+  d'un raccourci cliquable, Mes raccourcis courts, fiche d'un raccourci sans type ni logo rose, Macros en cartes,
+  Modèles sans défilement, créateur sans couleurs de catégories (carré orange), « Enregistrer » accordé aux touches,
+  bloc « Clic de souris » à capture du bouton, menu de l'icône sans « Actif », Aide, Mon compte et nouvelle page de
+  connexion, accueil, Communauté ; Organiser sans tuto, lien en trois étapes, plus de trait sous chaque famille,
+  couleurs des familles plus franches et « Couleurs de base » dans Options. Maquettes mises à jour (4 pages de plus).
+  LISEZMOI refait en français (remerciement, petits jeux : changer une touche, ranger un projet, changer de thème),
+  envoyé au propriétaire avant l'anglais.
+
+- 05/11 au soir, commentaires sur les maquettes : « je veux que tu remettes le rond » (accueil) → le rond en couleurs
+  à la place de « fl. » sur l'accueil, maquette et app (Mac `BrandRound`, Windows `MainShellWelcome.BrandRound`) ;
+  « pour cette page il faut + la ronde de couleur qu'il y a déjà » (couleurs de base) → un « + » au bout de chaque
+  ligne ouvre la roue des couleurs (Mac `FLColorSelector`, Windows ColorPicker en anneau) ; une couleur prise dans la
+  roue se montre dans la case, entourée. CI de 67e6181 entièrement verte.
+
+- 06/11 (session reprise après l'autre Claude ; long message + maquette « modèles papier et orange ») : le thème Blanc
+  commencé ici le 03/11 est abandonné (mis de côté dans `git stash`), les thèmes Noir/Papier/Orange de l'autre session
+  le remplacent. Effet Gumroad seulement au survol partout et dans les 3 thèmes (boutons principaux, Enregistrer, cartes
+  de Macros, bouton de l'Organiser) ; les 3 cartes de Macros pareilles au repos ; touche changée en relief ; dossiers
+  Importer / Exporter dans Macros ; créateur sans messages au-dessus d'« Enregistrer clics et touches », question de
+  prévention à « Enregistrer » si un raccourci est posé sur une macro pas prête, nom au style des titres de page ;
+  plugins : page ouverte puis relue avant le dépôt, effet sur la première case libre de la piste choisie ; fenêtre
+  minimum 980 × 620 ; plus d'icônes hors style (étoile de la Communauté, baguette, roue, point d'exclamation de
+  l'Organiser) ; carrés du guide creux, orange au survol. Propositions à la place de la baguette : rien (fait), le point
+  carré orange après le titre, ou le numéro d'étape en gris.
+- 06/11 (2) : « fait tous les changements pour win aussi » → mêmes retours sur Windows (effet Gumroad au survol,
+  touches en relief, Importer/Exporter — l'import/export de fichiers n'existait pas encore sur Windows —, créateur,
+  question avant Supprimer, plugins sur la page ouverte et case libre du Mixer, taille minimale, Organiser sans
+  pastilles). 395 essais du cœur Windows verts ici (.NET 8 installé dans la session).
+- 06/11 (3) : « dans l'importation de VST et de plugins, il n'y a que pour Analog Lab que ça fonctionne, le drag and
+  drop » → le fichier .fst du plugin n'était cherché qu'au premier niveau d'Installed › <format>, au nom exact. Il est
+  maintenant cherché dans toute la base (sous-dossiers, catégories de favoris de FL), avec un nom toléré (marque devant,
+  « (VST3) » derrière), jamais un autre numéro. Mac et Windows (396 essais Windows verts ici).
+- 07/11 : deux vidéos (« ça ne fonctionne toujours pas pour les VST… pour plugin ça ne vise pas la piste
+  sélectionnée ») → l'effet tombait sur la piste sous la souris : « Slot N » mal lu par la lecture du texte, et l'app
+  se rabattait sur le dernier clic dans FL. « Slot » lu avec ses confusions (SIot, S1ot, l/i pour 1, flèche devant),
+  plus aucun repli au dernier clic ; la touche de la page n'est plus appuyée si la page est déjà devant (elle la
+  refermait) ; un message court dit pourquoi le dépôt n'a pas eu lieu (pas de .fst, autorisation « Enregistrement de
+  l'écran » perdue après une nouvelle version, page illisible, dépôt refusé). Mac et Windows.
+- 07/11 (2) : « les thèmes, on les met en disponibilité que si la personne crée un compte ou se connecte » → sans
+  compte connecté, Noir et carte « Thème » éteinte ; à la connexion le thème choisi revient (Mac tout de suite ;
+  Windows : relance sur Mon compte, comme un changement de thème, une fois la sauvegarde en ligne au repos).
+- 07/11 (3) : captures et vidéos (nom de macro qui se décale et change de police, menu clic droit en verre, bloc glissé
+  sans sa case blanche, glisser-déposer enregistré « À corriger », Quantize rapide « À corriger ») + liste des
+  « Actions en plus » à retirer. Causes : le titre passait d'un texte SwiftUI à un champ de macOS (autre police, plus
+  de resserrement ni de point) → un seul champ AppKit ; la case blanche était le fond de la liste, absent de l'image
+  glissée ; FL montre le nom du son sous la souris pendant le glisser (fenêtre flottante) → pris pour un menu ;
+  la liste noire bloquait toute touche ⌘+Q, donc ⌥⌘Q de FL. Toutes les « Actions en plus » du mode léger doublaient
+  une touche de FL (vérifié une à une dans le catalogue) : retirées. Mac et Windows (398 essais Windows verts).
+- 07/11 (4) : Organiser (2 captures + message). Icônes : la cause probable était l'ordre : les icônes du Channel rack
+  se posaient au milieu du rangement, et un accroc pendant une icône (FL pas encore devant après 0,3 s, page changée)
+  était pris pour Échap → tout s'arrêtait. Maintenant à la fin, et un accroc n'arrête que les icônes. « Crash » à
+  l'étape 2 : la consigne disait ⌘Q ; tapé avec l'Organiser devant, il fermait FL Shortcuts. Bouton « Quitter et
+  rouvrir FL » et ⌘Q redirigé. Menu Options suisse, écrans de texte plus étroits et fixes, curseurs de bord.
+- 07/11 (5) : vidéo du bloc blanc (fond du glisser), lien MIDI « installé mais ça ne marche toujours pas » (bug : le
+  lien n'était jamais ouvert pour une action sans repli au clavier), icônes absentes de la Playlist (numéro d'icône de
+  FL appris dans la copie enregistrée, écrit au rangement suivant), thèmes cachés sans compte, recherche de l'Aide.
+- 07/11 (6) : l'app tombait en rangeant un bloc du milieu du créateur (rangement de la liste de macOS avec
+  l'écartement « gap » posé le matin) → glisser à nous, bloc entier qui suit la souris, trait rouge ; « bloc de trop »
+  sur la ligne choisie (fond ajouté dans la ligne le matin) retiré ; « Carte son branchée » encore dans la palette (la
+  liste de la palette ne lisait pas le réglage) ; « Nouveau pattern + Piano Roll » n'ouvrait pas le Piano roll sans le
+  lien (seulement ⌘F4).
+- 08/11 : listes déroulantes au style suisse (Mac : liste à nous sous la case ; Windows : ComboBox restylée) ;
+  « Nouveau pattern + Piano Roll » déjà dans le Piano roll : F7 le refermait → par le lien s'il est installé ;
+  LISEZMOI raccourci (merci seul au début, plus de barre ni de thèmes, Commencer pile sous le trait).
+- 08/11 (2) : LISEZMOI selon ses retours ligne par ligne + anglais écrit à part ; Windows MIDI Services : les deux
+  ports du lien créés par Windows 11 25H2 à jour (Basic Loopback transitoires), loopMIDI sinon. Correction : c'est
+  25H2, pas 24H2 (24H2 n'aura pas l'API, d'après les notes de Microsoft).
+- 08/11 (3) : « FL rame… pourtant j'ai bien fermé Organiser… dès qu'une touche qui a besoin du MIDI est appuyée, ça
+  s'ouvre, et ça se ferme dès que l'action est terminée ou a échoué ». Mac : le code fermait déjà le lien 3 s après un
+  bloc, mais rien ne le vérifiait ; ajouté : fermeture dès la fin de la macro (`MIDILink.macroEnded`) et un surveillant
+  (chaque seconde tant que les ports existent : bloc en cours ou juste fini, Organiser ouvert ? sinon ports retirés,
+  ligne MIDI « watchdog » ; durée d'ouverture dans « link ports removed after N s »). Windows : VRAI BUG, une macro ou
+  l'Organiser ouvrait le lien et il restait jusqu'à la fermeture de l'appli (PING toutes les 6 à 60 s, le script de FL
+  réveillé sans cesse) → même règle que le Mac (`MidiLink.Use/Release/MacroEnded`, `LinkWatch` du cœur), ports de
+  Windows MIDI Services créés seulement quand le lien sert puis retirés (pas encore vu sur un vrai PC 25H2 : FL
+  revoit-il l'appareil revenir ?). La vraie cause chez lui n'est pas prouvée : le journal (lignes MIDI) le dira.
+- 08/11 (4) : « dans le lisez-moi et README, le changement de thème ne fonctionne pas » → les thèmes passaient par un
+  script, que l'aperçu du Finder (barre d'espace) n'exécute pas ; maintenant trois cases radio cachées et `:has()` en
+  CSS : vérifié avec JavaScript coupé sur les quatre pages (Noir → Orange → Papier).
+- 08/11 (5) : « un avertissement dans le style suisse… pas avec un logo, un emoji d'attention, peut-être un point
+  orange » → carré plein orange devant le texte partout (Mac : 30 endroits, barre des menus comprise ; Windows : le
+  dessin « warning » de MacLook).
+- 08/11 (6) : mute / solo sans le lien. Ses explications (captures du Mixer, de la Playlist et du Channel rack) : le
+  rond rose sous « Insert 2 », à gauche des boutons et du numéro d'un son, en bas à droite de « Track 1 » ; clic gauche
+  = mute, ⌘ + clic = solo ; S ne fait le solo que dans le Mixer ; « ce sera la piste sélectionnée, pas besoin de
+  montrer ». → `MuteDots` (Mac et Windows) : taches de couleur franche, petites et rondes, alignées à pas réguliers ;
+  la série dont la piste contient le dernier clic ; rond éteint déduit des voisins. Essayé sur sa capture du Mixer :
+  chaque clic (nom, fader, Master) tombe sur le bon rond, jamais sur les voyants « Slot » à droite. Ancien
+  apprentissage (MuteSwitch, « Montrer le bouton mute ») retiré, réglage effacé.
+- 08/11 (7) : vidéo 12.46 et message (« bouton mute introuvable », actions à enlever, Master en mono à l'envers).
+  Cause trouvée sur les images de la vidéo : trois voyants colorés de la barre d'outils de FL formaient une « rangée »
+  prise pour un Mixer, et la règle « voyants des effets à droite du Mixer » écartait alors la colonne du Channel rack ;
+  en solo, les autres ronds du Mixer sont rose terne (ni gris ni francs). Corrigé (rangée ≥ 4 ronds, ronds ternes,
+  séries allumées d'abord) et vérifié sur ses images. Actions retirées des listes, renommées ; mono à droite.
+- 08/11 (8) : couleurs récentes gardées avec le compte (dans le profil de la sauvegarde, pas de nouvelle colonne à
+  coller dans Supabase) ; Windows a maintenant aussi sa rangée « Récentes » dans les choix de couleur de l'Organiser.
+- 08/11 (9) : vidéo 12.54 (« poser un marqueur… mettre un bouton en dessous, nommer le marqueur » ; « armer la piste si
+  éteinte… dans playlist ça render, ça consolide… renomme-la en consolider une track dans playlist… utilisable que
+  dans playlist » ; animation du glisser ; carrés orange ; couleurs récentes au compte). Marqueur : champ « Nom du
+  marqueur », envoyé au script (opération 27) ; sans nom, rien ne change. Consolider : action faite dans la fenêtre de
+  FL (pas de fonction du script pour ça) ; la piste cliquée doit être un en-tête de la Playlist (rond mute à droite du
+  clic), sinon rien n'est cliqué ; « Consolidate… » lu dans le menu au moment du clic. Ni l'un ni l'autre vus sur le
+  vrai FL.
+- 08/11 (10) : Windows donné à des amis (« pas du tout bien… FL crack ne marche pas… écrire à l'équipe ne fonctionne
+  pas… loopMIDI, Organiser ne fonctionnent pas… Avast a vu un virus… même le bouton enregistrer n'est pas là »).
+  Diagnostic d'un ami : `étape=attente-openFl`, `FL ?` → FL jamais reconnu (signature exigée) : reconnu maintenant à son
+  programme. Écrire à l'équipe : serveur vérifié (insertion sans compte acceptée, refus seulement de la règle de
+  longueur) ; l'appli Windows ne renvoyait pas sans le compte quand le jeton était refusé, et un échec du presse-papiers
+  pouvait la faire tomber. Ports créés par l'appli via le pilote de loopMIDI. Pages Windows alignées sur les photos du
+  Mac (CI e88f658). Antivirus : pas de solution sans certificat ; la CI signe dès qu'un certificat est fourni.
+- 08/11 (11) : « ça ne fonctionne toujours pas le midi dans windows » (diagnostic : Windows 11 23H2, FL 26.1.4,
+  `ports oui · lien muet · étape=attente-noResponse`). Cause : depuis le matin, les ports n'étaient créés que le temps
+  du lien (comme le Mac, pour « FL rame »). Sous Windows, FL ne lit ses appareils MIDI qu'à son ouverture (manuel
+  d'Image-Line : « Refresh device list » pour un appareil arrivé après ; forums : un appareil retiré peut le faire
+  tomber) : il ne voyait jamais les ports. Maintenant : ports créés au lancement de l'appli et gardés jusqu'à sa sortie,
+  lien (messages) toujours seulement quand il sert ; FL ouvert avant les ports → « Quitte et rouvre FL » (Organiser,
+  bouton), « Relance FL Studio » (macros, accueil). Diagnostic : qui a fait les ports et « FL ouvert avant ». Pas
+  encore vu sur un PC.
+- 09/11 : « ça ne fonctionne toujours pas pourtant tout est connecté » (capture de MIDI Settings, Windows) : entrée
+  « FL Shortcuts » (script, 236), sorties « FL Shortcuts » ET « FL Shortcuts Retour » toutes deux sur 236, entrée
+  « Retour » allumée en generic controller. FL envoie la réponse du script à une seule sortie (celle appariée par le
+  nom) : elle repartait dans la boucle « FL Shortcuts », l'appli écoutait « Retour ». Un seul port maintenant
+  (« FL Shortcuts », dans les deux sens), l'appli lit les deux entrées et garde celle qui apporte le HELLO ; l'entrée
+  « Retour » en generic controller pouvait aussi passer les CC du script (120 à 126 = messages de mode) au son
+  choisi. Compteurs dans le diagnostic. Puis demandes : enregistrement des macros, pages de l'Organiser, listes de
+  plugins de « Cliquer sur… » et tous les blocs comme sur Mac. Faits ensuite : barre d'enregistrement flottante comme le Mac,
+  liste des plugins installés dans « Cliquer sur… », relance de FL une seule fois même après plusieurs clics, nouvel
+  essai de création du port au démarrage de Windows. Restent (demandés le même soir) : pages de l'Organiser identiques,
+  messages « Écrire à l'équipe » reçus par mail, frappe dans FL avec une touche changée (Windows).
+- 09/11 (2) : « bosse organiser de win pour qu'il soit le même que sur mac » : titre, Démarrer, étapes du lien, aide
+  avec les 4 cases de MIDI Settings, écoute/attente/fin entre deux traits, aperçu (barre des familles, en-têtes,
+  poignées, sons glissés vers une autre famille), fenêtre de couleur de FL, largeurs 480/720 ; photos CI comparées à
+  celles du Mac. Touche seule laissée à FL pendant la saisie, un menu ou une boîte (TypingGuard du Mac porté). Essai
+  du MIDI sur la CI proposé puis abandonné à sa demande (« ne fais pas de CI »).
+
+- 09/11 (3) : « que je reçoive les messages d'Écrire à l'équipe… sûrement dans mes mails… quelque chose de simple » :
+  chaque message de la table support_requests part aussitôt par mail (Resend, gratuit, par pg_net depuis Supabase ;
+  clé et adresse dans le Vault de Supabase, jamais dans l'app ni le dépôt ; « Répondre » écrit à la personne si elle a
+  laissé son mail ; un échec du mail ne perd jamais le message). `supabase/messages-par-mail.sql`, étape 11 du README
+  de supabase, à coller par le propriétaire après avoir créé son compte Resend. Essais sur un PostgreSQL ordinaire
+  (Vault et pg_net simulés). Puis « regarde si tu n'as pas oublié des choses » : bloc « Cliquer sur… › Playlist ›
+  Arrangement » porté sur Windows.
+- 09/11 (4) : « des bugs avec l'ouverture de vst/plugin en passant par macro cliquer sur… pour win uniquement », puis
+  « les mêmes dossiers qu'on a utilisés pour Mac… Plugin Database › Installed › Effect et Generator… le même drag and
+  drop » et « je veux que le logiciel Windows soit pareil que Mac… réadapté pour Windows ». Trouvé : la recherche du
+  .fst sous Windows sautait les fichiers marqués « point d'analyse », c'est-à-dire tout Documents synchronisé par
+  OneDrive (réglage par défaut de Windows) → jamais de dépôt, les menus de FL à la place (lent) ; la base n'était
+  cherchée que dans Documents. Secours « More plugins… » : nom exact seulement (le bug du Mac du 03/11), pas de
+  « Find », pas d'essai du menu Add. Tout corrigé comme le Mac. Prochaine étape demandée : revue complète Mac → Windows.
+- 09/11 (5) : 1er mail reçu (« heyyyy how are u ? ») : « Compte : non connecté » alors qu'il l'était (jeton du compte
+  expiré, refusé, renvoyé sans compte : jeton rafraîchi avant l'envoi, Mac et Windows ; pseudo dans le mail) ; « Mode :
+  léger (sans lien MIDI) » faux (« on est avec MIDI ») : remplacé par l'état du lien MIDI ouvert le temps d'une action.
+  Puis « as-tu vérifié que tout était pareil sur Windows ? » : revue Mac → Windows lancée.
+- 10/11 : « l'autre Claude était en train de faire la page de guide après l'installation, le même que sur Mac… je
+  veux le même logiciel des deux côtés et on prend exemple sur le Mac pour Win » : rien du guide n'était dans la
+  branche. Fait : guide Windows identique au Mac (Bienvenue + 4 parties, mêmes textes, « Au quotidien » adapté à
+  Windows), montré après l'accueil ou à la 1re ouverture de la fenêtre, « Revoir le guide » dans l'Aide. Puis revue
+  page par page avec les photos de la CI des deux côtés.
+- 10/11 (2) : « 1, 2, 3, 4, tu fais… pour la 4, comme sur Mac mais pas le liquid glass, une page au-dessus au style
+  suisse… et 5 on attend la CI. Et t'es sûr qu'il manque rien ? » : cartes de la Communauté Windows comme le Mac ;
+  fiche / Partager / Signaler en page posée au-dessus, style suisse, Mac et Windows ; Glisser-déposer dans le créateur
+  Windows ; page Macros Windows (cartes égales, Importer/Exporter à droite, À apprendre) ; « Désinstaller » à part
+  dans le menu de l'icône Windows. Point 5 : la CI a montré l'aperçu à 720 (photo prise trop tôt avant). Manques
+  trouvés en plus côté Windows (Organiser) : pré-master du Mixer, têtes et groupes de familles dans la Playlist et
+  icônes retirées, icônes de FL des familles, corrections « Pas content ? » des sons rangés par leur nom ; macros :
+  élément de menu de FL enregistré → « Menu de FL › … ». Proposés au propriétaire.
+- 11/11 : nouvelle Communauté (suivre des gens, page d'une personne, « Ajoutée N fois », étoiles par macro) en
+  conception : écrans et serveur validés, l'app à valider. Bêta avec limites (« une version bêta… je veux pas que ça
+  devienne payant pour moi… ça bloque les créations de comptes… un compte sur un seul ordinateur ») MISE DE CÔTÉ par le
+  propriétaire (« mets ce que je viens de te dire de côté et continue la communauté »). Choix déjà faits, pour plus
+  tard : 1 000 comptes au plus (le plan gratuit de Supabase se bloque, il ne facture jamais ; téléchargements de GitHub
+  illimités), puis liste d'attente ; garde-fou vers 450 Mo de base ; un compte = un ordinateur, changement
+  d'ordinateur sans limite ; photos gardées sur l'ordinateur (ce qui pèse le plus en envoi) ; serveur de mail à soi
+  d'abord.
+- 11/11 (2) : « seulement… deux envois de mail par heure, ça faudrait qu'on règle » : limite de Supabase sans serveur
+  de mail à soi (2 inscriptions par heure). Rien à changer dans l'app : étape 6 de `supabase/README.md` réécrite pas à
+  pas (adresse Gmail rien que pour l'app, mot de passe d'application, 60 mails par heure ; plus tard Brevo avec le
+  domaine du site, 300 par jour). À FAIRE PAR LE PROPRIÉTAIRE dans Supabase. Puis « il y a tout ce que tu m'as écrit
+  qui a été fait sauf le grand 2 » : la partie 2 du README (relier l'app au serveur) est déjà faite dans l'app, marquée
+  « rien à faire » ; vérifié d'ici avec la clé publique : les 9 tables sont là, inscription par mail avec code.
+- 11/11 (3) : « fait ce qui n'a pas encore été fait et fait la communauté je valide ». Windows comme le Mac :
+  pré-master du Mixer, piste de tête par famille dans la Playlist (sons groupés dessous, plus d'anciennes icônes),
+  « Pas content ? » sur tous les sons (nom codé, même clé SHA-256 que le Mac), menus de FL enregistrés → « Menu de FL ›
+  … » / raccourci / « Cliquer sur… » (`SmartClicks`, menus ouverts lus au clic). Reste : les icônes de FL sous Windows
+  (pose par clic droit › « Change icon… » et grille, jamais faite sur Windows). Nouvelle Communauté (Mac et Windows,
+  spec du jour) : serveur `supabase/communaute-suivre.sql` (étape 12, À COLLER PAR LE PROPRIÉTAIRE ; essais
+  `supabase/tests/communaute-suivre*.sql` passés sur PostgreSQL 16), vitrine, abonnements, page d'une personne, ajouts
+  comptés, étoiles, point rouge ; sans le fichier du serveur, la Communauté d'avant.
+- 11/11 (4) : « dans communauté le compte j'aime pas le carré à côté du nom et tu peux mettre le nom à la place de
+  communauté et enlever communauté » : page d'une personne, son pseudo à la place du titre « communauté. » (Mac et
+  Windows), plus la ligne « ← encadrée + nom » ; flèche seule sans cadre devant le titre, « Communauté » de la barre
+  de gauche ramène aussi à la liste ; Suivre à droite de la photo et des abonnés.
+- 12/11 : capture de la Communauté « Erreur du serveur : Could not embed because more than one relationship was found
+  for 'shares' and 'profiles' » après le collage de communaute-suivre.sql. Cause : adds et ratings avaient la clé
+  (share_id, user_id) ; PostgREST prend une telle table pour un lien direct (plusieurs-à-plusieurs) entre partages et
+  profils, donc 3 liens et « author:profiles(username) » refusé, pour toutes les versions de l'app. Les essais SQL ne
+  voyaient pas PostgREST : essai `communaute-relations.sql` (sa règle, appliquée au catalogue), rouge sur la base du
+  11/11 puis vert. Correction : `id` + `*_une_fois`, appliquée par le fichier recollé, lignes gardées. Téléchargement
+  de PostgREST pour le vérifier en vrai refusé ici (code venu de l'extérieur).
+- 12/11 (2) : « les icônes ne fonctionnent pas… il ne change pas les couleurs sur ceux qui ont déjà des couleurs » +
+  diagnostic `appliqué-interrupted`, `page remise 5`. Le code ne garde aucune couleur ; l'application s'arrêtait
+  entièrement au 5e accroc du Channel rack (compté sur toute la page) : patterns, Mixer, Playlist, icônes jamais
+  faits. Contraire au choix du 07/11 (un accroc n'arrête que les icônes). Maintenant : page seule arrêtée, accrocs
+  de suite, causes dans le diagnostic ; Mac et Windows, essais `PageThatKeepsLeavingButComesBackIsFinished`.
+  Pourquoi FL ne restait pas devant chez lui : à lire dans son prochain diagnostic (ligne `remise …`).
+- 12/11 (3) : téléchargement Mac, 2e « Autoriser » (son de FL) : la petite fenêtre de macOS et la page des Réglages
+  s'ouvraient ensemble, et les Réglages restaient ouverts après « Quitter et rouvrir ». Déjà dans la liste : la page
+  seule, devant ; une fois donné : Réglages refermés, l'app devant. Pas vu sur son Mac.
+- 12/11 (4) : accueil, « faut qu'il y ait un bouton à autoriser au lieu de continuer… le deuxième aussi » : on n'entre
+  qu'avec les deux autorisations (Mac) ou les ports prêts (Windows) ; le grand bouton fait ce qui manque.
+- 12/11 (5) : icônes de l'Organiser « très long… à l'instant T… pas dans Mixer ni Playlist ». Playlist : marchait au
+  2e essai (numéros appris au 1er). Channel rack : un raté (Perc) arrêtait tout → sauté. Ses 2 projets lus : chaque
+  son a toujours son 155 ; nom/couleur d'une piste du Mixer juste avant son 236 → icônes connues écrites dans la
+  copie (son, Mixer), vérifié en Python sur son vrai projet (9 sons, 9 pistes, Pré-master et bus non touchés).
+- 12/11 (6) : « le bouton quitter et rouvrir… il ne rouvre pas automatiquement FL Studio ». Mac : un fil
+  d'arrière-plan attendait `isTerminated` d'une app gardée (mis à jour seulement aux tours du fil principal) et lançait
+  FL une fois, sans vérifier ni journal. Maintenant `FLRelauncher` (fil principal, toutes les 0,5 s, liste relue +
+  `kill(pid, 0)`) et la règle `FLRelaunchPlan` (5 min pour « Enregistrer ? », lancé 1 s après le départ, relancé
+  s'il n'apparaît pas en 20 s, 3 fois au plus, erreur → 2 s) ; Windows pareil (`FlRelaunchPlan`, FL lancé depuis son
+  dossier). Journal `RESTART` (nombres). Cause exacte chez lui pas prouvée : lire `RESTART` s'il recommence.
+- 12/11 (7) : « ça saute 1 sur 2… même dans Playlist, dans Channel rack, ça n'a pas marché… à l'instant T, c'est du
+  bidon » + crash_out_3.flp + diagnostic `appliqué-mismatch` (Baby On Quoi 2). Trouvé : (a) une page relue avec le
+  moindre écart (ordre, une couleur) sortait AVANT de prévoir ses icônes → rien posé, rien appris, donc jamais
+  d'icône écrite dans la copie ni dans la Playlist (« des fois ça marche, des fois non ») ; (b) dans crash out 3,
+  Mixer : icônes une piste sur deux (Mélodie, Kick, Clap, Drums Bus), Channel rack : Arp et Mélodie ratés ;
+  (c) drums = 75 dans le Channel rack mais 105 dans le Mixer : numéros du Mixer appris À PART ; (d) FL écrit l'icône
+  d'une piste du Mixer avant son nom (149, 42, 95, 204). Forum d'Image-Line : aucune table des numéros (~500
+  icônes, sans lien avec la grille) → toujours appris au 1er usage. Fait (Mac et Windows) : icônes posées d'après
+  l'ordre relu même après un écart, 2e essai après 0,8 s, « écart rack couleurs 1/3 »… dans le diagnostic ; Mac :
+  `organizerMixerIconIDs`, `learnMixerIconIDs`, `FLPProject.insertIcons`. Couleurs « pas changées » : cause pas
+  encore vue (lire la ligne `écart` de son prochain diagnostic).
+- 12/11 (8) : diagnostic après 8ba1b2c (« icônes apprises 2 ; mixer 2 ; au 2e essai 9 ; ratées 1 ») + capture : plus
+  d'arrêt, mais Arp oublié au Channel rack, Mélodie au Mixer, rien dans la Playlist (aucun numéro connu au départ).
+  Les clics restent fragiles (9 sur 14 au 2e essai) → Mac : dans la copie, UN clic par icône et par page, seulement
+  pour apprendre son numéro (`placeIcons(oncePerIcon:)`) ; puis toutes les icônes connues écrites dans la copie
+  enregistrée (Channel rack 155, Mixer 95, Playlist octets 8-12 du 238 : `iconsToWrite`, `withAllIcons`,
+  `FLPProject.trackIcons/withTrackIcons`), réécrite sous `_N+1` (jamais par-dessus), rouverte (marque comme à
+  l'ouverture, nom remis d'après ce que FL montrait), enregistrée, l'ancienne `_N` à la Corbeille
+  (`ProjectFileAccess.trash`) ; rien à écrire = rien de rouvert. Diagnostic `icônes fichier rack a mixer b playlist c
+  rouverte N s`. Windows : à faire (il pose encore toutes ses icônes par clics, sans rien apprendre).
+- 12/11 (9) : Windows, même rangement par le fichier : il ne pose aucune icône par clics (« pas encore posées sur
+  Windows »), donc n'apprend rien ; il écrit dans la copie les icônes dont le numéro est dans `FlIconIds` (Channel
+  rack, Mixer à part, Playlist par `FlpIcons.PlaylistIcons`), sans clic. Table VIDE : à remplir avec la ligne
+  « icônes connues rack … mixer … » du prochain diagnostic du Mac.
+- 12/11 (10) : « tu vois tes 500 icônes ? moi j'ai que ça » (capture de la grille : 123 cases sans la croix ni la
+  colonne Channel ; les 500 du forum = toutes les icônes internes de FL). Proposé puis accepté (« oui stp… c'est juste
+  pour moi… on le fait une fois ») : apprentissage unique des 123 numéros sur un projet vide (`OrganizerIconLearner`,
+  bouton « Apprendre les icônes de FL » de l'écran Démarrer), table copiée puis mise dans l'app pour tous (Mac et
+  Windows). « Ne traduis pas » : plus de traductions pour cet outil. CI : `.pkg` publié juste après la compilation
+  (« donne-moi le lien ici »).
+- 13/11 : 1er essai de l'apprentissage (capture : « 0 sur 123… Nom du son introuvable dans le Channel rack de FL »,
+  table vide ; « c'est un sampler ») : un projet vide n'a qu'UNE ligne, or `IconTargets.line` voulait au moins 2 noms
+  alignés → un seul nom attendu et lu UNE seule fois est pris (deux fois : doute) ; lignes renommées « Rack N » et
+  pistes « Mix N » (jamais le même texte) ; un Channel rack raté n'empêche plus le Mixer ; « Copie la table… »
+  seulement si quelque chose est appris.
+- 13/11 (2) : apprentissage réussi chez lui (123/123 au Channel rack ET au Mixer, tables IDENTIQUES, aucun doublon ;
+  « j'ai pas eu pour Playlist ? » → mêmes numéros : une seule liste chez FL, et la Playlist marchait déjà le 12/11 avec
+  ceux du Channel rack). Table dans l'app : Mac `FLIconNumbers.swift` (avant les numéros appris en rangeant),
+  Windows `FlIconIds` (essai qui compare avec le Mac). Bouton d'apprentissage retiré (« c'est juste pour moi »).
+- 13/11 (3) : capture après 69d8b4a (« tout est génial sauf dans channel rack ça n'a pas tout rangé » : Playlist,
+  groupes et icônes bons ; Channel rack dans le désordre). Ses diagnostics d'avant disaient déjà `remise rack touche
+  sans effet 5` puis `remise rack fenêtre playlist 5` : en remontant les sons par ⌥↑, FL donnait la main à la Playlist
+  et, au 5e accroc, le Channel rack était laissé tel quel. → Channel rack RANGÉ DANS LA COPIE, avant que FL l'ouvre
+  (comme la Playlist et les icônes) : FL écrit ses canaux dans l'ordre du Channel rack, numérotés par leur place (64 =
+  0, 1, 2…), et les notes (224, canal à la place 6) et les clips audio (233, place 6) les désignent par ce numéro
+  (vu sur ses 3 projets : deux canaux ajoutés décalaient les suivants avec leurs notes). Chaque canal déplacé avec ses
+  événements jusqu'au canal suivant, aux patterns (FL écrit leurs noms après le premier canal), à l'arrangement ou au
+  Mixer ; ce qui suit chaque place y reste. Garde-fous (sinon ⌥↑ comme avant, `rack copie non`) : numéros 0, 1, 2…
+  dans l'ordre, aucun layer (3) ni clip d'automation (5), aucun 223/227/234, aucun 94 dans un canal, tous les canaux
+  finissent par le même événement (51 chez FL). Le projet et le plan suivent (`OrganizerResult.reordering`,
+  `OrganizerPlan.reordered` : les sons sans note restent à supprimer) ; la marque d'un canal remise à son nom d'avant.
+  Mac `FLPChannelOrder.swift`, Windows `FlpChannelOrder.cs`. Vérifié avec le code de Windows sur ses 3 projets
+  (original, copie, crash out 3 : noms, notes, 49 clips audio, patterns suivis ; ranger puis remettre = même fichier).
+  Diagnostic : `rack copie N reste M` (M : remontées encore à faire dans FL, 0 attendu).
+- 13/11 (4) : capture de la demande de macOS « Enregistrement de l'écran » (« cette page n'a pas besoin de s'ouvrir
+  vu que l'autre s'ouvre ») : l'« Autoriser » des icônes de l'Organiser ouvrait la demande de macOS ET la page des
+  Réglages. → `ScreenLook.askOneWindow()` : app déjà dans la liste → la page seule ; sinon la demande de macOS seule
+  (la toute première fois) ; sinon la page seule (Organiser, son de FL de l'Organiser, créateur de macros). Et plus
+  aucune icône ne demande l'écran : toutes ont leur numéro (`iconsNeedScreen` ne compte que les inconnues). Windows :
+  aucune autorisation de ce genre (rien à changer).
+- 13/11 (5) : essayé chez lui avec 39eb10a : « tout fonctionne bravo » (Channel rack rangé dans la copie, une seule
+  fenêtre pour « Enregistrement de l'écran »).
+- 13/11 (6) : ses réponses dans l'artefact « Essais FL Shortcuts » (23 essais Mac cochés ; notes sous des cases OK) :
+  1.3 guide « il faut que les carrés deviennent orange sur chaque page » → le carré du titre d'une partie est plein
+  d'orange (Mac `.environment(\.hoverFilled, true)` sur `MorphIcon`, Windows `GuideView.Part`) ; 2.1 « ça fait
+  1>2>1 » (le 1er raccourci prend la touche du 2e, puis le 2e prend l'ancienne touche du 1er : renvoyé au 1er sans fin)
+  → une touche d'origine de FL ne compte plus quand son entrée a été déplacée sur une autre touche (`clashes` /
+  `CatalogRows.Clashes` : `current == k` ; « touche prise » seulement sur la touche de maintenant), essais
+  `testTwoFLKeysCanBeSwapped` / `TwoFlKeysCanBeSwapped` (rouge sans la correction) ; 3.1/3.2 « Ouvre un VST : ça ne
+  fait pas le drag and drop » : cause à lire dans son macro.log (lignes PLUGIN) ; 4.9-4.11 (Revenir, Valider, Pas
+  content ?) : « revoir la beauté et l'ergonomie de la page » → maquette à proposer.
+- 13/11 (7) : « Ouvre un VST » : « ça ouvre le Channel rack mais ça ne cherche pas à faire le drag and drop, ça va
+  directement dans le Add… les plugins ça fonctionne, c'est les VST qui ne fonctionnent pas » (le .fst glissé à la
+  main marche). Cause trouvée dans le code : après le dépôt, l'app attendait au plus 2 s que FL termine la réception
+  (fin de la session de glisser, Mac ; retour de DoDragDrop, Windows). FL charge le plugin PENDANT qu'il reçoit le
+  fichier : immédiat pour un plugin de FL, souvent plus de 2 s pour un VST → dépôt jugé raté → menu Add (et risque de
+  deux fois le même plugin). Maintenant, pour un plugin : jusqu'à 30 s, et FL encore occupé = pris, jamais de menu
+  derrière (`PresetDrop.drop(endWait:slowIsTaken:)`, `dropFile(plugin:)` ; Windows `PresetFiles.Drop(endWaitMs,
+  slowIsTaken)`, `IFlDriver.DropFile(plugin:)`). Presets du Mixer : 2 s comme avant. Journal `DROP … still in FL after
+  N ms: taken, still loading`. Pas encore vu chez lui : sinon, lignes PLUGIN/DROP de son macro.log.
+- 13/11 (8) : maquette des fins (artefact privé `WEojWWarY4LkDi2ckQXykn`, tableaux 1-2 corrigés à ses retours :
+  fin = GARDER / REVENIR sans texte dessous, « Décider plus tard », « Copier le diagnostic » ; question d'après =
+  « tu gardes la version rangée. » (point carré collé au mot), Garder / Revenir comme avant / Plus tard, plus les noms
+  des fichiers ni « Rien ne bouge… ») : À FAIRE dans l'app une fois validée. « Pas content ? » : « beaucoup plus
+  simple… pour chaque case qu'on puisse modifier un truc… regarde sur internet » + « l'ordinateur » à la place de
+  « l'IA » : à proposer. Fait tout de suite (Mac et Windows) : plus le carré orange de l'écran « Démarrer » ; écoute,
+  attente et rangement sans les traits gris (le trait blanc du titre seul, « les traits ça nique tout »). Vidéo 13.36
+  (« le pinceau de FL reste en curseur… que le curseur change dès que tu as le curseur sur la page… partout ») :
+  `ArrowCursorKeeper` (OrganizerWindow.swift) : l'app derrière FL, la flèche dès que la souris entre ou bouge sur
+  une de ses fenêtres (Organiser, fenêtre principale, menu de l'icône, listes suisses, petites fenêtres, accueil,
+  question de la version, Accessibilité, désinstallation, barre d'enregistrement), curseurs posés exprès gardés
+  (bords, texte, main) ; Windows : rien (Windows remet le curseur de la fenêtre sous la souris). « Quand je clique sur
+  guitare… encore du liquid glass » : liste suisse (une rubrique par famille, sorte cochée ; « Écrire… » tapé dans la
+  case), et PLUS AUCUNE bulle de macOS : `swissPopover` (GlassStyle.swift, petite fenêtre carrée, fond de l'app,
+  trait d'encre, Échap / clic ailleurs) à la place de tous les `.popover` (couleurs, icônes, case du Mixer, Détails,
+  MIDI Settings en grand) ; carré rouge (plus le rond) dans la barre d'enregistrement, main rouge (plus bleue) dans la
+  bulle « Montre-moi ». Windows : liste des sortes en menu suisse (plus de sous-menus), menu de la famille suisse,
+  bulles « Nom du son » / « Piste du Mixer » carrées (`FlatFlyout`). NE PAS remettre `.popover` ni `Menu` de SwiftUI.
+- 13/11 (9) : « Pas content ? » : recherche (Microsoft, guide HAX 9A « corriger chaque classement là où il est » ;
+  Google Photos et Gmail : une correction d'un geste, sur une seule chose ; motifs « pouce en bas + quelques
+  raisons » des produits d'IA) → proposé dans la maquette `WEojWWarY4LkDi2ckQXykn` (tableaux 3, 3a-3c) : plus de cases
+  à cocher, une ligne par chose à corriger (un son mal rangé, le Mixer, la Playlist, les couleurs) qui ouvre l'endroit
+  où on corrige, gardé pour les prochains rangements (famille et sorte d'un son, départ de chaque famille dans le
+  Mixer + bus + pré-master, ordre des familles, couleurs de base) ; « Autre chose ? » part à l'équipe. À valider avant
+  l'app. Déjà fait dans l'app (Mac et Windows) : « l'IA » → « l'ordinateur » dans tous les textes affichés.
+- 13/11 (10) : « Ouvre un VST » : « ça ne fonctionne toujours pas pourtant c'est pas compliqué image line > fl studio >
+  presets > plugin database > installed > generators > vst3 » (vidéo : Diva.fst glissé à la main dans le Channel rack,
+  Diva s'ouvre). Le fichier était bien cherché là. Deux défauts trouvés dans le code (Mac et Windows), sans le journal
+  pour dire lequel le bloquait : (1) le bloc d'avant du modèle (« Ouvrir une page › Channel rack ») appuie sur F6 et
+  rend la main aussitôt ; le dépôt lisait la fenêtre tout de suite, ne voyait pas encore le Channel rack et appuyait
+  de nouveau sur F6 : FL le REFERMAIT, puis menu Add (c'était « ça ouvre le Channel rack mais ça ne cherche pas à faire
+  le drag and drop »). Maintenant la page est lue jusqu'à 1,5 s sans rien toucher, sa touche une seule fois si elle
+  n'est toujours pas là, relue jusqu'à 2,5 s (`DropPageWait`) ; (2) Mac : le titre « Channel rack » n'était reconnu que
+  lu seul (Windows acceptait déjà « Channel rack All » et les deux mots) ; maintenant les deux acceptent aussi l'icône
+  du haut-parleur lue devant (« 4) Channel rack », `PluginDrop.titles` / `Titles`). Journal `PLUGIN … (title seen|not
+  seen, N reads, key pressed|not pressed)`. Essais : Windows sur le faux FL (`PluginDropWaitsForThePageThePreviousBlock
+  Opened`, rouge avant), Mac sur les parties pures. Pas encore vu chez lui.
+- 13/11 (11) : « enfait ça fonctionne mais que si j'installe le lien midi d'organiser ducoup je pense que la meilleur
+  des idées c'est d'installer le lien midi dès l'installation du logiciel » (« Ouvre un VST » marche une fois le lien
+  installé). Fait sur Mac et Windows : lien jamais installé (aucune clé) → posé TOUT SEUL au lancement, sans question
+  ni fenêtre, dans le dossier « Settings/Hardware » de FL s'il existe (Mac `FLScriptInstaller.installIfMissing` :
+  dossier enregistré puis celui par défaut ; Windows `AppController.InstallScriptIfMissing` + `FlScriptPlace` :
+  dossiers notés par FL puis chaque Documents, OneDrive compris ; jamais créé si FL n'a jamais été ouvert ; jamais en
+  mode photos de la CI). FL le relie tout seul à « FL Shortcuts » (`supportedDevices` du script) à son prochain
+  lancement ; FL ouvert pendant la pose → « FL à rouvrir » noté (`scriptNeedsFLRestart`). Accueil : 3e ligne « Lien
+  avec FL » (« Installé », sinon « À installer » qui demande le dossier de FL), qui n'empêche jamais d'entrer. Le lien
+  lui-même reste ouvert le temps d'une action seulement (NE PAS remettre les ports permanents). Journal `LINK`.
+  Essais : `testTheLinkInstallsItselfWhenFLsFolderExists` (Mac), `FlScriptPlaceTests` (Windows).
+- 13/11 (12) : « quand j'ouvre organiser et que je ferme ça re rame… peut être mettre un analyseur qui regarde si le
+  midi sert ou pas et si non utilisé il faut le fermer directement ». Le lien n'existait qu'entre « Démarrer » et la
+  fin du rangement, mais l'aperçu (où l'on choisit familles, sortes, couleurs, parfois longtemps) le gardait alors
+  qu'il n'envoie RIEN à FL : FL voyait l'appareil et ramait. Maintenant (Mac et Windows) le lien est rendu dès la fin
+  de l'écoute (aperçu ou échec), repris le temps de « Organiser » (2 s pour que FL recharge son script), rendu à la fin,
+  comme « Revenir comme avant » (`finishListening`/`FinishListening` → `dropLink`, `apply` → `useLinkAgain`). Le
+  surveillant (`LinkWatch`, chaque seconde) retire les ports dès que personne ne les tient. Essais :
+  `testLinkReleasedAsSoonAsOrganized` (Mac), `LinkIsGivenBackAsSoonAsTheWorkIsDone` (Windows, rouge avant). Si FL rame
+  encore après « Fermer », lire les lignes MIDI de macro.log (`link ports removed after N s (why)`).
+  Maquette des fins : page « les couleurs » = la fenêtre de couleur de l'Organiser à l'identique (roue de FL 16 × 5,
+  luminosité, 10 récentes, #RRGGBB, Hue/Sat/Lum, Red/Green/Blue, Reset/Accept) ; « tu gardes la version rangée » :
+  deux grandes cases Garder / Revenir comme avant avec une mini Playlist (rangée aux couleurs des familles choisies /
+  en désordre), soulevées au survol.
+- 13/11 (13) : « parfait go » (maquette des fins validée, artefact `WEojWWarY4LkDi2ckQXykn`). Fait (Mac et Windows) :
+  fin réussie de l'Organiser = titre « c'est rangé », 3 chiffres (sons rangés, familles, sons sans note retirés), deux
+  grandes cases GARDER (pleine) / REVENIR COMME AVANT (bordée) soulevées au survol, lignes « Pas content ? → » et
+  « Décider plus tard → » (ferme, la question revient à la réouverture), « Copier le diagnostic » souligné. GARDER =
+  la validation tout de suite, sans la question (Mac `OrganizerController.keep` → `CopyApprovalWindow.show(keeping:)`,
+  Windows `Keep` → `AppController.RequestKeep` → `CopyApprovalPrompt.Ask(keepCopy:)`). Question à la réouverture =
+  « tu gardes la version rangée », deux grandes cases à mini Playlist (rangée aux couleurs des familles choisies /
+  grise en désordre) + « Plus tard » (Mac `KeepChoice`, Windows `EndChoices`).
+  « Pas content ? » (fait, Mac et Windows) : « pas content » + une phrase, 4 lignes numérotées (Un son est mal rangé,
+  Le Mixer, La Playlist, Les couleurs ; « N sons corrigés » / « Changé » sur un carré rouge en face), « Autre chose ? »
+  (champ simple, part à l'équipe), Annuler / C'est noté. Pages : les sons (liste suisse famille › sorte par son, case
+  pleine d'encre une fois corrigée, « Aider l'ordinateur de tout le monde » si un son écouté est corrigé), le Mixer
+  (départ de chaque famille, case comme FL ; « Un bus par famille », « Pré-master avant le Master »), la Playlist
+  (familles tirées haut/bas, Channel rack et Mixer suivent), les couleurs (familles à gauche, fenêtre de couleur de FL
+  à droite avec les 10 récentes). « C'est noté » garde couleurs, ordre, bus et pré-master pour les prochains
+  rangements (réglages `organize.buses`/`organize.premaster` sur Mac, `OrganizerBuses`/`OrganizerPremaster` sur
+  Windows) ; « Annuler » remet tout comme à l'ouverture (`restore`/`Restore`). Mac `OrganizerFeedbackView` ; Windows
+  `OrganizerFeedbackPages.cs` (Échap sur une page : retour à la liste) ; le message à l'équipe part enfin aussi sous
+  Windows (`AppController.SendSupport` → `HelpPage.SendQuietly`, avec le compte s'il y en a un). Essais
+  `testFeedbackPagesKeepOrRestoreChoices` / `FeedbackPagesKeepOrRestoreChoices`. Pas encore vu chez lui.
+- 14/11 : capture de MIDI Settings vide (« j'ai tout installé correctement et je n'ai rien dans midi »). Normal sur
+  Mac : « Lien avec FL : Installé » de l'accueil = le script posé dans FL, pas un appareil ; « FL Shortcuts Link »
+  n'existe que pendant une action (Organiser après « Démarrer », bloc qui emprunte le lien), choix du 01/11 contre les
+  saccades de FL. Essai expliqué (Organiser › Démarrer, puis MIDI Settings) : « parfait ça fonctionne bien ». FL voit
+  donc l'appareil arriver sans être relancé (retiré de « Pas encore vérifié »). Proposé, sans réponse : phrase de
+  l'accueil « FL le voit dans MIDI seulement pendant une action » et étape MIDI Settings du mode d'emploi « seulement
+  si l'Organiser te le demande ».
+- 14/11 : « optimise à fond le code », puis « tout le code de A à Z ». Mesure de départ (CI, macOS 26) : 15 Mo et 0 %
+  de processeur au repos, 50 Mo fenêtre ouverte, créateur ~80 Mo stable sur 3 ouvertures ; 9 Mo de ressources (8 Mo
+  pour le modèle de l'IA, déjà compressé). Revu : script de FL (endormi hors usage, 20 passages/s au plus : inchangé,
+  un nouveau script obligerait FL à le recharger), trajet d'une touche (rien lu hors raccourci), analyse du son
+  (Accelerate), surveillances (avis de macOS, pas de boucle), pauses des macros (15-150 ms réglées sur son FL :
+  gardées), serveur (chaque requête de la Communauté a son index : rien à recoller). Fait : Windows, code jamais
+  utilisé retiré (analyseurs .NET + recherche des noms qui n'apparaissent qu'une fois), réglages passés à des fonctions
+  qui ne les lisaient plus retirés, conversion sans boîte, texte comparé sans copie en minuscules, liste lue une fois,
+  tableau créé une fois ; tuto de l'Organiser retiré partout (code, 8 images, photo de la CI, réglage) ; Mac, code
+  jamais utilisé retiré (dont `StyledMenu.swift` en entier), cartes, lignes et touches sans l'abonnement au réglage
+  « verre » ni aux réglages d'affichage qu'elles ne lisaient plus (environ 270 touches par page de raccourcis),
+  dessin en verre retiré (style suisse seul), formateurs des dates et nombres de la Communauté, de la date de la
+  sauvegarde et des étapes de l'Aide créés une fois ; mesure de la CI en un seul passage (le second, « sans verre »,
+  était identique). Gardés exprès : `learnIcons` (sa demande), `ResetPingBackoff` (le Mac s'en sert), `FlagsEx`
+  (forme des données de Windows).

@@ -1,4 +1,4 @@
-# Prompt : recherche approfondie et propositions de code pour FL Shortcut (macOS)
+# Prompt : recherche approfondie et propositions de code pour FL Shortcuts (macOS)
 
 > À coller tel quel dans une nouvelle conversation. Le destinataire n'a accès qu'au dépôt GitHub
 > `anmaprod/fl-shortcut` et ne connaît rien du projet : tout ce dont il a besoin est ici ou dans le dépôt.
@@ -7,7 +7,7 @@
 
 ## 1. Ton rôle et ce que j'attends de toi
 
-Tu travailles pour le propriétaire de **FL Shortcut**, un musicien francophone qui n'est pas développeur. Il est
+Tu travailles pour le propriétaire de **FL Shortcuts**, un musicien francophone qui n'est pas développeur. Il est
 sur un Mac M4 Pro sous macOS 27, avec FL Studio 2026. Tu as deux rôles :
 
 1. **Chercheur.** Tu mènes une recherche technique très approfondie sur tout ce qui peut rendre l'app macOS plus
@@ -37,7 +37,7 @@ recoupe avant de conclure. La profondeur compte plus que la vitesse. La justesse
 
 ## 2. Le projet en bref
 
-**FL Shortcut** ajoute à FL Studio ce qui lui manque : un éditeur de raccourcis clavier et des macros. C'est une
+**FL Shortcuts** ajoute à FL Studio ce qui lui manque : un éditeur de raccourcis clavier et des macros. C'est une
 app de **barre des menus** en SwiftUI, avec quelques fenêtres AppKit.
 
 - **Raccourcis.** Quand FL Studio est au premier plan, une interception clavier (`CGEventTap`) reconnaît les
@@ -237,7 +237,7 @@ chaque technique ci-dessous :
 
 **P00.4 — Le besoin lui-même.**
 - **FL Studio 2025 ou 2026 a-t-il ajouté un éditeur de raccourcis clavier, des macros ou des actions
-  personnalisables ?** Si oui : sur quoi FL Shortcut doit-il se concentrer pour rester utile ?
+  personnalisables ?** Si oui : sur quoi FL Shortcuts doit-il se concentrer pour rester utile ?
 - Quels outils concurrents ciblent déjà FL Studio sur Mac (applications, profils Stream Deck ou Metagrid, macros
   Keyboard Maestro), et que font-ils mieux ou moins bien que nous ?
 - Sources :
@@ -289,7 +289,7 @@ le chemin actuel comme repli.
 - **Comment :** confronte tes trouvailles à `docs/contexte/02-fl-studio-surface.md`, `Resources/device_FLShortcut.py`
   et `PROTOCOL.md`.
 - **Rendu :**
-  - un tableau « fonction → utilité pour FL Shortcut → version mini → source » ;
+  - un tableau « fonction → utilité pour FL Shortcuts → version mini → source » ;
   - une **proposition d'extension du protocole**, rétrocompatible (la version reste 2), avec le code Python du
     script et le code Swift côté app.
 

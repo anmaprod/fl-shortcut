@@ -1,5 +1,7 @@
 // Audit : REL-07 (instance unique vérifiée avant toute création de hook, de port ou de profil),
-//         WIN-06/07 (DLL chargées seulement depuis le dossier de l'appli et System32 : ni dossier courant, ni PATH).
+//         WIN-06/07 (DLL jamais chargées depuis le dossier courant : SetDllDirectory("")). Pas de
+//         SetDefaultDllDirectories : le Windows App SDK charge ses classes avec LOAD_WITH_ALTERED_SEARCH_PATH, refusé
+//         après lui (E_INVALIDARG) : la toute première fenêtre faisait tomber l'appli (débogueur de la CI, 26/10).
 using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
 
@@ -10,29 +12,122 @@ public partial class App : Application
     private static Mutex? _single;
     private MainWindow? _window;
 
-    private const uint LOAD_LIBRARY_SEARCH_DEFAULT_DIRS = 0x00001000;
-
-    [DllImport("kernel32.dll", SetLastError = true)]
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SetDefaultDllDirectories(uint directoryFlags);
+    private static extern bool SetDllDirectory(string lpPathName);
 
     public App()
     {
-        SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+        SetDllDirectory("");                        // retire le dossier courant de la recherche des DLL
+        Photos.Note("appli : démarrage");
+        UnhandledException += (_, e) => Photos.Note("exception : " + e.Exception);
         InitializeComponent();
+        Photos.Note("appli : ressources chargées");
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        _single = new Mutex(initiallyOwned: true, @"Local\FLShortcut.SingleInstance", out var created);
-        if (!created)
+        // Désinstallation (installer/FLShortcut.iss, [UninstallRun]) : l'app déjà fermée, on retire ses traces hors de
+        // son dossier, comme le Mac, puis on quitte. Ni fenêtre, ni hook, ni réglage écrit.
+        if (Environment.GetCommandLineArgs().Any(a => string.Equals(a, "--uninstall-cleanup", StringComparison.OrdinalIgnoreCase)))
         {
-            // Une autre instance tourne déjà : on ne crée ni hook ni port en double.
+            FLShortcut.Core.UninstallTraces.RemoveAll(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
             Exit();
             return;
         }
+        // Essai de la CI (08/11) : les ports du lien par Windows MIDI Services (créés, vus, retirés), sans fenêtre ni
+        // hook ; le compte rendu dans le seul .txt donné. Sur la machine de la CI, Windows ne sait pas encore les
+        // créer : l'essai montre que l'appli le dit sans tomber.
+        var cmd = Environment.GetCommandLineArgs();
+        var check = Array.FindIndex(cmd, a => string.Equals(a, "--midi-ports-check", StringComparison.OrdinalIgnoreCase));
+        if (check >= 0 && check + 1 < cmd.Length && cmd[check + 1].EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
+        {
+            var lines = new List<string>();
+            FLShortcut.Core.AppLog.Sink = (area, line) => lines.Add(area + " " + line);
+            var before = Services.MidiLink.PortsExist();
+            var ready = Services.MidiServicesPorts.EnsureIfNeeded();
+            var byWindows = Services.MidiServicesPorts.CreatedByWindows;
+            Services.MidiServicesPorts.RemoveCreated();
+            var after = Services.MidiLink.PortsExist();
+            File.WriteAllLines(cmd[check + 1], new[]
+            {
+                $"ports avant : {before}", $"ports prêts : {ready}", $"créés par Windows : {byWindows}",
+                $"ports après retrait : {after}",
+            }.Concat(lines));
+            Exit();
+            return;
+        }
+        // Essai des macros de la CI : un faux FL dans l'appli et les vrais blocs joués dessus, puis l'appli se ferme.
+        if (MacroSelfTest.Folder is { } essai)
+        {
+            Microsoft.UI.Xaml.Application.Current.DispatcherShutdownMode = Microsoft.UI.Xaml.DispatcherShutdownMode.OnExplicitShutdown;
+            var queue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+            MacroSelfTest.Run(essai, () => queue.TryEnqueue(Exit));
+            return;
+        }
+        // Mode photos de la CI : les écrans de l'Organiser avec des sons d'exemple, en PNG, puis l'appli se ferme.
+        // Rien n'est envoyé à FL ; ni hook clavier, ni port MIDI.
+        if (Photos.Folder is { } folder)
+        {
+            var ui = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+            Photos.Take(folder, () => new AppController(ui));
+            return;
+        }
+        // Relancée après un changement de thème (MainShell.ChooseTheme) : attend que l'ancienne copie soit partie.
+        var relaunch = Environment.GetCommandLineArgs().Any(a => string.Equals(a, "--theme-relaunch", StringComparison.OrdinalIgnoreCase));
+        _single = new Mutex(initiallyOwned: !relaunch, @"Local\FLShortcut.SingleInstance", out var created);
+        if (relaunch)
+        {
+            try { created = _single.WaitOne(TimeSpan.FromSeconds(15)); }
+            catch (AbandonedMutexException) { created = true; }    // l'ancienne copie est partie : la main est à nous
+        }
+        if (!created)
+        {
+            // Une autre instance tourne déjà : on ne crée ni hook ni port en double ; elle montre où est son icône.
+            ShowSignal.Raise();
+            Exit();
+            return;
+        }
+        Services.AppLogFile.Install();              // journal des macros et de l'Organiser (mots fixes et nombres)
+        // Le thème choisi (Mon compte), avant la première fenêtre : les pages sont construites dans ses couleurs.
+        // Seulement avec un compte connecté (07/11, comme le Mac) : sinon Noir.
+        MacLook.Theme = FLShortcut.Core.ThemePalette.Shown(Services.AppSettings.Load().Theme,
+                                                           Services.AccountStore.Load() is not null);
+        MacLook.ApplyTextFieldLook(Resources);
         _window = new MainWindow();
-        var startHidden = Environment.GetCommandLineArgs().Any(a => string.Equals(a, "--tray", StringComparison.OrdinalIgnoreCase));
+        // Comme le Mac (03/11) : FL Shortcuts vit dans la zone de notification ; la fenêtre au premier lancement
+        // seulement. « --tray » (démarrage de Windows) : jamais de fenêtre ni de bulle. Relancée pour le thème : sur
+        // Mon compte, là où il a été choisi.
+        var startHidden = !relaunch
+                          && (Environment.GetCommandLineArgs().Any(a => string.Equals(a, "--tray", StringComparison.OrdinalIgnoreCase))
+                              || !_window.ShowAtLaunch);
         if (!startHidden) _window.Activate();
+        if (relaunch) _window.ShowPage("compte");
+        _window.Launched(windowShown: !startHidden);
+    }
+}
+
+/// FL Shortcuts relancé alors qu'il tourne déjà : la 2e copie le dit à la première (bulle de son icône), puis se ferme.
+internal static class ShowSignal
+{
+    private const string Name = @"Local\FLShortcut.Show";
+
+    public static void Raise()
+    {
+        try
+        {
+            using var signal = EventWaitHandle.OpenExisting(Name);
+            signal.Set();
+        }
+        catch { /* première copie pas encore prête : rien de plus */ }
+    }
+
+    public static void Listen(Action onSignal)
+    {
+        var signal = new EventWaitHandle(false, EventResetMode.AutoReset, Name);
+        new Thread(() => { while (signal.WaitOne()) onSignal(); }) { IsBackground = true, Name = "FLShortcut.Show" }.Start();
     }
 }

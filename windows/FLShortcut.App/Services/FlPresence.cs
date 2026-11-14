@@ -1,6 +1,7 @@
-// Audit : WIN-04 (FL identifié par le chemin complet de l'exécutable ET la signature Authenticode
-//         d'Image-Line, vérifiée par WinVerifyTrust, jamais par le titre de fenêtre), WIN-05 (FL lancé en
-//         administrateur détecté et signalé, jamais d'élévation), audit 04 (version lue dans FL64.exe).
+// Audit : WIN-04 (FL identifié par le chemin complet de son exécutable, jamais par le titre de fenêtre ; la signature
+//         Authenticode d'Image-Line, vérifiée par WinVerifyTrust, n'est plus exigée depuis le 08/11 — « que la
+//         personne qui a même un crack puisse travailler avec FL Shortcuts » — seulement notée pour le diagnostic),
+//         WIN-05 (FL lancé en administrateur détecté et signalé, jamais d'élévation), audit 04 (version lue dans FL64.exe).
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -11,12 +12,12 @@ using FLShortcut.Core;
 
 namespace FLShortcut.App.Services;
 
-internal sealed record FlProcessInfo(uint Pid, string Path, FlVersion? Version, bool Elevated);
+/// `Signed` : signature d'Image-Line valide (diagnostic seulement : FL est reconnu sans elle).
+internal sealed record FlProcessInfo(uint Pid, string Path, FlVersion? Version, bool Elevated, bool Signed = false);
 
 internal static class FlPresence
 {
-    private static readonly string[] ExeNames = { "FL64.exe", "FL.exe", "FL64 (scaled).exe" };
-    private const string SignerMarker = "Image-Line";
+    private static readonly string[] ExeNames = FlRecognition.ExeNames;
 
     /// (pid, heure de création) → FL ou non. Un pid réutilisé par un autre processus change d'heure de création.
     private static readonly ConcurrentDictionary<(uint, long), FlProcessInfo?> ByProcess = new();
@@ -61,8 +62,30 @@ internal static class FlPresence
         }
     }
 
-    /// FL Studio est-il lancé (n'importe quelle instance signée) ?
+    /// FL Studio est-il lancé (n'importe quelle instance, signée ou non) ?
     public static bool IsRunning() => RunningInstance() is not null;
+
+    /// Un processus porte le nom de FL Studio mais n'est pas reconnu (signature d'Image-Line absente ou invalide) :
+    /// dit tel quel à l'utilisateur, au lieu de « FL Studio n'est pas ouvert » et de raccourcis qui ne font rien.
+    public static bool NamedButUnrecognized()
+    {
+        foreach (var name in ExeNames)
+        {
+            Process[] procs;
+            try { procs = Process.GetProcessesByName(System.IO.Path.GetFileNameWithoutExtension(name)); }
+            catch { continue; }
+            var unrecognized = false;
+            foreach (var p in procs)
+            {
+                using (p)
+                {
+                    if (Identify((uint)p.Id) is null) unrecognized = true;
+                }
+            }
+            if (unrecognized) return true;
+        }
+        return false;
+    }
 
     public static FlProcessInfo? RunningInstance()
     {
@@ -80,7 +103,21 @@ internal static class FlPresence
                 }
             }
         }
-        return null;
+        // Copie renommée (« FL Studio 2024.exe »…) : les processus dont le nom commence par « FL », reconnus à leurs
+        // informations de version.
+        Process[] all;
+        try { all = Process.GetProcesses(); }
+        catch { return null; }
+        FlProcessInfo? found = null;
+        foreach (var p in all)
+        {
+            using (p)
+            {
+                if (found is not null || !FlRecognition.MaybeFl(p.ProcessName)) continue;
+                found = Identify((uint)p.Id);
+            }
+        }
+        return found;
     }
 
     private static FlProcessInfo? Inspect(IntPtr h, uint pid)
@@ -90,18 +127,21 @@ internal static class FlPresence
         if (!Win32.QueryFullProcessImageNameW(h, 0, sb, ref size)) return null;
         var path = sb.ToString();
         var file = System.IO.Path.GetFileName(path);
-        if (!ExeNames.Any(n => string.Equals(n, file, StringComparison.OrdinalIgnoreCase))) return null;
-        if (!IsSignedByImageLine(path)) return null;
+        if (!FlRecognition.MaybeFl(file)) return null;                // rien d'autre n'est lu pour les autres programmes
 
         FlVersion? version = null;
+        string? product = null, description = null;
         try
         {
             var fvi = FileVersionInfo.GetVersionInfo(path);
             version = FlVersion.Parse(fvi.ProductVersion) ?? FlVersion.Parse(fvi.FileVersion);
+            product = fvi.ProductName;
+            description = fvi.FileDescription;
         }
         catch { /* version inconnue : les actions resteront « non vérifiées » jusqu'au HELLO */ }
+        if (!FlRecognition.Accepts(file, product, description)) return null;
 
-        return new FlProcessInfo(pid, path, version, IsElevated(h));
+        return new FlProcessInfo(pid, path, version, IsElevated(h), IsSignedByImageLine(path));
     }
 
     private static bool LooksLikeFlByName(uint pid)
@@ -140,7 +180,7 @@ internal static class FlPresence
 #pragma warning disable SYSLIB0057 // CreateFromSignedFile : lecture du signataire après validation par WinVerifyTrust
             var cert = X509Certificate.CreateFromSignedFile(path);
 #pragma warning restore SYSLIB0057
-            return cert.Subject.Contains(SignerMarker, StringComparison.OrdinalIgnoreCase);
+            return FlSigner.Matches(cert.Subject);       // « Image Line » ou « Image-Line »
         }
         catch { return false; }
     }

@@ -90,6 +90,21 @@ final class ProtocolTests: XCTestCase {
         XCTAssertEqual(events, [.incompatible(protocolVersion: 3)])
     }
 
+    /// Script v8 posé sur une autre entrée MIDI (carte son) : CC 120 = 64, retenu jusqu'au prochain HELLO.
+    func testWrongInputNoticeUntilNextHello() {
+        var parser = MIDIByteParser()
+        var decoder = IncomingDecoder()
+        let events = parser.feed(Bytes.cc(120, 64)).compactMap { decoder.feed(status: $0.status, data1: $0.data1, data2: $0.data2) }
+        XCTAssertEqual(events, [.wrongInput])
+        let core = LinkCore(transport: FakeTransport(), key: Array(UInt8(0)..<UInt8(16)))
+        core.receive(Bytes.cc(120, 64))
+        XCTAssertTrue(core.snapshot.wrongInput)
+        core.receive(Bytes.hello(nonce: nonce, caps: Bytes.allCaps))
+        XCTAssertFalse(core.snapshot.wrongInput)
+        XCTAssertEqual(OrganizerController.waitReason(for: .noResponse, wrongInput: true), .wrongInput)
+        XCTAssertEqual(OrganizerController.waitReason(for: .flClosed, wrongInput: true), .openFL)
+    }
+
     func testIncompleteHelloIsIgnored() {
         var parser = MIDIByteParser()
         var decoder = IncomingDecoder()
@@ -407,6 +422,24 @@ final class DataCommandTests: XCTestCase {
         XCTAssertEqual(NameColorPayload(name: "  Kick ", color: nil).bytes, [1, 1, 0, 0, 0, 4, 75, 105, 99, 107])
         XCTAssertNil(NameColorPayload(name: "   ", color: nil).name)
         XCTAssertEqual(NameColorPayload(name: "Café 🎹", color: nil).bytes.suffix(10), ArraySlice(Array("Café 🎹".utf8)))
+    }
+
+    /// Opération 27 (08/11) : `[27, n, nom UTF-8]`, nom nettoyé et coupé comme le compte le script de FL.
+    func testMarkerPayloadBytes() {
+        XCTAssertEqual(MarkerPayload(name: "  Refrain ").bytes, [27, 7] + Array("Refrain".utf8))
+        XCTAssertEqual(MarkerPayload(name: "Refrain").units, Pack7.pack([27, 7] + Array("Refrain".utf8)))
+        XCTAssertNil(MarkerPayload(name: "   ").name)
+        XCTAssertNil(MarkerPayload(name: nil).name)
+        XCTAssertEqual(MarkerPayload(name: "a\u{07}b").name, "ab")
+        XCTAssertEqual(MarkerPayload(name: String(repeating: "é", count: 80)).name?.unicodeScalars.count, 64)
+        let emoji = MarkerPayload(name: String(repeating: "🎹", count: 64))
+        XCTAssertLessThanOrEqual(emoji.bytes.count - 2, 255)
+        XCTAssertEqual(Int(emoji.bytes[1]), emoji.bytes.count - 2)
+        var block = Block(.flAction(key: "marker", fallback: .none))
+        block.note = "Pont"
+        XCTAssertEqual(block.markerName, "Pont")
+        block.body = .flAction(key: "play", fallback: .none)
+        XCTAssertNil(block.markerName)
     }
 
     func testRGBColorHex() {

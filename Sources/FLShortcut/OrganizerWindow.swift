@@ -1,9 +1,26 @@
 // Organiser : la fenêtre (panneau flottant qui laisse FL au premier plan) et son contrôleur. Ouverte par le bloc
-// « Organiser la page ouverte » ou par le menu de la barre des menus. Écoute, aperçu par famille (une couleur ou un
-// dégradé chacune, famille de chaque son modifiable), application, puis « Revenir comme avant ». Tout est libéré à la
-// fermeture (session, capture, IA, panneau) : rien ne tourne au repos. Aucune lecture de l'écran.
+// « Organiser le projet » ou par le menu de la barre des menus. Lien avec FL installé à la demande (écran
+// d'installation s'il manque), analyse de tout le projet, aperçu par famille (une couleur ou un dégradé chacune, ce
+// qu'est chaque son modifiable, ce qui sera fait dans le Channel rack, les patterns, le Mixer et la Playlist), un seul
+// « Organiser », puis « Revenir comme avant ». Tout est libéré à la fermeture (session, capture, IA, panneau) :
+// rien ne tourne au repos. L'analyse lit le fichier du projet que FL vient d'enregistrer, et la Playlist est rangée
+// dans une copie que FL ouvre (OrganizerProjectFile) : aucune lecture de l'écran. Sans fichier (tests), l'ancien
+// rangement, qui lisait la fenêtre de FL (OrganizerPlaylistMover, OrganizerClipMover).
 import AppKit
+import ApplicationServices
+import Combine
 import SwiftUI
+import UniformTypeIdentifiers
+
+/// État du lien avec FL à l'ouverture de l'Organiser.
+enum OrganizerLinkState: Equatable {
+    /// Script jamais installé : écran d'installation.
+    case notInstalled
+    /// `warmUp` : ports MIDI tout juste créés (mode léger), le temps que FL les voie et charge le script.
+    case ready(warmUp: TimeInterval)
+    /// Script absent de FL Studio, remis à l'instant (même clé) : FL ne le lira qu'à son prochain lancement.
+    case restored
+}
 
 /// Ce dont l'Organiser a besoin du monde réel (des faux dans les tests).
 struct OrganizerEnvironment {
@@ -13,25 +30,448 @@ struct OrganizerEnvironment {
     var classify: () -> OrganizerSession.Classify
     /// ⌥↑ envoyé à FL : `moveUp(link)(n)` renvoie le nombre de pas faits.
     var moveUp: (OrganizerLink) -> (Int) -> Int
+    /// ⌥← envoyé à FL (piste du Mixer décalée à gauche) : `moveLeft(link)(n)` renvoie le nombre de pas faits.
+    var moveLeft: (OrganizerLink) -> (Int) -> Int = { _ in { _ in 0 } }
     var timing = OrganizerSession.Timing()
     var sleep: (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) }
     var escapePressed: () -> Bool = { false }
     var loadStyles: () -> [SoundFamily: FamilyStyle] = { FamilyStyles.load() }
     var saveStyles: ([SoundFamily: FamilyStyle]) -> Void = { FamilyStyles.save($0) }
+    /// Ordre des familles glissées dans l'aperçu, gardé d'un projet à l'autre.
+    var loadFamilyOrder: () -> [SoundFamily] = { FamilyStyles.loadOrder() }
+    var saveFamilyOrder: ([SoundFamily]) -> Void = { FamilyStyles.saveOrder($0) }
+    /// Icône posée sur l'élément sélectionné par la fenêtre de FL (clic droit sur son nom › « Change icon… ») ; nil si
+    /// c'est fait.
+    var placeIcon: (FLIcon, IconTarget) -> OrganizerError? = { _, _ in nil }
+    /// Fil principal, avant chaque écoute (après « Démarrer ») : lien installé ? Ports MIDI créés à la demande.
+    var prepareLink: () -> OrganizerLinkState = { .ready(warmUp: 0) }
+    /// À l'ouverture : lien déjà installé ? Sinon « Installer le lien » d'abord, puis « Démarrer » (retour du 01/11).
+    /// Ne crée aucun port.
+    var linkInstalled: () -> Bool = { true }
+    /// Organiser fermé (fil principal, une fois FL remis comme avant), ou projet organisé : plus de lien avec FL
+    /// (ports retirés).
+    var releaseLink: () -> Void = {}
+    /// « Revenir comme avant » après l'organisation (lien rendu) : le lien de nouveau, le temps de remettre FL comme
+    /// avant. Vrai si les ports viennent d'être recréés (FL met un moment à voir l'appareil).
+    var useLinkAgain: () -> Bool = { false }
+    /// « Installer le lien » (fil principal) : vrai s'il est installé (faux : annulé, ou impossible, déjà dit).
+    var installLink: () -> Bool = { true }
+    /// « Autre dossier de FL… » : le lien réinstallé dans le dossier de données de FL choisi (fil principal).
+    var installLinkElsewhere: () -> Bool = { true }
+    /// Le processus de FL qui tourne (nil : fermé) : après l'installation du lien, Organiser attend qu'un nouveau FL
+    /// démarre avant de montrer MIDI Settings.
+    var runningFL: () -> Int32? = { nil }
+    /// « Ouvrir FL Studio » pendant cette attente, FL fermé.
+    var openFL: () -> Void = {}
+    /// Numéros d'icône de FL appris (code de la grille → numéro), pour les pistes de la Playlist (07/11 au soir).
+    var loadIconIDs: () -> [String: UInt32] = { [:] }
+    var saveIconIDs: ([String: UInt32]) -> Void = { _ in }
+    /// Les numéros du Mixer, appris et gardés à part (12/11 : ils peuvent différer de ceux du Channel rack).
+    var loadMixerIconIDs: () -> [String: UInt32] = { [:] }
+    var saveMixerIconIDs: ([String: UInt32]) -> Void = { _ in }
+    /// « Quitter et rouvrir FL » (07/11) : FL quitté comme par ⌘Q (il demande d'enregistrer s'il le faut), puis
+    /// relancé dès qu'il est parti.
+    var restartFL: () -> Void = {}
+    /// Lecture de la fenêtre de FL permise (« Enregistrement de l'écran ») : les icônes en ont besoin.
+    var screenAllowed: () -> Bool = { true }
+    /// « Autoriser » : la page « Enregistrement de l'écran » des Réglages Système.
+    var askScreen: () -> Void = {}
+    /// En attente de FL (à redémarrer, à ouvrir, page à ouvrir, lecture à arrêter) : nouvel essai, tout seul, à
+    /// cet intervalle.
+    var waitInterval: TimeInterval = 2
+    /// Script dans FL Studio : où il est enregistré, et s'il y est encore (nil : aucun).
+    var scriptPlace: () -> (url: URL, present: Bool)? = { nil }
+    var reveal: (URL) -> Void = { _ in }
+    /// Le script a dit être posé sur une autre entrée MIDI que « FL Shortcuts Link » (PROTOCOL.md §3).
+    var wrongInput: () -> Bool = { false }
+    var nameDrum: () -> OrganizerSession.NameDrum = { { _, _ in .perc } }
+    var nameMelody: () -> OrganizerSession.NameMelody = { { _, _ in nil } }
+    /// Sorte d'un son par l'IA intégrée (nil : aucune, les deux précédentes servent).
+    var nameKind: () -> OrganizerSession.NameKind? = { nil }
+    /// Ce que l'IA intégrée retient d'un son écouté (nil : aucune correction ne pourra en apprendre).
+    var fingerprint: () -> OrganizerSession.Fingerprint? = { nil }
+    /// Les corrections gardées sur le Mac (et l'accord pour les partager) ; nil : rien n'est appris.
+    var corrections: () -> CorrectionsIA? = { nil }
+    /// Une correction partagée (accord donné, JSON de CorrectionsIA.envoi) envoyée au serveur, en tâche de fond.
+    var shareCorrection: (Data) -> Void = { _ in }
+    /// « Pas content ? » : le message pour l'équipe et le diagnostic (nombres), envoyés en tâche de fond.
+    var sendFeedback: (_ message: String, _ diagnostic: String) -> Void = { _, _ in }
+    /// Fichier de son d'un clip audio lu directement (analyse sur le fichier) ; nil : joué dans FL.
+    var soundFile: () -> OrganizerSession.SoundFile? = { nil }
+    /// Autorisation « Audio du système » (sans elle, macOS donne du silence à la capture).
+    var audioPermission: () -> AudioCapturePermission = { .granted }
+    /// Fenêtre de macOS pour la demander ; faux : rien n'a pu être demandé. `done` sur le fil principal.
+    var requestAudioPermission: (@escaping (Bool) -> Void) -> Bool = { _ in false }
+    var openAudioSettings: () -> Void = {}
+    /// En-tête du diagnostic : versions et état du lien (aucun nom).
+    var about: () -> String = { "" }
+    var copy: (String) -> Void = { _ in }
+    /// FL mis devant (le panneau flotte au-dessus) : sa page devant et ses touches en dépendent.
+    var focusFL: () -> Void = {}
+    /// Avant l'analyse (hors du fil principal), par les menus de FL : clips audio inutilisés retirés, sons sans note
+    /// sélectionnés ; vrai si la sélection a été faite.
+    var prepareProject: () -> Bool = { false }
+    /// « Delete selected » du Channel rack (⌥ + Suppr) envoyé à FL ; faux si rien n'a pu être envoyé.
+    var deleteSelected: (OrganizerLink) -> () -> Bool = { _ in { false } }
+    /// Piste de la Playlist à cette place remontée de n places par son menu (« Move up ») ; le nombre fait.
+    var moveTrack: (OrganizerLink) -> (Int, Int) -> Int = { _ in { _, _ in 0 } }
+    /// Clips de la Playlist décalés de n pistes (négatif : vers le haut) : tous ceux de ce pattern (1 = le premier),
+    /// ou la sélection en cours (nil) ; le nombre de pas faits.
+    var moveClips: (OrganizerLink) -> (Int?, Int) -> Int = { _ in { _, _ in 0 } }
+    /// La Playlist lue dans la fenêtre de FL (nil : impossible), et un clip déplacé seul vers une autre piste
+    /// (ClipMover) ; `canReadPlaylist` : l'autorisation de lire la fenêtre de FL est là.
+    var readClips: (OrganizerLink) -> () -> PlaylistView? = { _ in { nil } }
+    var moveClip: (OrganizerLink) -> (ClipMove) -> ClipMoveResult = { _ in { _ in .notDone } }
+    var canReadPlaylist: () -> Bool = { false }
+    /// Le fichier du projet ouvert dans FL (enregistré par FL, lu, sa copie rangée ouverte) ; nil : l'ancienne
+    /// analyse, à l'écoute de FL seulement.
+    var projectFiles: () -> ProjectFileAccess? = { nil }
+    /// « Choisir le fichier… » : l'utilisateur montre le projet ouvert dans FL (fil principal) ; faux : annulé.
+    var chooseProject: () -> Bool = { false }
+    /// Une copie rangée faite et ouverte dans FL (original, copie) : à valider à la réouverture de FL Shortcuts ; puis
+    /// « Revenir comme avant » réussi sur cette copie : elle part à la Corbeille (plus rien à demander). Fil principal.
+    var copyMade: (_ original: URL, _ copy: URL) -> Void = { _, _ in }
+    var copyUndone: (_ copy: URL) -> Void = { _ in }
+    /// « Garder » de l'écran de fin (13/11) : la version rangée devient le projet tout de suite (fenêtre de la question,
+    /// directement sur « FL enregistre la version organisée… »). Fil principal.
+    var keepCopy: (_ copy: URL) -> Void = { _ in }
+    /// « Pas content ? › Le Mixer » (13/11) : un bus par famille et le pré-master, gardés pour les prochains rangements
+    /// (nil : jamais choisis, les réglages d'origine).
+    var loadMixerChoices: () -> (buses: Bool, premaster: Bool)? = { nil }
+    var saveMixerChoices: (_ buses: Bool, _ premaster: Bool) -> Void = { _, _ in }
 
     static func live() -> OrganizerEnvironment {
         OrganizerEnvironment(
             link: { RequestOrganizerLink.live() },
             audio: {
                 guard #available(macOS 14.2, *) else {
-                    return .failure(.failed("L'Organiser écoute FL avec macOS 14.2 ou plus récent : mets macOS à jour."))
+                    return .failure(.failed(String(localized: "L'Organiser écoute FL avec macOS 14.2 ou plus récent : mets macOS à jour.")))
                 }
-                guard let pid = OrganizerEnvironment.flPID() else { return .failure(.failed("FL Studio n'est pas ouvert.")) }
+                guard let pid = OrganizerEnvironment.flPID() else { return .failure(.flClosed) }
                 return .success(FLAudioTap(pid: pid))
             },
             classify: { OrganizerSession.liveClassifier() },
-            moveUp: { link in { count in OrganizerEnvironment.liveMoveUp(count, link: link) } },
-            escapePressed: { CGEventSource.keyState(.combinedSessionState, key: 53) })
+            moveUp: { link in { count in OrganizerEnvironment.liveMove(count, key: 126, page: .channelRack, link: link) } },
+            moveLeft: { link in { count in OrganizerEnvironment.liveMove(count, key: 123, page: .mixer, link: link) } },
+            escapePressed: { CGEventSource.keyState(.combinedSessionState, key: 53) },
+            placeIcon: { OrganizerEnvironment.livePlaceIcon($0, $1) },
+            prepareLink: { OrganizerEnvironment.livePrepareLink() },
+            linkInstalled: { MIDILink.shared.snapshot.hasKey },
+            releaseLink: { MIDILink.shared.release(.organizer) },
+            useLinkAgain: { MIDILink.shared.use(.organizer) },
+            installLink: { FLScriptInstaller.installWithAlert(quiet: true) },
+            installLinkElsewhere: { FLScriptInstaller.installWithAlert(chooseFolder: true, quiet: true) },
+            runningFL: {
+                NSRunningApplication.runningApplications(withBundleIdentifier: "com.image-line.flstudio")
+                    .first { !$0.isTerminated }?.processIdentifier
+            },
+            openFL: {
+                guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.image-line.flstudio") else { return }
+                NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+            },
+            // La table apprise une fois pour toutes (13/11) passe avant ce qui a été appris en rangeant (un clic mal
+            // tombé avait donné 105 au lieu de 75 au Mixer).
+            loadIconIDs: { OrganizerEnvironment.storedIconIDs().merging(FLIconNumbers.table) { _, table in table } },
+            saveIconIDs: { OrganizerEnvironment.storeIconIDs($0) },
+            loadMixerIconIDs: {
+                OrganizerEnvironment.storedIconIDs(key: OrganizerEnvironment.mixerIconIDsKey)
+                    .merging(FLIconNumbers.table) { _, table in table }
+            },
+            saveMixerIconIDs: { OrganizerEnvironment.storeIconIDs($0, key: OrganizerEnvironment.mixerIconIDsKey) },
+            // Une relance à la fois ; FL relancé dès qu'il est parti, puis relancé s'il n'apparaît pas (FLRelauncher,
+            // 12/11 : « il ne rouvre pas automatiquement FL Studio »).
+            restartFL: { _ = FLRelauncher.shared.restart() },
+            screenAllowed: { ScreenLook.allowed },
+            // 13/11 (« cette page n'a pas besoin de s'ouvrir vu que l'autre s'ouvre ») : une seule fenêtre, la demande
+            // de macOS (qui mène aux Réglages) ou la page des Réglages, jamais les deux.
+            askScreen: { ScreenLook.askOneWindow() },
+            scriptPlace: { FLScriptInstaller.installedScript() },
+            reveal: { NSWorkspace.shared.activateFileViewerSelecting([$0]) },
+            wrongInput: { MIDILink.shared.core.snapshot.wrongInput },
+            nameDrum: { OrganizerSession.liveDrumNamer() },
+            nameMelody: { OrganizerSession.liveMelodyNamer() },
+            nameKind: { OrganizerSession.liveKindNamer() },
+            fingerprint: { OrganizerSession.liveFingerprint() },
+            corrections: { CorrectionsIA.shared },
+            shareCorrection: { json in Task { @MainActor in await CommunityStore.shared.shareCorrection(json) } },
+            sendFeedback: { message, diagnostic in
+                Task { @MainActor in
+                    _ = await CommunityStore.shared.sendSupport(
+                        SupportMessage(kind: .probleme, text: message, diagnostic: diagnostic))
+                }
+            },
+            soundFile: { SampleFiles.liveReader() },
+            // « Enregistrement de l'écran et audio du système » (03/11) : la fenêtre de macOS (la première fois) mène
+            // aux Réglages par son bouton, sinon les Réglages s'ouvrent ; Organiser attend qu'elle soit donnée.
+            audioPermission: { AudioCapturePermission.screenAndAudioStatus },
+            requestAudioPermission: { done in
+                NSApp.activate(ignoringOtherApps: true)        // la fenêtre de macOS devant FL, pas derrière
+                ScreenLook.askOneWindow()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { done(false) }
+                return true
+            },
+            openAudioSettings: { ScreenLook.openSettings() },
+            about: {
+                let app = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+                let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+                let os = ProcessInfo.processInfo.operatingSystemVersion
+                let snap = MIDILink.shared.core.snapshot
+                let api = snap.hello.map { "\($0.apiVersion)" } ?? "?"
+                let fl = FLDetector.installedVersion().map { "\($0)" } ?? "?"
+                return "app \(app) (\(build)) · macOS \(os.majorVersion).\(os.minorVersion).\(os.patchVersion) · FL \(fl) "
+                    + "· API \(api) · lien \(snap.hello == nil ? "muet" : "ok") · audio=\(AudioCapturePermission.status) "
+                    + "· écran=\(ScreenLook.allowed ? "oui" : "non") · AX=\(AXIsProcessTrusted() ? "oui" : "non")"
+            },
+            copy: { text in
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
+            },
+            focusFL: {
+                guard let pid = OrganizerEnvironment.flPID() else { return }
+                if EventTap.shared.currentConfig.frontmostPID != pid {
+                    _ = NSRunningApplication(processIdentifier: pid)?.activate(options: [])
+                }
+                // Sa fenêtre principale de nouveau active (un champ de texte du panneau a pu prendre le clavier).
+                let app = AXUIElementCreateApplication(pid)
+                AXUIElementSetMessagingTimeout(app, 0.3)
+                var value: CFTypeRef?
+                if AXUIElementCopyAttributeValue(app, kAXMainWindowAttribute as CFString, &value) == .success,
+                   let value, CFGetTypeID(value) == AXUIElementGetTypeID() {
+                    AXUIElementPerformAction(value as! AXUIElement, kAXRaiseAction as CFString)
+                }
+            },
+            prepareProject: { OrganizerEnvironment.livePrepareProject() },
+            deleteSelected: { link in { OrganizerEnvironment.liveDeleteSelected(link: link) } },
+            moveTrack: { link in { place, count in OrganizerEnvironment.liveMoveTrack(place, count, link: link) } },
+            moveClips: { link in { pattern, rows in OrganizerEnvironment.liveMoveClips(pattern, rows, link: link) } },
+            readClips: { link in { OrganizerEnvironment.liveReadClips(link: link) } },
+            moveClip: { link in { move in OrganizerEnvironment.liveMoveClip(move, link: link) } },
+            canReadPlaylist: { ScreenLook.allowed },
+            projectFiles: { ProjectFileLive.access() },
+            chooseProject: {
+                let panel = NSOpenPanel()
+                panel.message = String(localized: "Choisis le fichier du projet ouvert dans FL Studio (.flp).")
+                panel.allowedContentTypes = [UTType(filenameExtension: "flp") ?? .data]
+                panel.allowsMultipleSelection = false
+                panel.canChooseDirectories = false
+                NSApp.activate(ignoringOtherApps: true)
+                guard panel.runModal() == .OK, let url = panel.url else { return false }
+                ProjectFileLive.chosen = url
+                return true
+            },
+            copyMade: { CopyApproval.shared.record(original: $0, copy: $1) },
+            copyUndone: { CopyApproval.shared.discard(copy: $0) },
+            keepCopy: { copy in MainActor.assumeIsolated { CopyApprovalWindow.shared.show(keeping: copy) } },
+            loadMixerChoices: {
+                let d = UserDefaults.standard
+                guard d.object(forKey: "organize.buses") != nil else { return nil }
+                return (d.bool(forKey: "organize.buses"), d.bool(forKey: "organize.premaster"))
+            },
+            saveMixerChoices: { buses, premaster in
+                UserDefaults.standard.set(buses, forKey: "organize.buses")
+                UserDefaults.standard.set(premaster, forKey: "organize.premaster")
+            })
+    }
+
+    /// La Playlist devant (FL au premier plan), lue dans sa fenêtre.
+    static func liveReadClips(link: OrganizerLink) -> PlaylistView? {
+        guard let pid = playlistInFront(link: link) else { return nil }
+        return ClipMover.read(link: link, pid: pid)?.view
+    }
+
+    /// Un clip déplacé seul vers une autre piste, Playlist devant ; le panneau de l'Organiser laisse passer le clic.
+    static func liveMoveClip(_ move: ClipMove, link: OrganizerLink) -> ClipMoveResult {
+        guard let pid = playlistInFront(link: link) else { return .notDone }
+        OrganizerWindow.clickThrough(true)
+        defer { OrganizerWindow.clickThrough(false) }
+        return ClipMover.move(move, link: link, pid: pid)
+    }
+
+    /// FL au premier plan et sa Playlist devant ; son processus, ou nil.
+    private static func playlistInFront(link: OrganizerLink) -> Int32? {
+        guard let pid = flPID(), (try? link.show(.playlist)) != nil else { return nil }
+        if EventTap.shared.currentConfig.frontmostPID != pid {
+            _ = NSRunningApplication(processIdentifier: pid)?.activate(options: [])
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        guard link.window == .playlist, EventTap.shared.currentConfig.frontmostPID == pid else { return nil }
+        return pid
+    }
+
+    /// Par les menus de FL dans la barre de macOS (comme le modèle « Supprimer les clips audio inutilisés ») : Tools ›
+    /// Purge unused audio clips, puis Tools › Select unused channels (les sons sans aucune note, laissés de côté par
+    /// l'Organiser) ; vrai si la sélection a été faite. Un menu absent (FL plus ancien) : rien.
+    static func livePrepareProject() -> Bool {
+        guard let pid = flPID() else { return false }
+        _ = MenuBarAX.press(pid: pid, titles: ["Tools", "Macros", "Purge unused audio clips"], stop: { nil })
+        Thread.sleep(forTimeInterval: 0.5)
+        guard MenuBarAX.press(pid: pid, titles: ["Tools", "Macros", "Select unused channels"], stop: { nil }) == .done
+        else { return false }
+        Thread.sleep(forTimeInterval: 0.3)
+        return true
+    }
+
+    /// « Delete selected » du Channel rack comme le ferait l'utilisateur : ⌥ + Suppr (fn + ⌫) envoyé à FL seul, le
+    /// Channel rack devant. Une fenêtre de FL ouverte par la touche (une confirmation) est validée par Entrée.
+    static func liveDeleteSelected(link: OrganizerLink) -> Bool {
+        guard let pid = flPID() else { return false }
+        if EventTap.shared.currentConfig.frontmostPID != pid {
+            _ = NSRunningApplication(processIdentifier: pid)?.activate(options: [])
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        guard link.window == .channelRack, EventTap.shared.currentConfig.frontmostPID == pid else { return false }
+        let before = WinSnapshot.take(pid: pid).numbers
+        let effects = MacroEffectsMac(pid: pid)
+        effects.postKey(KeyCombo(keyCode: 117, option: true), pid: pid)
+        for _ in 0..<10 {
+            Thread.sleep(forTimeInterval: 0.1)
+            let opened = WinSnapshot.take(pid: pid).fl.filter {
+                !before.contains($0.number) && $0.bounds.width >= 150 && $0.bounds.height >= 80
+            }
+            if !opened.isEmpty {
+                MacroLog.shared.write("ORGANIZE", "delete: FL asked for a confirmation, Return")
+                effects.postKey(KeyCombo(keyCode: 36), pid: pid)
+                _ = WindowWait.gone(pid: pid, numbers: Set(opened.map(\.number)), timeout: 1, stop: { nil })
+                break
+            }
+        }
+        Thread.sleep(forTimeInterval: 0.2)
+        return true
+    }
+
+    /// Piste de la Playlist remontée par son menu (OrganizerPlaylistMover), FL au premier plan et la Playlist devant ;
+    /// le panneau de l'Organiser laisse passer les clics le temps du rangement.
+    static func liveMoveTrack(_ place: Int, _ count: Int, link: OrganizerLink) -> Int {
+        guard let pid = flPID() else { return 0 }
+        if EventTap.shared.currentConfig.frontmostPID != pid {
+            _ = NSRunningApplication(processIdentifier: pid)?.activate(options: [])
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        guard link.window == .playlist else { return 0 }
+        OrganizerWindow.clickThrough(true)
+        defer { OrganizerWindow.clickThrough(false) }
+        return PlaylistMover.moveUp(place, count, link: link, pid: pid)
+    }
+
+    /// Clips de la Playlist décalés de `rows` pistes (négatif : vers le haut), FL au premier plan, la Playlist devant,
+    /// comme le ferait l'utilisateur : avec un pattern, d'abord tous ses clips sélectionnés (le script l'ouvre, puis ⌘D
+    /// et ⇧C de FL : « Select by selected source ») ; sans, la sélection en cours. ⇧↓ ou ⇧↑ envoyés à FL seul ;
+    /// renvoie le nombre de pas faits.
+    static func liveMoveClips(_ pattern: Int?, _ rows: Int, link: OrganizerLink) -> Int {
+        guard rows != 0, let pid = flPID() else { return 0 }
+        if let pattern {
+            guard (try? link.pickPattern(pattern)) == pattern else { return 0 }
+        }
+        guard (try? link.show(.playlist)) != nil else { return 0 }
+        if EventTap.shared.currentConfig.frontmostPID != pid {
+            _ = NSRunningApplication(processIdentifier: pid)?.activate(options: [])
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        guard link.window == .playlist, EventTap.shared.currentConfig.frontmostPID == pid else { return 0 }
+        let effects = MacroEffectsMac(pid: pid)
+        if pattern != nil {
+            let layout = SystemKeyboardLayout()
+            let d = KeyNames.commandKeyCode(for: "d", layout: layout) ?? 2
+            let c = KeyNames.keyCode(for: "c", layout: layout) ?? 8
+            effects.postKey(KeyCombo(keyCode: d, command: true), pid: pid)      // rien de sélectionné
+            Thread.sleep(forTimeInterval: 0.08)
+            effects.postKey(KeyCombo(keyCode: c, shift: true), pid: pid)        // tous les clips du pattern ouvert
+            Thread.sleep(forTimeInterval: 0.15)
+        }
+        let arrow = KeyCombo(keyCode: rows > 0 ? 125 : 126, shift: true)
+        var done = 0
+        while done < abs(rows) {
+            guard EventTap.shared.currentConfig.frontmostPID == pid else { break }
+            effects.postKey(arrow, pid: pid)
+            done += 1
+            Thread.sleep(forTimeInterval: 0.03)
+        }
+        Thread.sleep(forTimeInterval: 0.1)
+        return done
+    }
+
+    /// Après « Démarrer » : l'Organiser a besoin du lien jusqu'à sa fermeture (retour du 01/11 : FL saccadait tant
+    /// qu'il voyait « FL Shortcuts Link »). Ports « FL Shortcuts Link » créés s'ils ne sont pas là (mode léger) ;
+    /// FL les voit apparaître (s'il ne répond pas, l'Organiser demande de le relancer : les ports restent présents).
+    /// Script remis dans FL s'il en a disparu.
+    static func livePrepareLink() -> OrganizerLinkState {
+        let midi = MIDILink.shared
+        guard midi.snapshot.hasKey else { return .notInstalled }
+        let fresh = midi.use(.organizer)
+        // Remis maintenant, ou mis à jour au lancement de l'appli pendant que FL tournait : FL doit le relire.
+        let restored = FLScriptInstaller.repairIfNeeded() != nil || AppStatus.shared.scriptNeedsFLRestart
+        // Appareil tout juste apparu : FL le voit et charge son script ; sans réponse, l'Organiser réessaie seul.
+        return restored ? .restored : .ready(warmUp: fresh ? 2 : 0)
+    }
+
+    /// Numéros d'icône appris, gardés dans les réglages (rien de sensible : une mauvaise valeur ne change qu'une
+    /// icône de la Playlist ; seuls des codes de la grille et des nombres sont lus).
+    static let iconIDsKey = "organizerIconIDs"
+    /// Ceux du Mixer (12/11).
+    static let mixerIconIDsKey = "organizerMixerIconIDs"
+
+    static func storedIconIDs(key: String = OrganizerEnvironment.iconIDsKey) -> [String: UInt32] {
+        let raw = UserDefaults.standard.dictionary(forKey: key) ?? [:]
+        var out: [String: UInt32] = [:]
+        for (code, value) in raw {
+            guard FLIcon(code: code) != nil, let n = value as? Int, (1...0xFFFF).contains(n) else { continue }
+            out[code] = UInt32(n)
+        }
+        return out
+    }
+
+    static func storeIconIDs(_ learned: [String: UInt32], key: String = OrganizerEnvironment.iconIDsKey) {
+        guard !learned.isEmpty else { return }
+        var all = storedIconIDs(key: key)
+        for (code, id) in learned { all[code] = id }
+        UserDefaults.standard.set(all.mapValues { Int($0) }, forKey: key)
+    }
+
+    /// Mêmes étapes et garde-fous que le bloc « Nom et couleur » (FL au premier plan, Échap) ; le clic droit sur le
+    /// nom de l'élément, retrouvé dans la fenêtre de FL.
+    static func livePlaceIcon(_ icon: FLIcon, _ target: IconTarget) -> OrganizerError? {
+        guard let pid = flPID() else { return .failed(String(localized: "FL Studio n'est pas ouvert.")) }
+        let escapes = EventTap.shared.escapePresses
+        if EventTap.shared.currentConfig.frontmostPID != pid {
+            _ = NSRunningApplication(processIdentifier: pid)?.activate(options: [])
+            // FL devant avant la pose (07/11 : 0,3 s ne suffisaient pas toujours ; la pose voyait « FL n'est plus au
+            // premier plan » et tout le rangement s'arrêtait).
+            let deadline = Date().addingTimeInterval(2)
+            repeat { Thread.sleep(forTimeInterval: 0.05) }
+            while EventTap.shared.currentConfig.frontmostPID != pid && Date() < deadline
+        }
+        // L'Organiser ne couvre jamais le menu de FL ni sa grille des icônes.
+        OrganizerWindow.stepAside(true)
+        defer { OrganizerWindow.stepAside(false) }
+        let point: CGPoint
+        switch IconTargets.locate(target, pid: pid) {
+        case .point(let p): point = p
+        case .notAllowed:
+            return .failed(screenNeeded)
+        case .notFound:
+            return .failed(target.kind == .mixer
+                ? String(localized: "nom de la piste introuvable dans le Mixer de FL")
+                : String(localized: "nom du son introuvable dans le Channel rack de FL"))
+        }
+        switch MacroEffectsMac(pid: pid).placeIcon(icon, at: point, alsoColored: false) {
+        case .ok, .warn: return nil
+        case .cancel(let why):
+            // Seul Échap (appuyé pour de vrai) arrête tout ; FL qui passe derrière n'arrête que les icônes.
+            if EventTap.shared.escapePresses != escapes || CGEventSource.keyState(.combinedSessionState, key: 53) {
+                return .interrupted
+            }
+            IconTargets.forget()
+            return .failed(why)
+        case .fail(let why):
+            IconTargets.forget()
+            return .failed(why.replacingOccurrences(of: String(localized: "icône non posée : "), with: ""))
+        }
+    }
+
+    /// Les icônes se posent en lisant la fenêtre de FL. Une version de FL Shortcuts recompilée n'a plus
+    /// l'autorisation donnée à l'ancienne, même cochée dans les Réglages : décocher puis recocher.
+    static var screenNeeded: String {
+        String(localized: "autorise « Enregistrement de l'écran » pour FL Shortcuts (Réglages Système › Confidentialité et sécurité ; déjà coché : décoche puis recoche)")
     }
 
     /// FL au premier plan d'abord, sinon le premier FL ouvert.
@@ -41,30 +481,79 @@ struct OrganizerEnvironment {
         return cfg.flPIDs.min()
     }
 
-    /// ⌥↑ envoyé à FL seul, 15 ms entre deux ; s'arrête dès que FL n'est plus au premier plan ou que le Channel rack
-    /// n'est plus devant dans FL.
-    static func liveMoveUp(_ count: Int, link: OrganizerLink) -> Int {
+    /// ⌥ + flèche (`key` : 126 ↑ dans le Channel rack, 123 ← dans le Mixer) envoyé à FL seul, 15 ms entre deux ;
+    /// s'arrête dès que FL n'est plus au premier plan ou que la page n'est plus devant dans FL.
+    static func liveMove(_ count: Int, key: UInt16, page: FLWindow, link: OrganizerLink) -> Int {
         guard count > 0, let pid = flPID() else { return 0 }
         if EventTap.shared.currentConfig.frontmostPID != pid {
             _ = NSRunningApplication(processIdentifier: pid)?.activate(options: [])
             Thread.sleep(forTimeInterval: 0.3)
         }
         let effects = MacroEffectsMac(pid: pid)
-        let up = KeyCombo(keyCode: 126, option: true)
+        let up = KeyCombo(keyCode: key, option: true)
+        guard link.window == page else { return 0 }          // demandé à FL (une requête), pas à chaque touche
         var done = 0
         while done < count {
-            guard EventTap.shared.currentConfig.frontmostPID == pid, link.window == .channelRack else { break }
+            guard EventTap.shared.currentConfig.frontmostPID == pid else { break }
             effects.postKey(up, pid: pid)
             done += 1
             Thread.sleep(forTimeInterval: 0.015)
         }
-        return done
+        // -1 : FL n'était pas au premier plan, aucune touche envoyée (diagnostic « FL derrière », 12/11).
+        return done == 0 && EventTap.shared.currentConfig.frontmostPID != pid ? -1 : done
+    }
+}
+
+/// Écoute de l'Organiser en cours, pour la carte du menu de l'icône (maquette du 28/10 : « Organiser · 12 sons sur
+/// 40 », une barre, « Arrêter ») ; nil hors écoute. Des nombres seulement.
+final class OrganizerProgress: ObservableObject {
+    static let shared = OrganizerProgress()
+
+    struct Listening: Equatable {
+        let done: Int
+        let total: Int
+    }
+
+    @Published private(set) var listening: Listening?
+
+    private init() {}
+
+    func follow(_ phase: OrganizerController.Phase) {
+        var next: Listening?
+        if case .listening(let done, let total) = phase, total > 0 { next = Listening(done: done, total: total) }
+        if next != listening { listening = next }
+    }
+
+    func clear() {
+        if listening != nil { listening = nil }
     }
 }
 
 final class OrganizerController: ObservableObject {
+    /// Ce qu'Organiser attend de FL : il réessaie tout seul (`waitInterval`) et continue dès que c'est bon.
+    enum Wait: Equatable {
+        /// Lien tout juste installé ou remis, ou ancienne version chargée : FL le lit en démarrant.
+        case restartFL
+        /// FL ne répond pas (lien pas encore chargé dans FL).
+        case noResponse
+        /// Lien tout juste installé et FL rouvert : les 4 cases de MIDI Settings à régler (image du README).
+        case midiSettings
+        /// Le script est chargé, mais sur une autre entrée MIDI (carte son, clavier) : il ne reçoit rien.
+        case wrongInput
+        case openFL
+        case stopPlayback
+        /// « Audio du système » refusée, ou sa fenêtre de macOS ouverte : l'écoute n'entendrait que du silence.
+        case audioPermission
+    }
+
     enum Phase: Equatable {
+        /// Ouvert, rien d'envoyé à FL : « Démarrer » (retour du 01/11 : le lien avec FL seulement à partir de là).
+        case ready
         case starting
+        /// Lien avec FL pas installé : écran d'installation.
+        case setup
+        /// En attente de FL : nouvel essai tout seul, toutes les `waitInterval` secondes.
+        case waiting(Wait)
         case listening(done: Int, total: Int)
         case preview
         case applying
@@ -72,13 +561,39 @@ final class OrganizerController: ObservableObject {
         case undoing
         case undone(OrganizerError?)
         case failed(String)
+        /// « Apprendre les icônes de FL » (12/11) : cases faites sur toutes (Channel rack puis Mixer).
+        case learningIcons(done: Int, total: Int)
+        case iconsLearned(OrganizerIconLearner.Outcome)
     }
 
-    @Published private(set) var phase: Phase = .starting
-    /// Famille de chaque élément (canal ou piste du Mixer), modifiable dans l'aperçu.
+    @Published private(set) var phase: Phase = .ready {
+        didSet { OrganizerProgress.shared.follow(phase) }
+    }
+    /// Famille de chaque son du Channel rack (index du canal), modifiable dans l'aperçu.
     @Published var families: [Int: SoundFamily] = [:]
+    /// Ce qu'est chaque son (Kick, 808, Open Hat…), modifiable dans l'aperçu ; oublié s'il ne va plus avec sa
+    /// famille.
+    @Published var kinds: [Int: SoundKind] = [:]
     @Published var styles: [SoundFamily: FamilyStyle]
     @Published private(set) var result: OrganizerResult?
+    /// Ce que « Organiser » fait : les pages de FL touchées, les noms, l'ordre des familles.
+    /// Le pré-master est là par défaut dans l'app (01/11).
+    @Published var options = OrganizerOptions(premaster: true)
+    /// Écran Mixer de l'aperçu ouvert, et la piste choisie (piste d'origine) dont on voit toute la chaîne.
+    /// Noms écrits dans l'aperçu (« Écrire… », demande du propriétaire du 25/10), par index du canal.
+    @Published var names: [Int: String] = [:]
+    /// Piste du Mixer choisie pour un son dans l'aperçu (la case de FL), par index du canal ; absent : automatique.
+    @Published var slots: [Int: Int] = [:]
+    /// Ce que la dernière application a fait de plus (sons supprimés, Playlist rangée ou non).
+    @Published private(set) var lastApply: ApplyOutcome?
+    /// Où en est l'application (« FL ouvre la copie rangée… 12 s ») ; nil : le texte général.
+    @Published private(set) var applyStep: String?
+    /// En attente de FL : l'aide détaillée (réglages de FL, dossier du script) dépliée.
+    @Published var showLinkHelp = false
+    /// Photo de la CI (« couleurs ») : la roue des couleurs de la première famille ouverte sur l'aperçu d'exemple.
+    @Published var demoColors = false
+    /// « Couleurs de base » (Options) ouvert.
+    @Published var editingBaseColors = false
 
     /// Appelé une fois, à la fermeture (la fenêtre se ferme et lâche le contrôleur).
     var onClose: (() -> Void)?
@@ -89,50 +604,387 @@ final class OrganizerController: ObservableObject {
     private var session: OrganizerSession?
     private var snapshot: OrganizerSnapshot?
     private var closed = false
+    /// La fenêtre de macOS pour « Audio du système » est montrée une fois par Organiser ouvert.
+    private var askedAudio = false
+    /// Écoute en cours : la fin d'une écoute remplacée (nouvel essai) est ignorée (audit : deux écoutes à la fois).
+    private var runToken = 0
+    /// Ce que la dernière écoute a fait, en nombres (« Copier le diagnostic »).
+    @Published private(set) var diagnostics: OrganizerDiagnostics?
+    /// « Copié » montré un instant après « Copier le diagnostic ».
+    @Published private(set) var copied = false
+    /// Le fichier du projet reste introuvable : « Choisir le fichier… » le fait montrer.
+    @Published private(set) var projectMissing = false
+    /// Lien installé ici (retour du 31/10 : la fenêtre doit rester, demander de rouvrir FL, puis montrer MIDI
+    /// Settings) : tant que FL ne répond pas, l'image des 4 cases est montrée.
+    @Published private(set) var guidingLink = false
+    /// FL quitté pendant l'attente de son redémarrage : « Ouvrir FL Studio ».
+    @Published private(set) var flClosedForRestart = false
+    /// FL qui tournait à l'installation du lien : un nouveau FL doit démarrer (il lit le lien en démarrant).
+    private var restartWatch: Int32?
+    /// Lien tout juste installé : FL doit redémarrer (ou démarrer) avant « Démarrer » ; rien n'est envoyé à FL.
+    private var awaitingRestart = false
+    /// Sons corrigés que l'IA a retenus (aperçu et « Pas content ? »), dit à la fin.
+    @Published private(set) var learned = 0
+    /// « Pas content ? » ouvert, puis envoyé.
+    @Published var feedbackShown = false
+    @Published private(set) var feedbackSent = false
 
     init(env: OrganizerEnvironment) {
         self.env = env
         styles = env.loadStyles()
+        options.familyOrder = OrganizerOptions.completeOrder(env.loadFamilyOrder())
+        if let choices = env.loadMixerChoices() {
+            options.buses = choices.buses
+            options.premaster = choices.premaster
+        }
+        // Lien pas encore installé : « Installer le lien » d'abord, « Démarrer » ensuite (retour du 01/11).
+        if !env.linkInstalled() { phase = .setup }
     }
 
+    /// Le nom du bouton, comme la maquette du 28/10.
     var title: String {
-        switch result?.page {
-        case .mixer?: return "Organiser le Mixer"
-        case .channelRack?: return "Organiser le Channel rack"
-        case nil: return "Organiser"
+        // 13/11 (maquette validée) : la fin réussie a son propre titre.
+        if case .applied(let error) = phase, error == nil { return String(localized: "c'est rangé") }
+        return String(localized: "Organiser")
+    }
+
+    /// « Démarrer » : le lien avec FL, puis l'écoute de chaque son, hors du fil principal.
+    func start() {
+        guard phase == .ready, !closed else { return }
+        phase = .starting
+        begin(quiet: false)
+    }
+
+    /// « Apprendre les icônes de FL » (12/11, « oui stp ») : le même lien que « Démarrer », puis, sur le projet vide
+    /// ouvert dans FL, chaque case de la grille posée et son numéro relu dans le fichier (`OrganizerIconLearner`).
+    private var learningIcons = false
+
+    func learnIcons() {
+        guard phase == .ready, !closed else { return }
+        learningIcons = true
+        phase = .starting
+        begin(quiet: false)
+    }
+
+    private func runLearning(warmUp: TimeInterval, quiet: Bool) {
+        guard let files = env.projectFiles() else {
+            phase = .failed(String(localized: "Le fichier de ton projet n'est pas accessible : rien n'a été touché."))
+            return
+        }
+        if !quiet { env.focusFL() }
+        runToken += 1
+        let token = runToken
+        let link = env.link()
+        self.link = link
+        let escape = env.escapePressed
+        let learner = OrganizerIconLearner(link: link, placeIcon: env.placeIcon, files: files, wait: env.sleep,
+                                           stop: { [weak self] in (self?.closed ?? true) || escape() },
+                                           progress: { [weak self] done, total in
+                                               DispatchQueue.main.async {
+                                                   guard self?.runToken == token else { return }
+                                                   self?.phase = .learningIcons(done: done, total: total)
+                                               }
+                                           })
+        phase = .learningIcons(done: 0, total: FLIconGrid.pickable.count * 2)
+        let sleep = env.sleep
+        queue.async { [weak self] in
+            if warmUp > 0 { sleep(warmUp) }
+            let outcome = learner.run()
+            DispatchQueue.main.async {
+                guard let self else { return }
+                // Ce qui est appris est gardé, même arrêté en route.
+                self.env.saveIconIDs(outcome.rack)
+                self.env.saveMixerIconIDs(outcome.mixer)
+                self.learningIcons = false
+                guard self.runToken == token, !self.closed else { return }
+                self.phase = .iconsLearned(outcome)
+                self.dropLink()
+            }
         }
     }
 
-    /// Écoute de chaque son, hors du fil principal.
-    func start() {
-        guard phase == .starting, !closed else { return }
+    /// Fin de l'apprentissage, en une phrase ou deux (des nombres seulement).
+    static func learnedText(_ outcome: OrganizerIconLearner.Outcome) -> String {
+        let total = FLIconGrid.pickable.count
+        var text = String(localized: "Icônes apprises : \(outcome.rack.count) sur \(total) dans le Channel rack, \(outcome.mixer.count) sur \(total) dans le Mixer.")
+        if let error = outcome.error {
+            text += "\n" + error.message
+        } else if outcome.rack.count < total || outcome.mixer.count < total {
+            text += "\n" + String(localized: "Relance l'apprentissage pour finir les autres.")
+        }
+        guard !outcome.rack.isEmpty || !outcome.mixer.isEmpty else { return text }
+        return text + "\n" + String(localized: "Copie la table et envoie-la à l'équipe : les icônes seront écrites directement, pour tout le monde.")
+    }
+
+    func copyIconTable(_ outcome: OrganizerIconLearner.Outcome) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(OrganizerIconLearner.tableText(outcome), forType: .string)
+    }
+
+    /// `quiet` : nouvel essai pendant une attente ; l'écran d'attente reste jusqu'au premier son écouté (pas
+    /// d'aller-retour entre « En attente » et « Préparation… » toutes les 2 secondes).
+    private func begin(quiet: Bool) {
+        guard !closed else { return }
+        let warmUp: TimeInterval
+        switch env.prepareLink() {
+        case .notInstalled:
+            phase = .setup
+            return
+        case .restored:
+            linkDropped = false                               // ports présents pendant que FL est relancé
+            wait(.restartFL)
+            return
+        case .ready(let delay):
+            warmUp = delay
+            linkDropped = false
+        }
+        if learningIcons {
+            runLearning(warmUp: warmUp, quiet: quiet)
+            return
+        }
+        // « Audio du système » : sans elle, macOS donne du silence (chaque son finissait « À vérifier »). Pas encore
+        // demandée : la fenêtre de macOS, une fois, avant l'écoute ; refusée : Organiser attend qu'elle soit donnée.
+        switch env.audioPermission() {
+        case .denied:
+            wait(.audioPermission)
+            return
+        case .unknown where !askedAudio:
+            askedAudio = true
+            if env.requestAudioPermission({ [weak self] _ in self?.afterAudioPermission() }) {
+                waitSerial += 1                               // pas d'essai tout seul pendant la fenêtre de macOS
+                phase = .waiting(.audioPermission)
+                return
+            }
+        case .unknown:
+            // Demandée, pas encore donnée (elle se coche dans les Réglages) : Organiser attend.
+            wait(.audioPermission)
+            return
+        case .granted:
+            break
+        }
         let audio: AudioSource
         switch env.audio() {
         case .success(let source):
             audio = source
         case .failure(let error):
-            phase = .failed(error.message)
+            if let reason = waitingReason(for: error) { wait(reason) } else { phase = .failed(error.message) }
             return
         }
+        if !quiet { env.focusFL() }
+        self.session?.cancel()                                // l'ancienne écoute s'arrête (FL remis comme avant)
+        runToken += 1
+        let token = runToken
         let link = env.link()
+        let namedFix: OrganizerSession.NamedFix? = env.corrections().map { store in
+            { name in store.cherche(nom: name).map { (family: $0.famille, kind: $0.sorte) } }
+        }
         let session = OrganizerSession(
-            link: link, audio: audio, classify: env.classify(), timing: env.timing, sleep: env.sleep,
-            escape: env.escapePressed,
+            link: link, audio: audio, classify: env.classify(), nameDrum: env.nameDrum(), nameMelody: env.nameMelody(),
+            nameKind: env.nameKind(), fingerprint: env.fingerprint(), namedFix: namedFix, timing: env.timing,
+            sleep: env.sleep, escape: env.escapePressed, prepare: env.prepareProject, files: env.projectFiles(),
+            soundFile: env.soundFile(),
             progress: { [weak self] done, total in
-                DispatchQueue.main.async { self?.listening(done, total) }
+                DispatchQueue.main.async {
+                    guard self?.runToken == token else { return }
+                    self?.listening(done, total)
+                }
             })
         self.link = link
         self.session = session
-        phase = .listening(done: 0, total: 0)
-        queue.async { [weak self] in
+        if !quiet { phase = .listening(done: 0, total: 0) }
+        let sleep = env.sleep
+        queue.async { [weak self] in                           // file en série : jamais deux écoutes en même temps
+            if warmUp > 0 { sleep(warmUp) }
             let outcome = session.run()
-            DispatchQueue.main.async { self?.finishListening(outcome) }
+            let diagnostics = session.diagnostics
+            DispatchQueue.main.async {
+                guard self?.runToken == token else { return }
+                self?.diagnostics = diagnostics
+                self?.finishListening(outcome)
+            }
         }
     }
 
+    /// Ce qui se règle dans FL (redémarrer, ouvrir une page, arrêter la lecture…) : Organiser attend et continue
+    /// tout seul. nil : un vrai échec, dit tel quel.
+    static func waitReason(for error: OrganizerError, wrongInput: Bool = false) -> Wait? {
+        switch error {
+        case .noResponse: return wrongInput ? .wrongInput : .noResponse
+        case .outdatedScript: return .restartFL
+        case .flClosed: return .openFL
+        case .refused(4): return .stopPlayback
+        default: return nil
+        }
+    }
+
+    /// Nouvelle attente : un essai part tout seul après `waitInterval`, tant que la fenêtre attend toujours la même
+    /// chose (un essai manuel, une installation ou la fermeture l'annulent).
+    private var waitSerial = 0
+
+    private func wait(_ reason: Wait) {
+        phase = .waiting(reason)
+        waitSerial += 1
+        let serial = waitSerial
+        DispatchQueue.main.asyncAfter(deadline: .now() + env.waitInterval) { [weak self] in
+            guard let self, !self.closed, self.waitSerial == serial, case .waiting = self.phase else { return }
+            if reason == .restartFL, self.awaitingRestart { self.checkRestart() } else { self.begin(quiet: true) }
+        }
+    }
+
+    /// Lien tout juste installé : FL qui tournait quitté, puis un nouveau FL (ou FL lancé, s'il était fermé) ; alors
+    /// « Démarrer ». Rien n'est envoyé à FL entre-temps, aucun port (retour du 01/11). Après « Démarrer », tant que FL
+    /// ne répond pas : l'image de MIDI Settings (`guidingLink`).
+    private func checkRestart() {
+        let now = env.runningFL()
+        if now == nil {
+            flClosedForRestart = true
+            return wait(.restartFL)
+        }
+        if let old = restartWatch, now == old { return wait(.restartFL) }
+        awaitingRestart = false
+        restartWatch = nil
+        flClosedForRestart = false
+        waitSerial += 1
+        phase = .ready
+    }
+
+    /// Attente d'après l'erreur ; lien tout juste installé : MIDI Settings tant que FL ne répond pas.
+    private func waitingReason(for error: OrganizerError) -> Wait? {
+        guard let reason = Self.waitReason(for: error, wrongInput: env.wrongInput()) else { return nil }
+        return guidingLink && reason == .noResponse ? .midiSettings : reason
+    }
+
+    func openFL() { env.openFL() }
+
+    /// Étape 2 : FL quitté puis rouvert tout seul ; l'attente continue (nouveau FL vu → « Démarrer »).
+    func restartFL() { env.restartFL() }
+
+    /// Étape 2 en cours, FL encore ouvert : ⌘Q tapé dans FL Shortcuts visait FL.
+    var waitingForFLRestart: Bool {
+        if case .waiting(.restartFL) = phase { return !flClosedForRestart }
+        return false
+    }
+
+    /// Des icônes choisies, mais FL Shortcuts ne peut pas lire la fenêtre de FL : dit avant « Organiser » (capture du
+    /// 31/10 : l'échec ne venait qu'au moment de les poser).
+    /// Seules les icônes au numéro de FL inconnu passent encore par la fenêtre de FL (« Enregistrement de l'écran ») ;
+    /// toutes les cases de la grille sont dans `FLIconNumbers` (13/11) : rien à demander pour elles.
+    var iconsNeedScreen: Bool {
+        presentFamilies.contains { family in
+            style(of: family).icon.map { !$0.isReset && FLIconNumbers.table[$0.code] == nil } ?? false
+        } && !env.screenAllowed()
+    }
+
+    func askScreen() { env.askScreen() }
+
+    /// Réponse à la fenêtre de macOS : l'écoute part (ou attend l'autorisation, refusée).
+    private func afterAudioPermission() {
+        guard !closed, phase == .waiting(.audioPermission) else { return }
+        retry()
+    }
+
+    func openAudioSettings() { env.openAudioSettings() }
+
+    /// Texte à m'envoyer quand ça ne marche pas : versions, autorisations, état, et ce que l'écoute a fait — des
+    /// nombres seulement, jamais le nom d'un son ou d'une piste.
+    var diagnosticText: String {
+        var lines = ["FL Shortcuts · diagnostic de l'Organiser", env.about(), "étape=\(Self.phaseCode(phase))"]
+        if let diagnostics { lines.append(diagnostics.text) }
+        if let trace = lastApply?.trace, !trace.isEmpty { lines.append("application=" + trace.joined(separator: " ; ")) }
+        return lines.filter { !$0.isEmpty }.joined(separator: "\n")
+    }
+
+    func copyDiagnostic() {
+        env.copy(diagnosticText)
+        copied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in self?.copied = false }
+    }
+
+    /// Étape en un mot (diagnostic) : jamais le texte d'un message qui pourrait citer un nom.
+    static func phaseCode(_ phase: Phase) -> String {
+        switch phase {
+        case .ready: return "prêt"
+        case .starting: return "début"
+        case .setup: return "installation"
+        case .waiting(let wait): return "attente-\(wait)"
+        case .listening(let done, let total): return "écoute-\(done)/\(total)"
+        case .preview: return "aperçu"
+        case .applying: return "application"
+        case .applied(let error): return "appliqué" + (error.map { "-\($0)" } ?? "")
+        case .undoing: return "retour"
+        case .undone(let error): return "revenu" + (error.map { "-\($0)" } ?? "")
+        case .failed: return "échec"
+        case .learningIcons(let done, let total): return "icônes-\(done)/\(total)"
+        case .iconsLearned: return "icônes-apprises"
+        }
+    }
+
+    /// « Réessayer » : après un échec, ou tout de suite pendant une attente.
+    var canRetry: Bool {
+        switch phase {
+        case .setup, .failed, .waiting: return snapshot == nil
+        default: return false
+        }
+    }
+
+    func retry() {
+        guard canRetry, !closed else { return }
+        waitSerial += 1
+        projectMissing = false
+        learned = 0
+        feedbackSent = false
+        result = nil
+        families = [:]
+        kinds = [:]
+        names = [:]
+        slots = [:]
+        options.mixerEdits = MixerEdits()
+        phase = .ready
+        start()
+    }
+
+    /// « Choisir le fichier… » : le projet montré, l'analyse repart dessus.
+    func chooseProject() {
+        guard projectMissing, env.chooseProject() else { return }
+        retry()
+    }
+
+    /// Lien installé en un clic : FL doit redémarrer pour le lire, Organiser attend et continue tout seul.
+    func installLink() {
+        let running = env.runningFL()
+        guard env.installLink(), !closed else { return }
+        afterInstall(running)
+    }
+
+    /// La fenêtre reste ouverte : FL à quitter et rouvrir (FL devant, pour que ⌘Q le quitte lui, jamais FL
+    /// Shortcuts), puis MIDI Settings.
+    private func afterInstall(_ running: Int32?) {
+        guidingLink = true
+        awaitingRestart = true
+        restartWatch = running
+        flClosedForRestart = running == nil
+        env.focusFL()
+        wait(.restartFL)
+    }
+
+    var scriptPlace: (url: URL, present: Bool)? { env.scriptPlace() }
+
+    func revealScript() {
+        if let place = env.scriptPlace(), place.present { env.reveal(place.url) }
+    }
+
+    func installLinkElsewhere() {
+        let running = env.runningFL()
+        guard env.installLinkElsewhere(), !closed else { return }
+        afterInstall(running)
+    }
+
     private func listening(_ done: Int, _ total: Int) {
-        guard case .listening = phase else { return }
-        phase = .listening(done: done, total: total)
+        if guidingLink { guidingLink = false }
+        switch phase {
+        case .listening, .waiting: phase = .listening(done: done, total: total)   // l'attente finit au premier son
+        default: return
+        }
     }
 
     private func finishListening(_ outcome: Result<OrganizerResult, OrganizerError>) {
@@ -142,61 +994,223 @@ final class OrganizerController: ObservableObject {
         case .success(let result):
             self.result = result
             families = OrganizerApplier.families(of: result)
-            if !families.isEmpty {
+            kinds = OrganizerApplier.kinds(of: result)
+            if !families.isEmpty || !plan.isEmpty {
                 phase = .preview
-            } else if result.page == .mixer {
-                phase = .failed("Aucune piste du Mixer n'est reliée à un son du Channel rack.")
             } else {
-                phase = .failed("Aucun son à écouter dans le Channel rack.")
+                phase = .failed(String(localized: "Aucun son à organiser dans ce projet."))
             }
+            // 13/11 (« quand j'ouvre organiser et que je ferme ça re rame… si non utilisé il faut le fermer
+            // directement ») : l'aperçu n'envoie rien à FL ; le lien est rendu tout de suite (FL ne voit plus
+            // l'appareil) et repris le temps de « Organiser ».
+            dropLink()
         case .failure(let error):
-            phase = .failed(error.message)
+            projectMissing = error == .projectNotFound
+            if let reason = waitingReason(for: error) {
+                wait(reason)
+            } else {
+                phase = .failed(error.message)
+                dropLink()
+            }
         }
     }
 
-    /// Familles présentes, dans l'ordre Drums, Basse, Mélodies, Voix, FX, À vérifier.
+    /// Ce que « Organiser » fera, d'après ce qu'est chaque son (modifiable) et les options.
+    var plan: OrganizerPlan {
+        guard let result else { return OrganizerPlan() }
+        return OrganizerPlan.make(result, families: families, kinds: kinds, styles: styles, options: options,
+                                  names: names, slots: slots)
+    }
+
+    /// Familles présentes, dans l'ordre choisi (au départ Voix, Mélodies, Basse, Drums, FX, À vérifier ; les familles
+    /// absentes sont sautées).
     var presentFamilies: [SoundFamily] {
         let used = Set(families.values)
-        return SoundFamily.order.filter { used.contains($0) }
+        return options.familyOrder.filter { used.contains($0) }
+    }
+
+    /// Une famille glissée sur une autre (comme un dossier) : elle prend sa place, l'autre se décale vers là d'où elle
+    /// vient (glissée vers le bas : juste après elle ; vers le haut : juste avant). Tout le projet suit ce nouvel ordre.
+    func moveFamily(_ family: SoundFamily, onto target: SoundFamily) {
+        options.familyOrder = Self.moving(family, onto: target, in: options.familyOrder)
+    }
+
+    /// Familles présentes posées dans cet ordre (glissées dans l'aperçu) ; les familles absentes de ce projet gardent
+    /// leur place dans l'ordre retenu.
+    func arrangeFamilies(_ present: [SoundFamily]) {
+        options.familyOrder = Self.arranging(present, in: options.familyOrder)
+    }
+
+    /// Pur (testé) : `order` où les familles de `present` prennent, l'une après l'autre, les places des familles
+    /// présentes ; les autres ne bougent pas.
+    static func arranging(_ present: [SoundFamily], in order: [SoundFamily]) -> [SoundFamily] {
+        let wanted = Set(present)
+        var next = present.makeIterator()
+        return order.map { wanted.contains($0) ? (next.next() ?? $0) : $0 }
+    }
+
+    /// « Monter / Descendre la famille » : d'une famille présente vers le haut (-1) ou le bas (+1).
+    func shiftFamily(_ family: SoundFamily, by step: Int) {
+        let present = presentFamilies
+        guard let at = present.firstIndex(of: family), present.indices.contains(at + step) else { return }
+        moveFamily(family, onto: present[at + step])
+    }
+
+    /// Pur (testé) : l'ordre des familles après en avoir glissé une sur une autre.
+    static func moving(_ family: SoundFamily, onto target: SoundFamily, in order: [SoundFamily]) -> [SoundFamily] {
+        guard family != target, let from = order.firstIndex(of: family), let to = order.firstIndex(of: target) else {
+            return order
+        }
+        var out = order
+        out.remove(at: from)
+        let place = out.firstIndex(of: target) ?? out.count
+        out.insert(family, at: from < to ? place + 1 : place)
+        return out
+    }
+
+    // MARK: Places dans le Mixer (demande du propriétaire du 25/10)
+
+    /// Dernière piste du Mixer de ce projet (la toute dernière est « Current »).
+    var mixerLast: Int { max(1, min((result?.mixer.count ?? 2) - 2, FamilyStyle.maxMixerTrack)) }
+
+    /// La piste du Mixer où finira ce son (ce que montre sa case, comme dans le Channel rack de FL) ; nil : aucune
+    /// (envoyé au Master sans piste libre).
+    func mixerSlot(of index: Int, in plan: OrganizerPlan? = nil) -> Int? {
+        guard let channel = result?.channels.first(where: { $0.index == index }) else { return nil }
+        let mixer = (plan ?? self.plan).mixer
+        let track = mixer.links[index] ?? channel.mixerTrack
+        guard track >= 1 else { return nil }
+        if let place = mixer.final.firstIndex(of: track) { return place + 1 }
+        return track
+    }
+
+    /// Les pistes du Mixer où finira la famille (son bus compris ; la 808 avec les drums).
+    func mixerRange(of family: SoundFamily, in plan: OrganizerPlan? = nil) -> ClosedRange<Int>? {
+        let mixer = (plan ?? self.plan).mixer
+        let places = mixer.final.enumerated().compactMap { place, track in
+            mixer.verdicts[track]?.busFamily == family ? place + 1 : nil
+        }
+        guard let first = places.min(), let last = places.max() else { return nil }
+        return first...last
+    }
+
+    func setSlot(_ index: Int, _ slot: Int?) {
+        slots[index] = slot.map { min(max($0, 1), mixerLast) }
+    }
+
+    func setMixerStart(_ family: SoundFamily, _ start: Int?) {
+        updateStyle(family) { $0.mixerStart = start.map { min(max($0, 1), self.mixerLast) } }
+    }
+
+    /// Le Mixer rangé tout seul de nouveau : plus aucune place choisie (sons et familles).
+    func autoArrange() {
+        slots = [:]
+        for family in SoundFamily.order where style(of: family).mixerStart != nil {
+            updateStyle(family) { $0.mixerStart = nil }
+        }
+    }
+
+    var placesChosen: Bool {
+        !slots.isEmpty || SoundFamily.order.contains { style(of: $0).mixerStart != nil }
+    }
+
+    /// « Écrire… » : le nom que la personne donne à ce son ; vide : le nom automatique.
+    func setName(_ index: Int, _ name: String?) {
+        let trimmed = name?.trimmingCharacters(in: .whitespaces) ?? ""
+        names[index] = trimmed.isEmpty ? nil : String(trimmed.prefix(64))
     }
 
     struct Member: Identifiable, Equatable {
         let id: Int
         let name: String
         let testNotes: Bool
+        /// Classé d'après son nom (rien n'a été écouté).
+        var byName = false
+        /// Nom qu'il prendra (nil : il garde le sien).
+        var newName: String? = nil
+        /// Ce qu'est le son (Kick, 808…), s'il va avec sa famille.
+        var kind: SoundKind? = nil
+        /// La piste du Mixer où il finira (sa case) ; choisie à la main ; son nom écrit dans l'aperçu.
+        var slot: Int? = nil
+        var pinned = false
+        var written = false
     }
 
-    /// Éléments d'une famille, dans l'ordre de FL.
+    /// Sons d'une famille, dans l'ordre où ils finiront dans le Channel rack (les Kick ensemble, puis les Snare…).
     func members(of family: SoundFamily) -> [Member] {
         guard let result else { return [] }
-        var out: [Member] = []
-        switch result.page {
-        case .channelRack:
-            for item in result.items where families[item.index] == family {
-                out.append(Member(id: item.index, name: item.name, testNotes: item.testNotes))
-            }
-        case .mixer:
-            for track in result.mixer where families[track.index] == family {
-                out.append(Member(id: track.index, name: track.name.isEmpty ? "Piste \(track.index)" : track.name,
-                                  testNotes: false))
-            }
+        let channels = result.channels.sorted { $0.index < $1.index }
+        let order = OrganizerApplier.rackPlan(channels, families: families, kinds: kinds, options: options).final
+        var byIndex: [Int: OrganizerItem] = [:]
+        for item in result.items { byIndex[item.index] = item }
+        let plan = self.plan
+        let planned = plan.rack.names
+        return order.compactMap { index in
+            guard families[index] == family, let item = byIndex[index] else { return nil }
+            return Member(id: index, name: item.name, testNotes: item.testNotes, byName: item.byName,
+                          newName: (names[index] ?? planned[index]).flatMap { $0 == item.name ? nil : $0 },
+                          kind: kind(of: index), slot: mixerSlot(of: index, in: plan), pinned: slots[index] != nil,
+                          written: names[index] != nil)
         }
-        return out
     }
 
-    /// Couleur prévue de chaque élément (dégradés répartis dans l'ordre final).
+    /// Ce qu'est le son, s'il va avec sa famille.
+    func kind(of index: Int) -> SoundKind? {
+        OrganizerApplier.kind(index, families: families, kinds: kinds)
+    }
+
+    /// Changé dans l'aperçu : une famille seule (ce qu'était le son est oublié), ou ce qu'est le son (sa famille suit).
+    func setFamily(_ index: Int, _ family: SoundFamily) {
+        families[index] = family
+        kinds[index] = nil
+    }
+
+    func setKind(_ index: Int, _ kind: SoundKind) {
+        families[index] = kind.family
+        kinds[index] = kind
+    }
+
+    /// Un son glissé dans une autre famille (demande du 01/11 : « basse, on la met dans mélodie… qu'il soit relié à
+    /// la famille qu'on vient de lui assigner ») : il en prend la couleur, la place et le bus. Ce qui le gardait
+    /// ailleurs est oublié : sa case du Mixer choisie à la main et les sorties changées à la main de sa piste.
+    func moveSound(_ index: Int, to family: SoundFamily) {
+        guard let now = families[index] else { return }
+        let kind = self.kind(of: index)
+        // La 808 (famille Basse, bus des Drums) posée sur Basse : son bus devient celui de la Basse.
+        guard now != family || (kind?.busFamily ?? now) != family else { return }
+        let track = soundTrack(of: index)
+        // Elle garde alors son nom (« 808 »), qui ne vient plus de ce qu'elle est.
+        if let kind, kind.family == family, names[index] == nil, let planned = plan.rack.names[index] {
+            names[index] = planned
+        }
+        setFamily(index, family)
+        slots[index] = nil
+        if let track { options.mixerEdits.routes[track] = nil }
+    }
+
+    /// Piste d'origine du Mixer où va un son (nil : le Master).
+    func soundTrack(of index: Int, in plan: OrganizerPlan? = nil) -> Int? {
+        guard let channel = result?.channels.first(where: { $0.index == index }) else { return nil }
+        let track = (plan ?? self.plan).mixer.links[index] ?? channel.mixerTrack
+        return track >= 1 ? track : nil
+    }
+
+    /// Couleur prévue de chaque son du Channel rack (dégradés répartis dans l'ordre final), même si le Channel rack
+    /// n'est pas touché : la couleur de sa famille dans l'aperçu.
     var plannedColors: [Int: RGBColor] {
         guard let result else { return [:] }
-        let order: [Int]
-        switch result.page {
-        case .channelRack:
-            let channels = result.channels.sorted { $0.index < $1.index }
-            order = RegroupPlan.make(order: channels.map { families[$0.index] }).final
-        case .mixer:
-            order = result.mixer.map(\.index)
-        }
+        let channels = result.channels.sorted { $0.index < $1.index }
+        let order = OrganizerApplier.rackPlan(channels, families: families, kinds: kinds, options: options).final
         return OrganizerApplier.plannedColors(families: families, styles: styles, order: order)
     }
+
+    /// Analyse sur le fichier : tout se fait dans une copie rangée du projet (OrganizerProjectFile), Channel rack sur
+    /// « All » ; sa Playlist n'est rangée que si « Playlist » est cochée.
+    var organizesCopy: Bool { result?.project != nil }
+
+    /// La Playlist rangée demanderait plus de pistes que FL n'en a : seul avertissement de l'aperçu (le résumé ligne
+    /// par ligne et ses phrases sont retirés le 28/10 : « ça j'aime pas non plus »).
+    var playlistTooBig: Bool { organizesCopy && options.playlist && plan.layout == nil }
 
     func style(of family: SoundFamily) -> FamilyStyle {
         styles[family] ?? FamilyStyles.initial[family] ?? FamilyStyle(color: NameColorPayload.defaultColor)
@@ -208,29 +1222,232 @@ final class OrganizerController: ObservableObject {
         styles[family] = updated
     }
 
-    var doneText: String {
-        result?.page == .mixer ? "C'est fait : les pistes du Mixer sont colorées."
-                               : "C'est fait : les sons sont colorés et regroupés par famille."
+    /// « Couleurs de base » (05/11 : « choisir leur couleur de base… dès qu'ils vont organiser… leur couleur
+    /// prédéfinie ») : la couleur d'une famille, gardée tout de suite pour les prochaines fois.
+    func setBaseColor(_ family: SoundFamily, _ color: RGBColor) {
+        updateStyle(family) { style in
+            style.color = color
+            style.fade = nil
+        }
+        env.saveStyles(styles)
+    }
+
+    /// Les couleurs de départ de toutes les familles, gardées.
+    func resetBaseColors() {
+        for (family, initial) in FamilyStyles.initial {
+            updateStyle(family) { style in
+                style.color = initial.color
+                style.fade = nil
+            }
+        }
+        env.saveStyles(styles)
+    }
+
+    var doneText: String { doneLines(short: false).joined(separator: "\n") }
+
+    private func doneLines(short: Bool) -> [String] {
+        var lines = [short ? String(localized: "Coloré et renommé dans FL. « Revenir comme avant » défait tout, sauf les sons supprimés.")
+                     : String(localized: "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout, sauf les sons supprimés.")]
+        if let copy = lastApply?.copy {
+            // Rangé dans une copie : son nom à l'écran (jamais dans le journal).
+            lines = [short ? String(localized: "Dans une copie, « \(copy.lastPathComponent) », à côté de l'original : l'original n'a pas bougé.")
+                     : String(localized: "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « \(copy.lastPathComponent) », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre et met la copie à la Corbeille.")]
+            if lastApply?.copyNotSaved == true {
+                lines.append(String(localized: "FL n'a pas enregistré la copie rangée : enregistre-la dans FL (⌘S)."))
+            }
+            lines.append(short ? String(localized: "En fermant, tu choisiras de garder cette version ou de revenir à l'original.")
+                         : String(localized: "Une fois l'Organiser fermé, FL Shortcuts te demandera si tu valides cette version : « Valider » met ton projet d'origine à la Corbeille et lui donne son nom, « Retourner en arrière » la supprime et rouvre ton projet d'avant."))
+        }
+        if let outcome = lastApply {
+            if outcome.deleted > 0 {
+                lines.append(String(localized: "\(outcome.deleted) sons sans aucune note supprimés."))
+            }
+            if outcome.notDeleted > 0 {
+                lines.append(String(localized: "FL n'a pas supprimé les \(outcome.notDeleted) sons sans aucune note : ils sont sélectionnés dans le Channel rack, supprime-les avec clic droit › Delete."))
+            }
+            if outcome.split > 0 {
+                lines.append(String(localized: "Playlist : \(outcome.split) sons qui partageaient une piste ont chacun la leur."))
+            }
+            if outcome.reunited > 0 {
+                lines.append(String(localized: "Playlist : \(outcome.reunited) clips déplacés sur la piste de leur son (un son par piste)."))
+            }
+            if outcome.clipsLeft > 0 {
+                lines.append(String(localized: "Playlist : \(outcome.clipsLeft) clips n'ont pas pu rejoindre la piste de leur son (leur nom n'a pas été lu dans la fenêtre de FL, ou FL ne l'a pas laissé faire) : ils sont restés à leur place."))
+            }
+            if outcome.playlistMixed {
+                lines.append(String(localized: "Playlist : des pistes gardent deux sons, FL n'a pas laissé descendre leurs clips sur une piste à eux (dans FL, « Typing keyboard to piano keyboard » doit être éteint)."))
+            }
+            if outcome.unordered.contains(.channelRack) {
+                lines.append(String(localized: "Channel rack pas entièrement rangé : FL n'est pas resté devant. Couleurs et noms sont posés."))
+            }
+            if outcome.unordered.contains(.mixer) {
+                lines.append(String(localized: "Mixer pas entièrement rangé : FL n'est pas resté devant. Couleurs et noms sont posés."))
+            }
+            if outcome.playlistUnordered {
+                lines.append(ScreenLook.allowed
+                    ? String(localized: "Playlist pas rangée : FL n'a pas montré le menu de ses pistes (la Playlist doit être visible, ses noms de piste à l'écran). Noms et couleurs sont posés.")
+                    : String(localized: "Playlist pas rangée : pour remonter ses pistes, FL Shortcuts doit voir la fenêtre de FL (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran). Noms et couleurs sont posés."))
+            }
+        }
+        if let missed = lastApply?.iconsMissed {
+            // Juste sous la première ligne : visible même en court.
+            lines.insert(String(localized: "Icônes non posées : \(missed)."), at: min(1, lines.count))
+        }
+        if learned > 0 {
+            lines.append(String(localized: """
+                L'ordinateur retient \(learned) sons corrigés sur ce Mac : la prochaine fois, ils seront rangés comme tu l'as dit.
+                """))
+        }
+        if feedbackSent {
+            lines.append(String(localized: """
+                Merci ! Pour ranger ce projet avec tes corrections : « Revenir comme avant », puis relance Organiser.
+                """))
+        }
+        return lines
     }
 
     func apply() {
         guard phase == .preview, let result, let link else { return }
         env.saveStyles(styles)
+        env.saveFamilyOrder(options.familyOrder)
+        // Les sons changés dans l'aperçu : l'IA s'en souvient (demande du propriétaire), sans rien demander.
+        learned = learn(OrganizerFeedback.previewFixes(result.items, families: families, kinds: kinds),
+                        reasons: ["apercu"])
+        env.focusFL()                                         // ⌥↑, ⌥← et les clics des icônes vont à FL
         phase = .applying
-        let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link))
-        let families = self.families, styles = self.styles
+        applyStep = nil
+        // Lien rendu pendant l'aperçu (13/11) : repris le temps du rangement, puis rendu de nouveau.
+        let fresh = linkDropped && env.useLinkAgain()
+        linkDropped = false
+        let sleep = env.sleep
+        let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), moveLeft: env.moveLeft(link),
+                                       placeIcon: env.placeIcon, deleteSelected: env.deleteSelected(link),
+                                       moveTrack: env.moveTrack(link), moveClips: env.moveClips(link),
+                                       readClips: env.readClips(link), moveClip: env.moveClip(link),
+                                       wait: env.sleep, listen: env.timing.trackListen, files: env.projectFiles(),
+                                       iconIDs: env.loadIconIDs(),
+                                       mixerIconIDs: env.loadMixerIconIDs(),
+                                       report: { [weak self] text in
+                                           DispatchQueue.main.async { self?.applyStep = text }
+                                       })
+        let plan = self.plan, styles = self.styles
         queue.async { [weak self] in
-            let outcome = applier.apply(result: result, families: families, styles: styles)
+            if fresh { sleep(2) }                         // FL voit l'appareil revenir et recharge son script
+            let outcome = applier.apply(plan, result: result, styles: styles)
             DispatchQueue.main.async {
+                self?.env.saveIconIDs(outcome.learnedIconIDs)
+                self?.env.saveMixerIconIDs(outcome.learnedMixerIconIDs)
                 self?.snapshot = outcome.snapshot
+                self?.lastApply = outcome
                 self?.phase = .applied(outcome.error)
+                if let made = OrganizerController.madeCopy(outcome) { self?.env.copyMade(made.original, made.copy) }
+                self?.dropLink()
             }
         }
     }
 
+    /// Le lien avec FL n'est plus tenu : tout est rangé (ou remis comme avant). Retour du 01/11 au soir (« quand on
+    /// valide Organiser ça rame toujours ») : FL saccade tant qu'il voit « FL Shortcuts Link » ; l'écran de fin n'en a
+    /// plus besoin, les ports sont retirés tout de suite, sans attendre qu'on ferme la fenêtre.
+    private var linkDropped = false
+    /// Le lien est encore à l'Organiser (fenêtre ouverte, rangement pas fini) : lu par le surveillant du lien.
+    var holdsLink: Bool { !closed && !linkDropped }
+
+    private func dropLink() {
+        guard !linkDropped, !closed else { return }
+        linkDropped = true
+        env.releaseLink()
+    }
+
+    /// La copie rangée faite et ouverte dans FL, avec son original (même si la suite s'est arrêtée en route : la
+    /// Playlist y est rangée, l'utilisateur dira s'il la garde).
+    static func madeCopy(_ outcome: ApplyOutcome) -> (original: URL, copy: URL)? {
+        guard let copy = outcome.copy, let original = outcome.snapshot.original else { return nil }
+        return (original, copy)
+    }
+
+    // MARK: L'IA apprend de ses erreurs
+
+    /// Sons écoutés que l'on peut corriger (ceux classés d'après leur nom n'ont pas été écoutés).
+    /// Tous les sons (vidéo du 30/10 : « il devrait y avoir la liste de tous les sons ») : un son écouté est retenu par
+    /// son empreinte, un son rangé d'après son nom par son nom (codé, jamais envoyé).
+    var correctable: [OrganizerItem] { result?.items ?? [] }
+
+    /// Les trois chiffres de la fin (maquette du 13/11) : sons rangés, familles, sons sans note retirés.
+    var finishStats: (sounds: Int, families: Int, removed: Int) {
+        (families.count, presentFamilies.count, lastApply?.deleted ?? 0)
+    }
+
+    /// « Garder » (13/11, maquette validée) : la version rangée devient ton projet tout de suite, comme « Valider » à la
+    /// réouverture (FL l'enregistre, l'original part à la Corbeille, la copie prend son nom) ; l'Organiser se ferme.
+    /// Rangé sans copie : il se ferme seulement.
+    func keep() {
+        let copy = lastApply?.copy
+        close()
+        if let copy { env.keepCopy(copy) }
+    }
+
+    /// « Pas content ? » : après l'application, une fois.
+    var canGiveFeedback: Bool {
+        guard case .applied = phase, result != nil else { return false }
+        return !feedbackSent
+    }
+
+    /// L'accord déjà donné pour aider l'IA de tout le monde.
+    var sharingCorrections: Bool { env.corrections()?.partage == true }
+
+    /// Chaque son corrigé retenu sur le Mac et, avec l'accord, partagé (des nombres seulement) ; le nombre retenu.
+    private func learn(_ fixes: [Int: OrganizerFeedback.Fix], reasons: [String]) -> Int {
+        guard !fixes.isEmpty, let store = env.corrections(), let result else { return 0 }
+        var count = 0
+        for item in result.items {
+            guard let fix = fixes[item.index], fix.family != .unsure else { continue }
+            guard let heard = item.soundPrint else {
+                // Pas écouté (rangé d'après son nom, ou muet) : retenu d'après son nom, sur ce Mac seulement.
+                if store.ajoute(nom: item.name, famille: fix.family, sorte: fix.kind) { count += 1 }
+                continue
+            }
+            store.ajoute(CorrectionIA(empreinte: heard.empreinte, famille: fix.family, sorte: fix.kind, date: Date()))
+            count += 1
+            if store.partage == true,
+               let corps = CorrectionsIA.envoi(heard, avant: (item.family, item.kind), apres: (fix.family, fix.kind),
+                                               raisons: reasons, appVersion: MacroFileActions.appVersion),
+               let json = try? JSONSerialization.data(withJSONObject: corps) {
+                env.shareCorrection(json)
+            }
+        }
+        return count
+    }
+
+    /// « Envoyer » : les sons corrigés retenus (et partagés si la case est cochée), le reste dit à l'équipe.
+    /// « Pas content ? › La Playlist » (13/11) : les familles dans cet ordre (« À vérifier » toujours à la fin).
+    func setFamilyOrder(_ order: [SoundFamily]) {
+        options.familyOrder = OrganizerOptions.completeOrder(order)
+    }
+
+    /// « Pas content ? › Annuler » (13/11) : couleurs, départs du Mixer, bus, pré-master et ordre comme à l'ouverture.
+    func restore(styles: [SoundFamily: FamilyStyle], options: OrganizerOptions) {
+        self.styles = styles
+        self.options = options
+        env.saveStyles(styles)
+    }
+
+    /// « C'est noté » (13/11) : les sons corrigés appris, le message pour l'équipe s'il y en a un, et ce qui a été changé
+    /// (couleurs, départs du Mixer, bus, pré-master, ordre des familles) gardé pour les prochains rangements.
+    func submitFeedback(_ feedback: OrganizerFeedback) {
+        env.saveStyles(styles)
+        env.saveFamilyOrder(options.familyOrder)
+        env.saveMixerChoices(options.buses, options.premaster)
+        if !feedback.fixes.isEmpty { env.corrections()?.partage = feedback.share }
+        learned += learn(feedback.fixes, reasons: feedback.reasons.map(\.rawValue).sorted())
+        if let message = feedback.teamMessage() { env.sendFeedback(message, diagnosticText) }
+        feedbackSent = true
+        feedbackShown = false
+    }
+
     /// « Revenir comme avant » : après l'application, ou pour finir un retour interrompu.
     var canUndo: Bool {
-        guard snapshot != nil else { return false }
+        guard let snapshot, !snapshot.isEmpty else { return false }
         switch phase {
         case .applied: return true
         case .undone(let error): return error != nil
@@ -240,54 +1457,172 @@ final class OrganizerController: ObservableObject {
 
     func undo() {
         guard canUndo, let snapshot, let link else { return }
+        env.focusFL()
         phase = .undoing
-        let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link))
+        // Lien rendu à la fin de l'organisation : repris le temps de remettre FL comme avant, puis rendu de nouveau.
+        let fresh = linkDropped && env.useLinkAgain()
+        linkDropped = false
+        let sleep = env.sleep
+        let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), moveLeft: env.moveLeft(link),
+                                       moveTrack: env.moveTrack(link), moveClips: env.moveClips(link),
+                                       readClips: env.readClips(link), moveClip: env.moveClip(link),
+                                       wait: env.sleep, listen: env.timing.trackListen, files: env.projectFiles())
         queue.async { [weak self] in
+            if fresh { sleep(2) }                         // FL voit l'appareil revenir et recharge son script
             let outcome = applier.undo(snapshot)
             DispatchQueue.main.async {
                 self?.snapshot = outcome.snapshot
                 self?.phase = .undone(outcome.error)
+                if outcome.error == nil, snapshot.original != nil, let copy = self?.lastApply?.copy {
+                    self?.env.copyUndone(copy)
+                }
+                self?.dropLink()
             }
         }
     }
 
+    /// Mode capture (mesure de la CI) : un écran donné, avec des sons d'exemple ; rien n'est envoyé à FL.
+    func showDemo(_ screen: String) {
+        waitSerial += 1
+        showLinkHelp = screen == "aide"
+        demoColors = screen == "couleurs"
+        // Des récentes d'exemple, jamais écrites dans les réglages (comme au premier lancement sinon : cases vides).
+        RecentColors.demoList = demoColors ? Self.demoRecentColors : nil
+        switch screen {
+        case "demarrer": phase = .ready
+        case "installer": phase = .setup
+        case "attente": phase = .waiting(.restartFL)
+        case "aide": phase = .waiting(.noResponse)
+        case "midi": phase = .waiting(.midiSettings)
+        case "ecoute": phase = .listening(done: 3, total: 8)
+        case "apercu", "fini", "couleurs":
+            let result = Self.demoResult
+            self.result = result
+            families = OrganizerApplier.families(of: result)
+            kinds = OrganizerApplier.kinds(of: result)
+            names = [:]
+            slots = [:]
+            options.mixerEdits = MixerEdits()
+            phase = screen == "fini" ? .applied(nil) : .preview
+        default: break
+        }
+    }
+
+    /// 7 couleurs récentes (3 cases vides) pour la photo de la roue.
+    static let demoRecentColors = ["E0453A", "F2A33A", "F4E04D", "5BC46A", "3A9BE0", "7A5BE0", "D04FB0"]
+        .compactMap(RGBColor.init(hex:))
+
+    /// Un petit projet d'exemple : des sons nommés comme dans les packs, leurs patterns, leurs pistes du Mixer et
+    /// de la Playlist.
+    static var demoResult: OrganizerResult {
+        let names = ["BEAM KICK", "Serum Lead", "ZEBRA 808", "@MEH CLAP", "ALTER OPEN HAT", "Vocal Chop", "Riser FX",
+                     "Pluck"]
+        let gray = RGBColor(r: 92, g: 101, b: 107)
+        let channels = names.enumerated().map {
+            ChannelInfo(index: $0.offset, type: 2, mixerTrack: $0.offset + 1, color: gray, name: $0.element)
+        }
+        let items = names.enumerated().compactMap { entry -> OrganizerItem? in
+            guard let kind = SoundNames.kind(of: entry.element) else { return nil }
+            return OrganizerItem(index: entry.offset, name: entry.element, family: kind.family, confidence: 0.9,
+                                 testNotes: false, mixerTrack: entry.offset + 1, color: gray, kind: kind, byName: true)
+        }
+        let patterns = (0..<4).map { PatternInfo(index: $0, color: gray, name: "Pattern \($0 + 1)") }
+        // Assez de pistes libres pour un bus par famille et le pré-master (comme un vrai projet).
+        let mixer = (0...24).map { MixerTrackInfo(index: $0, color: gray, name: $0 == 0 ? "Master" : "Insert \($0)") }
+        let playlist = (0..<4).map { PlaylistTrackInfo(index: $0, selected: false, color: gray, name: "Track \($0 + 1)") }
+        return OrganizerResult(channels: channels, items: items, patterns: patterns,
+                               patternSounds: [0: [0, 3, 4], 1: [2], 2: [1, 7], 3: [5]], mixer: mixer, routes: [:],
+                               playlist: playlist, trackSounds: [0: [0], 1: [3, 4], 2: [2], 3: [1, 7]])
+    }
+
     /// Arrête l'écoute (la session remet FL comme avant) et ferme la fenêtre.
+    /// Au plus tard, le lien avec FL est retiré ce temps après la fermeture (même si FL ne répond plus).
+    static let releaseDeadline: TimeInterval = 3
+
     func close() {
         guard !closed else { return }
         closed = true
+        OrganizerProgress.shared.clear()
         session?.cancel()
         session = nil
+        // Plus de lien avec FL une fois l'écoute ou l'application en cours finie (FL remis comme avant par le lien), et
+        // au plus tard 3 s après (01/11 : « Démarrer » puis « Arrêter », FL saccadait encore : l'analyse attendait FL et
+        // le lien restait ouvert). Une seule fois.
+        let release = ReleaseOnce(env.releaseLink)
+        queue.async { DispatchQueue.main.async { release.run() } }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.releaseDeadline) { release.run() }
         let done = onClose
         onClose = nil
         done?()
     }
 }
 
-/// Le panneau de l'Organiser : un seul à la fois, détruit à la fermeture.
+/// Le panneau de l'Organiser : un seul à la fois, détruit à la fermeture. Sans barre de titre visible (contenu sous
+/// les boutons de fenêtre, déplaçable par le fond) ; redimensionnable (retour du propriétaire). Sa hauteur suit son
+/// contenu, mesuré à chaque changement (un message court : un petit panneau, même juste après l'aperçu) ; l'aperçu
+/// prend la hauteur que l'utilisateur lui a donnée (600 la première fois), sa liste défile. Retour du 25/10 (« quand
+/// on la rétrécit et l'agrandit ») : hors aperçu, seule la largeur se tire (la hauteur est celle du contenu : rien de
+/// coupé en bas, aucun vide) ; l'aperçu se tire aussi en hauteur, jamais sous `previewMinHeight` ; la largeur reste
+/// entre `OrganizerView.width` et `maxWidth` (au-delà, les cartes s'étiraient sans fin).
 enum OrganizerWindow {
     private static var panel: NSPanel?
     /// Le contrôleur affiché (nil quand la fenêtre est fermée).
     private(set) static var controller: OrganizerController?
     private static let delegate = Delegate()
+    /// Hauteur de l'aperçu, gardée quand l'utilisateur tire la fenêtre (pour la session de l'app).
+    private static var previewHeight = OrganizerView.height
+    /// L'aperçu est affiché (sa hauteur ne suit pas le contenu).
+    private static var showingPreview = false
+    /// Hauteur mesurée avant que le panneau existe.
+    private static var pending: (height: CGFloat, preview: Bool)?
+    /// Bornes de la fenêtre : la plus petite hauteur d'une étape, celle de l'aperçu (texte, liste, boutons sans se
+    /// chevaucher), la plus grande largeur.
+    static let minHeight: CGFloat = 160
+    static let previewMinHeight: CGFloat = 420
+    static let maxWidth: CGFloat = 760
+    /// Largeur donnée à l'aperçu à son arrivée : les familles sur deux colonnes (maquette du 28/10).
+    static let previewWidth: CGFloat = 720
+    /// Largeur des écrans de texte (07/11 : « les pages avec des textes un peu longs… plus petites, plus carrées
+    /// qu'un rectangle » ; « je réduis la page jusqu'à 0, il faudrait une limite ») : fixe, ni tirée ni réduite.
+    static let textWidth: CGFloat = 480
 
     private final class Delegate: NSObject, NSWindowDelegate {
         func windowWillClose(_ notification: Notification) { OrganizerWindow.close() }
     }
 
-    /// Ouvre l'Organiser (ou le ramène devant). Fil principal.
-    static func open(env: OrganizerEnvironment = .live()) {
+    /// Mode capture : l'Organiser sur un écran d'exemple (sans écoute ni lien) ; « fermer » le ferme.
+    static func showDemo(_ screen: String) {
+        guard screen != "fermer" else {
+            controller?.close()
+            return
+        }
+        if panel == nil { open(start: false) }
+        controller?.showDemo(screen)
+    }
+
+    /// Ouvre l'Organiser sur « Démarrer » (ou le ramène devant) : rien n'est envoyé à FL avant ce clic. Fil principal.
+    static func open(env: OrganizerEnvironment = .live(), start: Bool = true) {
         if let panel {
             panel.orderFrontRegardless()
-            panel.makeKey()
             return
         }
         let controller = OrganizerController(env: env)
         controller.onClose = { OrganizerWindow.close() }
         let host = NSHostingView(rootView: OrganizerView(controller: controller))
-        let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: OrganizerView.width, height: OrganizerView.height),
-                        styleMask: [.titled, .closable, .nonactivatingPanel],
+        host.sizingOptions = []                                       // taille posée ici, à chaque étape
+        let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: textWidth, height: 220),
+                        styleMask: [.titled, .closable, .resizable, .fullSizeContentView, .nonactivatingPanel],
                         backing: .buffered, defer: false)
-        p.title = "Organiser"
+        p.contentMinSize = NSSize(width: OrganizerView.width, height: minHeight)
+        p.contentMaxSize = NSSize(width: maxWidth, height: .greatestFiniteMagnitude)
+        p.title = String(localized: "Organiser")
+        p.titleVisibility = .hidden
+        p.titlebarAppearsTransparent = true
+        p.backgroundColor = Swiss.NS.background       // style suisse (01/11) : fond du thème, comme la fenêtre principale
+        p.isMovableByWindowBackground = true
+        // Jamais la fenêtre active à la place de FL (audit : avec makeKey, FL perdait sa fenêtre active, ne disait plus
+        // quelle page était devant, et ⌥↑ / F2 partaient dans le vide) ; un champ de texte la rend active au clic.
+        p.becomesKeyOnlyIfNeeded = true
         p.isFloatingPanel = true
         p.level = .floating
         p.hidesOnDeactivate = false
@@ -295,12 +1630,94 @@ enum OrganizerWindow {
         p.collectionBehavior = [.fullScreenAuxiliary]
         p.contentView = host
         p.delegate = delegate
-        p.center()
+        showingPreview = false
         panel = p
         self.controller = controller
+        host.layoutSubtreeIfNeeded()
+        if let first = pending {
+            pending = nil
+            adapt(height: first.height, preview: first.preview)
+        }
+        p.center()
         p.orderFrontRegardless()
-        p.makeKey()
-        controller.start()
+        // Rien n'est envoyé à FL avant « Démarrer » (retour du 01/11) ; le tuto d'abord à la première ouverture.
+        // Plus de tuto (05/11 : « toutes les pages tuto, on va les enlever ») : « Installer le lien » directement.
+    }
+
+    /// Hauteur demandée par le contenu (`OrganizerView`, à chaque changement : nouvelle étape, fondu fini, aide
+    /// dépliée, texte de l'application), le haut du panneau restant à sa place et la largeur choisie gardée. Pendant
+    /// l'aperçu, la fenêtre garde la hauteur que l'utilisateur lui donne ; elle est reprise au prochain aperçu.
+    static func adapt(height: CGFloat, preview: Bool) {
+        guard height > 0 else { return }
+        guard let panel else {
+            pending = (height, preview)
+            return
+        }
+        let content = panel.contentRect(forFrameRect: panel.frame)
+        if showingPreview && !preview { previewHeight = content.height }
+        let entering = preview && !showingPreview
+        showingPreview = preview
+        let screen = (panel.screen ?? NSScreen.main)?.visibleFrame
+        let tallest = screen.map { $0.height - 40 } ?? .greatestFiniteMagnitude
+        if preview {
+            // L'aperçu se tire en hauteur et en largeur, sans descendre sous ce qu'il lui faut.
+            panel.styleMask.insert(.resizable)
+            panel.contentMinSize = NSSize(width: OrganizerView.width, height: min(previewMinHeight, tallest))
+            panel.contentMaxSize = NSSize(width: maxWidth, height: .greatestFiniteMagnitude)
+            if !entering { return }
+        }
+        var target = preview ? max(previewHeight, previewMinHeight) : height
+        target = max(min(target, tallest), minHeight)
+        // L'aperçu arrive assez large pour deux colonnes de familles (sans dépasser l'écran) ; la largeur choisie
+        // ensuite par l'utilisateur est gardée.
+        let widest = screen.map { $0.width - 40 } ?? maxWidth
+        let width = preview ? (entering ? min(max(content.width, previewWidth), widest) : content.width) : textWidth
+        if !preview {
+            // Les autres étapes : la taille de leur contenu, fixe (largeur des écrans de texte, hauteur du contenu).
+            panel.contentMinSize = NSSize(width: min(textWidth, content.width), height: min(target, content.height))
+            panel.contentMaxSize = NSSize(width: max(textWidth, content.width), height: max(target, content.height))
+        }
+        guard abs(target - content.height) > 0.5 || abs(width - content.width) > 0.5 else {
+            if !preview { pin(panel, height: target) }
+            return
+        }
+        var frame = panel.frameRect(forContentRect: NSRect(x: 0, y: 0, width: width, height: target))
+        frame.origin = NSPoint(x: panel.frame.minX, y: panel.frame.maxY - frame.height)
+        if let screen {                                              // jamais sous le bas de l'écran
+            frame.origin.y = max(frame.origin.y, screen.minY)
+            if frame.maxY > screen.maxY { frame.origin.y = screen.maxY - frame.height }
+        }
+        panel.setFrame(frame, display: true, animate: panel.isVisible && !Motion.reduce)
+        if !preview { pin(panel, height: target) }
+    }
+
+    /// Hauteur d'une étape fixée (après le changement de taille, qui doit pouvoir passer d'une hauteur à l'autre).
+    private static func pin(_ panel: NSPanel, height: CGFloat) {
+        panel.contentMinSize = NSSize(width: textWidth, height: height)
+        panel.contentMaxSize = NSSize(width: textWidth, height: height)
+        panel.styleMask.remove(.resizable)
+    }
+
+    /// Depuis la vue : après sa mise à jour (la fenêtre ne change pas de taille au milieu d'un dessin de SwiftUI).
+    static func contentChanged(height: CGFloat, preview: Bool) {
+        DispatchQueue.main.async { adapt(height: height, preview: preview) }
+    }
+
+    /// Pendant la pose d'une icône (menu du clic droit de FL, puis sa grille) : le panneau se retire de l'écran puis
+    /// revient. Vidéo du 30/10 : une fenêtre de FL s'ouvrait sous l'Organiser et la bulle « Une seule fois : clique… »
+    /// attendait un clic impossible.
+    static func stepAside(_ away: Bool) {
+        let set: () -> Void = {
+            guard let panel else { return }
+            if away { panel.orderOut(nil) } else { panel.orderFrontRegardless() }
+        }
+        if Thread.isMainThread { set() } else { DispatchQueue.main.sync(execute: set) }
+    }
+
+    /// Pendant que l'Organiser clique dans FL (Playlist) : les clics traversent le panneau, qui flotte au-dessus de FL.
+    static func clickThrough(_ on: Bool) {
+        let set: () -> Void = { panel?.ignoresMouseEvents = on }
+        if Thread.isMainThread { set() } else { DispatchQueue.main.sync(execute: set) }
     }
 
     /// Ferme et lâche tout ; l'écoute en cours s'arrête et FL est remis comme avant.
@@ -309,6 +1726,8 @@ enum OrganizerWindow {
         let c = controller
         panel = nil
         controller = nil
+        showingPreview = false
+        pending = nil
         c?.close()
         p.delegate = nil
         p.orderOut(nil)
@@ -318,122 +1737,1093 @@ enum OrganizerWindow {
 }
 
 struct OrganizerView: View {
-    static let width: CGFloat = 460
-    static let height: CGFloat = 560
+    static let width: CGFloat = 440
+    /// Hauteur de l'aperçu (la liste des familles y défile).
+    static let height: CGFloat = 600
+    /// Couleur de l'Organiser (icône, fond, numéros des étapes).
+    static let tint = Color.indigo
 
     @ObservedObject var controller: OrganizerController
+    /// La famille prise dans l'aperçu (30/10) et la place de chaque famille (espace `familySpace`).
+    @State private var familyDrag: FamilyDrag?
+    @State private var familyFrames: [SoundFamily: CGRect] = [:]
+    /// Combien de familles dans la colonne de gauche, choisi en y posant une famille (vidéo du 30/10 : « je ne peux
+    /// pas mettre en dessous à gauche ») ; nil : coupées là où les colonnes ont la même hauteur.
+    @State private var leftCount: Int?
+    /// Le son pris dans l'aperçu (01/11 : « qu'on puisse changer chaque sonorité en juste en drag and drop ») et la
+    /// place de chaque son (espace `familySpace`).
+    @State private var soundDrag: SoundDrag?
+    @State private var soundFrames: [Int: CGRect] = [:]
+
+    /// Espace des places des familles : celui de leurs colonnes dans la liste qui défile.
+    static let familySpace = "organiser-familles"
+
+    /// L'aperçu est à l'écran.
+    private var isPreview: Bool { controller.phase == .preview }
+
+    /// Pendant l'application : l'étape en cours (« FL ouvre la copie rangée… 12 s »), sinon le texte général.
+    private var applyingText: String {
+        let hands = String(localized: "Ne touche pas à FL.")
+        if let step = controller.applyStep { return step + " " + hands }
+        if controller.organizesCopy {
+            return String(localized: "FL ouvre la copie rangée de ton projet, puis tout s'y range… Ne touche pas à FL.")
+        }
+        return String(localized: "Application dans FL… Ne touche pas à FL.")
+    }
+
+    /// Étape affichée : une nouvelle étape remplace l'ancienne en fondu (la progression de l'écoute, non).
+    private var stepKey: String {
+        switch controller.phase {
+        case .ready: return "ready"
+        case .starting: return "starting"
+        case .setup: return "setup"
+        case .waiting(let reason): return "waiting:\(reason)"
+        case .listening: return "listening"
+        case .preview: return "preview"
+        case .applying: return "applying"
+        case .applied: return "applied"
+        case .undoing: return "undoing"
+        case .undone: return "undone"
+        case .failed(let message): return "failed:" + message
+        case .learningIcons: return "learningIcons"
+        case .iconsLearned: return "iconsLearned"
+        }
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 10) {
-                Image(systemName: "square.stack.3d.up")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
-                Text(controller.title).font(.system(size: 15, weight: .semibold))
-                Spacer()
+        VStack(alignment: .leading, spacing: 16) {
+            header
+            ZStack(alignment: .topLeading) {
+                content
+                .id(stepKey)
+                .transition(Motion.pageMorph)
             }
-            content
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .padding(18)
-        .frame(width: Self.width, height: Self.height, alignment: .top)
+        .padding(.horizontal, 22)
+        .padding(.top, 34)                           // sous les boutons de la fenêtre
+        .padding(.bottom, 20)
+        // La largeur de la fenêtre (que l'utilisateur peut tirer) ; l'aperçu remplit sa hauteur, les autres étapes
+        // demandent la leur.
+        .frame(minWidth: Self.width, maxWidth: .infinity, alignment: .top)
+        .frame(maxHeight: isPreview ? .infinity : nil, alignment: .top)
+        .fixedSize(horizontal: false, vertical: !isPreview)
+        .background(GeometryReader { geo in
+            Color.clear
+                .onAppear { OrganizerWindow.contentChanged(height: geo.size.height, preview: isPreview) }
+                .onChange(of: geo.size.height) { OrganizerWindow.contentChanged(height: $0, preview: isPreview) }
+                .onChange(of: isPreview) { OrganizerWindow.contentChanged(height: geo.size.height, preview: $0) }
+        })
+        // Collé en haut, et le fond remplit toute la fenêtre : pendant qu'elle change de taille (Réessayer, étape
+        // suivante), plus de bandes noires en haut et en bas (vidéo de l'utilisateur : le contenu se centrait).
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // 07/11 : l'aperçu se tire par ses bords, avec le curseur de macOS qui le dit (↔, ↕).
+        .overlay { if isPreview { EdgeResizeCursors() } }
+        // 13/11 : la flèche de l'app sur toute la fenêtre, même FL devant (plus son pinceau ni ses croix).
+        .background(ArrowCursorKeeper())
+        // Plus de lueur de couleur dans le fond (28/10, « pas de fond »).
+        .motion(Motion.morph, value: stepKey)
+        // Nouvelle analyse : les colonnes des familles reviennent à leur coupe automatique.
+        .onChange(of: stepKey) { key in if key == "starting" || key == "listening" { leftCount = nil } }
+        .sheet(isPresented: $controller.feedbackShown) { OrganizerFeedbackView(controller: controller).swissSheet() }
+        .sheet(isPresented: $controller.editingBaseColors) { BaseColorsSheet(controller: controller).swissSheet() }
+    }
+
+    /// Le titre seul (maquette validée le 28/10 : ni grande icône, ni phrase dessous).
+    private var header: some View {
+        // Style suisse (01/11) : grand titre gras serré, souligné de blanc sur toute la largeur.
+        HStack(alignment: .bottom, spacing: 10) {
+            SwissPageTitle(text: controller.title, size: 40)
+            Spacer()
+            if isPreview {
+                // Maquette du 28/10 : « Rangement automatique » à droite du titre ; les choix et le diagnostic sont
+                // rangés dans « Options ».
+                // L'écran Mixer de l'aperçu est retiré (02/11 : « on enlève le mixeur dans Organiser… tout ce qu'on
+                // fait, on peut le faire dans FL ») ; le Mixer de FL reste rangé tout seul (bus, pré-master).
+                if controller.options.mixer {
+                    Button("Rangement automatique") { withAnimation(Motion.quickMorph) { controller.autoArrange() } }
+                        .secondaryButton()
+                        .disabled(!controller.placesChosen)
+                        .help("Oublie les places choisies : chaque famille à la suite, dans l'ordre du Channel rack")
+                }
+                OrganizerOptionsMenu(controller: controller)
+            }
+        }
+        .padding(.bottom, 10)
+        .swissRule()
+        .morphIn(0)
     }
 
     private static func listeningText(_ done: Int, _ total: Int) -> String {
-        total == 0 ? "Préparation de l'écoute…" : "Écoute \(min(done + 1, total)) / \(total)"
+        total == 0 ? String(localized: "Préparation de l'analyse…") : String(localized: "Analyse du projet : \(min(done + 1, total)) sur \(total)")
     }
 
     @ViewBuilder private var content: some View {
         switch controller.phase {
+        case .ready:
+            ready
         case .starting:
-            working("Préparation…")
+            working(String(localized: "Préparation…"))
+        case .setup:
+            setup
+        case .waiting(let reason):
+            waiting(reason)
         case .listening(let done, let total):
-            VStack(alignment: .leading, spacing: 10) {
-                Text(Self.listeningText(done, total)).font(.system(size: 13, weight: .medium))
-                ProgressView(value: Double(done), total: Double(max(total, 1)))
-                Text("Chaque son joue seul, sans que tu l'entendes. Ne touche pas à FL pendant l'écoute ; Échap l'arrête.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    OrganizerBadge(symbol: "waveform", tint: Self.tint, live: true)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(Self.listeningText(done, total)).font(.system(size: 13, weight: .semibold))
+                            Spacer()
+                            if total > 0 {
+                                Text("\(Int((Double(done) / Double(max(total, 1)) * 100).rounded())) %")
+                                    .font(.system(size: 12).monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        SwissProgress(value: Double(done) / Double(max(total, 1)))
+                            .motion(Motion.smooth, value: done)
+                    }
+                }
+                .padding(14)
+                // 13/11 (« il y a trois traits, je veux que tu me gardes que le trait blanc… les traits ça nique
+                // tout ») : plus de traits gris autour, le trait blanc du titre seul.
+                .organizerCard(rules: false)
+                .morphIn(1)
+                // Plus d'explication (28/10, « ça j'aime pas ») : la consigne seule.
+                Text(String(localized: "Ne touche pas à FL."))
+                    .swissLabel()
+                    .morphIn(2)
                 HStack {
                     Spacer()
-                    Button("Arrêter") { controller.close() }.keyboardShortcut(.cancelAction)
+                    Button("Arrêter") { controller.close() }
+                        .secondaryButton()
+                        .keyboardShortcut(.cancelAction)
                 }
+                .morphIn(3)
             }
         case .preview:
             preview
+        case .learningIcons(let done, let total):
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(String(localized: "Icônes de FL : \(min(done, total)) sur \(total)"))
+                            .font(.system(size: 13, weight: .semibold))
+                        Spacer()
+                        Text("\(Int((Double(done) / Double(max(total, 1)) * 100).rounded())) %")
+                            .font(.system(size: 12).monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                    SwissProgress(value: Double(done) / Double(max(total, 1)))
+                }
+                .padding(14)
+                .organizerCard(rules: false)
+                Text(String(localized: "Ne touche pas à FL. Échap arrête."))
+                    .swissLabel()
+                HStack {
+                    Spacer()
+                    Button("Arrêter") { controller.close() }
+                        .secondaryButton()
+                        .keyboardShortcut(.cancelAction)
+                }
+            }
+        case .iconsLearned(let outcome):
+            VStack(alignment: .leading, spacing: 14) {
+                Text(OrganizerController.learnedText(outcome))
+                    .font(.system(size: 13))
+                    .foregroundStyle(Swiss.text)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 12) {
+                    Spacer()
+                    Button(String(localized: "Copier la table")) { controller.copyIconTable(outcome) }
+                        .secondaryButton()
+                    Button(String(localized: "Fermer")) { controller.close() }
+                        .primaryButton()
+                        .keyboardShortcut(.defaultAction)
+                }
+                .controlSize(.large)
+            }
         case .applying:
-            working("Application dans FL… Ne touche pas à FL.")
+            working(applyingText)
         case .undoing:
-            working("Retour comme avant…")
+            working(String(localized: "Retour comme avant…"))
         case .applied(let error):
-            ending(error?.message ?? controller.doneText, ok: error == nil)
+            if error == nil {
+                finished
+            } else {
+                ending(error?.message ?? controller.doneText, ok: false, linkHelp: error == .noResponse)
+            }
         case .undone(let error):
-            ending(error?.message ?? "FL est revenu comme avant.", ok: error == nil)
+            ending(error?.message ?? (controller.lastApply?.copy != nil
+                    ? String(localized: "Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée part à la Corbeille dès que FL l'a quittée.")
+                    : String(localized: "FL est revenu comme avant.")),
+                   ok: error == nil, linkHelp: error == .noResponse)
         case .failed(let message):
-            ending(message, ok: false)
+            ending(message, ok: false, linkHelp: false)
         }
     }
 
     private func working(_ text: String) -> some View {
-        HStack(spacing: 10) {
-            ProgressView().controlSize(.small)
+        // 06/11 : plus de roue qui tourne à gauche (« une petite animation, enlève-la ») : le texte seul.
+        HStack(spacing: 12) {
             Text(text).font(.system(size: 13))
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .organizerCard(rules: false)        // 13/11 : le trait blanc du titre seul
+        .morphIn(1)
+    }
+
+    /// Fin réussie (maquette validée le 13/11, « parfait go ») : sous le titre « c'est rangé », trois chiffres, les deux
+    /// grandes cases GARDER (la version rangée devient ton projet tout de suite) et REVENIR COMME AVANT, puis
+    /// « Pas content ? » et « Décider plus tard » (la question revient à la réouverture), « Copier le diagnostic » en bas.
+    private var finished: some View {
+        let stats = controller.finishStats
+        return VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top, spacing: 0) {
+                FinishStat(value: stats.sounds, label: String(localized: "sons rangés"), first: true)
+                FinishStat(value: stats.families, label: String(localized: "familles"))
+                FinishStat(value: stats.removed, label: String(localized: "sons sans note retirés"))
+            }
+            .overlay(alignment: .bottom) { Rectangle().fill(Swiss.line).frame(height: 1) }
+            .morphIn(1)
+            HStack(spacing: 12) {
+                EndChoice(title: String(localized: "Garder"), primary: true) { controller.keep() }
+                if controller.canUndo {
+                    EndChoice(title: String(localized: "Revenir comme avant"), primary: false) { controller.undo() }
+                }
+            }
+            .frame(height: 88)
+            .morphIn(2)
+            VStack(spacing: 0) {
+                if controller.canGiveFeedback {
+                    EndRow(title: String(localized: "Pas content ?"), bold: true) { controller.feedbackShown = true }
+                }
+                EndRow(title: String(localized: "Décider plus tard"), bold: false) { controller.close() }
+            }
+            .overlay(alignment: .top) { Rectangle().fill(Swiss.line).frame(height: 1) }
+            .morphIn(3)
+            diagnosticLink
+                .morphIn(3)
         }
     }
 
-    private func ending(_ text: String, ok: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                    .foregroundStyle(ok ? Color.green : Color.orange)
+    /// Fin d'une étape : le message dans une carte (coche verte ou triangle orange) ; FL muet : les réglages de FL
+    /// à vérifier, étape par étape.
+    private func ending(_ text: String, ok: Bool, linkHelp: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                OrganizerBadge(symbol: ok ? "checkmark" : "exclamationmark", tint: ok ? .green : .orange)
                 Text(text).font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+            .padding(14)
+            .organizerCard(ok ? .green : .orange)
+            .morphIn(1)
+            if linkHelp {
+                linkHelpSteps
+            }
+            diagnosticLink
+                .morphIn(linkHelp ? 7 : 2)
+            buttons
+                .morphIn(linkHelp ? 7 : 2)
+        }
+    }
+
+    /// « Copier le diagnostic », à portée à chaque fin (capture du 31/10 : « je n'ai pas accès au diagnostic »).
+    private var diagnosticLink: some View {
+        Button(controller.copied ? String(localized: "Copié") : String(localized: "Copier le diagnostic")) {
+            controller.copyDiagnostic()
+        }
+        .buttonStyle(SwissLinkButtonStyle())
+        .font(.system(size: 11.5))
+        .help(String(localized: """
+            Copie un court texte technique (versions, autorisations, ce que l'écoute a reçu), sans aucun nom de \
+            son ni de piste : colle-le dans ton message pour qu'on trouve ce qui bloque.
+            """))
+    }
+
+    /// Où est le script du lien, avec « Afficher dans le Finder » et « Autre dossier de FL… ».
+    private var scriptCard: some View {
+        let place = controller.scriptPlace
+        let present = place?.present == true
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: present ? "doc.text.fill" : "questionmark.folder.fill")
+                    .font(.system(size: 15))
+                    .foregroundStyle(present ? Self.tint : Color.orange)
+                    .frame(width: 18)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(present ? String(localized: "Script du lien") : String(localized: "Script introuvable dans FL Studio"))
+                        .font(.system(size: 12, weight: .semibold))
+                    Text(place.map { FLScriptInstaller.displayFolder(of: $0.url) } ?? String(localized: "Aucun dossier enregistré."))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
             }
             HStack {
-                if controller.canUndo {
-                    Button("Revenir comme avant") { controller.undo() }
+                if present {
+                    Button("Afficher dans le Finder") { controller.revealScript() }
+                        .secondaryButton()
                 }
-                Spacer()
-                Button("Fermer") { controller.close() }.keyboardShortcut(.defaultAction)
+                Button("Autre dossier de FL…") { controller.installLinkElsewhere() }
+                    .secondaryButton()
+                Spacer(minLength: 0)
             }
+            .controlSize(.small)
+        }
+        .padding(12)
+        .organizerCard(present ? Self.tint : .orange)
+    }
+
+    /// « Copier le diagnostic » : un texte court à m'envoyer (aucun nom de son ni de piste).
+    private var diagnosticButton: some View {
+        Button(controller.copied ? String(localized: "Copié") : String(localized: "Copier le diagnostic")) {
+            controller.copyDiagnostic()
+        }
+        .secondaryButton()
+        .help(String(localized: """
+            Copie un court texte technique (versions, autorisations, ce que l'écoute a reçu), sans aucun nom de \
+            son ni de piste : colle-le dans ton message pour qu'on trouve ce qui bloque.
+            """))
+    }
+
+    @ViewBuilder private var buttons: some View {
+        HStack {
+            if controller.canUndo {
+                Button("Revenir comme avant") { controller.undo() }
+                    .secondaryButton()
+            }
+            if controller.canGiveFeedback {
+                Button("Pas content ?") { controller.feedbackShown = true }
+                    .secondaryButton()
+                    .help("Dis ce qui n'allait pas : l'ordinateur apprend de ses erreurs")
+            }
+            Spacer()
+            if controller.canRetry && controller.projectMissing {
+                Button("Fermer") { controller.close() }
+                    .secondaryButton()
+                    .keyboardShortcut(.cancelAction)
+                Button("Réessayer") { controller.retry() }
+                    .secondaryButton()
+                Button("Choisir le fichier…") { controller.chooseProject() }
+                    .primaryButton()
+                    .keyboardShortcut(.defaultAction)
+            } else if controller.canRetry {
+                Button("Fermer") { controller.close() }
+                    .secondaryButton()
+                    .keyboardShortcut(.cancelAction)
+                Button("Réessayer") { controller.retry() }
+                    .primaryButton()
+                    .keyboardShortcut(.defaultAction)
+            } else {
+                Button("Fermer") { controller.close() }
+                    .primaryButton()
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(.top, 2)
+    }
+
+    /// Avant « Démarrer » (retour du 01/11) : rien n'est envoyé à FL ; le lien avec FL s'ouvre au clic et se coupe
+    /// à la fermeture de l'Organiser.
+    private var ready: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            // 07/11 : plus « Organiser ton projet » ni les deux traits gris ; la consigne seule, en grand (« c'est
+            // vraiment important »), sous le trait blanc du titre.
+            // 13/11 (« il y a un gros carré orange qui est à gauche, je veux que tu me l'enlèves ») : la consigne seule.
+            HStack(alignment: .center, spacing: 14) {
+                Text(String(localized: "Ne touche pas à FL jusqu'à la fin."))
+                    .font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
+                    .foregroundStyle(Swiss.text)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.vertical, 10)
+            .morphIn(1)
+            HStack(spacing: 12) {
+                // « Apprendre les icônes de FL » (12/11) retiré le 13/11 : la table est apprise (FLIconNumbers) ; à
+                // remettre ici (`controller.learnIcons()`) seulement si une version de FL change ses icônes.
+                Spacer()
+                Button(String(localized: "Fermer")) { controller.close() }
+                    .secondaryButton()
+                    .keyboardShortcut(.cancelAction)
+                Button(String(localized: "Démarrer")) { controller.start() }
+                    .buttonStyle(AlwaysBlueButtonStyle())
+                    .keyboardShortcut(.defaultAction)
+            }
+            .controlSize(.large)
+            .padding(.top, 2)
+            .morphIn(2)
         }
     }
 
-    private var hint: String {
-        controller.result?.page == .mixer
-            ? "Chaque piste prend la famille des sons qui y sont reliés. Clique sur une famille pour la changer."
-            : "Vérifie chaque son et clique sur sa famille pour la changer. Appliquer colore et regroupe les sons par famille."
+    /// Lien avec FL pas encore installé (05/11 : « clair, précis et sans détail… un ordre à la fois ») : étape 1 sur 3,
+    /// un seul bouton ; la suite se fait toute seule.
+    private var setup: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            // 07/11 : plus de phrase dessous (« un clic, une seule fois, on s'en fout, c'est inutile »).
+            LinkSteps(current: 1, detail: "")
+                .morphIn(1)
+            HStack {
+                Spacer()
+                Button("Fermer") { controller.close() }
+                    .secondaryButton()
+                    .keyboardShortcut(.cancelAction)
+                Button("Installer le lien") { controller.installLink() }
+                    .primaryButton()
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(.top, 2)
+            .morphIn(2)
+        }
+    }
+
+    /// En attente de FL : ce qu'il faut faire, en une phrase ; Organiser vérifie tout seul et continue dès que
+    /// c'est bon (aucun bouton à toucher). FL muet : l'aide détaillée, repliée.
+    private func waiting(_ reason: OrganizerController.Wait) -> some View {
+        let text = Self.waitText(reason)
+        let tint: Color = reason == .stopPlayback ? .orange : Self.tint
+        return VStack(alignment: .leading, spacing: 14) {
+            if let step = LinkSteps.step(of: reason) {
+                // Relier FL, une consigne à la fois (05/11) : étape 2 (quitter et rouvrir FL) ou 3 (MIDI Settings).
+                LinkSteps(current: step, detail: text.detail)
+                    .morphIn(1)
+            } else {
+                HStack(alignment: .center, spacing: 16) {
+                    WaitingPulse(symbol: text.symbol, tint: tint)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(text.title).font(.system(size: 14, weight: .semibold))
+                        Text(text.detail)
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(14)
+                .organizerCard(tint)
+                .morphIn(1)
+            }
+            HStack(spacing: 8) {
+                Text("Organiser continue tout seul dès que FL est prêt.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            .morphIn(2)
+            if reason == .audioPermission {
+                Button("Ouvrir les réglages") { controller.openAudioSettings() }
+                    .primaryButton()
+                    .controlSize(.large)
+                    .morphIn(3)
+            }
+            if reason == .openFL || (reason == .restartFL && controller.flClosedForRestart) {
+                Button("Ouvrir FL Studio") { controller.openFL() }
+                    .primaryButton()
+                    .controlSize(.large)
+                    .morphIn(3)
+            } else if reason == .restartFL {
+                Button("Quitter et rouvrir FL") { controller.restartFL() }
+                    .primaryButton()
+                    .controlSize(.large)
+                    .morphIn(3)
+            }
+            if reason == .midiSettings {
+                // L'image du README (retour du 31/10) : la fenêtre MIDI Settings, les 4 cases entourées et numérotées.
+                MIDISettingsCrops()
+                    .morphIn(3)
+            }
+            if reason == .noResponse || reason == .restartFL || reason == .wrongInput || reason == .midiSettings {
+                linkHelpToggle.morphIn(3)
+                if controller.showLinkHelp {
+                    Group {
+                        if reason == .midiSettings { linkTroubles } else { linkHelpSteps }
+                    }
+                    .transition(Motion.quickSwap)
+                }
+            }
+            HStack {
+                diagnosticButton
+                Spacer()
+                Button("Fermer") { controller.close() }
+                    .secondaryButton()
+                    .keyboardShortcut(.cancelAction)
+                Button("Réessayer maintenant") { controller.retry() }
+                    .secondaryButton()
+            }
+            .padding(.top, 2)
+            .morphIn(4)
+        }
+    }
+
+    static func waitText(_ reason: OrganizerController.Wait) -> (symbol: String, title: String, detail: String) {
+        switch reason {
+        case .restartFL:
+            // 07/11 : plus « Dans FL : ⌘Q… » ; le bouton « Quitter et rouvrir FL » le fait.
+            return ("arrow.clockwise", String(localized: "Quitte et rouvre FL"), "")
+        case .midiSettings:
+            return ("slider.horizontal.3", String(localized: "Options › MIDI Settings"),
+                    String(localized: "Règle les 4 cases, dans l'ordre."))
+        case .noResponse:
+            return ("antenna.radiowaves.left.and.right", String(localized: "En attente de FL Studio"),
+                    String(localized: """
+                        FL ne répond pas encore. Dans FL › MIDI Settings › Output, « FL Shortcuts » doit s'afficher à côté \
+                        de « FL Shortcuts Link », seul sur son Port. Sinon : « Ça ne marche toujours pas ? » ci-dessous.
+                        """))
+        case .wrongInput:
+            return ("cable.connector", String(localized: "Le lien est sur la mauvaise entrée"),
+                    String(localized: """
+                        Dans FL : Options › MIDI Settings › Input, ta carte son (ou ton clavier) a le Controller type « FL \
+                        Shortcuts ». Remets-la sur « (generic controller) », puis clique la ligne « FL Shortcuts Link » \
+                        et choisis « FL Shortcuts ».
+                        """))
+        case .openFL:
+            return ("macwindow", String(localized: "Ouvre FL Studio"),
+                    String(localized: "Organiser commence dès que FL est ouvert, avec ton projet."))
+        case .stopPlayback:
+            return ("stop.fill", String(localized: "Arrête la lecture dans FL"),
+                    String(localized: "Organiser écoute chaque son seul : FL doit être à l'arrêt."))
+        case .audioPermission:
+            return ("speaker.wave.2.fill", String(localized: "Autorise « Enregistrement de l'écran et audio du système »"),
+                    String(localized: """
+                        Organiser écoute seulement le son de FL, sans l'enregistrer. Réglages Système › Confidentialité et \
+                        sécurité › Enregistrement de l'écran et audio du système : active FL Shortcuts dans la liste du \
+                        haut, puis « Quitter et rouvrir ».
+                        """))
+        }
+    }
+
+    /// « Ça ne marche toujours pas ? » : les réglages de FL à vérifier, repliés tant qu'on ne les demande pas.
+    private var linkHelpToggle: some View {
+        Button {
+            withAnimation(Motion.quickMorph) { controller.showLinkHelp.toggle() }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .bold))
+                    .rotationEffect(.degrees(controller.showLinkHelp ? 90 : 0))
+                Text("Ça ne marche toujours pas ?").font(.system(size: 12, weight: .medium)).underline()
+            }
+            // Lien du style suisse : blanc souligné (02/11).
+            .foregroundStyle(Swiss.text)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Relier FL (29/10, « beaucoup plus simple et mieux expliqué ») : les quatre étapes de `LinkGuide` et la fenêtre
+    /// MIDI Settings entourée ; dessous, les trois pièges déjà vus, une ligne chacun, puis où est le script.
+    private var linkHelpSteps: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(LinkGuide.steps.enumerated()), id: \.offset) { index, text in
+                    OrganizerStep(n: index + 1, text: text)
+                }
+                // Les 4 cases de MIDI Settings en grand (l'image entière était illisible, 01/11).
+                MIDISettingsCrops()
+                    .padding(.top, 10)
+                    .morphIn(2)
+            }
+            linkTroubles
+        }
+    }
+
+    /// Les trois pièges déjà vus, une ligne chacun, puis où est le script.
+    private var linkTroubles: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Toujours rien ?").font(.system(size: 12, weight: .semibold))
+                Text("Ta carte son : un autre numéro de Port.")
+                Text("Pas de « FL Shortcuts » dans Controller type : vérifie le dossier ci-dessous.")
+                Text("Réglages Système › Fichiers et dossiers › FL Studio : coche « Dossier Documents ».")
+            }
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .morphIn(6)
+            scriptCard
+                .morphIn(6)
+        }
     }
 
     private var preview: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(hint)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
+            // Maquette du 28/10 : les familles sur deux colonnes dès que la fenêtre est assez large ; chacune, son
+            // en-tête (poignée, couleur, nom, départ dans le Mixer), puis ses sons dans une carte de verre.
+            OrganizerFamilyBar(controller: controller)
+            GeometryReader { geo in
+                ScrollView {
                     let colors = controller.plannedColors
-                    ForEach(controller.presentFamilies, id: \.self) { family in
-                        FamilySection(controller: controller, family: family, colors: colors)
+                    let families = controller.presentFamilies
+                    let width = geo.size.width
+                    // Nombre de sons de chaque famille, compté une fois (la hauteur de son bloc).
+                    let sizes = Dictionary(uniqueKeysWithValues: families.map { ($0, controller.members(of: $0).count) })
+                    let columns = OrganizerView.familyColumns(families, count: width >= 600 ? 2 : 1, left: leftCount) {
+                        sizes[$0] ?? 0
                     }
+                    let slot = familyDrag.map { Self.dropSlot($0.location, dragged: $0.family, columns: columns,
+                                                              frames: familyFrames, width: width) }
+                    let soundTarget = soundDrag.flatMap { drag in
+                        Self.familyUnder(drag.location, frames: familyFrames).flatMap { $0 == drag.from ? nil : $0 }
+                    }
+                    HStack(alignment: .top, spacing: 18) {
+                        ForEach(Array(columns.enumerated()), id: \.offset) { number, column in
+                            VStack(alignment: .leading, spacing: 14) {
+                                ForEach(column, id: \.self) { family in
+                                    FamilySection(controller: controller, family: family, colors: colors,
+                                                  dragged: familyDrag?.family == family,
+                                                  drop: dropMark(for: family, column: number, columns: columns,
+                                                                 slot: slot, sizes: sizes),
+                                                  soundTarget: soundTarget == family,
+                                                  draggedSound: soundDrag?.id,
+                                                  onMove: { dragFamily(family, $0) },
+                                                  onRelease: { dropFamily(columns: columns, width: width, sizes: sizes) },
+                                                  onSoundMove: { dragSound($0, from: family, $1) },
+                                                  onSoundRelease: { dropSound() })
+                                        .morphIn((families.firstIndex(of: family) ?? 0) + 1)
+                                }
+                                // Colonne vidée pendant qu'on glisse : la place où la famille tombera.
+                                if let drag = familyDrag, slot?.column == number,
+                                   column.allSatisfy({ $0 == drag.family }) {
+                                    Rectangle()
+                                        .strokeBorder(swiftColor(controller.style(of: drag.family).color),
+                                                      style: StrokeStyle(lineWidth: 2, dash: [6, 5]))
+                                        .frame(height: 64)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                        }
+                    }
+                    // Une famille prise (30/10, « qu'on puisse prendre le bloc de famille », « que tu vois ce que tu
+                    // bouges ») : sa copie nette suit la souris, soulevée sur un fond à son bord de couleur ; sa place
+                    // reste en transparence.
+                    .overlay(alignment: .topLeading) {
+                        if let drag = familyDrag {
+                            FamilySection(controller: controller, family: drag.family, colors: colors, ghost: true)
+                                .frame(width: drag.size.width)
+                                .padding(FamilyDrag.lift)
+                                .background(FamilyDrag.plate(swiftColor(controller.style(of: drag.family).color)))
+                                .scaleEffect(1.02)
+                                .offset(x: drag.location.x - drag.grab.width - FamilyDrag.lift,
+                                        y: drag.location.y - drag.grab.height - FamilyDrag.lift)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                    // Un son pris : sa copie suit la souris et dit où il va (« → Mélodies ») ; la famille sous la
+                    // souris est entourée de sa couleur.
+                    .overlay(alignment: .topLeading) {
+                        if let drag = soundDrag {
+                            SoundGhost(name: drag.name, color: drag.color,
+                                       target: soundTarget.map { ($0.label, swiftColor(controller.style(of: $0).color)) })
+                                .frame(width: drag.size.width, height: drag.size.height)
+                                .offset(x: drag.location.x - drag.grab.width, y: drag.location.y - drag.grab.height)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                    .coordinateSpace(name: Self.familySpace)
+                    .onPreferenceChange(FamilyFramesKey.self) { familyFrames = $0 }
+                    .onPreferenceChange(SoundFramesKey.self) { soundFrames = $0 }
+                    .padding(.vertical, 4)
                 }
             }
-            HStack {
-                Button("Annuler") { controller.close() }.keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Appliquer") { controller.apply() }.keyboardShortcut(.defaultAction)
+            .frame(minHeight: 120)                       // fenêtre rétrécie : la liste défile, jamais écrasée
+            if controller.playlistTooBig {
+                Text(String(localized: "Playlist trop grande pour FL : décoche « Playlist »."))
+                    .font(.system(size: 11))
+                    .foregroundStyle(Swiss.red)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            if controller.iconsNeedScreen {
+                HStack(spacing: 8) {
+                    Text(String(localized: "Icônes : autorise « Enregistrement de l'écran »."))
+                        .font(.system(size: 11))
+                        .foregroundStyle(Swiss.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                    Button("Autoriser") { controller.askScreen() }
+                        .secondaryButton()
+                        .controlSize(.small)
+                        .help(String(localized: "Déjà coché dans les Réglages ? Décoche puis recoche FL Shortcuts : chaque nouvelle version le redemande."))
+                }
+            }
+            HStack(spacing: 0) {
+                Spacer()
+                Button("Annuler") { controller.close() }
+                    .secondaryButton()
+                    .keyboardShortcut(.cancelAction)
+                Button("Organiser") { controller.apply() }
+                    .buttonStyle(AlwaysBlueButtonStyle())
+                    .keyboardShortcut(.defaultAction)
+            }
+            .controlSize(.large)
+            .padding(.top, 12)
+            .overlay(alignment: .top) { Rectangle().fill(Swiss.line).frame(height: 1) }
+        }
+    }
+
+    /// La famille prise suit la souris ; au premier mouvement, l'endroit où elle a été prise dans son bloc.
+    private func dragFamily(_ family: SoundFamily, _ value: DragGesture.Value) {
+        if familyDrag?.family == family {
+            familyDrag?.location = value.location
+            return
+        }
+        guard let frame = familyFrames[family] else { return }
+        familyDrag = FamilyDrag(family: family, location: value.location,
+                                grab: CGSize(width: value.startLocation.x - frame.minX,
+                                             height: value.startLocation.y - frame.minY),
+                                size: frame.size)
+    }
+
+    /// Lâchée : elle tombe là où est la souris, dans la colonne de gauche ou de droite, au-dessus ou en dessous des
+    /// autres (Channel rack, Mixer et Playlist suivent : la colonne de gauche de haut en bas, puis celle de droite).
+    /// Les deux colonnes se rééquilibrent autour d'elle (01/11 : posée en bas à droite, trois familles à droite et une
+    /// à gauche, « ça se chevauchait » ; « la famille qui est en haut à droite redescend en bas à gauche »).
+    private func dropFamily(columns: [[SoundFamily]], width: CGFloat, sizes: [SoundFamily: Int]) {
+        guard let drag = familyDrag else { return }
+        familyDrag = nil
+        let slot = Self.dropSlot(drag.location, dragged: drag.family, columns: columns, frames: familyFrames, width: width)
+        let placed = Self.balanced(Self.placing(drag.family, at: slot, in: columns), keeping: drag.family) {
+            sizes[$0] ?? 0
+        }
+        guard placed != columns else { return }
+        withAnimation(Motion.quickMorph) {
+            if placed.count >= 2 { leftCount = placed[0].count }
+            controller.arrangeFamilies(placed.flatMap { $0 })
+        }
+    }
+
+    /// Le son pris suit la souris ; au premier mouvement, l'endroit où il a été pris dans sa ligne.
+    private func dragSound(_ member: OrganizerController.Member, from family: SoundFamily, _ value: DragGesture.Value) {
+        if soundDrag?.id == member.id {
+            soundDrag?.location = value.location
+            return
+        }
+        let frame = soundFrames[member.id] ?? CGRect(origin: value.startLocation, size: CGSize(width: 260, height: 38))
+        soundDrag = SoundDrag(id: member.id, from: family,
+                              name: member.name.isEmpty ? String(localized: "(sans nom)") : member.name,
+                              color: swiftColor(controller.style(of: family).color), location: value.location,
+                              grab: CGSize(width: value.startLocation.x - frame.minX,
+                                           height: value.startLocation.y - frame.minY),
+                              size: frame.size)
+    }
+
+    /// Lâché sur une autre famille : il y passe (sa couleur, sa place, son bus) ; les colonnes se rééquilibrent.
+    private func dropSound() {
+        guard let drag = soundDrag else { return }
+        soundDrag = nil
+        guard let target = Self.familyUnder(drag.location, frames: familyFrames), target != drag.from else { return }
+        withAnimation(Motion.quickMorph) {
+            controller.moveSound(drag.id, to: target)
+            leftCount = nil
+        }
+    }
+
+    /// Pur (testé) : la famille sous la souris (son bloc, un peu élargi : l'espace entre deux familles compte pour la
+    /// plus proche).
+    static func familyUnder<F: Hashable>(_ point: CGPoint, frames: [F: CGRect]) -> F? {
+        frames.first { $0.value.insetBy(dx: -9, dy: -7).contains(point) }?.key
+    }
+
+    /// Pur (testé) : deux colonnes rééquilibrées sans changer l'ordre (la gauche de haut en bas, puis la droite) :
+    /// la coupure où les colonnes ont la hauteur la plus proche (`size` : nombre de sons d'une famille ; à hauteur
+    /// égale, la coupure d'avant). La famille qu'on vient de poser (`kept`) reste dans sa colonne si les hauteurs n'y
+    /// perdent presque rien (un en-tête) ; sinon elle passe juste à côté (le bas de la gauche et le haut de la droite
+    /// se suivent).
+    static func balanced<F: Equatable>(_ columns: [[F]], keeping kept: F? = nil, size: (F) -> Int) -> [[F]] {
+        guard columns.count == 2 else { return columns }
+        let flat = columns[0] + columns[1]
+        guard flat.count >= 2 else { return columns }
+        let heights = flat.map { size($0) + 2 }                      // l'en-tête compte pour deux lignes
+        let total = heights.reduce(0, +)
+        func gap(_ cut: Int) -> Int { abs(total - 2 * heights[..<cut].reduce(0, +)) }
+        let current = columns[0].count
+        func pick(_ cuts: [Int]) -> Int? {
+            cuts.min { a, b in gap(a) != gap(b) ? gap(a) < gap(b) : (a == current ? 0 : 1, a) < (b == current ? 0 : 1, b) }
+        }
+        let cuts = Array(0...flat.count)
+        var best = pick(cuts) ?? current
+        if let kept, let at = flat.firstIndex(of: kept) {
+            let left = columns[0].contains(kept)
+            if let keeping = pick(cuts.filter { left ? $0 > at : $0 <= at }), gap(keeping) <= gap(best) + 2 {
+                best = keeping
+            }
+        }
+        return [Array(flat[..<best]), Array(flat[best...])]
+    }
+
+    /// Où tombera la famille prise : un trait de sa couleur au-dessus de la famille qui la suivra, ou sous la dernière
+    /// de la colonne ; rien si elle retombe à sa place.
+    private func dropMark(for family: SoundFamily, column: Int, columns: [[SoundFamily]],
+                          slot: (column: Int, index: Int)?, sizes: [SoundFamily: Int]) -> FamilyDrop? {
+        guard let drag = familyDrag, let slot, slot.column == column, family != drag.family,
+              Self.balanced(Self.placing(drag.family, at: slot, in: columns), keeping: drag.family,
+                            size: { sizes[$0] ?? 0 }) != columns else {
+            return nil
+        }
+        let others = columns[column].filter { $0 != drag.family }
+        let tint = swiftColor(controller.style(of: drag.family).color)
+        if slot.index < others.count { return others[slot.index] == family ? FamilyDrop(below: false, tint: tint) : nil }
+        return others.last == family ? FamilyDrop(below: true, tint: tint) : nil
+    }
+
+    /// Pur (testé) : où tombe une famille prise : la colonne sous la souris (deux colonnes de `width` points), et sa
+    /// place dans cette colonne : avant la première famille dont le milieu est plus bas que la souris.
+    static func dropSlot<F: Hashable>(_ point: CGPoint, dragged: F, columns: [[F]], frames: [F: CGRect],
+                                      width: CGFloat) -> (column: Int, index: Int) {
+        let column = columns.count >= 2 && point.x >= width / 2 ? 1 : 0
+        guard columns.indices.contains(column) else { return (0, 0) }
+        let others = columns[column].filter { $0 != dragged }
+        return (column, others.filter { (frames[$0]?.midY ?? .infinity) < point.y }.count)
+    }
+
+    /// Pur (testé) : les colonnes après avoir posé `dragged` à `slot` (retirée de sa colonne, posée dans l'autre ou
+    /// ailleurs dans la même).
+    static func placing<F: Equatable>(_ dragged: F, at slot: (column: Int, index: Int), in columns: [[F]]) -> [[F]] {
+        guard columns.indices.contains(slot.column) else { return columns }
+        var out = columns.map { $0.filter { $0 != dragged } }
+        out[slot.column].insert(dragged, at: min(max(slot.index, 0), out[slot.column].count))
+        return out
+    }
+
+    /// Pur (testé) : les familles en `count` colonnes, dans l'ordre (la première colonne de haut en bas, puis la
+    /// suivante) : `left` familles à gauche si on les y a posées (une colonne peut rester vide), sinon coupées là où les
+    /// colonnes ont la hauteur la plus proche (`size` : nombre de sons d'une famille).
+    static func familyColumns<F>(_ families: [F], count: Int, left: Int? = nil, size: (F) -> Int) -> [[F]] {
+        if count >= 2, let left, !families.isEmpty {
+            let cut = min(max(left, 0), families.count)
+            return [Array(families[..<cut]), Array(families[cut...])]
+        }
+        guard count >= 2, families.count >= 2 else { return [families] }
+        let heights = families.map { size($0) + 2 }                  // l'en-tête compte pour deux lignes
+        let total = heights.reduce(0, +)
+        var best = 1
+        var bestGap = Int.max
+        var running = 0
+        for cut in 1..<families.count {
+            running += heights[cut - 1]
+            let gap = abs(total - 2 * running)
+            if gap < bestGap { best = cut; bestGap = gap }
+        }
+        return [Array(families[..<best]), Array(families[best...])]
+    }
+}
+
+/// Bouton principal de l'Organiser, toujours bleu : le panneau ne devient jamais la fenêtre active (FL reste devant),
+/// et le bouton du système y paraissait gris, comme désactivé (vidéo du 29/10).
+struct AlwaysBlueButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        OrganizerMainButton(label: configuration.label, pressed: configuration.isPressed)
+    }
+}
+
+/// Le bouton principal de l'Organiser (style suisse, nom gardé : « toujours » actif d'aspect, le panneau n'étant
+/// jamais la fenêtre active) : plein comme les boutons principaux de l'app (blanc sous Noir et Orange, noir sous
+/// Papier), en capitales ; au survol, il se soulève sur son ombre nette (effet Gumroad, 06/11).
+private struct OrganizerMainButton<Label: View>: View {
+    let label: Label
+    let pressed: Bool
+    @Environment(\.isEnabled) private var enabled
+    @State private var hovering = false
+
+    var body: some View {
+        label
+            .font(Swiss.font(12))
+            .tracking(1.2)
+            .textCase(.uppercase)
+            .foregroundStyle(Swiss.primaryInk)
+            .padding(.horizontal, 22)
+            .frame(height: 38)
+            .background(Rectangle().fill(Swiss.primaryFill))
+            .gumroadLift(hovering && enabled && !pressed)
+            .opacity(enabled ? 1 : 0.4)
+            .contentShape(Rectangle())
+            .onHover { hovering = $0 }
+    }
+}
+
+/// « Options » de l'aperçu (maquette du 28/10 : rien autour des familles) : les pages de FL à ranger, les noms, les
+/// bus, les sons sans note, et le diagnostic à copier.
+private struct OrganizerOptionsMenu: View {
+    @ObservedObject var controller: OrganizerController
+
+    /// 07/11 (« après avoir cliqué sur Options… plus un Liquid Glass, un vrai truc dans le style suisse ») : le menu
+    /// suisse du clic droit, avec ses coches, sous la souris.
+    var body: some View {
+        Button("Options") { SwissContextMenu.shared.show(items, at: NSEvent.mouseLocation) }
+            .secondaryButton()
+            .fixedSize()
+            .help("Ce que l'Organiser range, et le diagnostic à copier pour l'équipe")
+    }
+
+    private var items: [RightClickMenu.Item?] {
+        let c = controller
+        let o = c.options
+        func toggle(_ title: String, _ on: Bool, enabled: Bool = true, _ flip: @escaping () -> Void) -> RightClickMenu.Item {
+            RightClickMenu.Item(title: title, checked: on, enabled: enabled, action: flip)
+        }
+        return [
+            toggle(String(localized: "Channel rack"), o.rack) { c.options.rack.toggle() },
+            toggle(String(localized: "Patterns"), o.patterns) { c.options.patterns.toggle() },
+            toggle(String(localized: "Mixer"), o.mixer) { c.options.mixer.toggle() },
+            toggle(String(localized: "Playlist"), o.playlist) { c.options.playlist.toggle() },
+            nil,
+            toggle(String(localized: "Renommer"), o.rename) { c.options.rename.toggle() },
+            toggle(String(localized: "Un bus par famille"), o.buses, enabled: o.mixer) { c.options.buses.toggle() },
+            toggle(String(localized: "Pré-master"), o.premaster, enabled: o.mixer && o.buses) { c.options.premaster.toggle() },
+            toggle(c.organizesCopy ? String(localized: "Supprimer les sons sans note")
+                                   : String(localized: "Supprimer les sons sans note (définitif)"), o.deleteUnused) {
+                c.options.deleteUnused.toggle()
+            },
+            nil,
+            RightClickMenu.Item(title: c.copied ? String(localized: "Copié") : String(localized: "Copier le diagnostic"),
+                                checked: false) { c.copyDiagnostic() },
+            RightClickMenu.Item(title: String(localized: "Couleurs de base…"), checked: false) { c.editingBaseColors = true },
+        ]
+    }
+}
+
+/// Carte de l'Organiser au style suisse (01/11) : pas de voile, un trait fin dessus et dessous. Pas de survol : une
+/// carte n'est pas une option.
+private struct OrganizerCard: View {
+    /// Traits fins dessus et dessous ; sans eux pour les sons d'une famille (05/11 : « juste en dessous il y a un petit
+    /// trait en plus… à enlever pour chaque famille »).
+    var rules = true
+
+    var body: some View {
+        Rectangle().fill(Swiss.background)
+            .overlay(alignment: .top) { Rectangle().fill(rules ? Swiss.line : Color.clear).frame(height: 1) }
+            .overlay(alignment: .bottom) { Rectangle().fill(rules ? Swiss.line : Color.clear).frame(height: 1) }
+    }
+}
+
+private extension View {
+    func organizerCard(_ tint: Color = OrganizerView.tint, rules: Bool = true) -> some View {
+        background(OrganizerCard(rules: rules))
+    }
+}
+
+/// Attente de FL : la pastille de couleur et deux ondes qui s'en éloignent sans fin, comme un appel (rien ne tourne
+/// une fois la fenêtre fermée). Mouvement réduit demandé : la pastille seule.
+private struct WaitingPulse: View {
+    let symbol: String
+    let tint: Color
+    @State private var going = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        // 06/11 : plus d'animation qui tourne ni de pastille (rien qui détonne dans le style suisse).
+        if OrganizerBadge.shown { pulse }
+    }
+
+    private var pulse: some View {
+        ZStack {
+            if !reduceMotion {
+                ForEach(0..<2, id: \.self) { i in
+                    Rectangle()
+                        .stroke(tint.opacity(0.45), lineWidth: 1.5)
+                        .frame(width: 34, height: 34)
+                        .scaleEffect(going ? 1.9 : 1)
+                        .opacity(going ? 0 : 0.9)
+                        .animation(.easeOut(duration: 1.6).repeatForever(autoreverses: false).delay(Double(i) * 0.8),
+                                   value: going)
+                }
+            }
+            OrganizerBadge(symbol: symbol, tint: tint)
+        }
+        .frame(width: 56, height: 56)
+        .onAppear { going = true }
+    }
+}
+
+/// Pastille ronde de couleur avec son symbole (résultat, écoute en cours : l'onde s'anime).
+private struct OrganizerBadge: View {
+    let symbol: String
+    let tint: Color
+    var live = false
+
+    /// 06/11 (« une petite baguette magique… ignoble, ça rentre pas du tout dans le thème Suisse style » ; « un petit
+    /// point d'exclamation, enlève-le ») : plus aucune pastille d'icône dans l'Organiser, le texte seul.
+    static let shown = false
+
+    var body: some View {
+        if Self.shown { badge }
+    }
+
+    private var badge: some View {
+        // Style suisse : un carré plat de sa couleur, symbole noir.
+        icon
+            .font(.system(size: 15, weight: .bold))
+            .foregroundStyle(Swiss.background)
+            .frame(width: 34, height: 34)
+            .background(Rectangle().fill(tint))
+            .accessibilityHidden(true)
+    }
+
+    @ViewBuilder private var icon: some View {
+        if live {
+            if #available(macOS 14.0, *) {
+                Image(systemName: symbol).symbolEffect(.variableColor.iterative, options: .repeating)
+            } else {
+                Image(systemName: symbol)
+            }
+        } else {
+            Image(systemName: symbol)
         }
     }
 }
 
-/// Une famille de l'aperçu : son réglage (une couleur ou un dégradé) et ses sons.
+/// Une étape numérotée, dans une carte (comme les étapes du guide), qui apparaît à son tour.
+private struct OrganizerStep: View {
+    let n: Int
+    let text: String
+
+    var body: some View {
+        // Style suisse : le numéro dans un carré rouge, la phrase en gras, un trait fin dessous.
+        HStack(alignment: .center, spacing: 12) {
+            Text(verbatim: "\(n)")
+                .font(Swiss.font(12).monospacedDigit())
+                .foregroundStyle(Swiss.background)
+                .frame(width: 20, height: 20)
+                .background(Rectangle().fill(Swiss.red))
+                .accessibilityHidden(true)
+            Text(text).font(.system(size: 13, weight: .bold)).fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 10)
+        .swissRule(Swiss.line)
+        .morphIn(n + 1)
+    }
+}
+
+/// Une famille de l'aperçu : son réglage (une couleur ou un dégradé, son départ dans le Mixer) et ses sons. Elle se
+/// prend en entier et se glisse au-dessus ou en dessous d'une autre, comme un dossier (demandes du 25/10 et du 30/10 :
+/// plus d'image floue avec un « + » du système, le bloc lui-même suit la souris).
 private struct FamilySection: View {
     @ObservedObject var controller: OrganizerController
     let family: SoundFamily
     let colors: [Int: RGBColor]
+    /// Prise et glissée ailleurs : sa place reste en transparence.
+    var dragged = false
+    /// Une famille prise tombera ici : un trait de sa couleur au-dessus ou en dessous.
+    var drop: FamilyDrop? = nil
+    /// La copie qui suit la souris : ni prise, ni place comptée.
+    var ghost = false
+    /// Un son pris tombera dans cette famille : elle est entourée de sa couleur.
+    var soundTarget = false
+    /// Le son pris (sa ligne reste en transparence).
+    var draggedSound: Int? = nil
+    var onMove: (DragGesture.Value) -> Void = { _ in }
+    var onRelease: () -> Void = {}
+    var onSoundMove: (OrganizerController.Member, DragGesture.Value) -> Void = { _, _ in }
+    var onSoundRelease: () -> Void = {}
     @State private var pickingFirst = false
     @State private var pickingLast = false
+    @State private var pickingIcon = false
 
     private var fadeOn: Binding<Bool> {
         Binding(get: { controller.style(of: family).fade != nil }, set: { on in
@@ -447,20 +2837,14 @@ private struct FamilySection: View {
         let style = controller.style(of: family)
         let members = controller.members(of: family)
         VStack(alignment: .leading, spacing: 6) {
+            // En-tête au-dessus de la carte (maquette du 28/10) : poignée, couleur, nom, départ dans le Mixer, icône.
             HStack(spacing: 8) {
-                Image(systemName: family.symbol).frame(width: 18)
-                Text(family.label).font(.system(size: 13, weight: .semibold))
-                Text("\(members.count)").foregroundStyle(.secondary)
-                Spacer()
-                Picker("", selection: fadeOn) {
-                    Text("Une couleur").tag(false)
-                    Text("Dégradé").tag(true)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-                .controlSize(.small)
-                swatch(style.color, picking: $pickingFirst) { picked in
+                SixDots()
+                    .frame(width: 14, height: 24)
+                    .help("Prends la famille par son nom et glisse-la au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre")
+                // Sa couleur (et la fin de son dégradé) : un rond qu'on clique ; « Une couleur / Dégradé » est dans
+                // la fenêtre du premier rond (maquette du 28/10 : tout ce qui se change, sans rien autour).
+                swatch(style.color, picking: $pickingFirst, withFade: true) { picked in
                     controller.updateStyle(family) { $0.color = picked }
                 }
                 if let fade = style.fade {
@@ -468,56 +2852,802 @@ private struct FamilySection: View {
                         controller.updateStyle(family) { $0.fade = picked }
                     }
                 }
+                // Jamais coupé en deux lignes (capture du 25/10 : « Melodie / s »).
+                Text(family.label).swissLabel(Swiss.text, size: 12)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(1)
+                Spacer(minLength: 8)
+                if controller.options.mixer, let range = controller.mixerRange(of: family) {
+                    Text("Mixer").swissLabel(size: 10)
+                    MixerSlotBox(value: style.mixerStart ?? range.lowerBound, chosen: style.mixerStart != nil,
+                                 last: controller.mixerLast, tint: swiftColor(style.color)) {
+                        controller.setMixerStart(family, $0)
+                    }
+                    .help("Première piste du Mixer de la famille (son bus compris ; la 808 avec les drums) : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire")
+                }
+                Button { pickingIcon = true } label: { FLIconBadge(icon: style.icon, size: 18) }
+                    .buttonStyle(.plain)
+                    .help("Icône de FL de la famille, sur ses sons et ses pistes du Mixer (posée par la fenêtre de FL, F2 ; « Revenir comme avant » ne la retire pas)")
+                    .swissPopover(isPresented: $pickingIcon, arrowEdge: .bottom) {
+                        FLIconPicker(selected: style.icon) { picked in
+                            controller.updateStyle(family) { $0.icon = picked }
+                            pickingIcon = false
+                        }
+                    }
             }
-            ForEach(members) { member in
-                row(member, color: colors[member.id] ?? style.color)
+            .padding(.horizontal, 4)
+            .frame(minHeight: 32)
+            // Ses sons, dans une carte de verre, séparés par un trait fin.
+            VStack(spacing: 0) {
+                ForEach(Array(members.enumerated()), id: \.element.id) { index, member in
+                    if index > 0 { Rectangle().fill(Swiss.faint).frame(height: 1) }
+                    FamilyMemberRow(controller: controller, family: family, member: member,
+                                    color: colors[member.id] ?? style.color, ghost: ghost,
+                                    onMove: { onSoundMove(member, $0) }, onRelease: onSoundRelease)
+                        .opacity(draggedSound == member.id ? 0.25 : 1)
+                }
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
+            .organizerCard(swiftColor(style.color), rules: false)
+            // Thème Orange : ses sons dans une carte noire (maquette du 04/11).
+            .swissCard()
+            // Style suisse : un trait de la couleur de la famille au-dessus de ses sons.
+            .overlay(alignment: .top) { Rectangle().fill(swiftColor(style.color)).frame(height: 3) }
+        }
+        .opacity(dragged ? 0.25 : 1)
+        // Un son pris va tomber ici : la famille entourée de sa couleur (comme un dossier qui s'ouvre).
+        .overlay {
+            if soundTarget {
+                Rectangle().strokeBorder(swiftColor(style.color), lineWidth: 2).padding(-5)
             }
         }
-        .padding(10)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.05)))
+        // Au milieu de l'espace entre deux familles (14 points).
+        .overlay(alignment: drop?.below == true ? .bottom : .top) {
+            if let drop {
+                Rectangle().fill(drop.tint).frame(height: 4).padding(.horizontal, 6).offset(y: drop.below ? 9 : -9)
+            }
+        }
+        .background(GeometryReader { geo in
+            Color.clear.preference(key: FamilyFramesKey.self,
+                                   value: ghost ? [:] : [family: geo.frame(in: .named(OrganizerView.familySpace))])
+        })
+        // Tout le bloc se prend (sauf ce qui se tire déjà : la case du Mixer, les menus des sons).
+        .contentShape(Rectangle())
+        .gesture(DragGesture(minimumDistance: 4, coordinateSpace: .named(OrganizerView.familySpace))
+                    .onChanged { onMove($0) }
+                    .onEnded { _ in onRelease() },
+                 including: ghost ? .none : .all)
+        .swissContextMenu {
+            [RightClickMenu.Item(title: String(localized: "Monter la famille")) {
+                withAnimation(Motion.quickMorph) { controller.shiftFamily(family, by: -1) }
+             },
+             RightClickMenu.Item(title: String(localized: "Descendre la famille")) {
+                withAnimation(Motion.quickMorph) { controller.shiftFamily(family, by: 1) }
+             }]
+        }
+        // Photo de la CI : la roue de la famille Drums ouverte (après l'arrivée de la fenêtre ; l'aperçu peut déjà être
+        // là, venu de l'écran d'avant).
+        .onAppear { openDemoColors() }
+        .onChange(of: controller.demoColors) { _ in openDemoColors() }
     }
 
-    private func row(_ member: OrganizerController.Member, color: RGBColor) -> some View {
-        HStack(spacing: 8) {
-            RoundedRectangle(cornerRadius: 3, style: .continuous)
+    private func openDemoColors() {
+        guard controller.demoColors, family == .drums, !ghost else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { pickingFirst = true }
+    }
+
+    /// Un rond de couleur : la roue des couleurs de FL s'ouvre au clic. `withFade` : au-dessus de la roue, le choix
+    /// « Une couleur / Dégradé » de la famille.
+    private func swatch(_ color: RGBColor, picking: Binding<Bool>, withFade: Bool = false,
+                        set: @escaping (RGBColor) -> Void) -> some View {
+        Button { picking.wrappedValue = true } label: {
+            Rectangle()
                 .fill(swiftColor(color))
-                .frame(width: 12, height: 12)
-            Text(member.name.isEmpty ? "(sans nom)" : member.name).lineLimit(1)
+                .frame(width: 16, height: 16)
+                .overlay(Rectangle().strokeBorder(Swiss.keyLine, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .help(String(localized: "#\(color.hex) : choisir dans la roue des couleurs de FL"))
+        .swissPopover(isPresented: picking, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 0) {
+                if withFade {
+                    SwissSegmented(selection: fadeOn, options: [
+                        (value: false, label: String(localized: "Une couleur")),
+                        (value: true, label: String(localized: "Dégradé")),
+                    ])
+                    .controlSize(.small)
+                    .padding([.horizontal, .top], 14)
+                }
+                FLColorSelector(initial: color) { picked in
+                    set(picked)
+                    picking.wrappedValue = false
+                }
+            }
+            .background(Swiss.background)
+        }
+    }
+}
+
+/// Un son de l'aperçu : sa couleur, son nom (et celui qu'il prendra), sa piste du Mixer (la case de FL) et ce qu'il est
+/// (« Écrire… » : son nom tapé à la main, à la place de « À vérifier », demande du propriétaire du 25/10).
+private struct FamilyMemberRow: View {
+    @ObservedObject var controller: OrganizerController
+    let family: SoundFamily
+    let member: OrganizerController.Member
+    let color: RGBColor
+    /// Dans la copie d'une famille qui suit la souris : rien ne se prend.
+    var ghost = false
+    /// Le son pris par sa ligne et glissé dans une autre famille (01/11).
+    var onMove: (DragGesture.Value) -> Void = { _ in }
+    var onRelease: () -> Void = {}
+    @State private var writing = false
+    @State private var draft = ""
+    @FocusState private var fieldFocused: Bool
+    @StateObject private var anchor = ScreenAnchor()
+
+    /// La liste suisse sous la case : chaque famille en rubrique, ses sortes dessous (celle du son cochée), puis
+    /// « Écrire… » et, pour un nom écrit, « Nom automatique ».
+    private func openKinds() {
+        guard let frame = anchor.screenFrame else { return }
+        let id = member.id
+        var items: [RightClickMenu.Item?] = []
+        for choice in SoundFamily.order where !choice.kinds.isEmpty {
+            items.append(RightClickMenu.Item(title: choice.label, enabled: false, header: true) {})
+            for kind in choice.kinds {
+                items.append(RightClickMenu.Item(title: kind.name, checked: choice == family && kind == member.kind) {
+                    controller.setKind(id, kind)
+                })
+            }
+        }
+        items.append(nil)
+        items.append(RightClickMenu.Item(title: String(localized: "Écrire…")) {
+            draft = controller.names[id] ?? ""
+            anchor.view?.window?.makeKey()                   // le panneau prend le clavier sans activer l'app
+            writing = true
+        })
+        if member.written {
+            items.append(RightClickMenu.Item(title: String(localized: "Nom automatique")) { controller.setName(id, nil) })
+        }
+        SwissContextMenu.shared.showList(items, below: frame)
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            // La poignée du son : on le prend par sa ligne et on le pose dans une autre famille.
+            SixDots(color: Swiss.keyLine)
+                .frame(width: 9)
+                .help("Prends le son et pose-le dans une autre famille : il y passe, relié à son bus")
+            // Son nom d'origine → le nom qu'il prendra (28/10 : « le nom qui passe d'un nom à un autre ») ; le nouveau
+            // nom dans sa case, qui s'ouvre sur ce qu'est le son et « Écrire… » (maquette du 28/10).
+            Text(member.name.isEmpty ? String(localized: "(sans nom)") : member.name)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(maxWidth: 150, alignment: .leading)
             if member.testNotes {
                 Image(systemName: "music.note")
                     .foregroundStyle(.secondary)
-                    .help("Muet dans le pattern : classé avec deux notes d'essai. Vérifie sa famille.")
+                    .help("Muet dans ses patterns : classé avec deux notes d'essai. Vérifie sa famille.")
             }
-            Spacer()
-            Menu {
-                ForEach(SoundFamily.order, id: \.self) { choice in
-                    Button(choice.label) { controller.families[member.id] = choice }
+            Image(systemName: "arrow.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
+            // 13/11 (vidéo : « quand je clique sur guitare… ça me met encore du liquid glass ») : la liste suisse de
+            // l'app (une rubrique par famille, la sorte en cours cochée), plus le menu de macOS ; « Écrire… » se tape
+            // dans la case elle-même, plus dans une bulle de macOS.
+            if writing {
+                TextField(String(localized: "Écris le nom que tu veux"), text: $draft)
+                    .swissField()
+                    .focused($fieldFocused)
+                    .onSubmit(save)
+                    .onExitCommand { writing = false }
+                    .frame(maxWidth: .infinity, minHeight: 26)
+                    .onAppear { fieldFocused = true }
+                    .onChange(of: fieldFocused) { focused in if !focused { writing = false } }   // clic ailleurs : annulé
+            } else {
+                Button(action: openKinds) {
+                    HStack(spacing: 4) {
+                        Text(member.newName ?? member.kind?.name ?? family.label)
+                            .lineLimit(1)
+                            .foregroundStyle(Swiss.text)
+                        Spacer(minLength: 2)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(Swiss.gray)
+                    }
+                    .padding(.horizontal, 8)
+                    .frame(maxWidth: .infinity, minHeight: 26)
+                    .overlay(Rectangle().strokeBorder(Swiss.keyLine, lineWidth: 1))
+                    .contentShape(Rectangle())
                 }
-            } label: {
-                Text(family.label).font(.system(size: 11))
+                .buttonStyle(.plain)
+                .background(ScreenAnchor.Reader(anchor: anchor))
+                .help("Changer ce qu'est ce son (Kick, 808, Lead…), ou écrire son nom")
             }
-            .menuStyle(.button)
-            .buttonStyle(.borderless)
-            .fixedSize()
-            .help("Changer la famille de ce son")
+            // La case du Mixer tout à droite, alignée d'un son à l'autre.
+            if controller.options.mixer, member.slot != nil || member.pinned {
+                MixerSlotBox(value: member.slot, chosen: member.pinned, last: controller.mixerLast,
+                             tint: swiftColor(color)) {
+                    controller.setSlot(member.id, $0)
+                }
+                .help("Piste du Mixer de ce son : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire")
+            }
         }
-        .font(.system(size: 12))
+        .font(.system(size: 13))
+        .frame(minHeight: 38)
+        .background(GeometryReader { geo in
+            Color.clear.preference(key: SoundFramesKey.self,
+                                   value: ghost ? [:] : [member.id: geo.frame(in: .named(OrganizerView.familySpace))])
+        })
+        // Toute la ligne se prend (sauf ce qui se tire ou s'ouvre déjà : la case du Mixer, le menu du son), avant
+        // la famille autour d'elle.
+        .contentShape(Rectangle())
+        .gesture(DragGesture(minimumDistance: 4, coordinateSpace: .named(OrganizerView.familySpace))
+                    .onChanged { onMove($0) }
+                    .onEnded { _ in onRelease() },
+                 including: ghost ? .none : .all)
     }
 
-    private func swatch(_ color: RGBColor, picking: Binding<Bool>, set: @escaping (RGBColor) -> Void) -> some View {
-        Button { picking.wrappedValue = true } label: {
-            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .fill(swiftColor(color))
-                .frame(width: 22, height: 16)
-                .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(Color.primary.opacity(0.2)))
-        }
-        .buttonStyle(.plain)
-        .help("#" + color.hex + " : choisir dans la roue des couleurs de FL")
-        .popover(isPresented: picking, arrowEdge: .bottom) {
-            FLColorSelector(initial: color) { picked in
-                set(picked)
-                picking.wrappedValue = false
+    private func save() {
+        controller.setName(member.id, draft)
+        writing = false
+    }
+}
+
+/// Un son pris dans l'aperçu : lequel, sa famille, sa couleur, où est la souris, où il a été pris dans sa ligne, la
+/// taille de la ligne.
+struct SoundDrag {
+    let id: Int
+    let from: SoundFamily
+    let name: String
+    let color: Color
+    var location: CGPoint
+    let grab: CGSize
+    let size: CGSize
+}
+
+/// La copie du son pris, qui suit la souris : sa couleur, son nom et la famille où il tombera (« → MÉLODIES »).
+struct SoundGhost: View {
+    let name: String
+    let color: Color
+    let target: (label: String, color: Color)?
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Rectangle().fill(target?.color ?? color).frame(width: 8, height: 8)
+            Text(verbatim: name)
+                .font(.system(size: 13, weight: .semibold))
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer(minLength: 6)
+            if let target {
+                Text(verbatim: "→ " + target.label).swissLabel(Swiss.text, size: 10).lineLimit(1).fixedSize()
             }
         }
+        .padding(.horizontal, 12)
+        .background(FamilyDrag.plate(target?.color ?? color))
+        .scaleEffect(1.02)
+    }
+}
+
+/// Place de chaque son dans l'aperçu (espace `OrganizerView.familySpace`) : où il a été pris.
+private struct SoundFramesKey: PreferenceKey {
+    static let defaultValue: [Int: CGRect] = [:]
+
+    static func reduce(value: inout [Int: CGRect], nextValue: () -> [Int: CGRect]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
+/// Une famille prise dans l'aperçu : où est la souris, où elle a été prise dans son bloc, la taille du bloc.
+struct FamilyDrag {
+    let family: SoundFamily
+    var location: CGPoint
+    let grab: CGSize
+    let size: CGSize
+
+    /// Marge du fond soulevé autour de la copie qui suit la souris.
+    static let lift: CGFloat = 8
+
+    /// Fond de la copie qui suit la souris : le noir de la fenêtre, un bord de la couleur de la famille, une ombre.
+    static func plate(_ tint: Color) -> some View {
+        let shape = Rectangle()
+        return shape.fill(Appearance.windowColor)
+            .overlay(shape.strokeBorder(tint.opacity(0.75), lineWidth: 1.5))
+            .shadow(color: Color.black.opacity(0.55), radius: 18, y: 10)
+    }
+}
+
+/// Trait qui montre où tombera la famille prise : sous la cible (glissée vers le bas) ou au-dessus.
+struct FamilyDrop {
+    let below: Bool
+    let tint: Color
+}
+
+/// Place de chaque famille dans l'aperçu (espace `OrganizerView.familySpace`) : où tombe une famille prise.
+private struct FamilyFramesKey: PreferenceKey {
+    static let defaultValue: [SoundFamily: CGRect] = [:]
+
+    static func reduce(value: inout [SoundFamily: CGRect], nextValue: () -> [SoundFamily: CGRect]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
+/// La case du numéro de piste du Mixer, comme celle du Channel rack de FL (vidéo du propriétaire) : on la tire vers le
+/// haut ou le bas pour changer le numéro, ou on clique pour l'écrire ; ⌥ + clic : automatique. Un numéro choisi est
+/// clair, un numéro automatique est gris ; « --- » : aucune piste.
+struct MixerSlotBox: View {
+    let value: Int?
+    /// Choisi à la main (sinon : la place automatique).
+    let chosen: Bool
+    let last: Int
+    /// Couleur du bord d'un numéro choisi (celle de la famille).
+    var tint: Color = OrganizerView.tint
+    /// nil : automatique.
+    let set: (Int?) -> Void
+    @State private var dragStart: Int?
+    @State private var typing = false
+    @State private var draft = ""
+    @State private var hovered = false
+    /// Pendant qu'on tire, comme la case de FL (vidéo du 29/10 : la flèche restait sur le chiffre) : la flèche est
+    /// cachée et garée à droite de la case, le chiffre reste visible ; au lâcher, elle revient où elle était.
+    @State private var hiddenDrag: HiddenDrag?
+
+    /// Points de souris par numéro, comme la case de FL (tirer vers le haut : plus grand).
+    static let step: CGFloat = 6
+    static let width: CGFloat = 40
+
+    var body: some View {
+        // Un peu plus grande qu'avant (28/10) : c'est ce qu'on change le plus dans l'aperçu.
+        Text(verbatim: value.map { String($0) } ?? "---")
+            .font(.system(size: 12, weight: chosen ? .semibold : .regular).monospacedDigit())
+            .foregroundStyle(chosen ? Color.primary : Color.secondary)
+            .frame(width: Self.width, height: 22)
+            .background(Rectangle().fill(Swiss.background))
+            .overlay(Rectangle()
+                .strokeBorder(chosen ? tint : Color.primary.opacity(hovered ? 0.35 : 0.12), lineWidth: 1))
+            .contentShape(Rectangle())
+            .onHover { inside in
+                hovered = inside
+                if inside { NSCursor.resizeUpDown.push() } else { NSCursor.pop() }
+            }
+            .gesture(DragGesture(minimumDistance: 2)
+                .onChanged { drag in
+                    guard dragStart == nil else { return }       // la suite arrive par `HiddenDrag` (souris garée)
+                    let from = value ?? 1
+                    dragStart = from
+                    set(Self.dragged(from: from, dy: drag.translation.height, last: last))
+                    hiddenDrag = HiddenDrag(localX: drag.startLocation.x, width: Self.width,
+                                            already: drag.translation.height) { dy in
+                        set(Self.dragged(from: from, dy: dy, last: last))
+                    }
+                }
+                .onEnded { _ in
+                    hiddenDrag?.finish()
+                    hiddenDrag = nil
+                    dragStart = nil
+                })
+            .onDisappear {
+                hiddenDrag?.finish()
+                hiddenDrag = nil
+            }
+            .onTapGesture {
+                if NSEvent.modifierFlags.contains(.option) {
+                    set(nil)
+                } else {
+                    draft = value.map { "\($0)" } ?? ""
+                    typing = true
+                }
+            }
+            .swissPopover(isPresented: $typing, arrowEdge: .bottom) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Piste du Mixer").font(.system(size: 12, weight: .semibold))
+                    TextField(String("1…\(last)"), text: $draft)
+                        .swissField()
+                        .frame(width: 120)
+                        .onSubmit(save)
+                    HStack {
+                        Button("Automatique") {
+                            set(nil)
+                            typing = false
+                        }
+                        .secondaryButton()
+                        Spacer()
+                        Button("OK", action: save)
+                            .primaryButton()
+                            .keyboardShortcut(.defaultAction)
+                    }
+                }
+                .padding(14)
+            }
+    }
+
+    private func save() {
+        if let n = Int(draft.trimmingCharacters(in: .whitespaces)) { set(min(max(n, 1), last)) }
+        typing = false
+    }
+
+    /// Pur (testé) : le numéro après avoir tiré la case de `dy` points (vers le haut : négatif, plus grand).
+    static func dragged(from: Int, dy: CGFloat, last: Int) -> Int {
+        min(max(from + Int((-dy / step).rounded(.towardZero)), 1), max(last, 1))
+    }
+}
+
+/// Glisser d'une case comme dans FL : la flèche disparaît (même FL devant : `BackgroundCursor`), garée à droite de la
+/// case (si macOS la laissait visible, elle ne couvre pas le chiffre) ; la souris continue de compter (mouvements reçus
+/// tels quels) ; au lâcher, la flèche revient exactement où elle était. Aucune autorisation : la flèche seulement.
+final class HiddenDrag {
+    private let origin: CGPoint
+    private var monitor: Any?
+    private var dy: CGFloat
+    private let change: (CGFloat) -> Void
+    private var finished = false
+
+    /// `localX` : où la case a été prise (depuis son bord gauche) ; `already` : ce qui a déjà été tiré.
+    init(localX: CGFloat, width: CGFloat, already: CGFloat, change: @escaping (CGFloat) -> Void) {
+        let mouse = NSEvent.mouseLocation
+        origin = mouse
+        dy = already
+        self.change = change
+        let primary = NSScreen.screens.first?.frame.height ?? 0
+        BackgroundCursor.hide()
+        CGWarpMouseCursorPosition(Self.displayPoint(Self.parked(mouse: mouse, localX: localX, width: width),
+                                                    primaryHeight: primary))
+        CGAssociateMouseAndMouseCursorPosition(0)                   // la flèche reste garée, les mouvements comptent
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDragged) { [weak self] event in
+            guard let self else { return event }
+            self.dy += event.deltaY                                 // vers le bas : positif, comme `translation`
+            self.change(self.dy)
+            return event
+        }
+    }
+
+    func finish() {
+        guard !finished else { return }
+        finished = true
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+        let primary = NSScreen.screens.first?.frame.height ?? 0
+        CGWarpMouseCursorPosition(Self.displayPoint(origin, primaryHeight: primary))
+        CGAssociateMouseAndMouseCursorPosition(1)
+        BackgroundCursor.show()
+    }
+
+    deinit { finish() }
+
+    /// Pur (testé) : la flèche garée 12 points à droite de la case, à la même hauteur (coordonnées d'AppKit).
+    static func parked(mouse: CGPoint, localX: CGFloat, width: CGFloat) -> CGPoint {
+        CGPoint(x: mouse.x + max(0, width - localX) + 12, y: mouse.y)
+    }
+
+    /// Pur (testé) : un point d'AppKit (origine en bas à gauche de l'écran principal) en point de l'écran pour
+    /// CoreGraphics (origine en haut à gauche).
+    static func displayPoint(_ p: CGPoint, primaryHeight: CGFloat) -> CGPoint {
+        CGPoint(x: p.x, y: primaryHeight - p.y)
+    }
+}
+
+/// Cacher la flèche alors que l'app n'est pas devant (le panneau de l'Organiser ne l'est jamais : FL reste devant) :
+/// `NSCursor.hide()` n'agit que pour l'app active (vidéo du 30/10 : la flèche restait visible pendant qu'on tirait la
+/// case du Mixer). macOS le permet à une app en arrière-plan qui le demande (réglage « SetsCursorInBackground » de sa
+/// connexion au serveur de fenêtres, non documenté, demandé une fois) ; s'il manque, la flèche reste visible, garée à
+/// côté de la case, comme avant.
+enum BackgroundCursor {
+    private typealias DefaultConnection = @convention(c) () -> Int32
+    private typealias SetProperty = @convention(c) (Int32, Int32, CFString, CFTypeRef) -> Int32
+
+    private static let allowed: Bool = {
+        guard let handle = dlopen(nil, RTLD_LAZY),
+              let main = dlsym(handle, "_CGSDefaultConnection"),
+              let set = dlsym(handle, "CGSSetConnectionProperty") else { return false }
+        let connection = unsafeBitCast(main, to: DefaultConnection.self)()
+        return unsafeBitCast(set, to: SetProperty.self)(connection, connection, "SetsCursorInBackground" as CFString,
+                                                        kCFBooleanTrue) == 0
+    }()
+
+    static func hide() {
+        _ = allowed
+        CGDisplayHideCursor(CGMainDisplayID())
+    }
+
+    static func show() {
+        CGDisplayShowCursor(CGMainDisplayID())
+    }
+
+    /// Le curseur de l'app peut être posé même quand FL est devant (13/11, `ArrowCursorKeeper`).
+    static func allowInBackground() { _ = allowed }
+}
+
+/// 13/11 (vidéo : « il y a le pinceau de FL qui reste en curseur… que le curseur change dès que tu as le curseur sur
+/// la page… vraiment partout ») : une fenêtre de l'app qui reste devant FL sans lui prendre la main (Organiser, listes
+/// suisses) garde la flèche dès que la souris y entre ou y bouge. Les curseurs posés exprès par ses vues (bords à
+/// tirer, case du Mixer, texte) restent. Ne prend aucun clic.
+struct ArrowCursorKeeper: NSViewRepresentable {
+    func makeNSView(context: Context) -> KeeperView { KeeperView() }
+    func updateNSView(_ nsView: KeeperView, context: Context) {}
+
+    final class KeeperView: NSView {
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            trackingAreas.forEach(removeTrackingArea)
+            addTrackingArea(NSTrackingArea(rect: .zero,
+                                           options: [.activeAlways, .mouseEnteredAndExited, .mouseMoved, .inVisibleRect],
+                                           owner: self, userInfo: nil))
+        }
+
+        override func mouseEntered(with event: NSEvent) { keep() }
+        override func mouseMoved(with event: NSEvent) { keep() }
+
+        /// Seulement l'app derrière FL : devant, macOS pose déjà ses curseurs (texte, main…) et FL ne peut plus y
+        /// laisser le sien. Les curseurs posés exprès par les vues de l'app restent.
+        private func keep() {
+            guard !NSApp.isActive else { return }
+            let current = NSCursor.current
+            let deliberate: [NSCursor] = [.resizeLeftRight, .resizeUpDown, .iBeam, .pointingHand, .openHand, .closedHand]
+            guard !deliberate.contains(current) else { return }
+            BackgroundCursor.allowInBackground()
+            NSCursor.arrow.set()
+        }
+    }
+}
+
+/// Une action faite une seule fois, la première fois qu'on la demande (fil principal).
+final class ReleaseOnce {
+    private var action: (() -> Void)?
+
+    init(_ action: @escaping () -> Void) { self.action = action }
+
+    func run() {
+        let pending = action
+        action = nil
+        pending?()
+    }
+}
+
+/// « Couleurs de base » (Options de l'Organiser, 05/11) : une ligne par famille, ses couleurs proposées ; la choisie
+/// entourée d'encre. Gardée tout de suite : chaque Organiser suivant part de ces couleurs. Au bout de chaque ligne, un
+/// « + » ouvre la roue des couleurs de FL (05/11 : « il faut + la roue de couleur qu'il y a déjà ») ; une couleur prise
+/// dans la roue s'y montre, entourée.
+private struct BaseColorsSheet: View {
+    @ObservedObject var controller: OrganizerController
+    @Environment(\.dismiss) private var dismiss
+    /// La famille dont la roue est ouverte.
+    @State private var wheelFor: SoundFamily?
+
+    private let families: [SoundFamily] = [.drums, .bass, .melody, .vocals, .fx]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SwissPageTitle(text: String(localized: "Couleurs de base"), size: 32)
+                .padding(.bottom, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .swissRule()
+            VStack(spacing: 0) {
+                ForEach(families, id: \.self) { family in
+                    let current = controller.style(of: family).color
+                    HStack(spacing: 14) {
+                        Text(family.label).font(Swiss.font(15)).frame(width: 90, alignment: .leading)
+                        HStack(spacing: 6) {
+                            ForEach(FamilyStyles.palette, id: \.self) { color in
+                                Button { controller.setBaseColor(family, color) } label: {
+                                    Rectangle().fill(swiftColor(color))
+                                        .frame(width: 24, height: 24)
+                                        .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: color == current ? 2 : 0))
+                                        .padding(2)
+                                        .overlay(Rectangle().strokeBorder(color == current ? Swiss.text : Color.clear, lineWidth: 1))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(family.label + " #" + color.hex)
+                            }
+                            wheelButton(family, current: current)
+                        }
+                    }
+                    .frame(minHeight: 46)
+                    .overlay(alignment: .bottom) { Rectangle().fill(Swiss.faint).frame(height: 1) }
+                }
+            }
+            HStack {
+                Button("Couleurs d'origine") { controller.resetBaseColors() }
+                    .secondaryButton()
+                Spacer()
+                Button("OK") { dismiss() }
+                    .primaryButton()
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(.top, 6)
+        }
+        .padding(24)
+        .frame(width: 560)
+    }
+
+    /// Le « + » d'une famille : la roue des couleurs de FL dans une bulle. Si la couleur de la famille vient de la roue,
+    /// la case la montre, entourée comme une couleur choisie.
+    private func wheelButton(_ family: SoundFamily, current: RGBColor) -> some View {
+        let custom = !FamilyStyles.palette.contains(current)
+        let open = Binding(get: { wheelFor == family }, set: { if !$0 { wheelFor = nil } })
+        return Button { wheelFor = family } label: {
+            ZStack {
+                Rectangle().fill(custom ? swiftColor(current) : Swiss.background)
+                if !custom {
+                    Text(verbatim: "+").font(Swiss.font(17)).foregroundColor(Swiss.text)
+                }
+            }
+            .frame(width: 24, height: 24)
+            .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: custom ? 2 : 1.5))
+            .padding(2)
+            .overlay(Rectangle().strokeBorder(custom || wheelFor == family ? Swiss.text : Color.clear, lineWidth: 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(String(localized: "Choisir dans la roue des couleurs de FL"))
+        .accessibilityLabel(family.label + " : " + String(localized: "Choisir dans la roue des couleurs de FL"))
+        .swissPopover(isPresented: open, arrowEdge: .trailing) {
+            FLColorSelector(initial: current) { picked in
+                controller.setBaseColor(family, picked)
+                wheelFor = nil
+            }
+            .background(Swiss.background)
+        }
+    }
+}
+
+/// Relier FL en trois étapes, une consigne à la fois (05/11 : « installer le lien… quitter, réouvrir… options… c'est
+/// un ordre à la fois pour que la personne fasse ») : « ÉTAPE n SUR 3 », la consigne en grand avec son point carré,
+/// une phrase ; dessous, les trois étapes (la faite cochée, celle en cours en rouge).
+private struct LinkSteps: View {
+    let current: Int
+    let detail: String
+
+    static var names: [String] {
+        [String(localized: "Installe le lien"), String(localized: "Quitte et rouvre FL"),
+         String(localized: "Options › MIDI Settings")]
+    }
+
+    /// L'étape d'une attente de FL, nil hors de l'installation du lien.
+    static func step(of reason: OrganizerController.Wait) -> Int? {
+        switch reason {
+        case .restartFL: return 2
+        case .midiSettings: return 3
+        default: return nil
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Étape \(current) sur 3").swissLabel(Swiss.red)
+                SwissPageTitle(text: Self.names[max(0, min(current, 3) - 1)], size: 30)
+                if !detail.isEmpty {
+                    Text(detail).font(.system(size: 13)).foregroundStyle(Swiss.gray)
+                }
+            }
+            VStack(spacing: 0) {
+                ForEach(0..<3, id: \.self) { i in
+                    let n = i + 1
+                    HStack(spacing: 12) {
+                        Text(verbatim: "0\(n)").font(Swiss.font(12)).foregroundStyle(n == current ? Swiss.red : Swiss.gray)
+                        Text(Self.names[i]).font(Swiss.font(14)).foregroundStyle(n == current ? Swiss.text : Swiss.gray)
+                        Spacer(minLength: 8)
+                        if n < current {
+                            Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(Swiss.text)
+                        }
+                    }
+                    .frame(minHeight: 36)
+                    .overlay(alignment: .top) { Rectangle().fill(Swiss.faint).frame(height: 1) }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Curseurs de redimensionnement sur les bords d'une fenêtre qui n'est pas la fenêtre active (07/11 : « quand on met
+/// la souris vers un des côtés… le curseur comme dans Mac pour rétrécir une page ») : l'Organiser flotte au-dessus de
+/// FL sans jamais devenir actif, et macOS n'y montrait que la flèche. Des zones de 6 points le long des bords, qui
+/// ne prennent aucun clic (le bord se tire toujours par macOS).
+struct EdgeResizeCursors: NSViewRepresentable {
+    func makeNSView(context: Context) -> EdgeView { EdgeView() }
+    func updateNSView(_ nsView: EdgeView, context: Context) {}
+
+    final class EdgeView: NSView {
+        private static let margin: CGFloat = 6
+
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            trackingAreas.forEach(removeTrackingArea)
+            let m = Self.margin, b = bounds
+            let zones: [(NSRect, NSCursor)] = [
+                (NSRect(x: 0, y: m, width: m, height: max(0, b.height - 2 * m)), .resizeLeftRight),
+                (NSRect(x: b.width - m, y: m, width: m, height: max(0, b.height - 2 * m)), .resizeLeftRight),
+                (NSRect(x: 0, y: 0, width: b.width, height: m), .resizeUpDown),
+                (NSRect(x: 0, y: b.height - m, width: b.width, height: m), .resizeUpDown),
+            ]
+            for (rect, cursor) in zones where rect.width > 0 && rect.height > 0 {
+                addTrackingArea(NSTrackingArea(rect: rect, options: [.activeAlways, .cursorUpdate, .mouseEnteredAndExited],
+                                               owner: self, userInfo: ["cursor": cursor]))
+            }
+        }
+
+        override func cursorUpdate(with event: NSEvent) {
+            (event.trackingArea?.userInfo?["cursor"] as? NSCursor)?.set()
+        }
+
+        override func mouseEntered(with event: NSEvent) {
+            (event.trackingArea?.userInfo?["cursor"] as? NSCursor)?.set()
+        }
+
+        override func mouseExited(with event: NSEvent) { NSCursor.arrow.set() }
+    }
+}
+
+/// Un chiffre de la fin (maquette du 13/11) : grand nombre, petites capitales grises dessous, trait fin à gauche.
+private struct FinishStat: View {
+    let value: Int
+    let label: String
+    var first = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(verbatim: "\(value)").font(Swiss.title(30)).tracking(Swiss.titleTracking(30)).foregroundStyle(Swiss.text)
+            Text(label).swissLabel().fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.leading, first ? 0 : 14)
+        .padding(.bottom, 14)
+        .overlay(alignment: .leading) { if !first { Rectangle().fill(Swiss.line).frame(width: 1) } }
+    }
+}
+
+/// Grande case de la fin : GARDER pleine, REVENIR COMME AVANT bordée ; soulevée sur son ombre nette au survol (effet
+/// Gumroad, comme les autres boutons principaux).
+private struct EndChoice: View {
+    let title: String
+    let primary: Bool
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title.uppercased(with: Locale.current))
+                .font(.system(size: 13, weight: .bold)).tracking(1.6)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(primary ? Swiss.primaryInk : Swiss.text)
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Rectangle().fill(primary ? Swiss.primaryFill : Swiss.background))
+                .overlay(Rectangle().strokeBorder(primary ? Color.clear : Swiss.text, lineWidth: 2))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .gumroadLift(hovering, shadow: primary ? Swiss.primaryLift : Swiss.text)
+        .onHover { hovering = $0 }
+    }
+}
+
+/// Une ligne de la fin (« Pas content ? », « Décider plus tard ») : le texte, une flèche à droite, un trait dessous.
+private struct EndRow: View {
+    let title: String
+    let bold: Bool
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Text(title).font(.system(size: 14, weight: bold ? .bold : .regular))
+                Spacer(minLength: 8)
+                Text(verbatim: "→").foregroundStyle(hovering ? Swiss.text : Swiss.gray)
+            }
+            .foregroundStyle(Swiss.text)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+            .overlay(alignment: .bottom) { Rectangle().fill(Swiss.line).frame(height: 1) }
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
     }
 }

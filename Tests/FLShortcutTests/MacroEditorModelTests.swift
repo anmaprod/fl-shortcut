@@ -40,11 +40,11 @@ final class MacroEditorModelTests: XCTestCase {
         model.insertRecorded(ClickSequenceCompiler.Result(blocks: [menu, click], ignored: 1))
         undo.endUndoGrouping()
         XCTAssertEqual(model.draft?.blocks.map(\.body), [.delay(ms: 100), menu, click, .delay(ms: 200)])
-        XCTAssertEqual(model.notice, "2 blocs ajoutés d'après tes clics. 1 clic hors de FL (ou dans un menu refermé) ignoré.")
+        XCTAssertEqual(model.notice, "2 blocs ajoutés d'après tes clics et tes touches. 1 geste hors de FL (ou dans un menu refermé) ignoré.")
         undo.undo()
         XCTAssertEqual(model.draft?.blocks.map(\.body), [.delay(ms: 100), .delay(ms: 200)])
         model.insertRecorded(ClickSequenceCompiler.Result(blocks: [], ignored: 2))
-        XCTAssertEqual(model.notice, "Aucun clic dans FL enregistré. 2 clics hors de FL (ou dans un menu refermé) ignorés.")
+        XCTAssertEqual(model.notice, "Aucun clic ni aucune touche dans FL enregistrés. 2 gestes hors de FL (ou dans un menu refermé) ignorés.")
         model.close()
     }
 
@@ -69,8 +69,37 @@ final class MacroEditorModelTests: XCTestCase {
         model.close()
     }
 
-    /// Flèche ← : macro neuve vide supprimée sans question ; neuve avec des blocs → « Enregistrer / Supprimer » ;
-    /// existante modifiée → « Enregistrer / Annuler les modifications » (retour à l'état de l'ouverture) ; sinon rien.
+    /// Bloc de la liste glissé (07/11 au soir, notre glisser à la place de celui de macOS) : lâché « avant la ligne
+    /// n » ; vers le bas, vers le haut, sur sa propre place (rien), dans la zone du bas (tout en bas).
+    func testDraggedRowLandsBeforeTheChosenRow() {
+        let store = makeStore()
+        let doc = store.library.add(MacroDoc(name: "Ordre", blocks: [100, 200, 300, 400].map { Block(.delay(ms: $0)) }))
+        let model = MacroEditorModel(store: store)
+        model.load(doc.id)
+        func order() -> [Int] {
+            (model.draft?.blocks ?? []).compactMap { if case .delay(let ms) = $0.body { return ms }; return nil }
+        }
+        model.move(fromOffsets: IndexSet(integer: 0), toOffset: 2)          // 1er bloc lâché sous le 2e
+        XCTAssertEqual(order(), [200, 100, 300, 400])
+        model.move(fromOffsets: IndexSet(integer: 3), toOffset: 1)          // dernier lâché au-dessus du 2e
+        XCTAssertEqual(order(), [200, 400, 100, 300])
+        model.move(fromOffsets: IndexSet(integer: 1), toOffset: 2)          // juste sous lui-même : rien
+        model.move(fromOffsets: IndexSet(integer: 1), toOffset: 1)
+        XCTAssertEqual(order(), [200, 400, 100, 300])
+        model.move(fromOffsets: IndexSet(integer: 0), toOffset: model.rows.count)   // zone du bas
+        XCTAssertEqual(order(), [400, 100, 300, 200])
+        model.close()
+    }
+
+    /// Ce que porte un glisser : une ligne de la liste ou un bloc de la palette, rien pour un autre texte.
+    func testStepDragPayload() {
+        XCTAssertEqual(StepDrag.payload(StepDrag.prefix + "b:1234"), .step("b:1234"))
+        XCTAssertEqual(StepDrag.payload(PaletteDrag.prefix + "key"), .palette("key"))
+        XCTAssertNil(StepDrag.payload("un texte tapé"))
+    }
+
+    /// Retour aux macros (← ou « Enregistrer ») sans question (03/11) : macro neuve vide retirée ; neuve avec des
+    /// blocs gardée ; existante modifiée gardée avec ses modifications ; « Enregistrer » garde même une neuve vide.
     func testLeavingTheCreator() {
         let store = makeStore()
         let model = MacroEditorModel(store: store)
@@ -84,21 +113,25 @@ final class MacroEditorModelTests: XCTestCase {
         let fresh = try! XCTUnwrap(model.draft)
         let key = PaletteCatalog.items(layout: FakeLayout.qwerty).first { $0.id == "key" }!
         model.insert(key)
-        XCTAssertEqual(model.leaveCheck(), .askNew(name: fresh.name))
-        model.discardNew()
-        XCTAssertNil(store.library.doc(fresh.id))
+        XCTAssertEqual(model.leaveCheck(), .close)
+        model.saveNow()
+        XCTAssertEqual(store.library.doc(fresh.id)?.blocks.count, 1)
+
+        model.newMacro()
+        let saved = try! XCTUnwrap(model.draft)
+        model.commit()
+        XCTAssertEqual(model.leaveCheck(), .close)
+        XCTAssertNotNil(store.library.doc(saved.id))
 
         let doc = store.library.add(MacroDoc(name: "Voix", blocks: [Block(.delay(ms: 100))]))
         model.load(doc.id)
         XCTAssertEqual(model.leaveCheck(), .close)
         model.rename("Voix lead")
         model.insert(key)
-        model.saveNow()
-        XCTAssertEqual(model.leaveCheck(), .askChanges(name: "Voix lead"))
-        model.revertChanges()
-        XCTAssertEqual(store.library.doc(doc.id)?.name, "Voix")
-        XCTAssertEqual(store.library.doc(doc.id)?.blocks, doc.blocks)
+        model.commit()
         XCTAssertEqual(model.leaveCheck(), .close)
+        XCTAssertEqual(store.library.doc(doc.id)?.name, "Voix lead")
+        XCTAssertEqual(store.library.doc(doc.id)?.blocks.count, 2)
         model.close()
     }
 

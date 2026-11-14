@@ -1,12 +1,9 @@
 // Styles communs : polices et couleurs système, aucune animation infinie, aucun minuteur.
-// Liquid Glass (macOS 26, WWDC25 219/310/323/356) : le verre est réservé à la couche de navigation et de contrôle
-// qui flotte au-dessus du contenu (barre latérale et barre d'outils du système, pastille de statut, notification,
-// avertissements, boutons, bulle d'aide), jamais ligne par ligne (une couche de verre par ligne coûtait cher :
-// 8fb66a8) ni verre sur verre. La couleur va dans le contenu (icônes de rubrique, lavis en haut de page) : c'est
-// elle que le verre réfracte et qui le rend visible. Le verre redevient opaque dès que la fenêtre n'est plus active
-// (FL au premier plan) : rien à recalculer pendant que tu travailles dans FL. Réduire la transparence et Contraste
-// élevé : le verre s'adapte tout seul, la fenêtre et le lavis redeviennent unis. Réglable dans le menu Profil
-// (« Effet Liquid Glass ») : coupé, tout est opaque. Audit 05 : touches affichées avec leur nom en clair.
+// Plus aucun Liquid Glass (29/10, le propriétaire : « je veux que tout soit comme dans l'exemple… fond noir ») :
+// l'app est toujours sombre, fond de fenêtre noir (#161618), boutons en capsules pleines (bleu pour l'action, clair
+// sinon : `CapsuleButtonStyle`). Depuis le 01/11, le style suisse : cartes à plat entre traits fins, coins carrés.
+// Le nom « Glass » de quelques types est resté, rien n'y est plus du verre de macOS. Audit 05 : touches affichées
+// avec leur nom en clair.
 // Mouvement : courtes transitions, remplacées par un simple fondu quand « Réduire les animations » est activé.
 import AppKit
 import SwiftUI
@@ -19,7 +16,8 @@ enum Motion {
     /// Remplacement quand l'utilisateur a demandé moins de mouvement.
     static let reduced = Animation.easeInOut(duration: 0.15)
 
-    static var reduce: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+    /// « Réduire les animations » de macOS (ignoré au ralenti du mode capture, pour photographier le vrai mouvement).
+    static var reduce: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion && DebugSnapshot.slowMotion == 1 }
 
     /// Transition remplacée par un fondu quand le mouvement est réduit.
     static func transition(_ t: AnyTransition) -> AnyTransition { reduce ? .opacity : t }
@@ -34,7 +32,7 @@ private struct MotionModifier<V: Equatable>: ViewModifier {
     let value: V
 
     func body(content: Content) -> some View {
-        content.animation(reduceMotion ? Motion.reduced : animation, value: value)
+        content.animation(reduceMotion && DebugSnapshot.slowMotion == 1 ? Motion.reduced : animation, value: value)
     }
 }
 
@@ -44,10 +42,132 @@ extension View {
         modifier(MotionModifier(animation: animation, value: value))
     }
 
-    /// Survol : l'élément se soulève un peu (fond, légère montée en taille, ombre douce) avec un ressort, comme dans
-    /// les apps d'Apple. Seul l'élément survolé est redessiné ; rien ne tourne au repos.
-    func hoverLift(cornerRadius: CGFloat = 8) -> some View {
-        modifier(HoverLift(cornerRadius: cornerRadius))
+    /// Survol d'une option (29/10, choix du propriétaire : « intérieur plein ») : tout l'intérieur prend la couleur de
+    /// l'élément, son texte passe en blanc et son icône de couleur devient un carré blanc translucide
+    /// (`hoverFilled`). Le contenu ne grossit pas (25/10 : un texte agrandi est redessiné flou). `outset` : fond un
+    /// peu plus grand que l'élément ; `enabled` : faux pour un élément qu'on ne peut pas choisir, ou déjà choisi.
+    func menuHover(tint: Color, cornerRadius: CGFloat = 10, outset: CGFloat = 0, enabled: Bool = true) -> some View {
+        modifier(MenuHover(tint: tint, cornerRadius: cornerRadius, outset: outset, enabled: enabled))
+    }
+}
+
+extension Motion {
+    /// Changement de page « morph » (comme la Morphose de PowerPoint ou le Magic Move de Keynote) : ce qui se
+    /// retrouve d'une page à l'autre glisse à sa nouvelle place, le reste se fond. Ressort lent et doux (0,8 s), sans
+    /// rebond visible.
+    static var morph: Animation { .spring(response: 0.8 * DebugSnapshot.slowMotion, dampingFraction: 0.9) }
+
+    /// Page qui s'en va : un vrai fondu, assez long pour se croiser avec celle qui arrive (jamais de disparition sèche).
+    static var fadeOut: Animation { .easeInOut(duration: 0.5 * DebugSnapshot.slowMotion) }
+
+    /// Page qui arrive : floue, transparente, un peu plus bas et plus petite, puis nette à sa place (ressort) ; celle
+    /// qui part se brouille et monte en s'effaçant. Les deux se croisent.
+    static var pageMorph: AnyTransition {
+        transition(.asymmetric(
+            insertion: .modifier(active: SoftFocus(amount: 1, rise: 18), identity: SoftFocus(amount: 0, rise: 18)),
+            removal: .modifier(active: SoftFocus(amount: 1, rise: -12), identity: SoftFocus(amount: 0, rise: -12))
+                .animation(fadeOut)))
+    }
+}
+
+extension Motion {
+    /// Changement de contenu rapide (inspecteur du créateur, qui suit les flèches du clavier) : le même fondu flou,
+    /// en un tiers de seconde.
+    static var quickMorph: Animation { .spring(response: 0.35 * DebugSnapshot.slowMotion, dampingFraction: 0.92) }
+
+    static var quickSwap: AnyTransition {
+        transition(.asymmetric(
+            insertion: .modifier(active: SoftFocus(amount: 1, rise: 8), identity: SoftFocus(amount: 0, rise: 8)),
+            removal: .modifier(active: SoftFocus(amount: 1, rise: -6), identity: SoftFocus(amount: 0, rise: -6))
+                .animation(.easeOut(duration: 0.2 * DebugSnapshot.slowMotion))))
+    }
+}
+
+extension View {
+    /// Contenu qui change (page de la barre latérale, connecté ou non, étape suivante…) : comme dans le guide,
+    /// l'ancien se brouille et s'efface pendant que le nouveau passe du flou au net ; jamais de changement sec.
+    /// `key` : ce qui fait changer le contenu (un nouveau contenu repart aussi de zéro : liste en haut, champs neufs).
+    func softSwitch<K: Hashable>(_ key: K, quick: Bool = false) -> some View {
+        ZStack {
+            self.id(key).transition(quick ? Motion.quickSwap : Motion.pageMorph)
+        }
+        .motion(quick ? Motion.quickMorph : Motion.morph, value: key)
+    }
+
+    /// Page de la barre latérale : une nouvelle page à chaque `key` (liste neuve, en haut), affichée d'un coup. Plus
+    /// d'animation au changement de page (demande du propriétaire, 24/10 : ni fondu ni flou).
+    func pageSwitch<K: Hashable>(_ key: K) -> some View {
+        id(key)
+    }
+
+    /// Bascule de toute la fenêtre (raccourcis ↔ créateur de macros) : la page qui arrive apparaît en fondu, à sa
+    /// création. Opacité seule : ces pages sont faites de vues d'AppKit que le flou et l'échelle ne suivent pas.
+    func windowReveal() -> some View {
+        modifier(PageReveal())
+    }
+}
+
+/// « Mise au point » : `amount` 1 = hors champ (transparent, flou, décalé, à peine plus petit), 0 = en place.
+private struct SoftFocus: ViewModifier {
+    let amount: CGFloat
+    let rise: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(1 - amount)
+            .blur(radius: 12 * amount)
+            .scaleEffect(1 - 0.03 * amount, anchor: .top)
+            .offset(y: rise * amount)
+    }
+}
+
+/// Apparition de toute la fenêtre (raccourcis ↔ créateur), une seule fois, à sa création : fondu seul. Le
+/// changement lui-même se fait SANS animation : avec une animation, SwiftUI garde la page qui part (ses listes et
+/// barres d'AppKit, qui ne suivent pas le fondu) pleine jusqu'au bout, et la nouvelle apparaissait par-dessus.
+private struct PageReveal: ViewModifier {
+    @State private var shown = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotionSetting
+
+    private var reduceMotion: Bool { reduceMotionSetting && DebugSnapshot.slowMotion == 1 }
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(shown ? 1 : 0)
+            .onAppear {
+                withAnimation(reduceMotion ? Motion.reduced : .easeOut(duration: 0.28 * DebugSnapshot.slowMotion)) {
+                    shown = true
+                }
+            }
+    }
+}
+
+private struct MorphIn: ViewModifier {
+    let index: Int
+    @State private var shown = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotionSetting
+
+    private var reduceMotion: Bool { reduceMotionSetting && DebugSnapshot.slowMotion == 1 }
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(shown ? 1 : 0)
+            .blur(radius: shown || reduceMotion ? 0 : 8)
+            .offset(y: shown || reduceMotion ? 0 : 16)
+            .onAppear {
+                withAnimation(reduceMotion ? Motion.reduced
+                                           : Motion.morph.delay((0.15 + 0.1 * Double(index)) * DebugSnapshot.slowMotion)) {
+                    shown = true
+                }
+            }
+    }
+}
+
+extension View {
+    /// Élément d'une page qui arrive : il passe du flou au net en montant à sa place, juste après le précédent
+    /// (`index`), une seule fois, à l'apparition de la page. Pas dans une liste (les lignes y apparaissent aussi en
+    /// défilant).
+    func morphIn(_ index: Int) -> some View {
+        modifier(MorphIn(index: index))
     }
 }
 
@@ -56,279 +176,912 @@ extension Motion {
     static let lift = Animation.spring(response: 0.28, dampingFraction: 0.72)
 }
 
-private struct HoverLift: ViewModifier {
+struct MenuHover: ViewModifier {
+    let tint: Color
     let cornerRadius: CGFloat
-    @State private var hovered = false
+    var outset: CGFloat = 0
+    var enabled = true
+    @State private var hovering = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
+        let hovered = hovering && enabled
         content
+            .hoverFilled(hovered)
+            // Aux bords de l'élément (ou `outset` au-delà), sans changer sa place. Style suisse (01/11) : blanc plein,
+            // coins carrés, texte noir (comme la page choisie de la barre de gauche).
             .background {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.primary.opacity(hovered ? 0.06 : 0))
-                    .shadow(color: .black.opacity(hovered && !reduceMotion ? 0.12 : 0), radius: hovered ? 8 : 0,
-                            y: hovered ? 3 : 0)
-                    .padding(.horizontal, -6)
-                    .padding(.vertical, -2)
+                Rectangle().fill(Swiss.text)
+                    .opacity(hovered ? 1 : 0)
+                    .padding(-outset)
+                    .allowsHitTesting(false)
             }
-            .scaleEffect(hovered && !reduceMotion ? 1.015 : 1)
             .onHover { inside in
-                withAnimation(reduceMotion ? Motion.reduced : Motion.lift) { hovered = inside }
+                withAnimation(reduceMotion ? Motion.reduced : Motion.lift) { hovering = inside }
             }
     }
 }
 
-/// Bouton qu'on « prend » : appuyé, il se soulève et flotte (plus grand, ombre) ; relâché, il se repose avec un
-/// ressort. Sert aux blocs de la palette, qu'on peut aussi glisser dans la liste.
-struct LiftButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        LiftButtonBody(configuration: configuration)
+private struct HoverFilledKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    /// Vrai dans une option survolée (fond de sa couleur) : les icônes de couleur s'y effacent en blanc translucide.
+    var hoverFilled: Bool {
+        get { self[HoverFilledKey.self] }
+        set { self[HoverFilledKey.self] = newValue }
     }
 }
 
-private struct LiftButtonBody: View {
-    let configuration: ButtonStyleConfiguration
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+extension View {
+    /// Contenu d'une option survolée (fond blanc, style suisse) : texte en noir (`nil` : la couleur de toujours, celle
+    /// du conteneur). Même vue dans les deux cas : rien n'est recréé au survol.
+    func hoverFilled(_ on: Bool) -> some View {
+        foregroundColor(on ? Swiss.background : nil)
+            .environment(\.hoverFilled, on)
+    }
 
-    var body: some View {
-        let pressed = configuration.isPressed && !reduceMotion
-        configuration.label
-            .background {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.primary.opacity(pressed ? 0.09 : 0))
-                    .shadow(color: .black.opacity(pressed ? 0.22 : 0), radius: pressed ? 12 : 0, y: pressed ? 6 : 0)
-                    .padding(.horizontal, -6)
-                    .padding(.vertical, -2)
-            }
-            .scaleEffect(pressed ? 1.05 : 1)
-            .animation(reduceMotion ? Motion.reduced : Motion.lift, value: configuration.isPressed)
+    /// Détail qui a sa propre couleur (rouge, bleu…) dans une option : noir quand l'option survolée est blanche (il y
+    /// passerait mal), sa couleur sinon.
+    func hoverTint(_ color: Color) -> some View {
+        modifier(HoverTint(color: color))
+    }
+}
+
+private struct HoverTint: ViewModifier {
+    let color: Color
+    @Environment(\.hoverFilled) private var filled
+
+    func body(content: Content) -> some View {
+        content.foregroundStyle(filled ? Swiss.background : color)
     }
 }
 
 // MARK: - Liquid Glass
 
+/// Style suisse (maquette validée le 01/11, artefact `GHmTowhxy53F6VT3TEAjis`) : noir, blanc, traits fins, coins
+/// carrés, gros titres gras, petites capitales espacées ; le rouge seulement pour ce qui compte.
+/// Thèmes (04/11, AppTheme.swift) : chaque couleur suit le thème choisi au moment du dessin (Noir : les valeurs
+/// ci-dessous ; Papier : fond blanc, encre noire ; Orange : fond rouge de la marque, encre noire).
+enum Swiss {
+    /// Fond (noir sous Noir).
+    static let background = Color(nsColor: SwissPalette.adaptive(.background))
+    /// Encre (blanc sous Noir).
+    static let text = Color(nsColor: SwissPalette.adaptive(.text))
+    /// Texte secondaire (#8A8A8A sous Noir).
+    static let gray = Color(nsColor: SwissPalette.adaptive(.gray))
+    /// Texte de lecture un peu effacé (#A8A8A8 sous Noir).
+    static let soft = Color(nsColor: SwissPalette.adaptive(.soft))
+    /// Traits : sous un titre (l'encre), entre deux blocs (#333333), entre deux lignes (#222222), cadre d'une touche
+    /// (#555555) ; valeurs sous Noir.
+    static let line = Color(nsColor: SwissPalette.adaptive(.line))
+    static let faint = Color(nsColor: SwissPalette.adaptive(.faint))
+    static let keyLine = Color(nsColor: SwissPalette.adaptive(.keyLine))
+    /// Ce qui compte : touche changée, avertissement, Désinstaller, progression (#FF3B1F ; blanc sur le fond orange).
+    static let red = Color(nsColor: SwissPalette.adaptive(.red))
+    /// Le rouge de la marque, le même dans tous les thèmes (logo).
+    static let brandRed = Color(red: 1.0, green: 0.231, blue: 0.122)
+    /// Bouton et carte principaux (maquettes du 05/11) : fond, texte, ombre nette (voir SwissPalette.primary).
+    static let primaryFill = Color(nsColor: SwissPalette.primary(.fill))
+    static let primaryInk = Color(nsColor: SwissPalette.primary(.ink))
+    static let primaryShadow = Color(nsColor: SwissPalette.primary(.shadow))
+    /// Ombre nette qui apparaît sous un bouton ou une carte qui se soulève au survol (`gumroadLift`).
+    static let primaryLift = Color(nsColor: SwissPalette.primary(.lift))
+    /// Les mêmes couleurs pour AppKit (fenêtres, questions).
+    enum NS {
+        static let background = SwissPalette.adaptive(.background)
+        static let text = SwissPalette.adaptive(.text)
+        static let soft = SwissPalette.adaptive(.soft)
+        static let line = SwissPalette.adaptive(.line)
+    }
+    static let fontName = "Helvetica Neue"
+
+    /// Gros titre (46 pour une page, 30 à 34 pour une petite fenêtre) : gras, serré.
+    static func title(_ size: CGFloat) -> Font { .custom(fontName, size: size).weight(.bold) }
+    /// Texte en Helvetica (gras par défaut).
+    static func font(_ size: CGFloat, _ weight: Font.Weight = .bold) -> Font { .custom(fontName, size: size).weight(weight) }
+    /// Resserrement des gros titres (−1,8 à 46 points).
+    static func titleTracking(_ size: CGFloat) -> CGFloat { -size * 0.039 }
+}
+
+// MARK: - Avertissement suisse
+
+/// Avertissement au style suisse (08/11 : « pas avec un logo, un emoji d'attention… peut-être avec un point orange ;
+/// il faut qu'il y ait toujours l'ergonomie du style ») : un carré plein orange (#FF3B1F, blanc sous Orange) devant le
+/// texte, posé sur sa première ligne, comme le point carré des titres. Plus aucun triangle, cercle « ! » ni octogone.
+struct SwissWarningMark: View {
+    var size: CGFloat = 8
+
+    var body: some View {
+        Rectangle().fill(Swiss.red)
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
+    }
+}
+
+/// Le texte d'un avertissement avec son carré (à la place de `Label(…, systemImage: "exclamationmark.triangle.fill")`).
+/// Le texte reste à l'encre : seul le carré porte la couleur.
+struct SwissWarning: View {
+    let text: String
+    var size: CGFloat = 8
+
+    init(_ text: String, size: CGFloat = 8) {
+        self.text = text
+        self.size = size
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            SwissWarningMark(size: size).alignmentGuide(.firstTextBaseline) { d in d[.bottom] }
+            Text(text).foregroundStyle(Swiss.text)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(String(localized: "Attention : ") + text)
+    }
+}
+
+/// Symbole d'état d'une ligne ou d'un bandeau : les symboles d'attention de macOS (« exclamationmark… »,
+/// « xmark.octagon… ») deviennent le carré de l'avertissement suisse ; les autres restent des symboles.
+struct StatusSymbol: View {
+    let name: String
+    var size: CGFloat = 14
+    var tint: Color = .secondary
+
+    static func isWarning(_ name: String) -> Bool {
+        name.hasPrefix("exclamationmark") || name.hasPrefix("xmark.octagon")
+    }
+
+    var body: some View {
+        if Self.isWarning(name) {
+            SwissWarningMark(size: (size * 0.6).rounded())
+        } else {
+            Image(systemName: name).font(.system(size: size, weight: .semibold)).foregroundStyle(tint)
+        }
+    }
+}
+
+/// Grand titre d'une page ou d'une fenêtre (maquette du 05/11, « les points… c'est ultra important ») : en minuscules,
+/// suivi de son point carré, rouge (blanc sous Orange).
+struct SwissPageTitle: View {
+    let text: String
+    var size: CGFloat = 54
+
+    var body: some View {
+        HStack(alignment: .lastTextBaseline, spacing: size * 0.09) {
+            Text(text.lowercased(with: Locale.current)).swissTitle(size)
+            Rectangle().fill(Swiss.red)
+                .frame(width: (size * 0.19).rounded(), height: (size * 0.19).rounded())
+                .accessibilityHidden(true)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+extension View {
+    /// Libellé en petites capitales espacées (« MES MACROS », « SAUVEGARDE »), gris par défaut.
+    func swissLabel(_ color: Color = Swiss.gray, size: CGFloat = 11) -> some View {
+        font(Swiss.font(size)).tracking(size * 0.11).textCase(.uppercase).foregroundStyle(color)
+    }
+
+    /// Gros titre de page, souligné d'un trait blanc sur toute la largeur.
+    func swissTitle(_ size: CGFloat = 46) -> some View {
+        font(Swiss.title(size)).tracking(Swiss.titleTracking(size)).foregroundStyle(Swiss.text)
+            .lineLimit(1).minimumScaleFactor(0.6)
+    }
+
+    /// Trait sous un bloc : blanc sous un titre, #333 entre deux blocs, #222 entre deux lignes.
+    func swissRule(_ color: Color = Swiss.text, edge: Alignment = .bottom) -> some View {
+        overlay(alignment: edge) { Rectangle().fill(color).frame(height: 1).allowsHitTesting(false) }
+    }
+}
+
 enum Appearance {
-    /// Préférence « Effet Liquid Glass » (vrai par défaut ; sans effet avant macOS 26).
-    static let glassKey = "liquidGlass"
+    /// Fond des fenêtres : noir plein (style suisse, 01/11).
+    static let windowColor = Swiss.background
+    /// Liens : blancs, soulignés là où ils sont posés (style suisse).
+    static let link = Swiss.text
 
-    static var glassAvailable: Bool {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) { return true }
-        #endif
-        return false
-    }
 
-    /// Fenêtre translucide (le bureau se devine derrière) : macOS 15+, préférence active, transparence non réduite.
-    /// Une seule règle pour le fond de la fenêtre, les listes posées dessus et le lavis : jamais l'un sans l'autre.
-    static func translucentWindow(glass: Bool, reduceTransparency: Bool) -> Bool {
-        guard glass, !reduceTransparency else { return false }
-        if #available(macOS 15.0, *) { return true }
-        return false
-    }
 
-    /// Couleurs de l'icône (orange → rose → violet), reprises par l'accueil.
-    static let brand: [Color] = [Color(red: 1.0, green: 0.64, blue: 0.36),
-                                 Color(red: 0.95, green: 0.34, blue: 0.49),
-                                 Color(red: 0.48, green: 0.36, blue: 0.96)]
 }
 
 /// Surface flottante : verre natif sur macOS 26 quand la préférence est active et la fenêtre au premier plan ;
 /// matériau sur macOS 13-15 ; sinon fond opaque de fenêtre. Même structure de vue dans tous les cas (aucun arbre
-/// reconstruit au passage FL ↔ FL Shortcut) : seuls les paramètres changent.
+/// reconstruit au passage FL ↔ FL Shortcuts) : seuls les paramètres changent.
 /// `tint` : teinte qui porte un sens (avertissement), jamais décorative (WWDC25 219).
 /// `alwaysLive` : verre même quand l'app n'est pas active (bulle brève au-dessus de FL, macOS 26 seulement).
 struct GlassSurface<S: InsettableShape>: ViewModifier {
     let shape: S
     var tint: Color? = nil
     var alwaysLive = false
-    @AppStorage(Appearance.glassKey) private var glassEnabled = true
-    @Environment(\.controlActiveState) private var activeState
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
-    private var active: Bool { activeState != .inactive }
-    private var live: Bool { glassEnabled && (alwaysLive || active) }
-
+    /// Surface pleine (notification, avertissement, bulles au-dessus de FL) : le noir des menus, sa couleur par-dessus,
+    /// un bord fin clair. Aucun verre (29/10).
+    /// Style suisse (01/11) : noir, bord fin gris, et la couleur qui porte le sens (avertissement…) en trait épais à
+    /// gauche, plus en fond plein.
     func body(content: Content) -> some View {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) {
-            // Réduire la transparence / Contraste élevé : le verre devient plus givré ou cerné tout seul.
-            content
-                .background(shape.fill(Color(nsColor: .windowBackgroundColor)).opacity(live ? 0 : 1))
-                .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5).opacity(live ? 0 : 1))
-                .glassEffect(live ? glass : Glass.identity, in: shape)
-        } else {
-            fallback(content)
-        }
-        #else
-        fallback(content)
-        #endif
-    }
-
-    #if compiler(>=6.2)
-    @available(macOS 26.0, *)
-    private var glass: Glass {
-        guard let tint else { return Glass.regular }
-        return Glass.regular.tint(tint.opacity(0.35))
-    }
-    #endif
-
-    /// macOS 13-15 : matériau (flou) quand la fenêtre est active, fond opaque sinon (jamais de matériau dans une
-    /// bulle au-dessus de FL : rien derrière à flouter dans sa fenêtre transparente), teinte légère par-dessus.
-    private func fallback(_ content: Content) -> some View {
-        let translucent = glassEnabled && active && !reduceTransparency
-        let base = translucent ? AnyShapeStyle(Material.regular) : AnyShapeStyle(Color(nsColor: .windowBackgroundColor))
-        return content
-            .background(shape.fill((tint ?? Color.clear).opacity(0.14)))
-            .background(base, in: shape)
-            .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
+        content
+            .background(shape.fill(MenuBackground.color))
+            .overlay(alignment: .leading) {
+                if let tint { Rectangle().fill(tint).frame(width: 3).allowsHitTesting(false) }
+            }
+            .overlay(shape.strokeBorder(Swiss.line, lineWidth: 1))
     }
 }
 
 /// Bouton principal : verre teinté sur macOS 26 (préférence active), bouton accentué sinon.
 private struct PrimaryButtonStyleModifier: ViewModifier {
-    @AppStorage(Appearance.glassKey) private var glassEnabled = true
-
     func body(content: Content) -> some View {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *), glassEnabled {
-            content.buttonStyle(.glassProminent)
-        } else {
-            content.buttonStyle(.borderedProminent)
-        }
-        #else
-        content.buttonStyle(.borderedProminent)
-        #endif
+        content.buttonStyle(CapsuleButtonStyle(prominent: true))
     }
 }
 
-/// Regroupe des surfaces de verre voisines : le système les dessine en une passe et les fait se fondre
-/// entre elles (GlassEffectContainer, macOS 26). Ailleurs : simple conteneur.
+/// Ancien groupe de surfaces de verre : simple conteneur depuis qu'il n'y a plus de verre (29/10).
 struct GlassGroup<Content: View>: View {
     var spacing: CGFloat = 8
     @ViewBuilder let content: () -> Content
 
-    var body: some View {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) {
-            GlassEffectContainer(spacing: spacing) { content() }
-        } else {
-            content()
-        }
-        #else
-        content()
-        #endif
-    }
+    var body: some View { content() }
 }
 
 /// Bouton secondaire : verre sur macOS 26 (préférence active), bordé sinon.
 private struct SecondaryButtonStyleModifier: ViewModifier {
-    @AppStorage(Appearance.glassKey) private var glassEnabled = true
-
     func body(content: Content) -> some View {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *), glassEnabled {
-            content.buttonStyle(.glass)
-        } else {
-            content.buttonStyle(.bordered)
-        }
-        #else
-        content.buttonStyle(.bordered)
-        #endif
+        content.buttonStyle(CapsuleButtonStyle(prominent: false))
     }
 }
 
-/// Fond de liste transparent quand la fenêtre est translucide : les sections (cartes) se posent dessus.
-private struct GlassListBackground: ViewModifier {
-    @AppStorage(Appearance.glassKey) private var glassEnabled = true
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+/// Bouton du style suisse (01/11) : rectangle aux coins carrés, texte en capitales espacées ; blanc plein et texte
+/// noir pour l'action (`prominent`), sinon noir bordé de blanc. Taille d'après `controlSize`. (Nom gardé : il est
+/// utilisé partout.)
+/// Une liste de macOS avec sélection dessine sa propre ligne choisie (bleue) et un contour bleu quand elle a la main,
+/// en plus de notre ligne blanche à encoche (02/11 : « le contour bleu autour, c'est moche, enlève-le, pour tous ») :
+/// posé dans une ligne, il retrouve le tableau de la liste et éteint ce dessin ; la sélection elle-même ne change pas
+/// (⌫, flèches, panneau de droite).
+struct NoSystemSelection: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { Finder() }
+    func updateNSView(_ nsView: NSView, context: Context) { (nsView as? Finder)?.quiet() }
 
-    func body(content: Content) -> some View {
-        if Appearance.translucentWindow(glass: glassEnabled, reduceTransparency: reduceTransparency) {
-            content.scrollContentBackground(.hidden)
-        } else {
-            content
+    /// Dernier tableau trouvé (la liste des blocs du créateur, seule à s'en servir).
+    private static weak var table: NSTableView?
+
+    /// Donne la main à la liste (⌫, flèches) après un clic pris par une ligne qui se glisse.
+    static func focusList() {
+        guard let table, let window = table.window, window.firstResponder !== table else { return }
+        window.makeFirstResponder(table)
+    }
+
+    final class Finder: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            DispatchQueue.main.async { [weak self] in self?.quiet() }
+        }
+
+        func quiet() {
+            var view = superview
+            while let v = view, !(v is NSTableView) { view = v.superview }
+            guard let table = view as? NSTableView else { return }
+            NoSystemSelection.table = table
+            if table.selectionHighlightStyle != .none { table.selectionHighlightStyle = .none }
+            if table.focusRingType != .none { table.focusRingType = .none }
+            // Aucun dessin de macOS pendant un glisser (07/11 au soir : l'écartement « gap » des lignes faisait tomber
+            // l'app quand on rangeait un bloc du milieu) ; le créateur dessine son propre trait (StepDragDrop).
+            if table.draggingDestinationFeedbackStyle != .none { table.draggingDestinationFeedbackStyle = .none }
         }
     }
 }
 
-/// Fond de fenêtre translucide (voir `windowGlass`).
-private struct WindowGlass: ViewModifier {
-    let on: Bool
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+/// Menu du clic droit d'une ligne de liste, sans le contour bleu de macOS (capture du 04/11 : « quand on clique droit
+/// ça fait un truc bleu autour… je veux juste le bouton désactiver et supprimer mais pas de contour »). `.contextMenu`
+/// passe par la NSTableView de la liste, qui entoure la ligne d'un trait bleu tant que son menu est ouvert. Ce calque
+/// prend le seul clic droit (et ⌃ + clic) et ouvre lui-même le menu : la table ne le voit jamais. Tous les autres
+/// clics, le survol et le glisser le traversent (la ligne garde son encoche qui se soulève).
+/// 07/11 (capture : « le bouton supprimer ou dupliquer dans le style suisse ») : plus le menu de macOS (verre arrondi),
+/// une petite fenêtre suisse (`SwissContextMenu`) : fond plein, trait fin, coins carrés, ligne pleine d'encre au
+/// survol, « Supprimer » en rouge.
+struct RightClickMenu: NSViewRepresentable {
+    struct Item {
+        let title: String
+        var destructive = false
+        /// Choix à cocher (menu « Options » de l'Organiser) : coché ou non ; nil : un simple bouton.
+        var checked: Bool? = nil
+        var enabled = true
+        /// Titre de rubrique d'une liste déroulante (« Composition »…) : en petites capitales, pas cliquable.
+        var header = false
+        let action: () -> Void
+    }
 
-    func body(content: Content) -> some View {
-        if #available(macOS 15.0, *), Appearance.translucentWindow(glass: on, reduceTransparency: reduceTransparency) {
-            content.containerBackground(Material.thin, for: .window)
-        } else {
-            content
+    /// Les éléments, un `nil` pour un trait de séparation. Lus au clic droit (titres à jour : Activer / Désactiver).
+    let items: () -> [Item?]
+
+    func makeNSView(context: Context) -> Catcher { Catcher() }
+    func updateNSView(_ nsView: Catcher, context: Context) { nsView.items = items }
+
+    final class Catcher: NSView {
+        var items: () -> [Item?] = { [] }
+
+        /// Seulement le clic droit (ou ⌃ + clic) : sinon transparent.
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            guard let event = NSApp.currentEvent else { return nil }
+            let secondary = event.type == .rightMouseDown
+                || (event.type == .leftMouseDown && event.modifierFlags.contains(.control))
+            return secondary ? super.hitTest(point) : nil
         }
-    }
-}
 
-/// Lavis coloré en haut d'une page (couche de contenu : dégradé statique, sans flou ni animation). Il passe sous la
-/// barre d'outils et sous la barre latérale en verre, qui en prennent la couleur (WWDC25 356 : fonds teintés sous
-/// le verre). Seulement avec la fenêtre translucide ; Contraste élevé : rien.
-private struct TintedBackdrop: ViewModifier {
-    let tint: Color?
-    @AppStorage(Appearance.glassKey) private var glassEnabled = true
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.colorScheme) private var scheme
+        /// Jamais le menu de macOS.
+        override func menu(for event: NSEvent) -> NSMenu? { nil }
 
-    private var visible: Bool {
-        tint != nil && contrast != .increased
-            && Appearance.translucentWindow(glass: glassEnabled, reduceTransparency: reduceTransparency)
-    }
+        override func rightMouseDown(with event: NSEvent) { pop(event) }
+        override func mouseDown(with event: NSEvent) { pop(event) }
 
-    func body(content: Content) -> some View {
-        content.background(alignment: .top) {
-            if visible, let tint {
-                LinearGradient(colors: [tint.opacity(scheme == .dark ? 0.30 : 0.24), tint.opacity(0.07), .clear],
-                               startPoint: .top, endPoint: .bottom)
-                    .frame(height: 340)
-                    .ignoresSafeArea()           // sous la barre d'outils et la barre latérale flottante
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
+        private func pop(_ event: NSEvent) {
+            let list = items()
+            guard list.contains(where: { $0 != nil }), let window else { return }
+            let point = window.convertPoint(toScreen: event.locationInWindow)
+            SwissContextMenu.shared.show(list, at: point)
         }
     }
 }
 
 extension View {
-    /// Fenêtre entière translucide (matériau derrière la fenêtre) : le bureau se devine, les sections posées
-    /// dessus restent lisibles. Composé par le système ; figé par macOS quand la fenêtre n'est plus active.
-    func windowGlass(_ on: Bool) -> some View {
-        modifier(WindowGlass(on: on))
+    /// Menu du clic droit au style suisse (à la place de `.contextMenu`, menu de macOS) ; `nil` : un trait.
+    func swissContextMenu(_ items: @escaping () -> [RightClickMenu.Item?]) -> some View {
+        overlay(RightClickMenu(items: items))
+    }
+}
+
+/// Petite fenêtre du clic droit : posée sous la souris, fermée au choix, à Échap ou au moindre clic ailleurs. Noire
+/// sous Orange, comme les autres petites fenêtres.
+@MainActor final class SwissContextMenu {
+    static let shared = SwissContextMenu()
+
+    private var panel: NSPanel?
+    private var monitors: [Any] = []
+
+    private final class Panel: NSPanel {
+        override var canBecomeKey: Bool { true }
+        var onCancel: () -> Void = {}
+        override func cancelOperation(_ sender: Any?) { onCancel() }
     }
 
+    func show(_ items: [RightClickMenu.Item?], at point: NSPoint) {
+        close()
+        let host = NSHostingView(rootView: SwissMenuList(items: items) { [weak self] item in
+            self?.close()
+            DispatchQueue.main.async { item.action() }
+        })
+        let size = host.fittingSize
+        var origin = NSPoint(x: point.x, y: point.y - size.height)
+        if let screen = NSScreen.screens.first(where: { $0.frame.contains(point) }) ?? NSScreen.main {
+            let area = screen.visibleFrame
+            origin.x = min(max(area.minX, origin.x), area.maxX - size.width)
+            origin.y = min(max(area.minY, origin.y), area.maxY - size.height)
+        }
+        present(host, frame: NSRect(origin: origin, size: size))
+    }
+
+    /// Liste déroulante suisse (07/11 au soir, capture : « ces listes, mets-les dans le même style que le logiciel ») :
+    /// sous sa case (au-dessus s'il n'y a pas la place), au moins aussi large qu'elle, le choix en cours coché ; une
+    /// longue liste (actions de FL, plugins) défile, ouverte sur le choix en cours.
+    func showList(_ items: [RightClickMenu.Item?], below anchor: NSRect) {
+        close()
+        let maxWidth: CGFloat = 460
+        let natural = NSHostingView(rootView: SwissMenuList(items: items, minWidth: anchor.width) { _ in }).fittingSize
+        let width = min(max(natural.width, anchor.width), max(maxWidth, anchor.width))
+        let screen = NSScreen.screens.first(where: { $0.frame.intersects(anchor) }) ?? NSScreen.main
+        let area = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let below = anchor.minY - area.minY - 8
+        let above = area.maxY - anchor.maxY - 8
+        let downward = below >= min(natural.height, 260) || below >= above
+        let room = max(120, downward ? below : above)
+        let height = min(natural.height, room)
+        let scrolls = natural.height > height + 0.5
+        let host = NSHostingView(rootView: SwissMenuList(items: items, minWidth: width, width: width,
+                                                          height: scrolls ? height : nil) { [weak self] item in
+            self?.close()
+            DispatchQueue.main.async { item.action() }
+        })
+        let size = NSSize(width: width, height: scrolls ? height : host.fittingSize.height)
+        var origin = NSPoint(x: anchor.minX, y: downward ? anchor.minY - 2 - size.height : anchor.maxY + 2)
+        origin.x = min(max(area.minX, origin.x), area.maxX - size.width)
+        origin.y = min(max(area.minY, origin.y), area.maxY - size.height)
+        present(host, frame: NSRect(origin: origin, size: size))
+    }
+
+    private func present(_ host: NSView, frame: NSRect) {
+        let panel = Panel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        panel.isFloatingPanel = true
+        panel.level = .popUpMenu
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = false
+        panel.animationBehavior = .none
+        panel.appearance = NSAppearance(named: AppTheme.current.floatingAppearanceName)
+        panel.onCancel = { [weak self] in self?.close() }
+        host.frame = NSRect(origin: .zero, size: frame.size)
+        panel.contentView = host
+        panel.setFrame(frame, display: true)
+        panel.makeKeyAndOrderFront(nil)
+        self.panel = panel
+        // Un clic ailleurs (dans l'app ou une autre) ferme le menu sans rien faire d'autre.
+        if let local = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown],
+                                                         handler: { [weak self] event in
+            guard let self, let panel = self.panel, event.window !== panel else { return event }
+            self.close()
+            return event
+        }) { monitors.append(local) }
+        if let global = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown],
+                                                           handler: { [weak self] _ in
+            MainActor.assumeIsolated { self?.close() }
+        }) { monitors.append(global) }
+    }
+
+    func close() {
+        monitors.forEach(NSEvent.removeMonitor)
+        monitors = []
+        panel?.orderOut(nil)
+        panel = nil
+    }
+}
+
+// MARK: - Petite fenêtre suisse (à la place de la bulle de macOS)
+
+extension View {
+    /// 13/11 (vidéo : « ça me met encore du liquid glass… je veux que toutes les pages soient en style suisse ») : à la
+    /// place de `.popover` (bulle de macOS, en verre sur macOS 26, avec sa flèche et ses coins ronds), une petite
+    /// fenêtre carrée au fond de l'app, bordée d'encre, posée du côté `arrowEdge` de la vue ; fermée à Échap, au moindre
+    /// clic ailleurs (un clic sur la vue elle-même la ferme seulement) ou quand `isPresented` repasse à faux.
+    func swissPopover<Inner: View>(isPresented: Binding<Bool>, arrowEdge: Edge = .bottom,
+                                   @ViewBuilder content: @escaping () -> Inner) -> some View {
+        modifier(SwissPopoverModifier(isPresented: isPresented, edge: arrowEdge, inner: content))
+    }
+}
+
+private struct SwissPopoverModifier<Inner: View>: ViewModifier {
+    @Binding var isPresented: Bool
+    let edge: Edge
+    let inner: () -> Inner
+    @StateObject private var anchor = ScreenAnchor()
+    @StateObject private var presenter = SwissPopoverPresenter()
+
+    func body(content: Content) -> some View {
+        // Ouverte, elle suit l'état de la vue (choix fait, texte tapé), comme la bulle qu'elle remplace.
+        let _ = presenter.refresh(AnyView(inner()))
+        content
+            .background(ScreenAnchor.Reader(anchor: anchor))
+            .onChange(of: isPresented) { shown in apply(shown) }
+            .onAppear { if isPresented { DispatchQueue.main.async { apply(true) } } }
+            .onDisappear { presenter.close() }
+    }
+
+    private func apply(_ shown: Bool) {
+        guard shown else { presenter.close(); return }
+        let binding = $isPresented
+        guard let frame = anchor.screenFrame else {
+            DispatchQueue.main.async { binding.wrappedValue = false }
+            return
+        }
+        presenter.show(AnyView(inner()), next: frame, edge: edge) { binding.wrappedValue = false }
+    }
+}
+
+@MainActor final class SwissPopoverPresenter: ObservableObject {
+    private var panel: Panel?
+    private var host: NSHostingView<AnyView>?
+    private var monitors: [Any] = []
+    private var anchor: NSRect = .zero
+    private var edge: Edge = .bottom
+    private var onClose: () -> Void = {}
+
+    private final class Panel: NSPanel {
+        override var canBecomeKey: Bool { true }
+        var onCancel: () -> Void = {}
+        override func cancelOperation(_ sender: Any?) { onCancel() }
+    }
+
+    /// Le fond de l'app, un trait d'encre, la flèche de l'app dessus (même FL devant).
+    private static func framed(_ view: AnyView) -> AnyView {
+        AnyView(view
+            .background(Rectangle().fill(Swiss.background))
+            .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
+            .background(ArrowCursorKeeper()))
+    }
+
+    func show(_ view: AnyView, next anchor: NSRect, edge: Edge, onClose: @escaping () -> Void) {
+        close()
+        self.anchor = anchor
+        self.edge = edge
+        self.onClose = onClose
+        let host = NSHostingView(rootView: Self.framed(view))
+        let panel = Panel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        panel.isFloatingPanel = true
+        panel.level = .popUpMenu
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = false
+        panel.hidesOnDeactivate = false
+        panel.animationBehavior = .none
+        panel.appearance = NSAppearance(named: AppTheme.current.floatingAppearanceName)
+        panel.onCancel = { [weak self] in self?.close(notify: true) }
+        panel.contentView = host
+        self.panel = panel
+        self.host = host
+        place()
+        panel.makeKeyAndOrderFront(nil)
+        // Un clic ailleurs (dans l'app ou une autre) la ferme ; une liste suisse ouverte depuis elle reste à elle.
+        if let local = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown],
+                                                         handler: { [weak self] event in
+            guard let self, let panel = self.panel, event.window !== panel else { return event }
+            if let other = event.window, other.level == .popUpMenu { return event }
+            let onAnchor = self.anchor.contains(NSEvent.mouseLocation)
+            self.close(notify: true)
+            return onAnchor ? nil : event                    // sinon un clic sur sa case la rouvrirait aussitôt
+        }) { monitors.append(local) }
+        if let global = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown],
+                                                           handler: { [weak self] _ in
+            MainActor.assumeIsolated { self?.close(notify: true) }
+        }) { monitors.append(global) }
+    }
+
+    /// Ouverte : le nouveau contenu (au tour suivant, jamais pendant le dessin de la vue).
+    func refresh(_ view: @autoclosure () -> AnyView) {
+        guard let host else { return }
+        let next = view()
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.host === host else { return }
+            host.rootView = Self.framed(next)
+            self.place()
+        }
+    }
+
+    /// Du côté demandé de la vue, de l'autre s'il n'y a pas la place, toujours dans l'écran.
+    private func place() {
+        guard let panel, let host else { return }
+        let size = host.fittingSize
+        let screen = NSScreen.screens.first(where: { $0.frame.intersects(anchor) }) ?? NSScreen.main
+        let area = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let gap: CGFloat = 4
+        var origin: NSPoint
+        switch edge {
+        case .top:
+            origin = NSPoint(x: anchor.midX - size.width / 2, y: anchor.maxY + gap)
+            if origin.y + size.height > area.maxY { origin.y = anchor.minY - gap - size.height }
+        case .leading:
+            origin = NSPoint(x: anchor.minX - gap - size.width, y: anchor.midY - size.height / 2)
+            if origin.x < area.minX { origin.x = anchor.maxX + gap }
+        case .trailing:
+            origin = NSPoint(x: anchor.maxX + gap, y: anchor.midY - size.height / 2)
+            if origin.x + size.width > area.maxX { origin.x = anchor.minX - gap - size.width }
+        case .bottom:
+            origin = NSPoint(x: anchor.midX - size.width / 2, y: anchor.minY - gap - size.height)
+            if origin.y < area.minY { origin.y = anchor.maxY + gap }
+        }
+        origin.x = min(max(area.minX, origin.x), area.maxX - size.width)
+        origin.y = min(max(area.minY, origin.y), area.maxY - size.height)
+        let frame = NSRect(origin: origin, size: size)
+        if panel.frame != frame { panel.setFrame(frame, display: true) }
+    }
+
+    func close(notify: Bool = false) {
+        monitors.forEach(NSEvent.removeMonitor)
+        monitors = []
+        let wasOpen = panel != nil
+        panel?.orderOut(nil)
+        panel = nil
+        host = nil
+        if notify, wasOpen {
+            let done = onClose
+            DispatchQueue.main.async { done() }
+        }
+    }
+}
+
+private struct SwissMenuList: View {
+    let items: [RightClickMenu.Item?]
+    var minWidth: CGFloat = 180
+    /// Largeur imposée (liste déroulante) ; nil : celle du plus long élément.
+    var width: CGFloat? = nil
+    /// Hauteur imposée : la liste défile (ouverte sur l'élément coché).
+    var height: CGFloat? = nil
+    let pick: (RightClickMenu.Item) -> Void
+
+    var body: some View {
+        Group {
+            if let height {
+                ScrollViewReader { proxy in
+                    ScrollView(.vertical) {
+                        LazyVStack(alignment: .leading, spacing: 0) { rows }
+                            .padding(4)
+                    }
+                    .frame(width: width, height: height)
+                    .onAppear {
+                        guard let checked = items.firstIndex(where: { $0?.checked == true }) else { return }
+                        DispatchQueue.main.async { proxy.scrollTo(checked, anchor: .center) }
+                    }
+                }
+            } else if let width {
+                VStack(alignment: .leading, spacing: 0) { rows }
+                    .padding(4)
+                    .frame(width: width, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                VStack(alignment: .leading, spacing: 0) { rows }
+                    .padding(4)
+                    .frame(minWidth: minWidth, alignment: .leading)
+                    .fixedSize()
+            }
+        }
+        .background(Rectangle().fill(Swiss.background))
+        .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
+        // 13/11 : la flèche de l'app sur la liste, même FL devant (plus son pinceau).
+        .background(ArrowCursorKeeper())
+    }
+
+    @ViewBuilder private var rows: some View {
+        let checks = items.contains { $0?.checked != nil }
+        ForEach(items.indices, id: \.self) { i in
+            Group {
+                if let item = items[i] {
+                    if item.header {
+                        Text(item.title)
+                            .swissLabel()
+                            .lineLimit(1)
+                            .padding(.horizontal, 12)
+                            .padding(.top, i == 0 ? 6 : 10)
+                            .padding(.bottom, 4)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        SwissMenuRow(item: item, checkColumn: checks) { pick(item) }
+                    }
+                } else {
+                    Rectangle().fill(Swiss.line).frame(height: 1).padding(.vertical, 4)
+                }
+            }
+            .id(i)
+        }
+    }
+}
+
+private struct SwissMenuRow: View {
+    let item: RightClickMenu.Item
+    var checkColumn = false
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        let ink: Color = !item.enabled ? Swiss.gray : item.destructive ? Swiss.red : Swiss.text
+        let lit = hovering && item.enabled
+        Button(action: action) {
+            HStack(spacing: 8) {
+                if checkColumn {
+                    // Case carrée du style suisse : pleine quand c'est coché.
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10, weight: .heavy))
+                        .opacity(item.checked == true ? 1 : 0)
+                        .frame(width: 12)
+                }
+                Text(item.title)
+                    .font(Swiss.font(13))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .foregroundStyle(lit ? Swiss.background : ink)
+                .background(Rectangle().fill(lit ? ink : Color.clear))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!item.enabled)
+        .onHover { hovering = $0 }
+    }
+}
+
+/// Bouton qui se soulève au survol en laissant voir dessous une encoche de sa couleur, comme les blocs des macros
+/// (cartes de Gumroad, `cardRow(stamp:)`) ; enfoncé, il redescend dans l'encoche. Retour du 02/11 : « À autoriser »
+/// de l'accueil (« qu'ils soient réactifs, comme dans Macro »).
+/// « Enregistrer » du créateur (05/11) : comme les touches de la maquette. Noir : fond noir, trait clair ; Papier :
+/// fond blanc, trait noir, ombre nette rouge ; Orange : fond blanc, trait noir, ombre nette noire. Au survol, plein
+/// d'encre.
+struct KeyLikeButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        KeyLikeButtonBody(label: configuration.label, pressed: configuration.isPressed)
+    }
+}
+
+private struct KeyLikeButtonBody<Label: View>: View {
+    let label: Label
+    let pressed: Bool
+    @State private var hovering = false
+    @Environment(\.isEnabled) private var enabled
+
+    var body: some View {
+        let theme = AppTheme.current
+        // 06/11 : sa couleur au repos, sans ombre ; au survol, il se soulève sur son ombre nette (effet Gumroad).
+        let lifted = hovering && enabled && !pressed
+        let restFill: Color = theme == .noir ? Swiss.background : .white
+        let restInk: Color = theme == .noir ? Swiss.text : .black
+        let edge: Color = theme == .noir ? Swiss.text.opacity(0.87) : .black
+        return label
+            .font(Swiss.font(12))
+            .tracking(1.2)
+            .textCase(.uppercase)
+            .lineLimit(1)
+            .foregroundStyle(restInk)
+            .padding(.horizontal, 18)
+            .frame(minHeight: 38)
+            .background(Rectangle().fill(restFill))
+            .overlay(Rectangle().strokeBorder(edge, lineWidth: 2))
+            .gumroadLift(lifted, distance: 3)
+            .opacity(enabled ? 1 : 0.35)
+            .contentShape(Rectangle())
+            .onHover { hovering = $0 }
+    }
+}
+
+/// Effet Gumroad (06/11, « qu'il ne soit pas là quand on ne met pas la souris dessus ; quand on met la souris
+/// dessus, il apparaît ») : soulevé, l'élément monte en haut à gauche et laisse voir dessous son ombre nette
+/// (`Swiss.primaryLift` : rouge, noire sur le fond orange) ; au repos, rien ne dépasse. Même effet dans les trois
+/// thèmes, pour les boutons principaux, « Enregistrer », les grandes cartes de Macros et les touches changées.
+struct GumroadLift: ViewModifier {
+    let lifted: Bool
+    var distance: CGFloat = 4
+    var shadow: Color = Swiss.primaryLift
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .offset(x: lifted ? -distance : 0, y: lifted ? -distance : 0)
+            // L'ombre reste à la place de l'élément : soulevé, on la voit en bas à droite.
+            .background(Rectangle().fill(shadow).opacity(lifted ? 1 : 0).allowsHitTesting(false))
+            .animation(reduceMotion ? nil : Motion.lift, value: lifted)
+    }
+}
+
+extension View {
+    /// Soulève l'élément sur son ombre nette quand `lifted` (effet Gumroad, voir `GumroadLift`).
+    func gumroadLift(_ lifted: Bool, distance: CGFloat = 4, shadow: Color = Swiss.primaryLift) -> some View {
+        modifier(GumroadLift(lifted: lifted, distance: distance, shadow: shadow))
+    }
+}
+
+struct StampButtonStyle: ButtonStyle {
+    var tint: Color = Swiss.red
+
+    func makeBody(configuration: Configuration) -> some View {
+        StampButtonBody(label: configuration.label, pressed: configuration.isPressed, tint: tint)
+    }
+}
+
+private struct StampButtonBody<Label: View>: View {
+    let label: Label
+    let pressed: Bool
+    let tint: Color
+    @State private var hovering = false
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Hauteur du soulèvement (l'encoche visible en bas à droite).
+    static var lift: CGFloat { 3 }
+
+    var body: some View {
+        let lifted = hovering && enabled && !pressed
+        let face = label
+            .font(Swiss.font(10.5))
+            .tracking(1.2)
+            .textCase(.uppercase)
+            .lineLimit(1)
+            .foregroundStyle(lifted ? Swiss.background : tint)
+            .padding(.horizontal, 10)
+            .frame(height: 26)
+            .background(Rectangle().fill(lifted ? Swiss.text : Swiss.background))
+            .overlay(Rectangle().strokeBorder(lifted ? Swiss.text : tint, lineWidth: 1))
+        return ZStack(alignment: .topLeading) {
+            Rectangle().fill(tint).opacity(lifted ? 1 : 0)          // l'encoche, à la place du bouton
+            face.offset(x: lifted ? -Self.lift : 0, y: lifted ? -Self.lift : 0)
+        }
+        .fixedSize()
+        .contentShape(Rectangle())
+        .opacity(enabled ? 1 : 0.35)
+        .animation(reduceMotion ? nil : Motion.lift, value: lifted)
+        .onHover { hovering = $0 }
+    }
+}
+
+struct CapsuleButtonStyle: ButtonStyle {
+    var prominent: Bool
+    /// Action qui efface ou supprime (question au style suisse) : bord et texte rouges.
+    var danger = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        SwissButtonBody(label: configuration.label, pressed: configuration.isPressed, prominent: prominent,
+                        danger: danger)
+    }
+}
+
+/// Le corps d'un bouton suisse, réactif (02/11 : « les boutons ne sont pas réactifs, ils devraient passer au blanc ») :
+/// au survol, le bouton bordé devient blanc plein, texte noir ; le bouton principal (déjà blanc) passe au noir bordé
+/// de blanc. Aucun changement de taille.
+struct SwissButtonBody<Label: View>: View {
+    let label: Label
+    let pressed: Bool
+    let prominent: Bool
+    let danger: Bool
+    @Environment(\.controlSize) private var size
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var hovering = false
+
+    private var metrics: (height: CGFloat, font: CGFloat, padding: CGFloat) {
+        if #available(macOS 14.0, *), size == .extraLarge { return (42, 12.5, 22) }
+        switch size {
+        case .mini: return (20, 9.5, 8)
+        case .small: return (24, 10.5, 10)
+        case .large: return (38, 12, 18)
+        default: return (32, 11, 14)
+        }
+    }
+
+    var body: some View {
+        let m = metrics
+        let lit = hovering && enabled
+        // Maquettes du 05/11 : le principal est plein (blanc sous Noir et Orange, noir sous Papier). 06/11 (« qu'ils
+        // prennent d'abord la couleur qu'ils ont… sans l'effet Gumroad, et quand on passe la souris dessus, là il y
+        // ait l'effet ») : au repos, plein, sans ombre ; survolé, il garde ses couleurs et se soulève sur son ombre
+        // nette (`gumroadLift`). Le bordé (trait de 2 points, plein du fond : la grille de Papier ne passe pas
+        // dedans) se remplit d'encre au survol.
+        let primaryAtRest = prominent && !danger
+        let lifted = primaryAtRest && lit && !pressed
+        let filled = !prominent && lit
+        let edge = danger && !lit ? Swiss.red : Swiss.text
+        let ink: Color = primaryAtRest ? Swiss.primaryInk
+            : filled ? (danger ? Swiss.red : Swiss.background) : (danger ? Swiss.red : Swiss.text)
+        // Danger : bordé de rouge ; plein de rouge au survol, ou toujours s'il est principal (Désinstaller).
+        let redFull = danger && (lit || prominent)
+        let fill: Color = redFull ? Swiss.red
+            : primaryAtRest ? Swiss.primaryFill : (filled ? Swiss.text : Swiss.background)
+        return label
+            .font(Swiss.font(m.font))
+            .tracking(m.font * 0.1)
+            .textCase(.uppercase)
+            .lineLimit(1)
+            .foregroundStyle(redFull ? Swiss.background : ink)
+            .padding(.horizontal, m.padding)
+            .frame(minHeight: m.height)
+            .background(Rectangle().fill(fill))
+            .overlay(Rectangle().strokeBorder(redFull ? Swiss.red : edge, lineWidth: 2))
+            .gumroadLift(lifted)
+            .opacity(enabled ? (pressed && !primaryAtRest ? 0.7 : 1) : 0.35)
+            .contentShape(Rectangle())
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: lit)
+            .onHover { hovering = $0 }
+    }
+}
+
+/// Fond de la liste toujours transparent : le fond plein de la fenêtre passe dessous ; les cartes gardent leur propre
+/// fond, lisible.
+private struct GlassListBackground: ViewModifier {
+    func body(content: Content) -> some View {
+        content.scrollContentBackground(.hidden)
+    }
+}
+
+extension View {
     /// Liste posée sur le fond translucide de la fenêtre.
     func glassListBackground() -> some View {
         modifier(GlassListBackground())
     }
 
-    /// Lavis de la couleur de la page sous le verre (nil : aucun).
-    func tintedBackdrop(_ tint: Color?) -> some View {
-        modifier(TintedBackdrop(tint: tint))
-    }
-
     /// Bouton posé sur une surface de verre (notification, avertissement) : simple remplissage, jamais de verre sur
     /// du verre (WWDC25 219).
-    @ViewBuilder func onGlassButton() -> some View {
-        if #available(macOS 14.0, *) {
-            buttonStyle(.bordered).buttonBorderShape(.capsule)
-        } else {
-            buttonStyle(.bordered)
-        }
+    func onGlassButton() -> some View {
+        buttonStyle(CapsuleButtonStyle(prominent: false))
     }
 
     /// Identité de verre : deux surfaces du même GlassGroup se fondent l'une dans l'autre en apparaissant.
-    @ViewBuilder func glassID(_ id: String, in ns: Namespace.ID) -> some View {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) { glassEffectID(id, in: ns) } else { self }
-        #else
-        self
-        #endif
-    }
+    func glassID(_ id: String, in ns: Namespace.ID) -> some View { self }
 
     /// Barre flottante en haut ou en bas : safeAreaBar sur macOS 26 (effet de bord sous la barre), sinon
     /// safeAreaInset (le contenu laisse la place).
@@ -347,15 +1100,6 @@ extension View {
     /// Grands boutons d'accueil (extra-large depuis macOS 14).
     @ViewBuilder func heroControlSize() -> some View {
         if #available(macOS 14.0, *) { controlSize(.extraLarge) } else { controlSize(.large) }
-    }
-
-    /// Boutons qui prennent toute la largeur disponible (macOS 26), comme les fenêtres d'accueil d'Apple.
-    @ViewBuilder func flexibleButtons() -> some View {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) { buttonSizing(.flexible) } else { self }
-        #else
-        self
-        #endif
     }
 
     /// Bouton secondaire (Annuler, Changer…, Apprendre…).
@@ -384,27 +1128,19 @@ struct KeyCap: View {
     var large = false
     var glass = false
 
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: large ? 8 : 5, style: .continuous) }
-
     var body: some View {
-        Group {
-            if glass {
-                face.glassSurface(shape)
-            } else {
-                face
-                    .background(shape.fill(Color(nsColor: .controlBackgroundColor))
-                        .shadow(color: Color.black.opacity(0.14), radius: 0, x: 0, y: 1))
-                    .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1))
-            }
-        }
-        .accessibilityHidden(true)
+        // Style suisse : un carré bordé de gris, sans relief ni verre (`glass` gardé pour les appels d'avant).
+        face
+            .background(Rectangle().fill(Swiss.background))
+            .overlay(Rectangle().strokeBorder(Swiss.keyLine, lineWidth: 1))
+            .accessibilityHidden(true)
     }
 
     private var face: some View {
         VStack(spacing: 1) {
-            Text(symbol).font(.system(size: large ? 15 : 12, weight: .medium))
+            Text(symbol).font(Swiss.font(large ? 15 : 11.5)).foregroundStyle(Swiss.text)
             if large, let name {
-                Text(name).font(.system(size: 9)).foregroundStyle(.secondary)
+                Text(name).font(Swiss.font(9, .regular)).foregroundStyle(Swiss.gray)
             }
         }
         .frame(minWidth: large ? 34 : 20, minHeight: large ? 36 : 20)
@@ -423,10 +1159,10 @@ extension KeyCombo {
     /// Touches à dessiner, dans l'ordre macOS (⌃ ⌥ ⇧ ⌘ puis la touche).
     var caps: [CapInfo] {
         var out: [CapInfo] = []
-        if control { out.append(CapInfo(id: "ctrl", symbol: "⌃", name: "ctrl")) }
-        if option { out.append(CapInfo(id: "option", symbol: "⌥", name: "option")) }
-        if shift { out.append(CapInfo(id: "shift", symbol: "⇧", name: "maj")) }
-        if command { out.append(CapInfo(id: "cmd", symbol: "⌘", name: "cmd")) }
+        if control { out.append(CapInfo(id: "ctrl", symbol: "⌃", name: String(localized: "ctrl"))) }
+        if option { out.append(CapInfo(id: "option", symbol: "⌥", name: String(localized: "option"))) }
+        if shift { out.append(CapInfo(id: "shift", symbol: "⇧", name: String(localized: "maj"))) }
+        if command { out.append(CapInfo(id: "cmd", symbol: "⌘", name: String(localized: "cmd"))) }
         out.append(CapInfo(id: "key-\(keyCode)", symbol: KeyNames.name(for: keyCode), name: ""))
         return out
     }
@@ -434,10 +1170,10 @@ extension KeyCombo {
     /// Texte lu par VoiceOver : « contrôle option R ».
     var spoken: String {
         var parts: [String] = []
-        if control { parts.append("contrôle") }
-        if option { parts.append("option") }
-        if shift { parts.append("majuscule") }
-        if command { parts.append("commande") }
+        if control { parts.append(String(localized: "contrôle")) }
+        if option { parts.append(String(localized: "option")) }
+        if shift { parts.append(String(localized: "majuscule")) }
+        if command { parts.append(String(localized: "commande")) }
         parts.append(KeyNames.name(for: keyCode))
         return parts.joined(separator: " ")
     }
@@ -460,7 +1196,7 @@ struct KeyCaps: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(combo?.spoken ?? "Aucun raccourci")
+        .accessibilityLabel(combo?.spoken ?? String(localized: "Aucun raccourci"))
     }
 
     private var row: some View {
@@ -481,29 +1217,52 @@ struct KeyCaps: View {
 struct KeyLabel: View {
     let combo: KeyCombo?
     var accent = false
-    var placeholder = "Aucune"
+    var placeholder = String(localized: "Aucune")
 
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 6, style: .continuous) }
+    private var shape: Rectangle { Rectangle() }
+
+    /// Style suisse (01/11) : touche changée pleine de rouge ; sinon un carré du fond bordé de gris.
+    /// 06/11 (« si on change une touche, il y a un relief… l'effet Gumroad, j'aime beaucoup ») : la touche changée est
+    /// en relief, bordée d'encre et soulevée sur son ombre nette d'encre, dans les trois thèmes.
+    private var fill: Color { accent ? Swiss.red : Swiss.background }
+
+    private var border: AnyShapeStyle { AnyShapeStyle(accent ? Swiss.text : Swiss.keyLine) }
 
     var body: some View {
         Group {
             if let combo {
-                Text(combo.display)
-                    .foregroundStyle(accent ? Color.accentColor : Color.primary)
+                // Une case par touche, comme sur la maquette du 28/10 : ⌘ puis A, pas « ⌘A » dans un seul cadre.
+                HStack(spacing: 3) {
+                    ForEach(Array(Self.parts(of: combo).enumerated()), id: \.offset) { _, part in
+                        tile(Text(part).foregroundStyle(Swiss.text))
+                    }
+                }
             } else {
-                Text(placeholder).foregroundStyle(.secondary)
+                tile(Text(placeholder).foregroundStyle(.secondary))
             }
         }
-        .font(.system(size: 12))
+        .font(Swiss.font(11.5))
         .lineLimit(1)
-        .padding(.horizontal, 8)
-        .frame(minWidth: 56, minHeight: 22)
-        .background(shape.fill(Color.primary.opacity(0.05)))
-        .overlay(shape.strokeBorder(accent ? Color.accentColor.opacity(0.5) : Color(nsColor: .separatorColor),
-                                    lineWidth: 0.5))
-        .contentShape(shape)
+        .contentShape(Rectangle())
+        // Jamais écrasé ni coupé quand la fenêtre est étroite : c'est le titre de la ligne qui se raccourcit.
+        .fixedSize()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(combo?.spoken ?? placeholder)
+    }
+
+    /// Les modificateurs (⌃ ⌥ ⇧ ⌘) un par un, puis la touche.
+    static func parts(of combo: KeyCombo) -> [String] {
+        combo.modifierSymbols.map(String.init) + [KeyNames.name(for: combo.keyCode, layout: SystemKeyboardLayout())]
+    }
+
+    private func tile(_ label: some View) -> some View {
+        label
+            .padding(.horizontal, 5)
+            .frame(minWidth: 20, minHeight: 20)
+            .background(shape.fill(fill))
+            .overlay(shape.strokeBorder(border, lineWidth: accent ? 1.5 : 1))
+            .gumroadLift(accent, distance: 2, shadow: Swiss.text)
+            .padding(accent ? 1 : 0)                 // l'ombre ne touche pas la touche d'à côté
     }
 }
 
@@ -515,44 +1274,18 @@ struct SectionIcon: View {
     let symbol: String
     let tint: Color
     var size: CGFloat = 20
-
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: size * 0.27, style: .continuous) }
+    /// Dans une option survolée (fond de sa couleur) : blanc translucide, sinon l'icône disparaîtrait dans le fond.
+    @Environment(\.hoverFilled) private var hoverFilled
 
     var body: some View {
-        shape.fill(tint.gradient)
-            .overlay(shape.strokeBorder(LinearGradient(colors: [Color.white.opacity(0.5), Color.white.opacity(0.06)],
-                                                       startPoint: .top, endPoint: .bottom),
-                                        lineWidth: max(0.5, size / 40)))
+        // Style suisse (01/11) : un carré plat de sa couleur, coins droits, symbole noir.
+        Rectangle().fill(tint)
             .overlay(Image(systemName: symbol)
                 .symbolVariant(.fill)
-                .font(.system(size: size * 0.52, weight: .semibold))
-                .foregroundStyle(Color.white))
+                .font(.system(size: size * 0.5, weight: .bold))
+                .foregroundStyle(Swiss.background))
             .frame(width: size, height: size)
             .accessibilityHidden(true)
-    }
-}
-
-/// Numéro d'étape dans une pastille (accueil, guide d'autorisation) ; coche verte une fois faite.
-struct StepBadge: View {
-    let number: Int
-    var done = false
-
-    var body: some View {
-        Group {
-            if done {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 17))
-                    .foregroundStyle(Color.green)
-            } else {
-                Text("\(number)")
-                    .font(.system(size: 11, weight: .bold).monospacedDigit())
-                    .foregroundStyle(Color.white)
-                    .frame(width: 18, height: 18)
-                    .background(Circle().fill(Color.accentColor))
-            }
-        }
-        .frame(width: 20)
-        .accessibilityHidden(true)
     }
 }
 
@@ -560,46 +1293,46 @@ struct StepBadge: View {
 extension FLActionInfo {
     var detail: String {
         switch key {
-        case "play": return "Lance ou met en pause la lecture"
-        case "stop": return "Arrête la lecture"
-        case "rec": return "Démarre ou arrête l'enregistrement"
-        case "metro": return "Active ou coupe le métronome"
-        case "count": return "Décompte avant l'enregistrement"
-        case "loop": return "Enchaîne les prises sur la boucle"
-        case "wait": return "Le REC démarre à la première note jouée"
-        case "marker": return "Repère « bonne prise » à la position de lecture"
-        case "arm": return "Prépare la piste du Mixer sélectionnée à enregistrer"
-        case "tap": return "Tape le tempo en rythme"
-        case "newpat": return "Crée un pattern vide et ouvre le Piano Roll"
-        case "clone": return "Duplique le pattern en cours pour une variation"
-        case "pnext": return "Passe au pattern suivant"
-        case "pprev": return "Revient au pattern précédent"
-        case "chnext": return "Instrument suivant, sans quitter le Piano Roll"
-        case "chprev": return "Instrument précédent, sans quitter le Piano Roll"
-        case "snap": return "Change le magnétisme : 1/4, 1/8, triolets…"
-        case "quant": return "Aligne les notes de l'instrument sélectionné"
-        case "presetnext": return "Preset suivant du plugin ouvert"
-        case "presetprev": return "Preset précédent du plugin ouvert"
-        case "mute": return "Coupe la piste du Mixer sélectionnée"
-        case "solo": return "Écoute seulement la piste sélectionnée"
-        case "unsolo": return "Réécoute tout le morceau"
-        case "bypass": return "Compare la piste avec et sans effets"
-        case "mono": return "Vérifie que le mix tient en mono"
-        case "trnext": return "Sélectionne la piste suivante du Mixer"
-        case "trprev": return "Sélectionne la piste précédente du Mixer"
-        case "volup": return "Monte la piste sélectionnée"
-        case "voldn": return "Baisse la piste sélectionnée"
-        case "pl": return "Affiche la Playlist"
-        case "cr": return "Affiche le Channel Rack"
-        case "pr": return "Affiche le Piano Roll"
-        case "mx": return "Affiche le Mixer"
-        case "br": return "Affiche le Browser"
-        case "plmx": return "Bascule entre la Playlist et le Mixer"
-        case "undo": return "Annule la dernière action"
-        case "redo": return "Rétablit l'action annulée"
-        case "save": return "Sauvegarde le projet"
-        case "armon": return "Arme la piste sélectionnée, sans jamais la désarmer"
-        case "recon": return "Allume le REC, sans jamais l'éteindre"
+        case "play": return String(localized: "Lance ou met en pause la lecture")
+        case "stop": return String(localized: "Arrête la lecture")
+        case "rec": return String(localized: "Démarre ou arrête l'enregistrement")
+        case "metro": return String(localized: "Active ou coupe le métronome")
+        case "count": return String(localized: "Décompte avant l'enregistrement")
+        case "loop": return String(localized: "Enchaîne les prises sur la boucle")
+        case "wait": return String(localized: "Le REC démarre à la première note jouée")
+        case "marker": return String(localized: "Repère à la position de lecture")
+        case "arm": return String(localized: "Arme la piste du Mixer sélectionnée, ou la désarme")
+        case "tap": return String(localized: "Tape le tempo en rythme")
+        case "newpat": return String(localized: "Crée un pattern vide et ouvre le Piano Roll")
+        case "clone": return String(localized: "Duplique le pattern en cours pour une variation")
+        case "pnext": return String(localized: "Passe au pattern suivant")
+        case "pprev": return String(localized: "Revient au pattern précédent")
+        case "chnext": return String(localized: "Instrument suivant, sans quitter le Piano Roll")
+        case "chprev": return String(localized: "Instrument précédent, sans quitter le Piano Roll")
+        case "snap": return String(localized: "Change le magnétisme : 1/4, 1/8, triolets…")
+        case "quant": return String(localized: "Aligne les notes de l'instrument sélectionné")
+        case "presetnext": return String(localized: "Preset suivant du plugin ouvert")
+        case "presetprev": return String(localized: "Preset précédent du plugin ouvert")
+        case "mute": return String(localized: "Coupe la piste du Mixer sélectionnée")
+        case "solo": return String(localized: "Écoute seulement la piste sélectionnée")
+        case "unsolo": return String(localized: "Réécoute tout le morceau")
+        case "bypass": return String(localized: "Compare la piste avec et sans effets")
+        case "mono": return String(localized: "Vérifie que le mix tient en mono")
+        case "trnext": return String(localized: "Sélectionne la piste suivante du Mixer")
+        case "trprev": return String(localized: "Sélectionne la piste précédente du Mixer")
+        case "volup": return String(localized: "Monte la piste sélectionnée")
+        case "voldn": return String(localized: "Baisse la piste sélectionnée")
+        case "pl": return String(localized: "Affiche la Playlist")
+        case "cr": return String(localized: "Affiche le Channel Rack")
+        case "pr": return String(localized: "Affiche le Piano Roll")
+        case "mx": return String(localized: "Affiche le Mixer")
+        case "br": return String(localized: "Affiche le Browser")
+        case "plmx": return String(localized: "Bascule entre la Playlist et le Mixer")
+        case "undo": return String(localized: "Annule la dernière action")
+        case "redo": return String(localized: "Rétablit l'action annulée")
+        case "save": return String(localized: "Sauvegarde le projet")
+        case "armon": return String(localized: "Arme la piste sélectionnée, sans jamais la désarmer")
+        case "recon": return String(localized: "Allume le REC s'il est éteint")
         default: return label
         }
     }
@@ -623,72 +1356,592 @@ enum CardRowPosition: Equatable {
 
 extension View {
     /// Ligne d'une page en cartes : fond arrondi selon sa place dans la section, sans séparateur de la liste.
-    func cardRow(_ position: CardRowPosition) -> some View {
+    /// `hover` : au survol, la ligne entière prend cette couleur, comme une option du menu de l'icône (d'un filet à
+    /// l'autre et toute la largeur de la carte), texte en blanc.
+    func cardRow(_ position: CardRowPosition, hover: Color? = nil, selected: Bool = false, stamp: Color? = nil) -> some View {
+        modifier(CardRowModifier(position: position, hover: hover, selected: selected, stamp: stamp))
+    }
+
+}
+
+/// La marge intérieure d'une ligne est dans la ligne elle-même (pas dans la liste) : le survol couvre toute la ligne,
+/// jusqu'aux filets qui la séparent de ses voisines. Survol : c'est le fond de la ligne, toute la largeur de la carte,
+/// qui prend la couleur et s'élargit ; le contenu ne bouge pas, son texte passe en blanc (29/10, « intérieur plein »).
+private struct CardRowModifier: ViewModifier {
+    let position: CardRowPosition
+    let hover: Color?
+    /// Ligne choisie (style suisse) : blanche jusqu'aux bords, texte noir, comme au survol.
+    var selected = false
+    /// Survolée ou choisie : elle se soulève et laisse voir dessous une encoche de cette couleur (comme les cartes de
+    /// Gumroad, demande du 01/11 : blocs des macros).
+    var stamp: Color? = nil
+    @State private var hovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
         let gap = CardRowBackground.gap
-        let side = CardRowBackground.inset + 12
-        return listRowInsets(EdgeInsets(top: 8 + (position.roundsTop ? gap : 0), leading: side,
-                                        bottom: 8 + (position.roundsBottom ? gap : 0), trailing: side))
-            .listRowSeparator(.hidden)
-            .listRowBackground(CardRowBackground(position: position))
+        let lifted = selected || (hovering && hover != nil)
+        let row = content
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .hoverFilled(lifted)
+            // Plus de fond DANS la ligne (07/11, pour l'image du glisser) : dessiné en plus de celui de la liste, décalé,
+            // il faisait un « bloc de trop » sur la ligne choisie (capture du 07/11 au soir). Le bloc glissé a désormais
+            // sa propre image (StepDragPreview, MacroEditorView.swift).
+            .offset(x: lifted && stamp != nil ? -2 : 0, y: lifted && stamp != nil ? -2 : 0)
+        return Group {
+            if hover != nil {
+                row
+                    .contentShape(Rectangle())
+                    .onHover { inside in
+                        withAnimation(reduceMotion ? Motion.reduced : Motion.lift) { hovering = inside }
+                    }
+            } else {
+                row
+            }
+        }
+        .listRowInsets(EdgeInsets(top: position.roundsTop ? gap : 0, leading: CardRowBackground.inset,
+                                  bottom: position.roundsBottom ? gap : 0, trailing: CardRowBackground.inset))
+        .listRowSeparator(.hidden)
+        .listRowBackground(CardRowBackground(position: position, hover: lifted ? (hover ?? Swiss.text) : nil, stamp: stamp,
+                                             grow: lifted && !reduceMotion))
     }
 }
 
 /// Fond d'une ligne de carte : rectangle arrondi seulement aux bouts de la carte, filet sous les lignes intérieures.
-/// Carte grise sur le fond de la page, comme le Form groupé (verre ou non).
+/// Carte grise sur le fond de la page, comme le Form groupé (verre ou non). Survolée (`hover`) : pleine de la couleur
+/// de la page, arrondie, un peu plus large que la carte (`grow`).
 struct CardRowBackground: View {
     static let inset: CGFloat = 10                       // marge de la carte dans la liste
     static let gap: CGFloat = 4                          // espace au-dessus et au-dessous d'une carte
     let position: CardRowPosition
-    @Environment(\.colorScheme) private var scheme
-
-    private var fill: Color { scheme == .dark ? Color.white.opacity(0.07) : Color.black.opacity(0.045) }
+    var hover: Color? = nil
+    /// Encoche de couleur sous la ligne soulevée (voir `cardRow(stamp:)`).
+    var stamp: Color? = nil
+    var grow = false
 
     var body: some View {
-        CardRowShape(roundsTop: position.roundsTop, roundsBottom: position.roundsBottom)
-            .fill(fill)
-            .overlay(alignment: .bottom) {
-                if !position.roundsBottom {
-                    Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 0.5).padding(.leading, 12)
+        Group {
+            if hover != nil, let stamp {
+                // Soulevée : la ligne blanche monte de 2 points vers la gauche et le haut, l'encoche de couleur reste
+                // dessous, décalée de 4 points (comme Gumroad).
+                ZStack {
+                    Rectangle().fill(stamp).padding(.leading, 4).padding(.top, 4)
+                    Rectangle().fill(Swiss.text).padding(.trailing, 4).padding(.bottom, 4)
                 }
+            } else if hover != nil {
+                // Survolée : blanc plein, coins carrés (style suisse, 01/11).
+                Rectangle().fill(Swiss.text)
+            } else {
+                // Style suisse : pas de carte, un trait fin sous chaque ligne (blanc au-dessus de la première).
+                Rectangle().fill(Swiss.background)
+                    .overlay(alignment: .top) {
+                        if position.roundsTop { Rectangle().fill(Swiss.line).frame(height: 1) }
+                    }
+                    .overlay(alignment: .bottom) { Rectangle().fill(Swiss.faint).frame(height: 1) }
             }
-            .padding(.top, position.roundsTop ? Self.gap : 0)
-            .padding(.bottom, position.roundsBottom ? Self.gap : 0)
-            .padding(.horizontal, Self.inset)
+        }
+        .padding(.top, position.roundsTop ? Self.gap : 0)
+        .padding(.bottom, position.roundsBottom ? Self.gap : 0)
+        .padding(.horizontal, Self.inset)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Carte d'un seul tenant (accueil, guide, panneau des autorisations) : style suisse, un cadre fin, sans voile.
+struct GlassPlateBackground: View {
+    var cornerRadius: CGFloat = 14
+
+    var body: some View {
+        let shape = Rectangle()
+        shape.fill(Swiss.background).overlay(shape.strokeBorder(Swiss.line, lineWidth: 1))
+    }
+}
+
+/// Lignes posées dans une seule plaque de verre, séparées par un trait fin.
+struct PlateRows<Data: RandomAccessCollection, Row: View>: View where Data.Element: Identifiable {
+    let data: Data
+    @ViewBuilder let row: (Data.Element) -> Row
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ForEach(data) { item in
+                if item.id != data.first?.id { Rectangle().fill(Swiss.faint).frame(height: 1).padding(.horizontal, 12) }
+                row(item)
+            }
+        }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
+        .background(GlassPlateBackground())
+    }
+}
+
+/// Anneau fixe de la couleur d'accent : ce qui est attendu (aucune animation continue).
+struct WaitingRing: View {
+    var size: CGFloat = 14
+
+    var body: some View {
+        Circle()
+            .stroke(Swiss.line, lineWidth: 2)
+            .overlay(Circle().trim(from: 0, to: 0.25).stroke(Swiss.red, lineWidth: 2)
+                .rotationEffect(.degrees(-45)))
+            .frame(width: size, height: size)
             .accessibilityHidden(true)
     }
 }
 
-/// Rectangle aux coins arrondis en haut et/ou en bas (UnevenRoundedRectangle n'existe qu'à partir de macOS 14).
-private struct CardRowShape: Shape {
-    let roundsTop: Bool
-    let roundsBottom: Bool
-    var radius: CGFloat = 10
+/// Interrupteur du style suisse (01/11) : un rectangle bordé de blanc ; allumé, blanc plein et carré noir à droite ;
+/// éteint, noir et carré blanc à gauche.
+struct SwissSwitch: View {
+    @Binding var isOn: Bool
+    var label: String
+    /// Sur une ligne blanche (survolée, choisie) : couleurs inversées, contour noir, le carré reste lisible (01/11 :
+    /// « il ne reste plus qu'un point noir »).
+    @Environment(\.hoverFilled) private var onWhite
 
-    func path(in rect: CGRect) -> Path {
-        let t = roundsTop ? min(radius, rect.height / 2) : 0
-        let b = roundsBottom ? min(radius, rect.height / 2) : 0
-        var p = Path()
-        p.move(to: CGPoint(x: rect.minX, y: rect.minY + t))
-        if t > 0 {
-            p.addArc(tangent1End: CGPoint(x: rect.minX, y: rect.minY),
-                     tangent2End: CGPoint(x: rect.minX + t, y: rect.minY), radius: t)
+    var body: some View {
+        let ink = onWhite ? Swiss.background : Swiss.text
+        let paper = onWhite ? Swiss.text : Swiss.background
+        return Button { isOn.toggle() } label: {
+            HStack(spacing: 0) {
+                if isOn { Spacer(minLength: 0) }
+                Rectangle().fill(isOn ? paper : ink).frame(width: 14, height: 14)
+                if !isOn { Spacer(minLength: 0) }
+            }
+            .padding(2)
+            .frame(width: 40, height: 20)
+            .background(Rectangle().fill(isOn ? ink : paper))
+            // Le carré glisse (0,18 s, ralenti à la fin), au lieu de sauter.
+            .animation(.easeOut(duration: 0.18), value: isOn)
+            .overlay(Rectangle().strokeBorder(ink, lineWidth: 1))
+            .contentShape(Rectangle())
         }
-        p.addLine(to: CGPoint(x: rect.maxX - t, y: rect.minY))
-        if t > 0 {
-            p.addArc(tangent1End: CGPoint(x: rect.maxX, y: rect.minY),
-                     tangent2End: CGPoint(x: rect.maxX, y: rect.minY + t), radius: t)
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityValue(isOn ? String(localized: "activé") : String(localized: "désactivé"))
+        .accessibilityAddTraits(.isButton)
+    }
+}
+
+extension View {
+    /// Champ de texte du style suisse (02/11) : sans le cadre arrondi de macOS, fond noir, trait fin #333, coins carrés.
+    func swissField(minHeight: CGFloat = 28) -> some View {
+        textFieldStyle(.plain)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .frame(minHeight: minHeight)
+            .background(Swiss.background)
+            .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
+    }
+
+    /// Zone de texte sur plusieurs lignes (TextEditor) du style suisse : fond noir, trait fin #333.
+    func swissTextArea() -> some View {
+        scrollContentBackground(.hidden)
+            .padding(4)
+            .background(Swiss.background)
+            .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
+    }
+
+    /// Petite fenêtre (feuille) du style suisse : fond plein du thème (au lieu du gris arrondi de macOS).
+    @ViewBuilder func swissSheet() -> some View {
+        let base = background(Swiss.background)
+        if #available(macOS 13.3, *) {
+            base.presentationBackground(Swiss.background)
+        } else {
+            base
         }
-        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - b))
-        if b > 0 {
-            p.addArc(tangent1End: CGPoint(x: rect.maxX, y: rect.maxY),
-                     tangent2End: CGPoint(x: rect.maxX - b, y: rect.maxY), radius: b)
+    }
+}
+
+/// Lien du style suisse : texte blanc souligné, gris au survol (à la place du lien bleu de macOS, 02/11 : « vérifie
+/// si le style est respecté partout »).
+struct SwissLinkButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        SwissLinkBody(label: configuration.label, pressed: configuration.isPressed)
+    }
+}
+
+private struct SwissLinkBody<Label: View>: View {
+    let label: Label
+    let pressed: Bool
+    @Environment(\.isEnabled) private var enabled
+    @State private var hovering = false
+
+    var body: some View {
+        label
+            .underline()
+            .foregroundStyle(hovering && enabled ? Swiss.gray : Swiss.text)
+            .opacity(enabled ? (pressed ? 0.6 : 1) : 0.35)
+            .contentShape(Rectangle())
+            .onHover { hovering = $0 }
+    }
+}
+
+/// Choix entre quelques options, au style suisse (à la place du contrôle segmenté de macOS, en verre sur macOS 26) :
+/// cases rectangulaires côte à côte, en capitales ; la choisie blanche pleine, texte noir ; les autres noires bordées,
+/// blanches au survol. `title` : libellé à gauche dans un formulaire (comme celui du Picker).
+struct SwissSegmented<Value: Hashable>: View {
+    @Binding var selection: Value
+    let options: [(value: Value, label: String)]
+    var title: String? = nil
+
+    var body: some View {
+        if let title {
+            LabeledContent(title) { segments }
+        } else {
+            segments
         }
-        p.addLine(to: CGPoint(x: rect.minX + b, y: rect.maxY))
-        if b > 0 {
-            p.addArc(tangent1End: CGPoint(x: rect.minX, y: rect.maxY),
-                     tangent2End: CGPoint(x: rect.minX, y: rect.maxY - b), radius: b)
+    }
+
+    private var segments: some View {
+        HStack(spacing: -1) {
+            ForEach(options.indices, id: \.self) { i in
+                let option = options[i]
+                Button(option.label) { selection = option.value }
+                    .buttonStyle(SwissChoiceStyle(chosen: selection == option.value))
+                    .accessibilityAddTraits(selection == option.value ? .isSelected : [])
+            }
         }
-        p.closeSubpath()
-        return p
+        .fixedSize()
+    }
+}
+
+/// Une case de `SwissSegmented`, ou une touche qui s'allume (⌘ ⌥ ⌃ ⇧ du bloc Touche) : blanche pleine quand elle est
+/// choisie ; sinon noire bordée, blanche au survol.
+struct SwissChoiceStyle: ButtonStyle {
+    var chosen: Bool
+    var uppercase = true
+
+    func makeBody(configuration: Configuration) -> some View {
+        SwissChoiceBody(label: configuration.label, pressed: configuration.isPressed, chosen: chosen,
+                        uppercase: uppercase)
+    }
+}
+
+private struct SwissChoiceBody<Label: View>: View {
+    let label: Label
+    let pressed: Bool
+    let chosen: Bool
+    let uppercase: Bool
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.controlSize) private var size
+    @State private var hovering = false
+
+    var body: some View {
+        let filled = chosen || (hovering && enabled)
+        let small = size == .small || size == .mini
+        return label
+            .font(Swiss.font(small ? 10 : 10.5))
+            .tracking(uppercase ? 1.1 : 0)
+            .textCase(uppercase ? .uppercase : nil)
+            .lineLimit(1)
+            .foregroundStyle(filled ? Swiss.background : Swiss.text)
+            .padding(.horizontal, small ? 8 : 11)
+            .frame(minHeight: small ? 22 : 26)
+            .background(Rectangle().fill(filled ? Swiss.text : Swiss.background))
+            .overlay(Rectangle().strokeBorder(chosen || hovering ? Swiss.text : Swiss.keyLine, lineWidth: 1))
+            .opacity(enabled ? (pressed ? 0.7 : 1) : 0.35)
+            .contentShape(Rectangle())
+            .onHover { hovering = $0 }
+    }
+}
+
+/// Liste déroulante du style suisse (02/11, à la place de celle de macOS, en verre sur macOS 26) : le choix en cours
+/// dans un rectangle bordé, ⌄ à droite, blanc plein au survol ; la liste s'ouvre au clic, le choix en cours coché.
+/// `current` : le texte du choix en cours ; `content` : les choix, comme dans un Picker (Text(…).tag(…), Section,
+/// Divider). `title` : libellé à gauche.
+/// Ligne d'une liste déroulante suisse : un choix (sa valeur, son texte), un titre de rubrique ou un trait.
+enum SwissPickerEntry<Value: Hashable> {
+    case option(Value, String)
+    case header(String)
+    case divider
+}
+
+struct SwissPicker<Value: Hashable>: View {
+    let title: String?
+    @Binding var selection: Value
+    let current: String
+    let entries: [SwissPickerEntry<Value>]
+
+    init(_ title: String? = nil, selection: Binding<Value>, current: String, entries: [SwissPickerEntry<Value>]) {
+        self.title = title
+        _selection = selection
+        self.current = current
+        self.entries = entries
+    }
+
+    var body: some View {
+        if let title {
+            LabeledContent(title) { menu }
+        } else {
+            menu
+        }
+    }
+
+    /// Plus le menu de macOS (verre arrondi, choix surligné en bleu) : la liste suisse de `SwissContextMenu`.
+    private var menu: some View {
+        let binding = $selection
+        let entries = entries
+        return SwissPickerButton(text: current) { frame in
+            let items: [RightClickMenu.Item?] = entries.map { entry in
+                switch entry {
+                case .option(let value, let text):
+                    return RightClickMenu.Item(title: text, checked: value == binding.wrappedValue) {
+                        binding.wrappedValue = value
+                    }
+                case .header(let text):
+                    return RightClickMenu.Item(title: text, enabled: false, header: true) {}
+                case .divider:
+                    return nil
+                }
+            }
+            SwissContextMenu.shared.showList(items, below: frame)
+        }
+        // Jamais plus large que la place (03/11 : le panneau des réglages dépassait à droite avec « Ajouter un
+        // instrument (VST, plugin…) » et « Analog Lab V ») : le nom se coupe au milieu.
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityValue(current)
+    }
+}
+
+/// Case d'une liste déroulante : son texte et une flèche ; un clic ouvre la liste sous elle.
+private struct SwissPickerButton: View {
+    let text: String
+    let open: (NSRect) -> Void
+    @StateObject private var anchor = ScreenAnchor()
+
+    var body: some View {
+        Button {
+            if let frame = anchor.screenFrame { open(frame) }
+        } label: {
+            SwissPickerLabel(text: text)
+        }
+        .buttonStyle(.plain)
+        .background(ScreenAnchor.Reader(anchor: anchor))
+    }
+}
+
+/// Où est une vue sur l'écran (pour poser une liste juste dessous).
+final class ScreenAnchor: ObservableObject {
+    weak var view: NSView?
+
+    var screenFrame: NSRect? {
+        guard let view, let window = view.window else { return nil }
+        return window.convertToScreen(view.convert(view.bounds, to: nil))
+    }
+
+    struct Reader: NSViewRepresentable {
+        let anchor: ScreenAnchor
+        func makeNSView(context: Context) -> NSView {
+            let view = NSView()
+            anchor.view = view
+            return view
+        }
+        func updateNSView(_ nsView: NSView, context: Context) { anchor.view = nsView }
+    }
+}
+
+private struct SwissPickerLabel: View {
+    let text: String
+    @Environment(\.isEnabled) private var enabled
+    @State private var hovering = false
+
+    var body: some View {
+        let lit = hovering && enabled
+        return HStack(spacing: 8) {
+            Text(text).lineLimit(1).truncationMode(.middle)
+            Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold)).layoutPriority(1)
+        }
+        .font(.system(size: 12, weight: .medium))
+        .foregroundStyle(lit ? Swiss.background : Swiss.text)
+        .padding(.horizontal, 10)
+        .frame(minHeight: 26)
+        .background(Rectangle().fill(lit ? Swiss.text : Swiss.background))
+        .overlay(Rectangle().strokeBorder(lit ? Swiss.text : Swiss.keyLine, lineWidth: 1))
+        .opacity(enabled ? 1 : 0.35)
+        .contentShape(Rectangle())
+        .onHover { hovering = $0 }
+    }
+}
+
+/// Choix d'une option parmi plusieurs, en colonne, au style suisse (à la place des boutons ronds de macOS) : un carré
+/// blanc plein devant le choix en cours.
+struct SwissRadioGroup<Value: Hashable>: View {
+    @Binding var selection: Value
+    let options: [(value: Value, label: String)]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(options.indices, id: \.self) { i in
+                let option = options[i]
+                Toggle(option.label, isOn: Binding(get: { selection == option.value },
+                                                   set: { if $0 { selection = option.value } }))
+                    .toggleStyle(SwissCheckboxStyle())
+            }
+        }
+    }
+}
+
+/// − et + au style suisse (à la place des petites flèches de macOS) : deux cases carrées bordées, blanches au survol.
+struct SwissStepper: View {
+    let decrement: () -> Void
+    let increment: () -> Void
+    var canDecrement = true
+    var canIncrement = true
+
+    var body: some View {
+        HStack(spacing: -1) {
+            Button(action: decrement) {
+                Image(systemName: "minus").font(.system(size: 9, weight: .bold)).frame(width: 10)
+            }
+            .disabled(!canDecrement)
+            .accessibilityLabel(String(localized: "Moins"))
+            Button(action: increment) {
+                Image(systemName: "plus").font(.system(size: 9, weight: .bold)).frame(width: 10)
+            }
+            .disabled(!canIncrement)
+            .accessibilityLabel(String(localized: "Plus"))
+        }
+        .buttonStyle(SwissChoiceStyle(chosen: false, uppercase: false))
+        .controlSize(.small)
+        .fixedSize()
+    }
+}
+
+/// Ligne « libellé : réglage » du style suisse : le libellé en gris à gauche, le réglage à droite (panneau des
+/// réglages d'un bloc, sans les cartes grises arrondies d'un formulaire de macOS).
+struct SwissLabeledContentStyle: LabeledContentStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            configuration.label
+                .font(.system(size: 12))
+                .foregroundStyle(Swiss.gray)
+                .fixedSize()                                 // le libellé en entier, le réglage prend le reste
+            Spacer(minLength: 8)
+            configuration.content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Champ de texte avec son libellé à gauche, au style suisse (le libellé d'un TextField ne s'affiche que dans un
+/// formulaire de macOS).
+struct SwissTextField: View {
+    let label: String
+    @Binding var text: String
+    var prompt: Text? = nil
+    var axis: Axis = .horizontal
+
+    init(_ label: String, text: Binding<String>, prompt: Text? = nil, axis: Axis = .horizontal) {
+        self.label = label
+        _text = text
+        self.prompt = prompt
+        self.axis = axis
+    }
+
+    var body: some View {
+        LabeledContent(label) {
+            TextField("", text: $text, prompt: prompt, axis: axis)
+                .swissField()
+                .accessibilityLabel(label)
+        }
+    }
+}
+
+/// Case à cocher du style suisse : un carré bordé de blanc ; cochée, blanche pleine avec une coche noire. Le texte
+/// à droite se clique aussi.
+struct SwissCheckboxStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button { configuration.isOn.toggle() } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                ZStack {
+                    Rectangle().fill(configuration.isOn ? Swiss.text : Swiss.background)
+                    Rectangle().strokeBorder(Swiss.text, lineWidth: 1)
+                    if configuration.isOn {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 9, weight: .heavy))
+                            .foregroundStyle(Swiss.background)
+                    }
+                }
+                .frame(width: 14, height: 14)
+                .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
+                configuration.label
+                    .multilineTextAlignment(.leading)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityValue(configuration.isOn ? String(localized: "activé") : String(localized: "désactivé"))
+    }
+}
+
+/// Interrupteur-touche (⌘ ⌥ ⌃ ⇧) au style suisse : blanc plein quand il est allumé.
+struct SwissKeyToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button { configuration.isOn.toggle() } label: { configuration.label }
+            .buttonStyle(SwissChoiceStyle(chosen: configuration.isOn, uppercase: false))
+    }
+}
+
+/// Barre de progression du style suisse : un trait gris de 4 points, rempli de rouge jusqu'où on en est.
+struct SwissProgress: View {
+    var value: Double
+
+    var body: some View {
+        GeometryReader { g in
+            ZStack(alignment: .leading) {
+                Rectangle().fill(Swiss.line)
+                Rectangle().fill(Swiss.red).frame(width: g.size.width * max(0, min(1, value)))
+            }
+        }
+        .frame(height: 4)
+        .accessibilityElement()
+        .accessibilityValue("\(Int((max(0, min(1, value)) * 100).rounded())) %")
+    }
+}
+
+/// Poignée à six points (deux colonnes de trois) : ce qui se prend et se glisse (familles de l'Organiser).
+struct SixDots: View {
+    var color: Color = Swiss.gray
+
+    var body: some View {
+        VStack(spacing: 3) {
+            ForEach(0..<3, id: \.self) { _ in
+                HStack(spacing: 3) {
+                    Rectangle().fill(color).frame(width: 2.5, height: 2.5)
+                    Rectangle().fill(color).frame(width: 2.5, height: 2.5)
+                }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// Page posée au-dessus d'une page (10/11, fiche de la Communauté : « une page au-dessus, mais style suisse », à la
+/// place de la feuille de macOS et de son verre) : la page derrière s'assombrit et ne reçoit plus les clics ; la carte
+/// se pose au milieu, carrée, pleine du fond, bordée d'un trait d'encre fin ; noire sous Orange comme les autres
+/// petites fenêtres. Rien ne se ferme en cliquant à côté (« Fermer », Échap). Aucune animation.
+struct SwissPageAbove<Content: View>: View {
+    private let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        ZStack {
+            Rectangle()
+                .fill(Color.black.opacity(0.55))
+                .contentShape(Rectangle())
+                .onTapGesture {}
+                .accessibilityHidden(true)
+            content
+                .background(Rectangle().fill(Swiss.background))
+                .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
+                .swissInverted()
+                .padding(24)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

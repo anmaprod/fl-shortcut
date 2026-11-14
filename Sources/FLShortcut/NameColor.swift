@@ -63,6 +63,49 @@ struct FLIcon: Equatable, Hashable {
     var isReset: Bool { column == 0 && row == 0 }
 }
 
+/// Données de l'opération 27 (08/11, « nommer le marqueur ») : `[27, n, nom UTF-8 (n octets)]` ; le script de FL pose
+/// le marqueur à la position de lecture avec ce nom (mode Song seulement).
+struct MarkerPayload: Equatable {
+    static let op: UInt8 = 27
+
+    /// Nom sans espaces de début ni de fin ni caractère invisible, 64 caractères et 255 octets au plus ; nil s'il est
+    /// vide (le marqueur est alors posé comme avant, sans nom choisi).
+    let name: String?
+
+    init(name: String?) {
+        let trimmed = (name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        var scalars = Array(trimmed.unicodeScalars.filter { $0.value >= 32 && $0.value != 127 }
+            .prefix(NameColorPayload.maxNameScalars))
+        while String(String.UnicodeScalarView(scalars)).utf8.count > NameColorPayload.maxNameBytes { scalars.removeLast() }
+        let cut = String(String.UnicodeScalarView(scalars))
+        self.name = cut.isEmpty ? nil : cut
+    }
+
+    var bytes: [UInt8] {
+        let raw = Array((name ?? "").utf8)
+        return [Self.op, UInt8(raw.count)] + raw
+    }
+
+    var units: [UInt8] { Pack7.pack(bytes) }
+}
+
+extension Block {
+    /// Nom choisi pour le bloc « Action de FL › Poser un marqueur » (08/11), gardé dans `note` (plus montrée ni
+    /// écrite ailleurs depuis le 28/10) : rien à changer au format des macros, une version d'avant pose le marqueur
+    /// comme avant.
+    var markerName: String? {
+        guard case .flAction("marker", _) = body else { return nil }
+        return MarkerPayload(name: note).name
+    }
+
+    /// Action de FL jamais regroupée avec les autres (un seul réveil du lien pour celles-là) : marqueur nommé, action
+    /// faite dans la fenêtre de FL (« Consolider la piste dans la Playlist »).
+    var flActionRunsAlone: Bool {
+        guard case .flAction(let key, _) = body else { return false }
+        return markerName != nil || LocalFLAction.named(key) != nil
+    }
+}
+
 /// Données de l'opération 1 : `[1, drapeaux (bit 0 nom, bit 1 couleur), R, G, B, n, nom UTF-8 (n octets)]`.
 struct NameColorPayload: Equatable {
     /// Le script compte les points de code (Python) : même mesure ici.
@@ -83,8 +126,8 @@ struct NameColorPayload: Equatable {
     /// Nom acceptable par le script : 64 caractères au plus, 255 octets au plus, aucun caractère de contrôle.
     static func nameProblem(_ name: String) -> String? {
         let scalars = name.unicodeScalars
-        if scalars.contains(where: { $0.value < 32 || $0.value == 127 }) { return "le nom contient un caractère invisible." }
-        if scalars.count > maxNameScalars || name.utf8.count > maxNameBytes { return "nom trop long (64 caractères au plus)." }
+        if scalars.contains(where: { $0.value < 32 || $0.value == 127 }) { return String(localized: "le nom contient un caractère invisible.") }
+        if scalars.count > maxNameScalars || name.utf8.count > maxNameBytes { return String(localized: "nom trop long (64 caractères au plus).") }
         return nil
     }
 
@@ -101,37 +144,39 @@ struct NameColorPayload: Equatable {
     static let defaultColor = RGBColor(r: 0xE0, g: 0x45, b: 0x3A)
 
     /// Ligne du bloc : « Kick · #E0453A », « Kick », « couleur #E0453A », « dégradé #F2A0D8 → #C02890 ».
-    static func summary(name: String?, color: RGBColor?, fade: RGBColor? = nil) -> String {
-        if let color, let fade { return "dégradé #\(color.hex) → #\(fade.hex)" }
+    static func summary(name: String?, color: RGBColor?, fade: RGBColor? = nil, icon: FLIcon? = nil) -> String {
+        if let color, let fade { return String(localized: "dégradé #\(color.hex) → #\(fade.hex)") }
         let n = NameColorPayload(name: name, color: color)
-        switch (n.name, n.color) {
-        case let (name?, color?): return "\(name.displaySafe(max: 40)) · #\(color.hex)"
-        case let (name?, nil): return name.displaySafe(max: 40)
-        case let (nil, color?): return "couleur #\(color.hex)"
-        case (nil, nil): return "nom et couleur à choisir"
-        }
+        var parts: [String] = []
+        if let name = n.name { parts.append(name.displaySafe(max: 40)) }
+        if let color = n.color { parts.append(n.name == nil ? String(localized: "couleur #\(color.hex)") : "#\(color.hex)") }
+        if let icon { parts.append(String(localized: "icône \(FLIconGrid.cell(icon)?.name ?? icon.code)")) }
+        return parts.isEmpty ? String(localized: "nom et couleur à choisir") : parts.joined(separator: " · ")
     }
 
     /// Message d'un refus expliqué par FL (CC 116).
     static func message(forReason reason: Int) -> String {
         switch reason {
-        case 1: return "Ouvre le Mixer, le Channel rack ou la Playlist."
-        case 2: return "Sélectionne une piste ou un canal."
-        case 3: return "Sélectionne une seule piste ou un seul canal."
-        case 4: return "Arrête la lecture d'abord."
-        case 6: return "Ta version de FL ne le permet pas sur cette page : mets FL à jour."
-        case 7: return "Sélectionne au moins 2 pistes pour un dégradé."
-        default: return "FL a refusé le nom ou la couleur."
+        case 1: return String(localized: "Ouvre le Mixer, le Channel rack ou la Playlist.")
+        case 2: return String(localized: "Sélectionne une piste ou un canal.")
+        case 3: return String(localized: "Sélectionne une seule piste ou un seul canal.")
+        case 4: return String(localized: "Arrête la lecture d'abord.")
+        case 6: return String(localized: "Ta version de FL ne le permet pas sur cette page : mets FL à jour.")
+        case 7: return String(localized: "Sélectionne au moins 2 pistes pour un dégradé.")
+        default: return String(localized: "FL a refusé le nom ou la couleur.")
         }
     }
 }
 
-/// Les 10 dernières couleurs choisies dans FL Shortcut, la plus récente d'abord (préférences, codes « E0453A »).
+/// Les 10 dernières couleurs choisies dans FL Shortcuts, la plus récente d'abord (préférences, codes « E0453A »).
 enum RecentColors {
     static let key = "nameColor.recentColors"
     static let limit = 10
+    /// Photo de la CI seulement : des récentes d'exemple, jamais écrites dans les réglages.
+    static var demoList: [RGBColor]?
 
     static func list(defaults: UserDefaults = .standard) -> [RGBColor] {
+        if let demoList { return demoList }
         var seen = Set<RGBColor>()
         let all = (defaults.array(forKey: key) ?? []).compactMap { ($0 as? String).flatMap(RGBColor.init(hex:)) }
         return Array(all.filter { seen.insert($0).inserted }.prefix(limit))
@@ -140,7 +185,21 @@ enum RecentColors {
     static func remember(_ c: RGBColor, defaults: UserDefaults = .standard) {
         let others = list(defaults: defaults).filter { $0 != c }
         defaults.set(([c] + others).prefix(limit).map(\.hex), forKey: key)
+        // Gardées avec le compte (08/11, « si la personne est connectée, je veux que les couleurs qu'elle utilise soient
+        // gardées ») : la sauvegarde en ligne suit ce changement.
+        if defaults === UserDefaults.standard { NotificationCenter.default.post(name: changed, object: nil) }
     }
+
+    static let changed = Notification.Name("FLShortcuts.recentColorsChanged")
+
+    /// Les couleurs revenues du compte (codes « E0453A », la plus récente d'abord ; les autres codes sont ignorés).
+    static func replace(_ hexes: [String], defaults: UserDefaults = .standard) {
+        var seen = Set<RGBColor>()
+        let colors = hexes.compactMap(RGBColor.init(hex:)).filter { seen.insert($0).inserted }.prefix(limit)
+        defaults.set(colors.map(\.hex), forKey: key)
+    }
+
+    static func clear(defaults: UserDefaults = .standard) { defaults.removeObject(forKey: key) }
 }
 
 // MARK: - Fenêtre de couleur de FL (« Color selector »)

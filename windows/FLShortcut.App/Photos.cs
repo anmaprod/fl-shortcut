@@ -1,0 +1,175 @@
+// Mode photos de la CI (`--photos <dossier>`) : la fenêtre principale (plusieurs pages, dont Macros avec des macros d'exemple
+// en mémoire : liste et créateur), le menu de l'icône, puis chaque écran de l'Organiser avec des sons d'exemple
+// (OrganizerController.ShowDemo), enregistrés en PNG, puis l'appli se ferme. Rien n'est envoyé à FL, aucun hook ni port MIDI n'est ouvert, aucune macro
+// n'est écrite ; seuls des « principale*.png », « menu-icone.png », « theme-<thème>-<page>.png », des « organiser-<écran>.png » et des « macros-<écran>.png » sont écrits, dans
+// un dossier qui existe déjà.
+using System.Runtime.InteropServices.WindowsRuntime;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media.Imaging;
+using Windows.Graphics.Imaging;
+using Windows.Storage.Streams;
+
+namespace FLShortcut.App;
+
+internal static class Photos
+{
+    private static readonly string[] Screens = { "demarrer", "installer", "attente", "aide", "ecoute", "apercu", "fini" };
+
+    /// Le dossier des photos donné après `--photos` (qui existe déjà), ou null : pas en mode photos.
+    public static string? Folder { get; } = FolderFromCommandLine();
+
+    private static string? FolderFromCommandLine()
+    {
+        var command = Environment.GetCommandLineArgs();
+        var at = Array.FindIndex(command, a => string.Equals(a, "--photos", StringComparison.OrdinalIgnoreCase));
+        return at >= 0 && at + 1 < command.Length && Directory.Exists(command[at + 1]) ? command[at + 1] : null;
+    }
+
+    /// Une ligne du journal « photos-journal.txt », écrite tout de suite (l'appli peut tomber juste après).
+    public static void Note(string line)
+    {
+        if (Folder is not { } folder) return;
+        try { File.AppendAllText(Path.Combine(folder, "photos-journal.txt"), $"{DateTime.UtcNow:HH:mm:ss.fff} {line}{Environment.NewLine}"); }
+        catch (IOException) { }
+    }
+
+    /// `app` est créé ici (son échec est noté comme le reste).
+    public static async void Take(string folder, Func<AppController> app)
+    {
+        try
+        {
+            if (!Directory.Exists(folder)) return;
+            Note("début");
+            // Toute exception .NET, même rattrapée : la dernière avant une chute de WinUI dit souvent pourquoi.
+            AppDomain.CurrentDomain.FirstChanceException += (_, e) =>
+                Note($"exception vue : {e.Exception.GetType().Name} {e.Exception.HResult:X8} {e.Exception.Message}");
+            // Une fenêtre fermée avant l'ouverture de la suivante ne doit pas arrêter l'appli.
+            Application.Current.DispatcherShutdownMode = DispatcherShutdownMode.OnExplicitShutdown;
+            var controller = app();
+            Note("appli prête");
+            // Une fenêtre toute simple d'abord : si elle tombe aussi, c'est WinUI sur cette machine, pas l'Organiser.
+            Note("fenêtre simple : création");
+            var probe = new Window { Title = "FL Shortcuts" };
+            Note("fenêtre simple : créée");
+            probe.Close();
+            // La fenêtre principale (raccourcis), comme au premier lancement.
+            Note("principale : création");
+            var main = new MainWindow(photos: true);
+            main.Activate();
+            Note("principale : fenêtre ouverte");
+            await Task.Delay(2000);
+            // Les pages comme le Mac (29/10) : Général, Playlist, Mes raccourcis, une recherche, Macros et son créateur.
+            foreach (var (page, name) in new[] { ("accueil", "accueil-loopmidi"), ("general", "principale"), ("playlist", "principale-playlist"),
+                                                 ("custom", "principale-mes-raccourcis"), ("recherche", "principale-recherche"),
+                                                 ("macros", "macros-liste"), ("macros-createur", "macros-createur"),
+                                                 ("aide", "aide"), ("compte", "compte"),
+                                                 ("guide", "guide-0"), ("guide-1", "guide-1"), ("guide-4", "guide-4"),
+                                                 ("communaute", "communaute"), ("communaute-fiche", "communaute-fiche"),
+                                                 ("communaute-abonnements", "communaute-abonnements"),
+                                                 ("communaute-personne", "communaute-personne"), ("communaute-note", "communaute-note") })
+            {
+                main.ShowPage(page);
+                await Task.Delay(800);
+                if (main.Content is UIElement mainContent)
+                {
+                    await Save(mainContent, Path.Combine(folder, name + ".png"));
+                    Note($"{name} : photo");
+                }
+            }
+            main.Close();
+            // Thèmes Papier et Orange (04/11) : une page de raccourcis et Mon compte (le choix du thème), puis Noir.
+            foreach (var theme in new[] { FLShortcut.Core.AppTheme.Papier, FLShortcut.Core.AppTheme.Orange })
+            {
+                MacLook.Theme = theme;
+                var key = FLShortcut.Core.ThemePalette.Key(theme);
+                var themed = new MainWindow(photos: true);
+                themed.Activate();
+                await Task.Delay(1500);
+                foreach (var (page, name) in new[] { ("playlist", $"theme-{key}-raccourcis"), ("compte", $"theme-{key}-compte") })
+                {
+                    themed.ShowPage(page);
+                    await Task.Delay(800);
+                    if (themed.Content is UIElement themedContent)
+                    {
+                        await Save(themedContent, Path.Combine(folder, name + ".png"));
+                        Note($"{name} : photo");
+                    }
+                }
+                themed.Close();
+            }
+            MacLook.Theme = FLShortcut.Core.AppTheme.Noir;
+            // Le menu de l'icône (noir, comme le Mac).
+            Note("menu-icone : création");
+            var menu = TrayMenu.Demo();
+            Note("menu-icone : créé");
+            menu.Activate();
+            Note("menu-icone : ouvert");
+            await Task.Delay(800);
+            if (menu.Content is UIElement menuContent)
+            {
+                await Save(menuContent, Path.Combine(folder, "menu-icone.png"));
+                Note("menu-icone : photo");
+            }
+            menu.Close();
+            // La barre d'enregistrement des macros (comme le panneau du Mac, 09/11).
+            var bar = RecordingBar.Demo();
+            bar.Activate();
+            await Task.Delay(800);
+            await Save(bar.Content, Path.Combine(folder, "enregistrement-barre.png"));
+            Note("enregistrement-barre : photo");
+            bar.Dismiss();
+            // La fenêtre de couleur de FL de l'Organiser (comme organiser-couleurs.png du Mac, 09/11).
+            var colors = new Window();
+            var selector = new FlColorSelector(new FLShortcut.Core.RgbColor(0xFF, 0x3B, 0x1F),
+                new[] { new FLShortcut.Core.RgbColor(0xE0, 0x45, 0x3A), new FLShortcut.Core.RgbColor(0xF2, 0xA0, 0x3D),
+                        new FLShortcut.Core.RgbColor(0xF0, 0xD8, 0x4A), new FLShortcut.Core.RgbColor(0x4C, 0xB8, 0x5E) }, _ => { });
+            var holder = new Microsoft.UI.Xaml.Controls.Grid { Background = MacLook.Brush(MacLook.WindowColor) };
+            holder.Children.Add(selector.View);
+            colors.Content = holder;
+            colors.Activate();
+            await Task.Delay(800);
+            await Save(selector.View, Path.Combine(folder, "organiser-couleurs.png"));
+            Note("organiser-couleurs : photo");
+            colors.Close();
+            foreach (var screen in Screens)
+            {
+                Note($"{screen} : création");
+                var window = OrganizerWindow.Demo(controller, screen);
+                window.Activate();
+                Note($"{screen} : fenêtre ouverte");
+                await Task.Delay(1500);
+                if (window.Content is UIElement content)
+                {
+                    await Save(content, Path.Combine(folder, $"organiser-{screen}.png"));
+                    Note($"{screen} : photo");
+                }
+                window.Close();
+            }
+        }
+        catch (Exception e)
+        {
+            Note("échec : " + e);
+        }
+        finally
+        {
+            Note("fin");
+            Application.Current.Exit();
+        }
+    }
+
+    private static async Task Save(UIElement element, string path)
+    {
+        var bitmap = new RenderTargetBitmap();
+        await bitmap.RenderAsync(element);
+        var pixels = (await bitmap.GetPixelsAsync()).ToArray();
+        using var stream = new InMemoryRandomAccessStream();
+        var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, stream);
+        encoder.SetPixelData(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied, (uint)bitmap.PixelWidth, (uint)bitmap.PixelHeight,
+            96, 96, pixels);
+        await encoder.FlushAsync();
+        var bytes = new byte[stream.Size];
+        stream.Seek(0);
+        await stream.ReadAsync(bytes.AsBuffer(), (uint)bytes.Length, InputStreamOptions.None);
+        await File.WriteAllBytesAsync(path, bytes);
+    }
+}

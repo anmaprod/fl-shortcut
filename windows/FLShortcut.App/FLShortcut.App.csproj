@@ -22,9 +22,13 @@
     <LangVersion>12</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Version>0.2.0</Version>
-    <Product>FL Shortcut</Product>
-    <Company>FL Shortcut</Company>
+    <Product>FL Shortcuts</Product>
+    <Company>FL Shortcuts</Company>
     <Description>Raccourcis personnalisés pour FL Studio — outil indépendant, non affilié à Image-Line.</Description>
+    <!-- Infos du programme complètes (08/11, antivirus) : un programme sans nom ni éditeur paraît plus suspect. -->
+    <AssemblyTitle>FL Shortcuts</AssemblyTitle>
+    <Authors>FL Shortcuts</Authors>
+    <Copyright>© 2026 FL Shortcuts</Copyright>
     <ApplicationIcon Condition="Exists('Assets\FLShortcut.ico')">Assets\FLShortcut.ico</ApplicationIcon>
   </PropertyGroup>
 
@@ -36,6 +40,21 @@
     <SelfContained>true</SelfContained>
   </PropertyGroup>
 
+  <!-- Serveur du compte, de la Communauté et de l'Aide : le MÊME que le Mac (Resources/Info.plist), adresse et clé
+       publique (publique par conception : les règles de supabase/schema.sql protègent les données ; jamais la clé
+       secrète ici). Les variables FLS_SUPABASE_URL et FLS_SUPABASE_ANON_KEY les remplacent si elles sont données
+       toutes les deux, comme build.sh. 04/11 : sans elles, l'app Windows n'avait aucun serveur (secrets vides sur la
+       CI) : compte, Communauté, sauvegarde et message à l'équipe ne marchaient pas. Essai : ServerAddressSameAsMac. -->
+  <PropertyGroup>
+    <FLSServerURL>https://ulzxunuytsakxrvovxen.supabase.co</FLSServerURL>
+    <FLSServerKey>sb_publishable_uSqh6eUCCeoXMioONoQYIQ_rYlriiw8</FLSServerKey>
+    <FLSServerURL Condition="'$(FLS_SUPABASE_URL)' != '' and '$(FLS_SUPABASE_ANON_KEY)' != ''">$(FLS_SUPABASE_URL)</FLSServerURL>
+    <FLSServerKey Condition="'$(FLS_SUPABASE_URL)' != '' and '$(FLS_SUPABASE_ANON_KEY)' != ''">$(FLS_SUPABASE_ANON_KEY)</FLSServerKey>
+  </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="FLSCommunityURL" Value="$(FLSServerURL)" />
+    <AssemblyMetadata Include="FLSCommunityAnonKey" Value="$(FLSServerKey)" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.241114003" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
@@ -46,9 +65,34 @@
     <ProjectReference Include="..\FLShortcut.Core\FLShortcut.Core.csproj" />
   </ItemGroup>
 
+  <!-- Windows MIDI Services (08/11) : sur Windows 11 25H2 à jour, l'appli crée elle-même ses deux ports MIDI, sans
+       loopMIDI (Services/MidiServicesPorts.cs). L'API n'est pas encore dans le SDK Windows : ses métadonnées
+       (ThirdParty/WindowsMidiServices, MIT) donnent une projection C# (CsWinRT), générée seulement sous Windows, où son
+       outil existe ; ailleurs (compilation de contrôle sous Linux), le code dit « indisponible » (MIDI_SERVICES). -->
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
+    <DefineConstants>$(DefineConstants);MIDI_SERVICES</DefineConstants>
+    <CsWinRTIncludes>Windows.Devices.Midi2</CsWinRTIncludes>
+    <CsWinRTWindowsMetadata>10.0.26100.0</CsWinRTWindowsMetadata>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
+    <PackageReference Include="Microsoft.Windows.CsWinRT" Version="2.2.0" />
+    <CsWinRTInputs Include="..\ThirdParty\WindowsMidiServices\Windows.Devices.Midi2.winmd" />
+  </ItemGroup>
+
+  <!-- L'IA intégrée de l'Organiser (YAMNet + têtes apprises), à côté de l'exécutable (ClasseurSons.Partage). -->
+  <ItemGroup>
+    <None Include="..\..\ia\modele\classeur_sons.onnx" Link="classeur_sons.onnx" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!-- Le script FL (modèle avec le marqueur de clé), embarqué dans l'exécutable. -->
   <ItemGroup>
     <EmbeddedResource Include="..\..\Resources\device_FLShortcut.py" LogicalName="device_FLShortcut.py" />
+    <!-- Les 4 cases de MIDI Settings (aide de l'Organiser, comme le Mac) : l'image du Mac, découpée à l'affichage. -->
+    <EmbeddedResource Include="..\..\Resources\MIDISettings.png" LogicalName="MIDISettings.png" />
+    <!-- Logo « A » de la zone de notification (04/11, scripts/icone.py, option tray) : cercle blanc sur une barre des
+         tâches sombre, noir sur une claire ; le rond toujours rouge (TrayIcon). -->
+    <EmbeddedResource Include="Assets\TraySombre.ico" LogicalName="TraySombre.ico" />
+    <EmbeddedResource Include="Assets\TrayClaire.ico" LogicalName="TrayClaire.ico" />
   </ItemGroup>
 
 </Project>

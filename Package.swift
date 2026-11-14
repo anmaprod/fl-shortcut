@@ -6,6 +6,7 @@ let package = Package(
     platforms: [.macOS(.v13)],
     targets: [
         .executableTarget(name: "FLShortcut", path: "Sources/FLShortcut"),
-        .testTarget(name: "FLShortcutTests", dependencies: ["FLShortcut"], path: "Tests/FLShortcutTests"),
+        .testTarget(name: "FLShortcutTests", dependencies: ["FLShortcut"], path: "Tests/FLShortcutTests",
+                    exclude: ["Fixtures"]),                 // sons d'essai lus par leur chemin (ClasseurSonsTests)
     ]
 )

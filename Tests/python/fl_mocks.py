@@ -33,6 +33,7 @@ MIDI_CONSTS = {
     "FPT_LoopRecord": (113, 9), "FPT_CountDown": (115, 9),
     "SONGLENGTH_ABSTICKS": (2, 3), "FFNEP_DontPromptName": (1, 1),
     "curfxScrollToMakeVisible": (1, 1), "HW_Dirty_FocusedWindow": (32, 1),
+    "REC_Tempo": (0x105, 1), "REC_Control": (0x20000000, 1), "REC_UpdateControl": (0x10000000, 1),
 }
 
 
@@ -64,6 +65,7 @@ class FLState(object):
         self.pattern_count = kw.get("pattern_count", 4)
         self.focused = set(kw.get("focused", ()))
         self.assigned = kw.get("assigned", True)
+        self.device_name = kw.get("device_name", "FL Shortcuts Link")
         self.fl_version = kw.get("fl_version", fl_version_for_api(api))
         self.loop_mode = kw.get("loop_mode", 1)   # 1 = Song
         self.volumes = {}
@@ -87,13 +89,33 @@ class FLState(object):
         self.ch_colors = list(kw.get("ch_colors", [0x5F6B78] * n))     # couleurs FL (0xRRGGBB dans ce faux FL)
         self.ch_types = list(kw.get("ch_types", [2] * n))              # 2 = plugin générateur
         self.ch_fx = list(kw.get("ch_fx", list(range(1, n + 1))))
-        self.ch_muted = set(kw.get("ch_muted", ()))
+        self.ch_muted = set(kw.get("ch_muted", ()))      # index globaux
         self.n_channels_global = kw.get("n_channels_global", n)
+        # Groupe affiché par le Channel rack : index global de chaque canal affiché (tous par défaut).
+        self.ch_group = list(kw.get("ch_group", range(n)))
+        self.metronome = kw.get("metronome", False)
+        # Ce qui joue (Organiser, opération 14) : niveau d'activité des canaux (index affiché) et des pistes de la
+        # Playlist (index 1 = piste 1).
+        self.ch_activity = dict(kw.get("ch_activity", {}))
+        self.pl_activity = dict(kw.get("pl_activity", {}))
         self.notes = []                  # (index global, note, vélocité)
         self.playing = kw.get("playing", False)
         self.song_pos = kw.get("song_pos", 0.5)
         self.mx_names = kw.get("mx_names", {})
         self.mx_colors = kw.get("mx_colors", {})
+        # Playlist (index 1 = piste 1 de FL) : noms, couleurs, sourdines, longueur de la chanson.
+        self.pl_names = kw.get("pl_names", {})
+        self.pl_colors = kw.get("pl_colors", {})
+        self.pl_muted = set(kw.get("pl_muted", ()))
+        self.song_bars = kw.get("song_bars", 32)
+        # Patterns (index 1 = pattern 1 de FL) : noms et couleurs ; envois du Mixer : piste -> destinations.
+        self.pat_names = kw.get("pat_names", {})
+        self.pat_colors = kw.get("pat_colors", {})
+        self.routes = dict((k, set(v)) for k, v in kw.get("routes", {}).items())
+        self.shown = []
+        # Longueur des patterns (en temps, index 1 = pattern 1) et tempo (BPM).
+        self.pat_lengths = kw.get("pat_lengths", {})
+        self.tempo = kw.get("tempo", 140.0)
 
     def cc_out(self):
         """Liste (statut, cc, valeur) des messages envoyés."""
@@ -173,13 +195,19 @@ def build_fl(api=45, missing=(), extra=None, **kw):
         st.recording = not st.recording
     reg("transport", "record", 1, maxargs(0, record))
     reg("transport", "isRecording", 1, maxargs(0, lambda: st.recording))
-    reg("transport", "globalTransport", 1, lambda cmd, value, *a: 1)
+    def global_transport(cmd, value, *a):
+        if cmd == 110:                                    # FPT_Metronome : bascule
+            st.metronome = not st.metronome
+        return 1
+    reg("transport", "globalTransport", 1, global_transport)
+    reg("ui", "isMetronomeEnabled", 1, lambda: st.metronome)
     reg("transport", "getLoopMode", 1, lambda: st.loop_mode)
+    reg("transport", "getSongLength", 3, lambda mode: st.song_bars if mode == 3 else st.song_bars * 384)
     reg("transport", "getSongPos", 1,
         maxargs(1 if api >= 3 else 0, lambda *a: 1920 if a else st.song_pos))
 
     # ui
-    reg("ui", "showWindow", 1, lambda w: None)
+    reg("ui", "showWindow", 1, lambda w: st.shown.append(w))
     reg("ui", "setFocused", 2, lambda w: None)
     reg("ui", "getFocused", 1, lambda w: 1 if w in st.focused else 0)
     reg("ui", "setHintMsg", 1, lambda text: st.hints.append(text))
@@ -197,6 +225,11 @@ def build_fl(api=45, missing=(), extra=None, **kw):
 
     # general
     reg("general", "getVersion", 1, lambda: api)
+
+    def rec_event(rec, value, flags):
+        if rec == MIDI_CONSTS["REC_Tempo"][0]:
+            st.tempo = value / 1000.0
+    reg("general", "processRECEvent", 1, rec_event)
     reg("general", "undoUp", 1, lambda: None)
     reg("general", "undoDown", 1, lambda: None)
 
@@ -262,6 +295,21 @@ def build_fl(api=45, missing=(), extra=None, **kw):
     reg("mixer", "getTrackName", 1, lambda i: (chk_track(i), st.mx_names.get(i, "Insert %d" % i))[1])
     reg("mixer", "getTrackColor", 1, lambda i: (chk_track(i), st.mx_colors.get(i, 0x4B5560))[1])
 
+    reg("mixer", "getRouteSendActive", 1,
+        lambda i, d: (chk_track(i), chk_track(d), d in st.routes.get(i, ()))[2])
+
+    def set_route(i, d, value, *a):
+        chk_track(i)
+        chk_track(d)
+        routes = st.routes.setdefault(i, set())
+        if value:
+            routes.add(d)
+        else:
+            routes.discard(d)
+    reg("mixer", "setRouteTo", 1, set_route)
+    reg("mixer", "afterRoutingChanged", 1, lambda: None)
+    reg("mixer", "getCurrentTempo", 1, lambda *a: st.tempo)
+
     def mx_select(i):
         chk_track(i)
         st.mx_sel.symmetric_difference_update({i})
@@ -276,15 +324,40 @@ def build_fl(api=45, missing=(), extra=None, **kw):
 
     # channels
     reg("channels", "channelCount", 1, lambda *a: st.n_channels_global if a and a[0] else st.n_channels)
-    reg("channels", "getChannelName", 1, lambda i, *a: (chk_chan(i), st.ch_names[i])[1])
-    reg("channels", "getChannelColor", 1, lambda i, *a: (chk_chan(i), st.ch_colors[i])[1])
-    reg("channels", "getChannelType", 19, lambda i, *a: (chk_chan(i), st.ch_types[i])[1])
-    reg("channels", "getTargetFxTrack", 1, lambda i, *a: (chk_chan(i), st.ch_fx[i])[1])
-    reg("channels", "getChannelIndex", 1, lambda i: (chk_chan(i), i)[1])
-    reg("channels", "isChannelMuted", 1, lambda i, *a: (chk_chan(i), i in st.ch_muted)[1])
+
+    def global_chan(i, use_global):
+        """Index global du canal : `i` lui-même avec useGlobalIndex (API 33), sinon le i-ème canal affiché."""
+        if not use_global:
+            chk_chan(i)
+            return st.ch_group[i]
+        if api < 33:
+            raise TypeError("too many arguments")
+        if not isinstance(i, int) or not 0 <= i < st.n_channels_global:
+            raise TypeError("Channel index out of range")
+        return i
+
+    def chan_getter(field, hidden):
+        """Valeur d'un canal : dans le groupe affiché, ou dans « All » avec useGlobalIndex (les canaux masqués par le
+        groupe prennent `hidden(index global)`)."""
+        def get(i, use_global=False, *a):
+            if not use_global:
+                chk_chan(i)
+                return getattr(st, field)[i]
+            g = global_chan(i, True)
+            shown = [k for k, gi in enumerate(st.ch_group) if gi == g]
+            return getattr(st, field)[shown[0]] if shown else hidden(g)
+        return get
+    reg("channels", "getChannelName", 1, chan_getter("ch_names", lambda g: "Masqué %d" % g))
+    reg("channels", "getChannelColor", 1, chan_getter("ch_colors", lambda g: 0x5F6B78))
+    reg("channels", "getChannelType", 19, chan_getter("ch_types", lambda g: 2))
+    reg("channels", "getTargetFxTrack", 1, chan_getter("ch_fx", lambda g: g + 1))
+    reg("channels", "getChannelIndex", 1, lambda i: (chk_chan(i), st.ch_group[i])[1])
+    reg("channels", "isChannelMuted", 1, lambda i, g=False: global_chan(i, g) in st.ch_muted)
 
     def note_on(i, note, vel, *a):
-        chk_chan(i)
+        # Index global (comme dans FL) : tous les canaux, même masqués par le groupe affiché.
+        if not isinstance(i, int) or not 0 <= i < st.n_channels_global:
+            raise TypeError("Channel index out of range")
         st.notes.append((i, note, vel))
     reg("channels", "midiNoteOn", 1, note_on)
     reg("channels", "channelNumber", 1, lambda *a: st.channel)
@@ -294,11 +367,30 @@ def build_fl(api=45, missing=(), extra=None, **kw):
         chk_chan(i)
         st.channel = i
     reg("channels", "selectOneChannel", 8, select_one)
-    reg("channels", "selectChannel", 1, lambda i, *a: chk_chan(i))
-    reg("channels", "quickQuantize", 9, lambda i, *a: chk_chan(i))
-    def mute_chan(i, *a):
+    def select_chan(i, value=-1, *a):
         chk_chan(i)
-        st.ch_muted.symmetric_difference_update({i})     # bascule, comme la valeur par défaut -1 de FL
+        if value == -1:
+            st.ch_sel.symmetric_difference_update({i})
+        elif value:
+            st.ch_sel.add(i)
+        else:
+            st.ch_sel.discard(i)
+    reg("channels", "selectChannel", 1, select_chan)
+    reg("channels", "deselectAll", 1, lambda: st.ch_sel.clear())
+
+    def set_fx(i, track, *a):
+        chk_chan(i)
+        if not isinstance(track, int) or not 0 <= track < st.n_tracks:
+            raise TypeError("Track index out of range")
+        st.ch_fx[i] = track
+    reg("channels", "setTargetFxTrack", 28, set_fx)
+    reg("mixer", "linkChannelToTrack", 23, lambda i, track, *a: set_fx(i, track))
+    reg("channels", "quickQuantize", 9, lambda i, *a: chk_chan(i))
+    def mute_chan(i, value=-1, use_global=False):
+        g = global_chan(i, use_global)
+        if value != -1:
+            raise ValueError("mute value not used by the script")
+        st.ch_muted.symmetric_difference_update({g})     # bascule, comme la valeur par défaut -1 de FL
     reg("channels", "muteChannel", 1, mute_chan)
     reg("channels", "isChannelSolo", 1, lambda i, *a: (chk_chan(i), i in st.ch_solo)[1])
 
@@ -307,6 +399,7 @@ def build_fl(api=45, missing=(), extra=None, **kw):
         st.ch_solo.symmetric_difference_update({i})
     reg("channels", "soloChannel", 1, solo_chan)
     reg("channels", "isChannelSelected", 1, lambda i, *a: (chk_chan(i), i in st.ch_sel)[1])
+    reg("channels", "getActivityLevel", 9, lambda i, *a: (chk_chan(i), st.ch_activity.get(i, 0.0))[1])
     reg("channels", "setChannelName", 1,
         lambda i, name, *a: (chk_chan(i), st.given_names.__setitem__(("channels", i), name))[1])
     reg("channels", "setChannelColor", 1,
@@ -323,7 +416,18 @@ def build_fl(api=45, missing=(), extra=None, **kw):
         st.pattern = i
     reg("patterns", "jumpToPattern", 1, jump)
     reg("patterns", "findFirstNextEmptyPat", 1, lambda flags, *a: None)
+
+    def chk_pat(i):
+        if not isinstance(i, int) or not 1 <= i <= st.pattern_count:
+            raise TypeError("Pattern index out of range")
+    reg("patterns", "getPatternName", 1, lambda i: (chk_pat(i), st.pat_names.get(i, "Pattern %d" % i))[1])
+    reg("patterns", "getPatternColor", 1, lambda i: (chk_pat(i), st.pat_colors.get(i, 0x485058))[1])
+    reg("patterns", "setPatternName", 1,
+        lambda i, name: (chk_pat(i), st.given_names.__setitem__(("patterns", i), name))[1])
+    reg("patterns", "setPatternColor", 1,
+        lambda i, c: (chk_pat(i), st.given_colors.__setitem__(("patterns", i), c))[1])
     reg("patterns", "clonePattern", 25, lambda *a: None)
+    reg("patterns", "getPatternLength", 1, lambda i: (chk_pat(i), st.pat_lengths.get(i, 16))[1])
 
     # device
     def midi_out(msg, *a):
@@ -340,6 +444,7 @@ def build_fl(api=45, missing=(), extra=None, **kw):
     reg("device", "midiOutMsg", 1, midi_out)
     reg("device", "isAssigned", 1, lambda: 1 if st.assigned else 0)
     reg("device", "getPortNumber", 1, lambda: 0)
+    reg("device", "getName", 7, lambda: st.device_name)
 
     # plugins : module absent avant l'API 8
     if api >= 8:
@@ -356,8 +461,23 @@ def build_fl(api=45, missing=(), extra=None, **kw):
             raise TypeError("Playlist track index out of range")
     reg("playlist", "trackCount", 1, lambda: st.pl_tracks)
     reg("playlist", "isTrackSelected", 12, lambda i: (chk_pl(i), i in st.pl_sel)[1])
+    reg("playlist", "deselectAll", 12, lambda: st.pl_sel.clear())
+
+    def pl_select(i, *a):
+        chk_pl(i)
+        st.pl_sel.add(i)
+    reg("playlist", "selectTrack", 12, pl_select)
     reg("playlist", "setTrackName", 1, lambda i, name: (chk_pl(i), st.given_names.__setitem__(("playlist", i), name))[1])
     reg("playlist", "setTrackColor", 1, lambda i, c: (chk_pl(i), st.given_colors.__setitem__(("playlist", i), c))[1])
+    reg("playlist", "getTrackName", 1, lambda i: (chk_pl(i), st.pl_names.get(i, "Track %d" % i))[1])
+    reg("playlist", "getTrackColor", 1, lambda i: (chk_pl(i), st.pl_colors.get(i, 0x565E66))[1])
+    reg("playlist", "isTrackMuted", 1, lambda i: (chk_pl(i), i in st.pl_muted)[1])
+    reg("playlist", "getTrackActivityLevel", 1, lambda i: (chk_pl(i), st.pl_activity.get(i, 0.0))[1])
+
+    def pl_mute(i, *a):
+        chk_pl(i)
+        st.pl_muted.symmetric_difference_update({i})     # bascule, comme la valeur par défaut -1 de FL
+    reg("playlist", "muteTrack", 1, pl_mute)
 
     # utils (fichier utils.py livré avec FL)
     reg("utils", "RGBToColor", 1, lambda r, g, b: (r << 16) | (g << 8) | b)
