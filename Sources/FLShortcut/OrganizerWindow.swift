@@ -1503,6 +1503,8 @@ final class OrganizerController: ObservableObject {
             names = [:]
             slots = [:]
             options.mixerEdits = MixerEdits()
+            // Une icône de FL sur les drums (« Kick drum »), pour voir sa case sur la photo ; jamais enregistrée.
+            styles[.drums]?.icon = FLIcon(column: 2, row: 7)
             phase = screen == "fini" ? .applied(nil) : .preview
         default: break
         }
@@ -2868,7 +2870,7 @@ private struct FamilySection: View {
                 }
                 Button { pickingIcon = true } label: { FLIconBadge(icon: style.icon, size: 18) }
                     .buttonStyle(.plain)
-                    .help("Icône de FL de la famille, sur ses sons et ses pistes du Mixer (posée par la fenêtre de FL, F2 ; « Revenir comme avant » ne la retire pas)")
+                    .help("Icône de FL de la famille, sur ses sons et ses pistes du Mixer et de la Playlist.")
                     .swissPopover(isPresented: $pickingIcon, arrowEdge: .bottom) {
                         FLIconPicker(selected: style.icon) { picked in
                             controller.updateStyle(family) { $0.icon = picked }

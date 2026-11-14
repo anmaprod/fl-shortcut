@@ -1100,6 +1100,7 @@
 "Icône" = "Icône";
 "Icône de FL" = "Icône de FL";
 "Icône de FL de la famille, sur ses sons et ses pistes du Mixer (posée par la fenêtre de FL, F2 ; « Revenir comme avant » ne la retire pas)" = "Icône de FL de la famille, sur ses sons et ses pistes du Mixer (posée par la fenêtre de FL, F2 ; « Revenir comme avant » ne la retire pas)";
+"Icône de FL de la famille, sur ses sons et ses pistes du Mixer et de la Playlist." = "Icône de FL de la famille, sur ses sons et ses pistes du Mixer et de la Playlist.";
 "Icônes : autorise « Enregistrement de l'écran »." = "Icônes : autorise « Enregistrement de l'écran ».";
 "Icônes apprises : %lld sur %lld dans le Channel rack, %lld sur %lld dans le Mixer." = "Icônes apprises : %lld sur %lld dans le Channel rack, %lld sur %lld dans le Mixer.";
 "Icônes de FL : %lld sur %lld" = "Icônes de FL : %lld sur %lld";

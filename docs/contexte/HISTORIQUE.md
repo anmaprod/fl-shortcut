@@ -1218,3 +1218,13 @@ entrée 1 ≈ 0,5 s.
   sauvegarde et des étapes de l'Aide créés une fois ; mesure de la CI en un seul passage (le second, « sans verre »,
   était identique). Gardés exprès : `learnIcons` (sa demande), `ResetPingBackoff` (le Mac s'en sert), `FlagsEx`
   (forme des données de Windows).
+- 14/11 : « fais les icones pour win » (ce qui restait à faire sous Windows). Fait : icônes de FL dans l'en-tête des
+  familles de l'Organiser Windows, comme le Mac : case au bout de l'en-tête (l'icône sur fond noir, sinon un carré
+  pointillé), la grille « Change icon… » de FL au clic (titres de FL, 12 colonnes sans Reset ni Channel, case choisie
+  en rouge, nom anglais de FL en bulle, « Aucune »). Images = la planche du Mac (`Resources/FLIcons.png` embarquée,
+  cases de 88 pixels, blanches : posées sur du noir, lisibles dans les trois thèmes). Cœur : `FlIconGrid` (noms et
+  titres, miroir de FLIconGrid du Mac ; essai `IconGridLikeTheMacAndEveryPickableIconHasItsNumber` : mêmes 123 noms
+  que le Mac, chacune a son numéro dans `FlIconIds`, donc s'écrit dans la copie). App : `FlIconPicker.cs`, en-tête de
+  `OrganizerWindow.FamilySection`. Aperçu de démonstration (photos de la CI, Mac et Windows) : « Kick drum » sur les
+  drums, jamais enregistré. Bulle du Mac corrigée (« posée par la fenêtre de FL, F2 » n'était plus vrai depuis le
+  13/11 : icônes écrites dans la copie). Pas encore vu sur un vrai PC.

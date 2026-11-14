@@ -885,10 +885,28 @@ internal sealed partial class OrganizerWindow : Window
         name.VerticalAlignment = VerticalAlignment.Center;
         head.Children.Add(name);
 
-        var header = new Grid { MinHeight = 32, Padding = new Thickness(4, 0, 4, 0) };
+        var header = new Grid { MinHeight = 32, Padding = new Thickness(4, 0, 4, 0), ColumnSpacing = 10 };
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         header.Children.Add(head);
+        // L'icône de FL de la famille (14/11, comme le Mac) : la grille « Change icon… » de FL s'ouvre au clic.
+        var iconButton = new Button
+        {
+            Style = PlainButton, Content = FlIconPicker.Badge(style.Icon, 20), Padding = new Thickness(0),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var iconFlyout = new Flyout { FlyoutPresenterStyle = FlatFlyout() };
+        iconFlyout.Content = FlIconPicker.Picker(style.Icon, picked =>
+        {
+            iconFlyout.Hide();
+            _controller.UpdateStyle(family, s => s with { Icon = picked });
+        });
+        iconButton.Flyout = iconFlyout;
+        ToolTipService.SetToolTip(iconButton, Loc.T("Icône de FL de la famille, sur ses sons et ses pistes du Mixer et de la Playlist."));
+        AutomationProperties.SetName(iconButton, Loc.T("Icône de FL"));
+        Grid.SetColumn(iconButton, 2);
+        header.Children.Add(iconButton);
         if (_controller.Options.Mixer && _controller.MixerRange(family) is { } range)
         {
             var mixer = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };

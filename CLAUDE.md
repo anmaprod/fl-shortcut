@@ -190,7 +190,7 @@
   (`MidiLink`), son de FL seul (`FlAudioCapture` : « process loopback », sinon tout le PC ; un pilote ASIO de carte son
   passe à côté de Windows), touches à FL devant seulement (`FlControl`), fichier du projet (`ProjectFileWindows` :
   Ctrl+S, titres des fenêtres de FL, dossiers surveillés), `OrganizerLive`, fenêtre en code (`OrganizerWindow`, mêmes
-  textes que le Mac ; pas encore d'icônes de FL ni d'envoi à l'équipe), « Tu valides la version organisée ? »
+  textes que le Mac ; icônes de FL et envoi à l'équipe faits le 14/11), « Tu valides la version organisée ? »
   (`CopyApprovalPrompt`, Corbeille par le shell). **Même interface que le Mac** (29/10, « exactement la même interface
   sur win ») : `MacLook.cs` (couleurs, plaques, icônes dessinées aux noms des symboles du Mac, survol plein), fenêtre
   principale `MainShell*.cs` (barre de gauche, cartes `CatalogGroups`, Mes raccourcis, recherche, accueil), Macros
@@ -419,7 +419,7 @@
   entre deux traits fins (barre rouge, « NE TOUCHE PAS À FL. ») ; aperçu : barre des familles (`FamilyBar`), en-têtes
   à six points, carré de couleur, nom en capitales, « MIXER », sons avec poignée glissée vers une autre famille
   (`OrganizerController.MoveSound`, testé), case de sorte bordée, Annuler/Organiser collés ; fenêtre 480 de large hors
-  aperçu (720 pour l'aperçu). Pas encore les icônes de FL de l'en-tête. Choix de couleur = fenêtre de couleur de FL
+  aperçu (720 pour l'aperçu). Icônes de FL de l'en-tête faites le 14/11 (`FlIconPicker.cs`, grille `FlIconGrid` du cœur). Choix de couleur = fenêtre de couleur de FL
   comme le Mac (`FlColorSelector.cs` : 10 récentes numérotées, roue à 16 secteurs × 5 anneaux `FlColorWheel`/`FlHsl`
   du cœur, testés comme le Mac, curseur de luminosité, #RRGGBB, Hue/Sat/Lum, Red/Green/Blue, Reset/Accept ; plus le
   ColorPicker de Windows) ; photo CI `organiser-couleurs.png`.

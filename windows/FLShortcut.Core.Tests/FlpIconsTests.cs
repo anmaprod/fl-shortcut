@@ -86,6 +86,28 @@ public class FlpIconsTests
     }
 
     /// 13/11 : la table des numéros d'icônes est celle apprise sur le Mac (FLIconNumbers.swift), case pour case.
+    /// La grille proposée sous Windows (14/11, comme le Mac) : mêmes noms, dans le même ordre, que FLIconGrid du Mac ;
+    /// chaque case proposée a son numéro de FL (elle s'écrit dans la copie) ; ni Reset ni la colonne Channel.
+    [Fact]
+    public void IconGridLikeTheMacAndEveryPickableIconHasItsNumber()
+    {
+        var root = Path.GetDirectoryName(typeof(FlpIconsTests).Assembly.Location)!;
+        while (!File.Exists(Path.Combine(root, "PROTOCOL.md"))) root = Path.GetDirectoryName(root)!;
+        var swift = File.ReadAllText(Path.Combine(root, "Sources", "FLShortcut", "FLIcons.swift"));
+        var mac = System.Text.RegularExpressions.Regex.Matches(swift, "c\\(\"[^\"]*\", \"([^\"]*)\"\\)")
+            .Select(m => m.Groups[1].Value).ToList();
+        Assert.Equal(mac, FlIconGrid.Table.SelectMany(column => column).ToList());
+        var pickable = new List<FlIcon>();
+        for (var column = 0; column < FlIconGrid.Columns; column++)
+            for (var row = 0; row < FlIconGrid.Rows; row++)
+                if (FlIcon.Make(column, row) is { } icon && FlIconGrid.IsPickable(icon)) pickable.Add(icon);
+        Assert.Equal(123, pickable.Count);
+        Assert.All(pickable, icon => Assert.True(FlIconIds.Rack.ContainsKey(icon.Code), icon.Code));
+        Assert.False(FlIconGrid.IsPickable(FlIcon.Make(0, 0)!.Value));
+        Assert.Null(FlIconGrid.Name(FlIcon.Make(FlIconGrid.ChannelColumn, 0)!.Value));
+        Assert.Equal(FlIconGrid.ChannelColumn - 1, FlIconGrid.Headers().Sum(h => h.Span));
+    }
+
     [Fact]
     public void SameTableAsTheMac()
     {

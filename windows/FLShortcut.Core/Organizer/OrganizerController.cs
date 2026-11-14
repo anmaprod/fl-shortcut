@@ -874,6 +874,8 @@ public sealed class OrganizerController
                 Result = DemoResult;
                 Families = Organize.FamiliesOf(Result);
                 Kinds = Organize.KindsOf(Result);
+                // Une icône de FL sur les drums (« Kick drum »), pour voir sa case sur la photo ; jamais enregistrée.
+                Styles[SoundFamily.Drums] = StyleOf(SoundFamily.Drums) with { Icon = FlIcon.Make(2, 7) };
                 SetPhase(screen == "fini" ? new OrganizerPhase.Applied(null) : new OrganizerPhase.Preview());
                 break;
         }

@@ -89,6 +89,8 @@
     <EmbeddedResource Include="..\..\Resources\device_FLShortcut.py" LogicalName="device_FLShortcut.py" />
     <!-- Les 4 cases de MIDI Settings (aide de l'Organiser, comme le Mac) : l'image du Mac, découpée à l'affichage. -->
     <EmbeddedResource Include="..\..\Resources\MIDISettings.png" LogicalName="MIDISettings.png" />
+    <!-- Icônes de FL de l'Organiser (14/11) : la planche du Mac, cases de 88 pixels. -->
+    <EmbeddedResource Include="..\..\Resources\FLIcons.png" LogicalName="FLIcons.png" />
     <!-- Logo « A » de la zone de notification (04/11, scripts/icone.py, option tray) : cercle blanc sur une barre des
          tâches sombre, noir sur une claire ; le rond toujours rouge (TrayIcon). -->
     <EmbeddedResource Include="Assets\TraySombre.ico" LogicalName="TraySombre.ico" />
