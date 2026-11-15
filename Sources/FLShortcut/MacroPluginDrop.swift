@@ -135,10 +135,20 @@ enum PluginDrop {
     /// Pure (testée) : la page est-elle à l'écran ? Son titre lu dans la fenêtre de FL (« Channel rack », ou « Mixer » /
     /// « Mixer - Insert 3 »). Sert à ne jamais appuyer sur sa touche quand elle est déjà là : la touche la refermerait.
     static func pageShown(effect: Bool, in items: [TextLook.Item]) -> Bool {
-        items.contains { item in
-            let t = TextLook.normalized(item.text)
-            return effect && (t == TextLook.normalized("Mixer") || t.hasPrefix(TextLook.normalized("Mixer -")))
-        } || (!effect && !titles(in: items, "Channel rack").isEmpty)
+        pageTitle(effect ? .mixer : .channelRack, in: items) != nil
+    }
+
+    /// Pure (testée) : le titre de la page lu dans la fenêtre de FL (le plus haut), sa place réduite au seul titre ; nil :
+    /// pas à l'écran (15/11, miroir de PluginDrop.PageTitle de Windows). Deux mots (« Channel rack », « Piano roll ») :
+    /// comme `titles`. Un mot (« Mixer », « Playlist », « Browser ») : seul, suivi de « - » (« Mixer - Insert 3 »,
+    /// « Playlist - Arrangement »), ou l'icône de FL lue devant ; jamais au milieu d'une phrase (« Mixer track »).
+    static func pageTitle(_ page: FLPage, in items: [TextLook.Item]) -> TextLook.Item? {
+        let key = TextLook.normalized(page.flTitle)
+        let candidates = key.contains(" ") ? items : items.filter {
+            let n = TextLook.normalized($0.text)
+            return n == key || n.hasPrefix(key + " -") || n.hasSuffix(" " + key)
+        }
+        return titles(in: candidates, page.flTitle).min { $0.box.minY < $1.box.minY }
     }
 
     /// Pure (testée) : le titre `title` (« Channel rack ») parmi les textes lus, comme Windows (`Titles`, 09/11) : lu
@@ -276,6 +286,21 @@ extension MacroEffectsMac {
             if let p { return (CGPoint(x: w.bounds.minX + p.x, y: w.bounds.minY + p.y), true) }
         }
         return (nil, shown)
+    }
+
+    /// 15/11 : titre de la page lu dans une fenêtre de FL (la plus en avant d'abord), son milieu en points de l'écran ;
+    /// nil : pas à l'écran, ou rien de lisible (sans « Enregistrement de l'écran » : sa touche, comme avant).
+    func shownPageTitle(_ page: FLPage, ctx: Context) -> CGPoint? {
+        guard Self.canRead else { return nil }
+        let windows = WinSnapshot.take(pid: ctx.pid).fl
+            .filter { $0.layer == 0 && $0.bounds.width >= 300 && $0.bounds.height >= 200 && $0.number > 0 }
+        for w in windows {
+            guard let image = ScreenLook.captureImage(windowNumber: w.number, size: w.bounds.size, scale: 2) else { continue }
+            if let title = PluginDrop.pageTitle(page, in: TextLook.read(image, size: w.bounds.size)) {
+                return CGPoint(x: w.bounds.minX + title.box.midX, y: w.bounds.minY + title.box.midY)
+            }
+        }
+        return nil
     }
 
     /// Pourquoi le plugin ne s'ouvre pas par le dépôt, dit en une phrase courte (puis le menu Add, comme avant).

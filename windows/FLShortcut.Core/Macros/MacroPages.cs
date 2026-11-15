@@ -2,8 +2,8 @@
 // puis une option de cette page dans une liste (armer la piste, ajouter un instrument, un raccourci de FL…). Miroir de
 // Sources/FLShortcut/MacroPages.swift : mêmes identifiants (« mixer.armon », « channelRack.fl.channelRack.c »), pour
 // qu'une macro passe d'un Mac à un PC.
-// - La page n'est ouverte que si elle n'est pas déjà devant (lien avec FL), sinon par sa touche de FL (F5, F6, F7, F9,
-//   Alt+F8).
+// - La page n'est ouverte que si elle n'est pas déjà devant (lien avec FL) ; lien endormi : déjà à l'écran (titre lu),
+//   un clic sur son titre ; sinon sa touche de FL (F5, F6, F7, F9, Alt+F8), qui refermerait une page déjà là.
 // - Une option qui demande une valeur (plugin, numéro du canal, nouveau nom) la garde dans le texte « name » du bloc.
 namespace FLShortcut.Core.Macros;
 
@@ -74,6 +74,16 @@ public static class PageOptions
     /// Touche de FL qui affiche la page (F5, F6, F7, F9, Alt+F8), en notation du Mac.
     public static KeyRef? NativeKey(this FlPage page) =>
         FlActions.IdForKey(page.ActionKey()) is { } id && LightMode.NativeEquivalent(id) is { } combo ? MacKeys.FromWindows(combo) : null;
+
+    /// Titre de la page dans FL (anglais, comme FL l'écrit en haut de sa fenêtre) : lu pour savoir si elle est déjà là.
+    public static string FlTitle(this FlPage page) => page switch
+    {
+        FlPage.Playlist => "Playlist",
+        FlPage.ChannelRack => "Channel rack",
+        FlPage.PianoRoll => "Piano roll",
+        FlPage.Mixer => "Mixer",
+        _ => "Browser",
+    };
 
     /// Bloc qui la met devant : le lien avec FL, sinon sa touche de FL.
     public static BlockBody OpenBody(this FlPage page) =>

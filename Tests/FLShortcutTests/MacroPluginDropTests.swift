@@ -101,6 +101,30 @@ final class MacroPluginDropTests: XCTestCase {
         XCTAssertFalse(PluginDrop.pageShown(effect: false, in: [item("Open the Channel rack", 300, 100, w: 160)]))
     }
 
+    /// 15/11 (« quand le channel rack il est déjà ouvert, il va refermer le channel rack… le mieux, c'est qu'il analyse
+    /// directement si c'est déjà ouvert ou pas ») : le titre de chaque page lu dans FL, réduit au seul titre (le clic qui
+    /// la met devant tombe dessus) ; jamais un mot au milieu d'une phrase ni le titre d'une autre page.
+    func testEveryPageTitleIsReadSoItsKeyIsNeverPressedWhenItIsThere() throws {
+        let rack = try XCTUnwrap(PluginDrop.pageTitle(.channelRack, in: [item("Channel rack All", 300, 100, w: 128)]))
+        XCTAssertEqual(rack.box.minX, 300, accuracy: 0.5)
+        XCTAssertEqual(rack.box.width, 96, accuracy: 0.5, "« All » laissé de côté")
+        let mixer = try XCTUnwrap(PluginDrop.pageTitle(.mixer, in: [item("Mixer - Insert 3", 900, 40, w: 160)]))
+        XCTAssertLessThanOrEqual(mixer.box.maxX, 951, "sur « Mixer », jamais sur le nom de la piste")
+        XCTAssertNotNil(PluginDrop.pageTitle(.playlist, in: [item("Playlist - Arrangement", 300, 60, w: 170)]))
+        XCTAssertNotNil(PluginDrop.pageTitle(.pianoRoll, in: [item("Piano roll - Kick", 500, 300, w: 130)]))
+        XCTAssertNotNil(PluginDrop.pageTitle(.pianoRoll, in: [item("Piano", 500, 300, w: 40), item("roll", 544, 300, w: 26)]))
+        XCTAssertNotNil(PluginDrop.pageTitle(.mixer, in: [item("Mixer", 900, 40, w: 40)]))
+        // Le plus haut quand le titre est lu deux fois (fenêtre détachée, aperçu) : celui de la fenêtre.
+        XCTAssertEqual(PluginDrop.pageTitle(.mixer, in: [item("Mixer", 900, 400, w: 40), item("Mixer", 100, 40, w: 40)])?.box.minY, 40)
+        // Jamais : un mot dans une phrase, une autre page, un nom proche.
+        XCTAssertNil(PluginDrop.pageTitle(.mixer, in: [item("Mixer track 3", 900, 40, w: 100)]))
+        XCTAssertNil(PluginDrop.pageTitle(.mixer, in: [item("Open the Mixer window", 900, 40, w: 150)]))
+        XCTAssertNil(PluginDrop.pageTitle(.playlist, in: [item("Channel rack", 300, 100, w: 90)]))
+        XCTAssertNil(PluginDrop.pageTitle(.pianoRoll, in: [item("Piano", 500, 300, w: 40)]))
+        XCTAssertNil(PluginDrop.pageTitle(.channelRack, in: [item("Channel racks", 300, 100, w: 90)]))
+        XCTAssertNil(PluginDrop.pageTitle(.browser, in: []))
+    }
+
     /// 13/11 : la page que le bloc d'avant vient d'ouvrir est attendue avant d'appuyer sur sa touche (une 2e touche la
     /// refermait) ; la touche une seule fois ; jamais quand la page est là.
     func testTheDropWaitsForThePageBeforePressingItsKey() {

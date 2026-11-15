@@ -188,11 +188,24 @@ public static class PluginDrop
 
     /// La page est-elle à l'écran ? Son titre lu (« Channel rack », ou « Mixer » / « Mixer - Insert 3 ») : jamais sa
     /// touche quand elle est déjà là, la touche la refermerait.
-    public static bool PageShown(bool effect, IReadOnlyList<TextItem> items) => items.Any(item =>
+    public static bool PageShown(bool effect, IReadOnlyList<TextItem> items) =>
+        PageTitle(effect ? FlPage.Mixer : FlPage.ChannelRack, items) is not null;
+
+    /// Le titre de la page lu dans la fenêtre de FL (le plus haut), sa place réduite au seul titre ; null : pas à l'écran
+    /// (15/11, miroir de PluginDrop.pageTitle du Mac). Deux mots (« Channel rack », « Piano roll ») : comme `Titles`. Un
+    /// mot (« Mixer », « Playlist », « Browser ») : seul, suivi de « - » (« Mixer - Insert 3 », « Playlist -
+    /// Arrangement »), ou l'icône de FL lue devant ; jamais au milieu d'une phrase (« Mixer track », « Open the Mixer »).
+    public static TextItem? PageTitle(FlPage page, IReadOnlyList<TextItem> items)
     {
-        var t = MenuText.Normalized(item.Text);
-        return effect && (t == MenuText.Normalized("Mixer") || t.StartsWith(MenuText.Normalized("Mixer -"), StringComparison.Ordinal));
-    }) || (!effect && Titles(items, "Channel rack").Any());
+        var title = page.FlTitle();
+        var key = MenuText.Normalized(title);
+        var candidates = key.Contains(' ') ? items : items.Where(item =>
+        {
+            var n = MenuText.Normalized(item.Text);
+            return n == key || n.StartsWith(key + " -", StringComparison.Ordinal) || n.EndsWith(" " + key, StringComparison.Ordinal);
+        }).ToList();
+        return Titles(candidates, title).OrderBy(t => t.Y).Cast<TextItem?>().FirstOrDefault();
+    }
 
     /// Le titre `title` (« Channel rack ») parmi les textes lus (09/11, Windows) : lu seul, au début d'une ligne plus
     /// longue (« Channel rack All » : la lecture de Windows colle parfois le mot voisin), ou en deux mots voisins sur la

@@ -417,7 +417,8 @@ final class MacroEffectsMac: MacroEffects {
         case .openPage(let page):
             guard let page else { return .fail(String(localized: "page de FL à choisir dans la macro")) }
             // Déjà devant (le lien le sait) : rien à faire. Lien éveillé : il la met devant sans jamais la fermer.
-            // Sinon, tout de suite la touche de FL (F5, F6, F7, F9, ⌥F8) : sans attendre un lien qui ne répond pas.
+            // Sinon, sans attendre un lien qui ne répond pas : déjà à l'écran, son titre cliqué ; sinon sa touche de FL
+            // (F5, F6, F7, F9, ⌥F8 ; `showPage`).
             let view = MIDILink.shared.core.routingView()
             if view.knownWindow == page.window {
                 MacroLog.shared.write("FL", "page \(page.rawValue) already in front")
@@ -426,9 +427,7 @@ final class MacroEffectsMac: MacroEffects {
             let layout = SystemKeyboardLayout()
             if view.knownWindow == nil, let key = page.nativeKey(layout: layout) {
                 if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
-                postKey(key, pid: ctx.pid)
-                MacroLog.shared.write("FL", "open page \(page.rawValue) (key)")
-                return .ok
+                return showPage(page, key: key)
             }
             MacroLog.shared.write("FL", "open page \(page.rawValue)")
             return perform(page.openBody(layout: layout), state: &state)
@@ -1167,6 +1166,25 @@ final class MacroEffectsMac: MacroEffects {
         postClick(at: p, right: right, pid: front.flatMap { $0 == ctx.pid || $0 == helper ? $0 : nil } ?? ctx.pid,
                   flags: flags)
         lastClickPoint = p
+        return .ok
+    }
+
+    /// La page mise devant sans le lien. 15/11 (« quand le channel rack il est déjà ouvert, il va refermer le channel
+    /// rack, attendre 2 secondes, rouvrir ») : la touche de FL (F6, F9…) REFERME une page déjà là. Donc son titre est
+    /// d'abord lu dans la fenêtre de FL : déjà là, un clic sur son titre la met devant, jamais la touche ; sinon la touche,
+    /// comme avant (aussi sans « Enregistrement de l'écran »).
+    func showPage(_ page: FLPage, key: KeyCombo) -> StepResult {
+        if let title = shownPageTitle(page, ctx: ctx) {
+            let lastClick = lastClickPoint                               // repère des clics relatifs : inchangé
+            let clicked = click(at: title, right: false, ctx: ctx)
+            lastClickPoint = lastClick
+            if case .cancel = clicked { return clicked }
+            MacroLog.shared.write("FL", "page \(page.rawValue) already shown" + (clicked == .ok ? ", title clicked" : ""))
+            return .ok
+        }
+        if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
+        postKey(key, pid: ctx.pid)
+        MacroLog.shared.write("FL", "open page \(page.rawValue) (key)")
         return .ok
     }
 

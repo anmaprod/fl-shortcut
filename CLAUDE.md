@@ -885,6 +885,11 @@
   tapé dans la case. Windows : menus suisses, bulles carrées. Écran « Démarrer » sans carré orange, écoute sans traits
   gris. Fins (maquette `WEojWWarY4LkDi2ckQXykn`, validée le 13/11) : « c'est rangé » + GARDER / REVENIR, question
   « tu gardes la version rangée » à mini Playlist (fait, Mac et Windows) ; « Pas content ? » en 4 pages (sons, Mixer, Playlist, couleurs ; « C'est noté » garde, « Annuler » remet) : fait, Mac et Windows.
+- **État de FL lu avant d'agir** (15/11, « quand le channel rack il est déjà ouvert, il va refermer… qu'il analyse
+  directement si c'est déjà ouvert ») : « Ouvrir une page » et les actions « Ouvrir le Mixer… », lien endormi : titre de
+  la page lu dans la fenêtre de FL (`PluginDrop.pageTitle`/`PageTitle`) ; déjà là → clic sur son titre, JAMAIS F5/F6/
+  F7/F9 (ils la refermeraient) ; sinon la touche (`showPage`/`ShowPage`). « Allumer le REC » sur Mac par le lien s'il est
+  installé (`prefersLink` ; la touche R éteignait un REC allumé). Mac et Windows ; pas encore vu sur le vrai FL.
 - Lien MIDI posé dès l'installation (13/11, « installer le lien midi dès l'installation du logiciel ») : script de FL
   écrit tout seul au lancement si jamais installé et si le dossier de FL existe (Mac `installIfMissing`, Windows
   `InstallScriptIfMissing`/`FlScriptPlace`) ; ligne « Lien avec FL » dans l'accueil. Les ports restent ouverts le

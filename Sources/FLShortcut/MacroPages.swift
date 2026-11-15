@@ -60,6 +60,17 @@ enum FLPage: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Titre de la page dans FL (anglais, comme FL l'écrit en haut de sa fenêtre) : lu pour savoir si elle est déjà là.
+    var flTitle: String {
+        switch self {
+        case .playlist: return "Playlist"
+        case .channelRack: return "Channel rack"
+        case .pianoRoll: return "Piano roll"
+        case .mixer: return "Mixer"
+        case .browser: return "Browser"
+        }
+    }
+
     /// Bloc qui la met devant : le lien avec FL, sinon sa touche de FL.
     /// Touche de FL qui affiche la page (F5, F6, F7, F9, ⌥F8).
     func nativeKey(layout: KeyboardLayout) -> KeyCombo? {

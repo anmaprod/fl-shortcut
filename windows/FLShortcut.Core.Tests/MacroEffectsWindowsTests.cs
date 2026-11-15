@@ -542,6 +542,62 @@ public class MacroEffectsWindowsTests
             Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.OpenPage(null), state)).Why);
     }
 
+    /// 15/11 (« quand le channel rack il est déjà ouvert, il va refermer le channel rack, attendre 2 secondes, rouvrir…
+    /// le mieux, c'est qu'il analyse directement si c'est déjà ouvert ou pas ») : page déjà à l'écran, jamais sa touche
+    /// (F6, F9… la refermeraient) ; un clic sur son titre la met devant. Absente : sa touche, comme avant.
+    [Fact]
+    public void PageAlreadyShownComesForwardByItsTitleNeverItsKey()
+    {
+        var (fl, fx, state) = Start(f => f.Texts[FakeFl.Main] = RackTexts());
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.OpenPage(FlPage.ChannelRack), state));
+        Assert.Empty(fl.Sent);
+        var click = Assert.Single(fl.Clicks);
+        Assert.False(click.Right);
+        Assert.InRange(click.X, 200, 290);                                       // sur le titre « Channel rack »
+        Assert.InRange(click.Y, 100, 114);
+
+        (fl, fx, state) = Start(f => f.Texts[FakeFl.Main] = new() { new("Mixer - Insert 3", 900, 40, 160, 14) });
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.OpenPage(FlPage.Mixer), state));
+        Assert.Empty(fl.Sent);
+        Assert.InRange(Assert.Single(fl.Clicks).X, 900, 950);                    // sur « Mixer », pas sur la piste
+
+        (fl, fx, state) = Start(f => f.Texts[FakeFl.Main] = new()
+        {
+            new("Playlist - Arrangement", 300, 60, 170, 14), new("Piano roll - Kick", 500, 300, 130, 14),
+        });
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.OpenPage(FlPage.Playlist), state));
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.OpenPage(FlPage.PianoRoll), state));
+        Assert.Empty(fl.Sent);
+        Assert.Equal(2, fl.Clicks.Count);
+
+        // Absente (seul le Channel rack est là) : F9 tout de suite, aucun clic.
+        (fl, fx, state) = Start(f => f.Texts[FakeFl.Main] = RackTexts());
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.OpenPage(FlPage.Mixer), state));
+        Assert.Equal(new KeyCombo(Vk.F(9)), Assert.Single(fl.Sent));
+        Assert.Empty(fl.Clicks);
+
+        // Le modèle « Ouvre un VST » avec le Channel rack déjà ouvert : aucune touche, le plugin déposé aussitôt.
+        (fl, fx, state) = Start(f =>
+        {
+            f.Texts[FakeFl.Main] = RackTexts();
+            f.Presets["Diva"] = @"C:\db\Installed\Generators\VST3\Diva.fst";
+        });
+        var start = fl.Now;
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.OpenPage(FlPage.ChannelRack), state));
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.PageOption("channelRack.addInstrument", "Diva"), state));
+        Assert.Empty(fl.Sent);
+        Assert.Single(fl.Drops);
+        Assert.True((fl.Now - start).TotalMilliseconds < 1_000);
+
+        // « Action de FL › Ouvrir le Channel rack » sans le lien : pareil, jamais sa touche quand la page est là.
+        (fl, fx, state) = Start(f => f.Texts[FakeFl.Main] = RackTexts());
+        Assert.IsType<StepResult.Ok>(fx.Perform(FlPage.ChannelRack.OpenBody(), state));
+        Assert.Empty(fl.Sent);
+        Assert.Single(fl.Clicks);
+        Assert.IsType<StepResult.Ok>(fx.Perform(FlPage.Mixer.OpenBody(), state));
+        Assert.Equal(new KeyCombo(Vk.F(9)), Assert.Single(fl.Sent));
+    }
+
     [Fact]
     public void OrganizeOpensTheOrganizer()
     {

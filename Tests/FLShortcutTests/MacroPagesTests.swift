@@ -340,5 +340,9 @@ final class MacroPagesTests: XCTestCase {
         XCTAssertTrue(MacroEffectsMac.prefersLink("newpat", linkInstalled: true))
         XCTAssertFalse(MacroEffectsMac.prefersLink("newpat", linkInstalled: false))
         XCTAssertFalse(MacroEffectsMac.prefersLink("mx", linkInstalled: true))
+        // 15/11 : « Allumer le REC » par le lien (le script lit le REC) ; la touche R éteindrait un REC déjà allumé.
+        XCTAssertTrue(MacroEffectsMac.prefersLink("recon", linkInstalled: true))
+        XCTAssertFalse(MacroEffectsMac.prefersLink("recon", linkInstalled: false))
+        XCTAssertFalse(MacroEffectsMac.prefersLink("rec", linkInstalled: true), "« Lancer le REC » reste une bascule")
     }
 }

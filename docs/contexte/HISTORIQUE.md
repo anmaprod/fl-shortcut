@@ -1243,3 +1243,16 @@ entrée 1 ≈ 0,5 s.
   et gardés (FL ne les voit qu'à son ouverture), rien d'autre à changer. Essai `testDeviceKeptForFLStart`. Pas encore
   vu chez lui : à vérifier en quittant FL, puis en le rouvrant avec FL Shortcuts ouvert (Organiser › Démarrer doit
   marcher sans MIDI Settings ; journal MIDI).
+- 15/11 : « quand tu utilises la macro pour charger un VST, quand le channel rack il est déjà ouvert, il va refermer le
+  channel rack, attendre 2 secondes, rouvrir le channel rack… le mieux, c'est qu'il analyse directement si c'est déjà
+  ouvert ou pas. Pareil pour le mixeur… un peu pour tout ». Cause : le bloc « Ouvrir une page » (1er bloc du modèle
+  « Ouvre un VST ») appuyait sur la touche de FL (F6) dès que le lien dormait ; F6 REFERME une page déjà là ; le dépôt
+  attendait 1,5 s, ne la voyait pas, appuyait de nouveau (rouverte). Fait (Mac et Windows) : la page est lue d'abord
+  (son titre dans la fenêtre de FL, `PluginDrop.pageTitle`/`PageTitle` : « Channel rack », « Piano roll », « Mixer »,
+  « Playlist », « Browser », seul ou suivi de « - ») ; déjà là → un clic sur son titre la met devant, jamais sa touche ;
+  sinon sa touche comme avant (aussi sans « Enregistrement de l'écran »). Même chose pour les actions « Ouvrir le
+  Mixer / le Channel rack… » quand le lien dort (`showPage`/`ShowPage`). « Allumer le REC » sur Mac : par le lien
+  quand il est installé (`prefersLink`, le script ne l'allume que s'il est éteint ; la touche R éteignait un REC déjà
+  allumé ; Windows passait déjà par le lien). Essais `PageAlreadyShownComesForwardByItsTitleNeverItsKey` (Windows, faux
+  FL), `testEveryPageTitleIsReadSoItsKeyIsNeverPressedWhenItIsThere` (Mac). Pas encore vu sur le vrai FL (journal :
+  « page channelRack already shown, title clicked »).

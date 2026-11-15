@@ -177,6 +177,11 @@ extension MacroEffectsMac {
                 if EventTap.shared.currentConfig.forbidden.isForbidden(ref.combo) {
                     warnings.append(rec ? String(localized: "REC non lancé (touche interdite)")
                                         : String(localized: "action « \(call.key) » non faite (touche interdite)"))
+                } else if let page = FLPage.allCases.first(where: { $0.actionKey == call.key }) {
+                    // 15/11 : « Ouvrir le Mixer », « … le Channel rack » sans le lien : jamais la touche qui refermerait
+                    // une page déjà là (`showPage`).
+                    let shown = showPage(page, key: ref.combo)
+                    if case .cancel = shown { return shown }
                 } else {
                     Thread.sleep(forTimeInterval: 0.03)
                     postKey(ref.combo, pid: ctx.pid)
@@ -206,9 +211,12 @@ extension MacroEffectsMac {
     }
 
     /// Action qui passe par le lien quand il est installé, même avec une touche de FL en secours : la touche n'en
-    /// fait qu'une partie (« Nouveau pattern + Piano Roll »).
+    /// fait qu'une partie (« Nouveau pattern + Piano Roll »), ou inverse un état sans le lire. 15/11 (« il faudrait qu'il
+    /// analyse à chaque fois dans quel état on est… s'il y a déjà des choses qui ont été faites ou pas ») : « Allumer le
+    /// REC » : la touche R ÉTEINT un REC déjà allumé ; le script de FL le lit et ne l'allume que s'il est éteint. Windows
+    /// passe déjà toujours par le lien.
     static func prefersLink(_ key: String, linkInstalled: Bool) -> Bool {
-        linkInstalled && key == "newpat"
+        linkInstalled && (key == "newpat" || key == "recon")
     }
 
     /// Menu de la piste au clavier : « S » (Select, lettre soulignée) ouvre son sous-menu, ← le referme en laissant

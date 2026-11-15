@@ -274,6 +274,14 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
                                          : Loc.F("action « %@ » non faite : touche interdite", call.Key));
                         break;
                     }
+                    // 15/11 : « Ouvrir le Mixer », « … le Channel rack » sans le lien : jamais la touche qui refermerait
+                    // une page déjà là (`ShowPage`).
+                    if (Enum.GetValues<FlPage>().Where(p => p.ActionKey() == call.Key).Cast<FlPage?>().FirstOrDefault() is { } page)
+                    {
+                        var shown = ShowPage(page, combo);
+                        if (shown is StepResult.Cancel) return shown;
+                        break;
+                    }
                     _fl.Sleep(30);
                     if (!_fl.Send(combo)) return new StepResult.Cancel(Loc.T("FL n'est plus au premier plan"));
                     _fl.Log("KEY", rec ? "REC key" : "fallback key");
@@ -817,8 +825,8 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
 
     // ---------- Pages de FL ----------
 
-    /// Déjà devant (le lien le sait) : rien à faire. Lien endormi : tout de suite la touche de FL (F5, F6, F7, F9,
-    /// Alt+F8), sans attendre un lien qui ne répond pas. Sinon le lien la met devant (sans jamais la fermer).
+    /// Déjà devant (le lien le sait) : rien à faire. Lien endormi : la page lue, puis son titre cliqué ou sa touche de FL
+    /// (F5, F6, F7, F9, Alt+F8 ; `ShowPage`). Sinon le lien la met devant (sans jamais la fermer).
     private StepResult OpenPage(FlPage? page, RunState state)
     {
         if (page is not { } p) return new StepResult.Fail(Loc.T("page de FL à choisir dans la macro"));
@@ -831,11 +839,38 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
         if (known is null && p.NativeKey() is { } key && MacKeys.ToWindows(key) is { } combo)
         {
             if (StopReason() is { } stop) return new StepResult.Cancel(stop);
-            if (!_fl.Send(combo)) return new StepResult.Cancel(Loc.T("FL n'est plus au premier plan"));
-            _fl.Log("FL", $"open page {p.Raw()} (key)");
-            return new StepResult.Ok();
+            return ShowPage(p, combo);
         }
         _fl.Log("FL", $"open page {p.Raw()}");
         return Perform(p.OpenBody(), state);
+    }
+
+    /// La page mise devant sans le lien. 15/11 (« quand le channel rack il est déjà ouvert, il va refermer le channel
+    /// rack, attendre 2 secondes, rouvrir ») : la touche de FL (F6, F9…) REFERME une page déjà là. Donc son titre est
+    /// d'abord lu dans la fenêtre de FL : déjà là, un clic sur son titre la met devant, jamais la touche ; sinon la touche.
+    private StepResult ShowPage(FlPage page, KeyCombo combo)
+    {
+        if (ShownPageTitle(page) is { } title)
+        {
+            var lastClick = _lastClick;                                      // repère des clics relatifs : inchangé
+            var clicked = ClickAt((title.X + title.Width / 2, title.CenterY), false, 30);
+            _lastClick = lastClick;
+            if (clicked is StepResult.Cancel) return clicked;
+            _fl.Log("FL", $"page {page.Raw()} already shown{(clicked is StepResult.Ok ? ", title clicked" : "")}");
+            return new StepResult.Ok();
+        }
+        if (StopReason() is { } halted) return new StepResult.Cancel(halted);
+        if (!_fl.Send(combo)) return new StepResult.Cancel(Loc.T("FL n'est plus au premier plan"));
+        _fl.Log("FL", $"open page {page.Raw()} (key)");
+        return new StepResult.Ok();
+    }
+
+    /// Titre de la page lu dans une fenêtre de FL (la plus en avant d'abord), en pixels de l'écran ; null : pas à l'écran
+    /// ou rien de lisible (la touche, comme avant).
+    private TextItem? ShownPageTitle(FlPage page)
+    {
+        foreach (var window in _fl.Windows().Where(w => w.Role != FlWindowRole.Menu && w.Width >= 300 && w.Height >= 200))
+            if (_fl.ReadText(window.Id) is { } items && PluginDrop.PageTitle(page, items) is { } title) return title;
+        return null;
     }
 }
