@@ -1256,3 +1256,13 @@ entrée 1 ≈ 0,5 s.
   allumé ; Windows passait déjà par le lien). Essais `PageAlreadyShownComesForwardByItsTitleNeverItsKey` (Windows, faux
   FL), `testEveryPageTitleIsReadSoItsKeyIsNeverPressedWhenItIsThere` (Mac). Pas encore vu sur le vrai FL (journal :
   « page channelRack already shown, title clicked »).
+- 16/11 : maquette « FL Shortcuts — plus lisible » (PDF + HTML, 8 écrans), « l'autre Claude était en train de faire
+  ça pour Mac et Win » (rien n'avait été poussé). Fait sur Mac : barre de gauche en parties qui se déplient
+  (« fl shortcuts. », Trouver un raccourci, Raccourcis ▸ pages de FL + Mes raccourcis, Macros, Plus ▸ Communauté, Mon
+  compte, Aide ; page ouverte = carré rouge ; plus de recherche dans la barre ni de cadre du compte en haut) ; page
+  « appuie sur un raccourci » (ouverte au lancement : grande case qui attend les touches, rouge une fois appuyées, ×,
+  « ou tape son nom », résultats « nom · PAGE · AVANT ⌘S · touche · ↺ ») ; pages de raccourcis en une liste (nom du
+  groupe à gauche, nom, touche dans sa case, rouge si changée, ↺) ; Macros en liste (nom, touche, interrupteur ;
+  Importer / Exporter / Nouvelle macro dans l'en-tête, « Nouvelle macro » propose Enregistrer / Macro vide / Modèle ;
+  vide : « Aucune macro. ») ; Communauté : onglets soulignés, « Chercher » à droite, cases numérotées sur deux
+  colonnes (« @pseudo · ★ 4,6 · 312 ajouts », AJOUTER), plus de vitrine à part sur « Pour toi ». Windows ensuite.

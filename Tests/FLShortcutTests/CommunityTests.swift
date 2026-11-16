@@ -495,6 +495,13 @@ final class CommunityTests: XCTestCase {
         XCTAssertEqual(CommunityStats.rating(1435.0 / 312, locale: fr), "4,6")
         XCTAssertEqual(CommunityStats.rating(1435.0 / 312, locale: en), "4.6")
         XCTAssertEqual(CommunityStats.line(share, locale: fr), "★ 4,6 · " + CommunityStats.added(312)!)
+        // Cartes de la maquette du 16/11 : « ★ 4,6 · 312 ajouts », rien sans note ni ajout.
+        XCTAssertTrue(CommunityStats.compact(share, locale: fr)?.hasPrefix("★ 4,6 · 312") == true)
+        var bare = share
+        bare.addCount = 0
+        bare.ratingSum = 0
+        bare.ratingCount = 0
+        XCTAssertNil(CommunityStats.compact(bare, locale: fr))
         XCTAssertNil(CommunityStats.added(0))
         XCTAssertNotEqual(CommunityStats.added(1), CommunityStats.added(2))
         XCTAssertEqual(CommunityStats.number(1284, locale: en), "1,284")

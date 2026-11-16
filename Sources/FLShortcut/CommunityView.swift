@@ -226,14 +226,8 @@ private struct CommunityBrowse: View {
     let report: (Share) -> Void
     let delete: (Share) -> Void
 
-    /// Maquette validée le 30/10 : la recherche et les filtres sur une ligne, puis les partages en cartes sur deux
-    /// colonnes. Plus de « Comment ça marche » ni de « Connecté en tant que » (le compte est dans l'en-tête).
-    /// Vitrine du 11/11 (« Pour toi ») : seulement sans recherche, sur tout le monde, avec le serveur du 11/11.
-    private var showcase: Bool {
-        community.social && community.tab == .forYou && community.author == nil
-            && community.search.trimmingCharacters(in: .whitespaces).isEmpty
-    }
-
+    /// Maquette « plus lisible » du 16/11 : les onglets et la recherche sur une ligne, puis les partages en cases sur
+    /// deux colonnes (plus de vitrine à part sur « Pour toi »).
     var body: some View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 16) {
@@ -269,26 +263,16 @@ private struct CommunityBrowse: View {
                         .background(MockPlate(cornerRadius: 14)).swissCard()
                     }
                 }
-                if showcase {
-                    CommunityShowcase(community: community, open: open)
-                    if !community.shares.isEmpty,
-                       !(community.followedPreview.isEmpty && community.creators.isEmpty && community.topPreview.isEmpty) {
-                        Text("Nouveautés")
-                            .swissLabel(Swiss.text)
-                            .padding(.bottom, 8)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .swissRule(Swiss.line)
-                            .padding(.top, 14)
-                    }
-                }
                 if community.shares.isEmpty {
                     empty
                         .frame(maxWidth: .infinity)
                         .background(MockPlate(cornerRadius: 14)).swissCard()
                 } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 20, alignment: .top)], spacing: 20) {
-                        ForEach(community.shares) { share in
-                            CommunityShareCard(share: share, photo: community.photos[share.authorID],
+                    // Maquette du 16/11 : deux colonnes de cases qui partagent leurs traits, numérotées.
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 0, alignment: .top),
+                                        GridItem(.flexible(), spacing: 0, alignment: .top)], spacing: 0) {
+                        ForEach(Array(community.shares.enumerated()), id: \.element.id) { index, share in
+                            CommunityShareCard(share: share, number: index + 1, photo: community.photos[share.authorID],
                                                mine: community.isMine(share),
                                                canDelete: community.canDelete(share),
                                                showAuthor: community.author?.id == share.authorID ? nil : {
@@ -297,11 +281,21 @@ private struct CommunityBrowse: View {
                                                open: { open(share) }, report: { report(share) }, delete: { delete(share) })
                         }
                     }
+                    .overlay(alignment: .topLeading) {
+                        // Les traits du haut et de gauche de la grille (chaque case trace sa droite et son bas).
+                        ZStack(alignment: .topLeading) {
+                            Rectangle().fill(Swiss.line).frame(height: 1)
+                            Rectangle().fill(Swiss.line).frame(width: 1)
+                        }
+                        .allowsHitTesting(false)
+                    }
                 }
             }
-            .padding(.horizontal, 26)
+            .frame(maxWidth: ReadableLayout.maxWidth, alignment: .leading)
+            .padding(.horizontal, ReadableLayout.inset)
             .padding(.top, 10)
             .padding(.bottom, 24)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -408,13 +402,16 @@ private struct CommunityFilters: View {
     @ObservedObject var community: CommunityStore
     @State private var searchTask: Task<Void, Never>?
 
+    /// Maquette du 16/11 : les onglets à gauche, la recherche à droite (« Chercher »), un trait fin dessous.
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .center, spacing: 16) {
+            CommunityTabs(community: community)
+            Spacer(minLength: 12)
             HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass").foregroundStyle(Swiss.text)
+                Image(systemName: "magnifyingglass").foregroundStyle(Swiss.gray)
                 // Texte d'aide à l'encre (05/11 : « sous Orange… que ce soit écrit en noir »).
-                TextField("Rechercher", text: $community.search,
-                          prompt: Text("Chercher une macro, des raccourcis").foregroundColor(Swiss.text.opacity(0.75)))
+                TextField("Chercher", text: $community.search,
+                          prompt: Text("Chercher").foregroundColor(Swiss.text.opacity(0.6)))
                     .textFieldStyle(.plain)
                     .onSubmit { Task { await community.reload() } }
                     .onChange(of: community.search) { _ in
@@ -426,35 +423,22 @@ private struct CommunityFilters: View {
                         }
                     }
             }
-            // Maquette du 05/11 : recherche bordée de 2 points, pleine du fond ; filtres en cases collées, le choisi
-            // plein d'encre.
             .font(.system(size: 14))
             .padding(.horizontal, 12)
-            .frame(height: 44)
+            .frame(width: 230, height: 38)
             .background(Rectangle().fill(Swiss.background))
-            .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 2))
-            // Onglets du 11/11 (Pour toi, Abonnements, Les plus ajoutées, Les miens) à la place de Tout / Macros /
-            // Raccourcis / Les miens.
-            CommunityTabs(community: community)
-            Button {
-                Task { await community.reload() }
-            } label: {
-                Image(systemName: "arrow.clockwise").frame(width: 30, height: 30).contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .menuHover(tint: Swiss.text, cornerRadius: 0)
-            .help("Actualiser : voir les derniers partages")
-            .accessibilityLabel("Actualiser")
+            .overlay(Rectangle().strokeBorder(Swiss.keyLine, lineWidth: 1))
         }
         .disabled(community.busy)
     }
 }
 
-/// Un partage en carte (maquette du 30/10) : l'auteur et la date, le genre, le titre, deux lignes de l'explication,
-/// « Voir » et le bouton bleu (tous deux ouvrent la fiche : rien ne s'ajoute sans l'avoir lue). Clic droit : les
-/// partages de l'auteur, signaler, supprimer.
+/// Un partage en case (maquette « plus lisible » du 16/11) : son numéro et sa sorte en haut, le titre en gras en bas,
+/// puis « @pseudo · ★ 4,6 · 312 ajouts » et « AJOUTER » (qui ouvre la fiche : rien ne s'ajoute sans l'avoir lue).
+/// Toute la case ouvre la fiche ; clic droit : la page de l'auteur, signaler, supprimer.
 private struct CommunityShareCard: View {
     let share: Share
+    let number: Int
     /// Photo de l'auteur (nil : son initiale de couleur).
     let photo: NSImage?
     let mine: Bool
@@ -464,68 +448,58 @@ private struct CommunityShareCard: View {
     let open: () -> Void
     let report: () -> Void
     let delete: () -> Void
+    @State private var hovering = false
 
-    /// Style suisse (01/11) : pas de carte, l'auteur et la date en petites capitales grises, la sorte à droite dans
-    /// sa couleur, le titre en gras, deux lignes grises, « VOIR » et l'action côte à côte ; un trait fin dessous.
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(verbatim: String(format: "%02d", number)).swissLabel(size: 10.5)
+                Spacer(minLength: 8)
+                Text(share.kind.label).swissLabel(size: 10.5).fixedSize()
+            }
+            Spacer(minLength: 36)
+            Text(share.title.displaySafe(max: 80))
+                .font(Swiss.title(24)).tracking(-0.8)
+                .foregroundStyle(Swiss.text)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 8) {
                 AvatarView(photo: photo, username: share.authorName, size: 18)
                 Button {
                     showAuthor?()
                 } label: {
                     Text(verbatim: "@" + share.authorName.displaySafe(max: 24))
-                        .swissLabel(size: 11)
-                        .textCase(nil)
-                        .lineLimit(1)                     // colonne étroite : le nom se raccourcit, rien ne passe à la ligne
+                        .font(.system(size: 13))
+                        .foregroundStyle(Swiss.gray)
+                        .lineLimit(1)
                 }
                 .buttonStyle(.plain)
                 .disabled(showAuthor == nil)
                 .help("Voir tout ce que @\(share.authorName.displaySafe(max: 24)) a publié")
-                Text(verbatim: "· " + CommunityText.day(share.createdAt))
-                    .swissLabel(size: 11)
-                    .fixedSize()
+                if let stats = CommunityStats.compact(share) {
+                    Text(verbatim: "· " + stats).font(.system(size: 13)).foregroundStyle(Swiss.gray).lineLimit(1)
+                }
                 Spacer(minLength: 8)
-                Text(share.kind.label)
-                    .swissLabel(Swiss.gray, size: 11)
-                    .fixedSize()
-            }
-            Text(share.title.displaySafe(max: 80))
-                .font(Swiss.title(24)).tracking(-1)
-                .lineLimit(2)
-            Text(share.notes.isEmpty ? " " : share.notes)
-                .font(.system(size: 12.5))
-                .foregroundStyle(Swiss.soft)
-                .lineLimit(2, reservesSpace: true)
-            // 11/11 : « ★ 4,6 · Ajoutée 312 fois » sur sa ligne (rien sans ajout ni note ; à côté des boutons, il était coupé).
-            if let stats = CommunityStats.line(share) {
-                Text(stats).swissLabel(Swiss.text, size: 10.5).lineLimit(1)
-            }
-            HStack(spacing: 0) {
-                Button("Voir", action: open)
-                    .secondaryButton()
-                    .controlSize(.small)
-                    .help("Lire l'explication et voir ce que fait ce partage, avant de l'ajouter")
                 if mine {
-                    Text("Partagé par toi").swissLabel(size: 10.5).padding(.leading, 12)
+                    Text("Partagé par toi").swissLabel(size: 10).fixedSize()
                 } else {
-                    Button(share.kind.addLabel, action: open)
-                        .primaryButton()
+                    Button("Ajouter", action: open)
+                        .secondaryButton()
                         .controlSize(.small)
+                        .fixedSize()
                         .help("Lire la fiche, puis l'ajouter")
                 }
-                Spacer(minLength: 0)
             }
-            .padding(.top, 4)
+            .padding(.top, 14)
         }
-        // Maquette du 05/11 : une carte par partage (pleine du fond, trait fin ; noire sous Orange).
-        .padding(.horizontal, 20)
-        .padding(.vertical, 18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Rectangle().fill(Swiss.background))
-        .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
+        .padding(24)
+        .frame(maxWidth: .infinity, minHeight: 204, alignment: .topLeading)
+        .background(Rectangle().fill(hovering ? Swiss.faint : Swiss.background))
+        .overlay(alignment: .trailing) { Rectangle().fill(Swiss.line).frame(width: 1).allowsHitTesting(false) }
+        .overlay(alignment: .bottom) { Rectangle().fill(Swiss.line).frame(height: 1).allowsHitTesting(false) }
         .swissCard()
         .contentShape(Rectangle())
+        .onHover { hovering = $0 }
         .onTapGesture(perform: open)
         .swissContextMenu {
             var items: [RightClickMenu.Item?] = []

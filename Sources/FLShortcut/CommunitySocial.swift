@@ -66,6 +66,20 @@ enum CommunityStats {
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
+    /// Pour les cartes (maquette du 16/11) : « ★ 4,6 · 312 ajouts », « 1 ajout » ; nil : rien à dire.
+    static func compact(_ share: Share, locale: Locale = .current) -> String? {
+        var parts: [String] = []
+        if let value = share.rating { parts.append("★ " + rating(value, locale: locale)) }
+        switch share.addCount ?? 0 {
+        case ..<1: break
+        case 1: parts.append(String(localized: "1 ajout"))
+        case let count:
+            let text = number(count, locale: locale)
+            parts.append(String(localized: "\(text) ajouts"))
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
     static func added(_ count: Int) -> String? {
         switch count {
         case ..<1: return nil

@@ -44,6 +44,7 @@
 "%@ Clique pour l'ajouter, ou glisse-le à sa place dans la liste." = "%@ Clique pour l'ajouter, ou glisse-le à sa place dans la liste.";
 "%@ Si tu te déconnectes maintenant, ils seront perdus." = "%@ Si tu te déconnectes maintenant, ils seront perdus.";
 "%@ abonnés" = "%@ abonnés";
+"%@ ajouts" = "%@ ajouts";
 "%@ au plus" = "%@ au plus";
 "%@ avec la touche" = "%@ avec la touche";
 "%@ du canal %lld" = "%@ du canal %lld";
@@ -110,6 +111,7 @@
 "0 (pavé)" = "0 (pavé)";
 "1 (pavé)" = "1 (pavé)";
 "1 abonné" = "1 abonné";
+"1 ajout" = "1 ajout";
 "1 bloc" = "1 bloc";
 "1 caractère" = "1 caractère";
 "1 clic" = "1 clic";
@@ -250,6 +252,7 @@
 "Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait." = "Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait.";
 "Appuie sur les touches…" = "Appuie sur les touches…";
 "Appuie sur un bouton de ta souris…" = "Appuie sur un bouton de ta souris…";
+"Appuie sur un raccourci" = "Appuie sur un raccourci";
 "Appuyer sur" = "Appuyer sur";
 "Après la suppression des sons sans note, le Channel rack de la copie rangée ne correspond plus à l'analyse : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé." = "Après la suppression des sons sans note, le Channel rack de la copie rangée ne correspond plus à l'analyse : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé.";
 "Arme la piste du Mixer sélectionnée, ou la désarme" = "Arme la piste du Mixer sélectionnée, ou la désarme";
@@ -335,6 +338,7 @@
 "Aucune macro configurée." = "Aucune macro configurée.";
 "Aucune macro ouverte" = "Aucune macro ouverte";
 "Aucune macro ouverte." = "Aucune macro ouverte.";
+"Aucune macro." = "Aucune macro.";
 "Aucune réponse pour « %@ » : écris-nous juste en dessous, on te répond." = "Aucune réponse pour « %@ » : écris-nous juste en dessous, on te répond.";
 "Aucune touche" = "Aucune touche";
 "Aucune touche de FL choisie." = "Aucune touche de FL choisie.";
@@ -503,6 +507,7 @@
 "Charger le profil « %@ » ?" = "Charger le profil « %@ » ?";
 "Charger un profil" = "Charger un profil";
 "Cherche dans l'aide : raccourcis, macro, pause…" = "Cherche dans l'aide : raccourcis, macro, pause…";
+"Chercher" = "Chercher";
 "Chercher une macro, des raccourcis" = "Chercher une macro, des raccourcis";
 "Cherché par son nom ou son image au moment du clic (autorisation « Enregistrement de l'écran »)." = "Cherché par son nom ou son image au moment du clic (autorisation « Enregistrement de l'écran »).";
 "Chiffre" = "Chiffre";
@@ -603,6 +608,7 @@
 "Clique dans la fenêtre du Mixer." = "Clique dans la fenêtre du Mixer.";
 "Clique et tape dans FL (flèches, raccourcis…), dans l'ordre." = "Clique et tape dans FL (flèches, raccourcis…), dans l'ordre.";
 "Clique et tape dans FL, puis « Terminer » en haut à droite." = "Clique et tape dans FL, puis « Terminer » en haut à droite.";
+"Clique ici" = "Clique ici";
 "Clique ici, puis appuie sur le bouton de ta souris" = "Clique ici, puis appuie sur le bouton de ta souris";
 "Clique le bouton mute (le petit rond en haut) d'une piste du Mixer, puis reclique-le pour remettre le son. Échap : annuler." = "Clique le bouton mute (le petit rond en haut) d'une piste du Mixer, puis reclique-le pour remettre le son. Échap : annuler.";
 "Clique pour renommer la macro" = "Clique pour renommer la macro";
@@ -610,6 +616,7 @@
 "Clique sur le bouton d'armement de la piste (enregistrement)." = "Clique sur le bouton d'armement de la piste (enregistrement).";
 "Clique sur le sélecteur d'entrée audio (panneau de droite du Mixer)." = "Clique sur le sélecteur d'entrée audio (panneau de droite du Mixer).";
 "Clique sur un partage : tu lis l'explication de son auteur et ce qu'il fait, étape par étape." = "Clique sur un partage : tu lis l'explication de son auteur et ce qu'il fait, étape par étape.";
+"Clique sur une touche pour la changer" = "Clique sur une touche pour la changer";
 "Clique sur une touche, comme ⌘Z, puis tape la nouvelle : elle remplace celle de FL. « Réinitialiser » remet celle d'origine." = "Clique sur une touche, comme ⌘Z, puis tape la nouvelle : elle remplace celle de FL. « Réinitialiser » remet celle d'origine.";
 "Clique sur « File »." = "Clique sur « File ».";
 "Clique sur « Open mixer track state… » (Échap pour fermer la boîte)." = "Clique sur « Open mixer track state… » (Échap pour fermer la boîte).";
@@ -816,6 +823,7 @@
 "E-mail" = "E-mail";
 "E0453A" = "E0453A";
 "Efface ton compte, ta sauvegarde en ligne et tes partages. Tes raccourcis et tes macros restent sur ce Mac." = "Efface ton compte, ta sauvegarde en ligne et tes partages. Tes raccourcis et tes macros restent sur ce Mac.";
+"Effacer" = "Effacer";
 "Effacer la longueur des notes" = "Effacer la longueur des notes";
 "Effacer la recherche" = "Effacer la recherche";
 "Effet Liquid Glass" = "Effet Liquid Glass";
@@ -869,6 +877,7 @@
 "Enregistrer quand même" = "Enregistrer quand même";
 "Enregistrer sous" = "Enregistrer sous";
 "Enregistrer une macro" = "Enregistrer une macro";
+"Enregistrer une macro, ou partir d'une macro vide ou d'un modèle" = "Enregistrer une macro, ou partir d'une macro vide ou d'un modèle";
 "Enregistrer une nouvelle version" = "Enregistrer une nouvelle version";
 "Enregistrer « %@ » ?" = "Enregistrer « %@ » ?";
 "Enregistrée" = "Enregistrée";
@@ -2104,6 +2113,7 @@
 "Tape le tempo en rythme" = "Tape le tempo en rythme";
 "Tape les lettres soulignées d'un menu de FL déjà ouvert (F de File, O de Open…), seulement si un menu ouvert par la macro est encore là." = "Tape les lettres soulignées d'un menu de FL déjà ouvert (F de File, O de Open…), seulement si un menu ouvert par la macro est encore là.";
 "Tape les lettres soulignées d'un menu de FL ouvert." = "Tape les lettres soulignées d'un menu de FL ouvert.";
+"Tape son nom" = "Tape son nom";
 "Terminer" = "Terminer";
 "Tes derniers changements ne sont pas en ligne" = "Tes derniers changements ne sont pas en ligne";
 "Tes derniers changements ne sont pas encore en ligne." = "Tes derniers changements ne sont pas encore en ligne.";
@@ -2204,6 +2214,7 @@
 "Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre. Aucune lecture de l'écran." = "Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre. Aucune lecture de l'écran.";
 "Tout sélectionner" = "Tout sélectionner";
 "Tout voir →" = "Tout voir →";
+"Toutes les macros, un fichier chacune, dans Documents › FL Shortcuts › Macros › Exporter" = "Toutes les macros, un fichier chacune, dans Documents › FL Shortcuts › Macros › Exporter";
 "Toutes les macros, un fichier chacune, pour les partager (par défaut dans Documents › FL Shortcuts › Macros)" = "Toutes les macros, un fichier chacune, pour les partager (par défaut dans Documents › FL Shortcuts › Macros)";
 "Toutes les macros, un fichier chacune, pour les partager, dans Documents › FL Shortcuts › Macros › Exporter" = "Toutes les macros, un fichier chacune, pour les partager, dans Documents › FL Shortcuts › Macros › Exporter";
 "Transposer d'une octave vers le bas" = "Transposer d'une octave vers le bas";
@@ -2217,6 +2228,7 @@
 "Trop de variables (%lld au plus)." = "Trop de variables (%lld au plus).";
 "Trop profond pour être rejoué par la macro" = "Trop profond pour être rejoué par la macro";
 "Trousseau indisponible (%d)." = "Trousseau indisponible (%d).";
+"Trouver un raccourci" = "Trouver un raccourci";
 "Tu as déjà signalé cette photo." = "Tu as déjà signalé cette photo.";
 "Tu n'as pas encore de macro : crée-en une dans la page Macros." = "Tu n'as pas encore de macro : crée-en une dans la page Macros.";
 "Tu ne suis personne." = "Tu ne suis personne.";
@@ -2339,6 +2351,7 @@
 "autorise « Enregistrement de l'écran » : le bouton mute de la piste est retrouvé dans la fenêtre de FL" = "autorise « Enregistrement de l'écran » : le bouton mute de la piste est retrouvé dans la fenêtre de FL";
 "autorise « Enregistrement de l'écran » : « Consolidate » est retrouvé dans le menu de FL" = "autorise « Enregistrement de l'écran » : « Consolidate » est retrouvé dans le menu de FL";
 "autorise « Enregistrement de l'écran » pour FL Shortcuts (Réglages Système › Confidentialité et sécurité ; déjà coché : décoche puis recoche)" = "autorise « Enregistrement de l'écran » pour FL Shortcuts (Réglages Système › Confidentialité et sécurité ; déjà coché : décoche puis recoche)";
+"avant" = "avant";
 "bientôt" = "bientôt";
 "bloc caché (ancien format)" = "bloc caché (ancien format)";
 "bloc d'une version plus récente de FL Shortcuts : la macro est bloquée." = "bloc d'une version plus récente de FL Shortcuts : la macro est bloquée.";
@@ -2424,6 +2437,7 @@
 "fenêtre de FL introuvable" = "fenêtre de FL introuvable";
 "fenêtre du plugin introuvable (ouvre ce plugin, ou montre de nouveau le clic)" = "fenêtre du plugin introuvable (ouvre ce plugin, ou montre de nouveau le clic)";
 "fenêtres. Si l'une change de taille ou de place dans FL, montre-le de nouveau." = "fenêtres. Si l'une change de taille ou de place dans FL, montre-le de nouveau.";
+"fermé" = "fermé";
 "fermée" = "fermée";
 "fichier" = "fichier";
 "glisser : endroits à montrer dans FL" = "glisser : endroits à montrer dans FL";
@@ -2559,8 +2573,11 @@
 "option de FL à choisir dans la macro" = "option de FL à choisir dans la macro";
 "option inconnue" = "option inconnue";
 "option à choisir" = "option à choisir";
+"ou appuie sur le raccourci" = "ou appuie sur le raccourci";
 "ou glisse des blocs de la palette, à gauche" = "ou glisse des blocs de la palette, à gauche";
+"ou tape son nom" = "ou tape son nom";
 "ou écris le nom." = "ou écris le nom.";
+"ouvert" = "ouvert";
 "ouverte" = "ouverte";
 "page de FL illisible" = "page de FL illisible";
 "page de FL à choisir dans la macro" = "page de FL à choisir dans la macro";

@@ -901,6 +901,16 @@
   `supabase/README.md` (11/11 : Gmail rien que pour l'app, 60 par heure ; plus tard Brevo avec le domaine du site).
   Bêta limitée (1 000 comptes, un compte = un ordinateur) mise de côté le 11/11 : choix dans HISTORIQUE.
 
+- **Fenêtre « plus lisible »** (16/11, maquette PDF/HTML « FL Shortcuts — plus lisible », 8 écrans, commencée par une
+  autre session sans rien pousser) : barre de gauche en parties (`ReadableSidebar` : Trouver un raccourci, Raccourcis ▸
+  8 pages + Mes raccourcis, Macros, Plus ▸ Communauté / Mon compte / Aide ; carré rouge = page ouverte ; une page
+  choisie ouvre sa partie), plus de recherche dans la barre ni de cadre du compte en haut ; « appuie sur un
+  raccourci » = page d'accueil (`SidebarItem.find`, `FindShortcutField`, « ou tape son nom ») ; pages en une liste
+  (`ReadableGroup`/`ReadableRow`/`KeyBox` : nom du groupe à gauche, touche dans sa case, rouge si changée, ↺) ; Macros
+  en liste (`MacroLibraryLine`, `NewMacroButton` : Enregistrer / Macro vide / Modèle ; `MacroLibraryActions`) ;
+  Communauté : onglets soulignés, « Chercher » à droite, cases numérotées sur 2 colonnes (`CommunityStats.compact`),
+  plus de vitrine. Mac : `MainReadable.swift`. Windows : à faire pareil.
+
 ## Pas encore vérifié sur le vrai FL
 - Icônes (31/10) : clic droit › « Change icon… » sur le vrai FL (macro « Nom et couleur » après un clic sur le nom ;
   Organiser : noms du Channel rack et noms verticaux du Mixer retrouvés ?) ; journal `ICON` (`--diag-icon 7-4`).

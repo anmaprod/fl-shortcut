@@ -5,7 +5,8 @@
 // Windows : CommunityPage.cs, les mêmes écrans.
 import SwiftUI
 
-/// Onglets de la Communauté, en cases collées (le choisi plein d'encre) ; « Abonnements » porte le point rouge.
+/// Onglets de la Communauté (maquette « plus lisible » du 16/11) : des mots en petites capitales, le choisi à l'encre et
+/// souligné, les autres en gris ; « Abonnements » porte le point rouge.
 struct CommunityTabs: View {
     @ObservedObject var community: CommunityStore
 
@@ -18,7 +19,7 @@ struct CommunityTabs: View {
     }
 
     var body: some View {
-        HStack(spacing: -2) {
+        HStack(spacing: 28) {
             ForEach(tabs) { tab in
                 let on = current == tab
                 Button {
@@ -26,17 +27,17 @@ struct CommunityTabs: View {
                 } label: {
                     HStack(spacing: 7) {
                         Text(tab.title)
-                            .font(Swiss.font(11.5)).tracking(1.2).textCase(.uppercase)
+                            .font(Swiss.font(11.5)).tracking(1.3).textCase(.uppercase)
+                            .foregroundStyle(on ? Swiss.text : Swiss.gray)
                         if tab == .following, community.newFromFollowed > 0 {
-                            Rectangle().fill(on ? Swiss.background : Swiss.red).frame(width: 7, height: 7)
+                            Rectangle().fill(Swiss.red).frame(width: 6, height: 6)
                                 .accessibilityLabel(String(localized: "Nouveautés"))
                         }
                     }
-                    .foregroundStyle(on ? Swiss.background : Swiss.text)
-                    .padding(.horizontal, 14)
                     .frame(height: 44)
-                    .background(Rectangle().fill(on ? Swiss.text : Swiss.background))
-                    .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 2))
+                    .overlay(alignment: .bottom) {
+                        if on { Rectangle().fill(Swiss.text).frame(height: 2) }
+                    }
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)

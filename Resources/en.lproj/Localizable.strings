@@ -44,6 +44,7 @@
 "%@ Clique pour l'ajouter, ou glisse-le à sa place dans la liste." = "%@ Click to add it, or drag it into place in the list.";
 "%@ Si tu te déconnectes maintenant, ils seront perdus." = "%@ If you sign out now, they'll be lost.";
 "%@ abonnés" = "%@ followers";
+"%@ ajouts" = "%@ adds";
 "%@ au plus" = "up to %@";
 "%@ avec la touche" = "%@ with the key";
 "%@ du canal %lld" = "%@ channel %lld";
@@ -110,6 +111,7 @@
 "0 (pavé)" = "0 (keypad)";
 "1 (pavé)" = "1 (keypad)";
 "1 abonné" = "1 follower";
+"1 ajout" = "1 add";
 "1 bloc" = "1 block";
 "1 caractère" = "1 character";
 "1 clic" = "1 click";
@@ -250,6 +252,7 @@
 "Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait." = "Press a shortcut you know: the search shows what it does.";
 "Appuie sur les touches…" = "Press the keys…";
 "Appuie sur un bouton de ta souris…" = "Press a button on your mouse…";
+"Appuie sur un raccourci" = "Press a shortcut";
 "Appuyer sur" = "Press";
 "Après la suppression des sons sans note, le Channel rack de la copie rangée ne correspond plus à l'analyse : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé." = "After deleting the sounds with no notes, the Channel rack of the organized copy no longer matches the analysis: Organize stopped. “Undo changes” reopens your original project, which hasn't changed.";
 "Arme la piste du Mixer sélectionnée, ou la désarme" = "Arms the selected Mixer track, or disarms it";
@@ -335,6 +338,7 @@
 "Aucune macro configurée." = "No macro set up.";
 "Aucune macro ouverte" = "No macro open";
 "Aucune macro ouverte." = "No macro open.";
+"Aucune macro." = "No macros.";
 "Aucune réponse pour « %@ » : écris-nous juste en dessous, on te répond." = "No answer for “%@”: write to us just below, and we'll get back to you.";
 "Aucune touche" = "No key";
 "Aucune touche de FL choisie." = "No FL key chosen.";
@@ -503,6 +507,7 @@
 "Charger le profil « %@ » ?" = "Load the “%@” profile?";
 "Charger un profil" = "Load a profile";
 "Cherche dans l'aide : raccourcis, macro, pause…" = "Search help: shortcuts, macro, pause…";
+"Chercher" = "Search";
 "Chercher une macro, des raccourcis" = "Search a macro, shortcuts";
 "Cherché par son nom ou son image au moment du clic (autorisation « Enregistrement de l'écran »)." = "Looked up by its name or image at click time (“Screen Recording” permission).";
 "Chiffre" = "Number";
@@ -603,6 +608,7 @@
 "Clique dans la fenêtre du Mixer." = "Click in the Mixer window.";
 "Clique et tape dans FL (flèches, raccourcis…), dans l'ordre." = "Click and type in FL (arrows, shortcuts…), in order.";
 "Clique et tape dans FL, puis « Terminer » en haut à droite." = "Click and type in FL, then “Finish” at the top right.";
+"Clique ici" = "Click here";
 "Clique ici, puis appuie sur le bouton de ta souris" = "Click here, then press the button on your mouse";
 "Clique le bouton mute (le petit rond en haut) d'une piste du Mixer, puis reclique-le pour remettre le son. Échap : annuler." = "Click the mute button (the small circle at the top) of a Mixer track, then click it again to unmute. Esc: cancel.";
 "Clique pour renommer la macro" = "Click to rename the macro";
@@ -610,6 +616,7 @@
 "Clique sur le bouton d'armement de la piste (enregistrement)." = "Click the track's arm button (recording).";
 "Clique sur le sélecteur d'entrée audio (panneau de droite du Mixer)." = "Click the audio input selector (right panel of the Mixer).";
 "Clique sur un partage : tu lis l'explication de son auteur et ce qu'il fait, étape par étape." = "Click a post: you'll read its author's description and what it does, step by step.";
+"Clique sur une touche pour la changer" = "Click a key to change it";
 "Clique sur une touche, comme ⌘Z, puis tape la nouvelle : elle remplace celle de FL. « Réinitialiser » remet celle d'origine." = "Click a key, like ⌘Z, then type the new one: it replaces FL's. “Reset” brings back the original.";
 "Clique sur « File »." = "Click “File”.";
 "Clique sur « Open mixer track state… » (Échap pour fermer la boîte)." = "Click “Open mixer track state…” (Esc to close the dialog).";
@@ -816,6 +823,7 @@
 "E-mail" = "Email";
 "E0453A" = "E0453A";
 "Efface ton compte, ta sauvegarde en ligne et tes partages. Tes raccourcis et tes macros restent sur ce Mac." = "Erases your account, your online backup and what you've shared. Your shortcuts and macros stay on this Mac.";
+"Effacer" = "Clear";
 "Effacer la longueur des notes" = "Clear note lengths";
 "Effacer la recherche" = "Clear search";
 "Effet Liquid Glass" = "Liquid Glass effect";
@@ -869,6 +877,7 @@
 "Enregistrer quand même" = "Save anyway";
 "Enregistrer sous" = "Save as";
 "Enregistrer une macro" = "Record a macro";
+"Enregistrer une macro, ou partir d'une macro vide ou d'un modèle" = "Record a macro, or start from an empty macro or a template";
 "Enregistrer une nouvelle version" = "Save new version";
 "Enregistrer « %@ » ?" = "Save “%@”?";
 "Enregistrée" = "Saved";
@@ -2104,6 +2113,7 @@
 "Tape le tempo en rythme" = "Sets the tempo as you tap in time";
 "Tape les lettres soulignées d'un menu de FL déjà ouvert (F de File, O de Open…), seulement si un menu ouvert par la macro est encore là." = "Types the underlined letters of an FL menu that's already open (F for File, O for Open…), only if a menu opened by the macro is still there.";
 "Tape les lettres soulignées d'un menu de FL ouvert." = "Types the underlined letters of an open FL menu.";
+"Tape son nom" = "Type its name";
 "Terminer" = "Finish";
 "Tes derniers changements ne sont pas en ligne" = "Your latest changes aren't online";
 "Tes derniers changements ne sont pas encore en ligne." = "Your latest changes aren't online yet.";
@@ -2204,6 +2214,7 @@
 "Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre. Aucune lecture de l'écran." = "Everything is organized in a new version of your project (“_2”, like FL's “Save new version”), next to the original: your original project isn't changed, “Undo changes” reopens it. No screen reading.";
 "Tout sélectionner" = "Select all";
 "Tout voir →" = "See all →";
+"Toutes les macros, un fichier chacune, dans Documents › FL Shortcuts › Macros › Exporter" = "All macros, one file each, in Documents › FL Shortcuts › Macros › Export";
 "Toutes les macros, un fichier chacune, pour les partager (par défaut dans Documents › FL Shortcuts › Macros)" = "All macros, one file each, to share them (by default in Documents › FL Shortcuts › Macros)";
 "Toutes les macros, un fichier chacune, pour les partager, dans Documents › FL Shortcuts › Macros › Exporter" = "All your macros, one file each, ready to share, in Documents › FL Shortcuts › Macros › Exporter";
 "Transposer d'une octave vers le bas" = "Transpose down an octave";
@@ -2217,6 +2228,7 @@
 "Trop de variables (%lld au plus)." = "Too many variables (%lld max).";
 "Trop profond pour être rejoué par la macro" = "Too deep for the macro to replay";
 "Trousseau indisponible (%d)." = "Keychain unavailable (%d).";
+"Trouver un raccourci" = "Find a shortcut";
 "Tu as déjà signalé cette photo." = "You've already reported this photo.";
 "Tu n'as pas encore de macro : crée-en une dans la page Macros." = "You don't have any macros yet: create one on the Macros page.";
 "Tu ne suis personne." = "You don't follow anyone.";
@@ -2339,6 +2351,7 @@
 "autorise « Enregistrement de l'écran » : le bouton mute de la piste est retrouvé dans la fenêtre de FL" = "allow “Screen Recording”: the track's mute button is found in the FL window";
 "autorise « Enregistrement de l'écran » : « Consolidate » est retrouvé dans le menu de FL" = "allow “Screen Recording”: “Consolidate” is found in FL's menu";
 "autorise « Enregistrement de l'écran » pour FL Shortcuts (Réglages Système › Confidentialité et sécurité ; déjà coché : décoche puis recoche)" = "allow “Screen Recording” for FL Shortcuts (System Settings › Privacy & Security; already on: turn it off, then on again)";
+"avant" = "was";
 "bientôt" = "soon";
 "bloc caché (ancien format)" = "hidden block (old format)";
 "bloc d'une version plus récente de FL Shortcuts : la macro est bloquée." = "block from a newer version of FL Shortcuts: the macro is blocked.";
@@ -2424,6 +2437,7 @@
 "fenêtre de FL introuvable" = "FL window not found";
 "fenêtre du plugin introuvable (ouvre ce plugin, ou montre de nouveau le clic)" = "plugin window not found (open this plugin, or show the click again)";
 "fenêtres. Si l'une change de taille ou de place dans FL, montre-le de nouveau." = "windows. If one changes size or position in FL, show it again.";
+"fermé" = "closed";
 "fermée" = "collapsed";
 "fichier" = "file";
 "glisser : endroits à montrer dans FL" = "drag: spots to show in FL";
@@ -2559,8 +2573,11 @@
 "option de FL à choisir dans la macro" = "FL option to choose in the macro";
 "option inconnue" = "unknown option";
 "option à choisir" = "option to choose";
+"ou appuie sur le raccourci" = "or press the shortcut";
 "ou glisse des blocs de la palette, à gauche" = "or drag blocks from the palette on the left";
+"ou tape son nom" = "or type its name";
 "ou écris le nom." = "or type the name.";
+"ouvert" = "open";
 "ouverte" = "expanded";
 "page de FL illisible" = "FL page unreadable";
 "page de FL à choisir dans la macro" = "FL page to choose in the macro";

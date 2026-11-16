@@ -23,7 +23,7 @@ final class AppResumeTests: XCTestCase {
     }
 
     func testEveryPageComesBack() {
-        let pages: [SidebarItem] = FLSection.allCases.map(SidebarItem.section) + [.custom, .macros, .community, .help, .account]
+        let pages: [SidebarItem] = [.find] + FLSection.allCases.map(SidebarItem.section) + [.custom, .macros, .community, .help, .account]
         for page in pages {
             XCTAssertEqual(SidebarItem(resumeKey: page.resumeKey), page, page.resumeKey)
         }

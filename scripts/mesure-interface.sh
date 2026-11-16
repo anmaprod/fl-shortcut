@@ -247,10 +247,17 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   report "$label-fenetre" >/dev/null
   fit="$(fits "$label-fenetre")"
   if [[ "$label" == verre ]]; then
-    search_test "$label-fenetre"
+    # 16/11 (maquette « plus lisible ») : « Trouver un raccourci » ; la recherche par le nom y est (« ou tape son
+    # nom ») : la case de texte n'existe qu'en ce mode, essayée là. Plus de cadre du compte en haut (header_test).
+    "$POST" app.flshortcut.debug.select trouver; sleep 2
+    screencapture -x "$OUT/trouver.png" 2>/dev/null || true
+    "$POST" app.flshortcut.debug.search ""; sleep 2
+    screencapture -x "$OUT/trouver-nom.png" 2>/dev/null || true
+    report "$label-trouver" >/dev/null
+    search_test "$label-trouver"
+    "$POST" app.flshortcut.debug.search "pinceau"; sleep 2
+    screencapture -x "$OUT/trouver-resultats.png" 2>/dev/null || true
     "$POST" app.flshortcut.debug.search ""; "$POST" app.flshortcut.debug.select general; sleep 2
-    header_test "$label-fenetre"
-    "$POST" app.flshortcut.debug.select general; sleep 2
   fi
   # Rendu interne de la fenêtre (toute sa hauteur, même si l'écran de test est petit).
   rm -f "$HOME/Library/Caches/$DOMAIN/$label-"*
@@ -393,7 +400,7 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
     # Fenêtre au plus petit (06/11, « très mal découpé quand je réduis la page au plus petit ») : chaque page
     # photographiée à la taille minimale (la demande de 400 × 300 est ramenée au minimum de la fenêtre).
     "$POST" app.flshortcut.debug.resize "400,300"; sleep 2
-    for page in general mixer custom macros community compte aide; do
+    for page in trouver general mixer custom macros community compte aide; do
       "$POST" app.flshortcut.debug.select "$page"; sleep 2
       screencapture -x "$OUT/minimum-$page.png" 2>/dev/null || true
     done
