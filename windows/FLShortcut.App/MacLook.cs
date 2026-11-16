@@ -82,6 +82,8 @@ internal static class MacLook
     public static Color Faint => C(P.Faint);
     /// Cadre d'une touche (#DDDDDD sous Noir).
     public static Color KeyFrame => C(P.KeyFrame);
+    /// Texte de lecture un peu effacé (#A8A8A8 sous Noir) : pages de la barre de gauche (maquette du 16/11).
+    public static Color SoftText => C(P.Soft);
 
     private static FontFamily? _font;
     /// Helvetica comme le Mac ; Arial (même dessin) sur un PC qui ne l'a pas.
@@ -244,6 +246,7 @@ internal static class MacLook
                               new Part("M3.6,6.2 H4.4 M6.6,6.2 H7.4 M9.6,6.2 H10.4 M12.4,6.2 H12.6 M3.6,8.4 H4.4 M6.6,8.4 H7.4 " +
                                        "M9.6,8.4 H10.4 M12.4,8.4 H12.6 M5,10.6 H11", false, 1.2) },
         "plus" => new[] { new Part("M8,3 V13 M3,8 H13", false, 1.8) },
+        "xmark" => new[] { new Part("M4,4 L12,12 M12,4 L4,12", false, 1.6) },
         "back" => new[] { new Part("M10,3 L5,8 L10,13", false, 2) },
         "reset" => new[] { new Part("M4,4.6 A5,5 0 1 1 3,9.2", false, 1.6), new Part("M4.6,1.8 L4,4.6 L6.8,5.2", false, 1.6) },
         // Avertissement suisse (08/11 : « pas un logo, un emoji d'attention… un point orange ») : un carré plein.
@@ -413,6 +416,30 @@ internal static class MacLook
         }
         foreach (var name in c.Caps) row.Children.Add(changed ? ChangedCap(Loc.T(name)) : Cap(Loc.T(name)));
         return row;
+    }
+
+    /// La touche d'un raccourci dans sa case (maquette « plus lisible » du 16/11, comme KeyBox du Mac) : « Ctrl+S » en
+    /// gras, cadre gris ; changée : en rouge ; aucune : « — ».
+    public static Border KeyBox(KeyCombo? combo, bool changed = false)
+    {
+        var text = combo is { } c ? string.Join("+", c.Caps) : "—";
+        var label = Label(text, 14, changed ? Red : combo is null ? Secondary : Text, bold: true);
+        label.HorizontalAlignment = HorizontalAlignment.Center;
+        label.VerticalAlignment = VerticalAlignment.Center;
+        label.TextTrimming = TextTrimming.CharacterEllipsis;
+        var box = new Border
+        {
+            Width = 100,
+            Height = 32,
+            Padding = new Thickness(6, 0, 6, 0),
+            Background = Brush(WindowColor),
+            BorderBrush = Brush(Tertiary),
+            BorderThickness = new Thickness(1),
+            Child = label,
+        };
+        box.PointerEntered += (_, _) => box.BorderBrush = Brush(Text);
+        box.PointerExited += (_, _) => box.BorderBrush = Brush(Tertiary);
+        return box;
     }
 
     /// Touche changée (06/11, comme le Mac : « si on change une touche, il y a un relief ») : pleine de rouge, bordée

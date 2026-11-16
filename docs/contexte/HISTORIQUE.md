@@ -1265,4 +1265,6 @@ entrée 1 ≈ 0,5 s.
   groupe à gauche, nom, touche dans sa case, rouge si changée, ↺) ; Macros en liste (nom, touche, interrupteur ;
   Importer / Exporter / Nouvelle macro dans l'en-tête, « Nouvelle macro » propose Enregistrer / Macro vide / Modèle ;
   vide : « Aucune macro. ») ; Communauté : onglets soulignés, « Chercher » à droite, cases numérotées sur deux
-  colonnes (« @pseudo · ★ 4,6 · 312 ajouts », AJOUTER), plus de vitrine à part sur « Pour toi ». Windows ensuite.
+  colonnes (« @pseudo · ★ 4,6 · 312 ajouts », AJOUTER), plus de vitrine à part sur « Pour toi ». Windows pareil le même
+  jour (page « appuie sur un raccourci » qui garde la main pendant la frappe ; touche d'une macro = fiche de son
+  raccourci). Pas encore vu sur un vrai Mac ni un PC.

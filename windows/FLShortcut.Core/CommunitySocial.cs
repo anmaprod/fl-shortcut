@@ -49,6 +49,17 @@ public static class CommunityStats
         return parts.Count == 0 ? null : string.Join(" · ", parts);
     }
 
+    /// Pour les cases (maquette du 16/11, comme le Mac) : « ★ 4,6 · 312 ajouts », « 1 ajout » ; null : rien à dire.
+    public static string? Compact(Share share, CultureInfo? culture = null)
+    {
+        var parts = new List<string>();
+        if (share.Rating is { } value) parts.Add("★ " + Rating(value, culture));
+        var count = share.AddCount ?? 0;
+        if (count == 1) parts.Add(Loc.T("1 ajout"));
+        else if (count > 1) parts.Add(Loc.F("%@ ajouts", Number(count, culture)));
+        return parts.Count == 0 ? null : string.Join(" · ", parts);
+    }
+
     public static string? Added(int count) => count switch
     {
         < 1 => null,

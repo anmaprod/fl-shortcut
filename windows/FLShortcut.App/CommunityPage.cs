@@ -218,99 +218,88 @@ internal sealed partial class CommunityPage
 
     private FrameworkElement List(int columns)
     {
-        var page = new StackPanel { Spacing = 18, Padding = new Thickness(26, 4, 26, 24) };
+        var page = new StackPanel { Spacing = 18 };
 
-        // Comme le Mac (08/11, « la page communauté n'est pas la même ») : sur une seule ligne, la recherche avec sa
-        // loupe, les cases Tout / Macros / Raccourcis / Les miens, puis « Actualiser » ; « Partager » est dans l'en-tête.
-        var top = new Grid { ColumnSpacing = 10 };
-        top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 420 });
-        top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        // 10/11 (photo de la CI : « Search a macro, shortc ») : plus de 2e colonne souple qui prenait la moitié de la place.
-        top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0) });
+        // Maquette « plus lisible » du 16/11 (comme le Mac) : les onglets à gauche, « Chercher » à droite, un trait
+        // fin dessous ; « Partager » est dans l'en-tête.
+        var top = new Grid { ColumnSpacing = 16 };
+        top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(230) });
         var search = new TextBox
         {
             Text = _search,
-            PlaceholderText = Loc.T("Chercher une macro, des raccourcis"),
+            PlaceholderText = Loc.T("Chercher"),
             PlaceholderForeground = Brush(WithOpacity(Text, 0.6)),
             FontFamily = SwissFont,
-            FontSize = 13,
-            MinHeight = 36,
+            FontSize = 14,
+            MinHeight = 38,
             Background = Brush(MacLook.WindowColor),
-            BorderBrush = Brush(Text),
-            BorderThickness = new Thickness(2),
+            BorderBrush = Brush(Tertiary),
+            BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(0),
-            Padding = new Thickness(34, 8, 10, 8),
+            Padding = new Thickness(36, 8, 10, 8),
             VerticalAlignment = VerticalAlignment.Center,
         };
-        var loupe = Icon("search", 14, Text);
+        var loupe = Icon("search", 14, Secondary);
         loupe.HorizontalAlignment = HorizontalAlignment.Left;
         loupe.VerticalAlignment = VerticalAlignment.Center;
         loupe.Margin = new Thickness(12, 0, 0, 0);
-        AutomationProperties.SetName(search, Loc.T("Rechercher"));
+        AutomationProperties.SetName(search, Loc.T("Chercher"));
         search.TextChanged += (_, _) => _search = search.Text;
         search.KeyDown += (_, e) =>
         {
             if (e.Key == Windows.System.VirtualKey.Enter) Refresh();
         };
-        top.Children.Add(new Grid { Children = { search, loupe } });
-
         // 11/11 : les onglets Pour toi / Abonnements / Les plus ajoutées / Les miens (CommunityPageSocial.cs).
-        var filters = Tabs();
-        Grid.SetColumn(filters, 1);
-        top.Children.Add(filters);
-        var refresh = new Button { Style = PlainButton, Content = Icon("arrow.clockwise", 14, Secondary), Padding = new Thickness(6), VerticalAlignment = VerticalAlignment.Center };
-        ToolTipService.SetToolTip(refresh, Loc.T("Actualiser"));
-        AutomationProperties.SetName(refresh, Loc.T("Actualiser"));
-        refresh.Click += (_, _) => Refresh();
-        Grid.SetColumn(refresh, 2);
-        top.Children.Add(refresh);
-        var head = new StackPanel { Spacing = 12, Children = { top } };
-        head.Children.Add(Rule(LineColor));
+        top.Children.Add(Tabs());
+        var box = new Grid { Children = { search, loupe } };
+        Grid.SetColumn(box, 1);
+        top.Children.Add(box);
+        var head = new StackPanel { Spacing = 0, Children = { top, Rule(LineColor) } };
         page.Children.Add(IsPersonPage ? PersonHeader() : head);
         if (_notice is not null) page.Children.Add(Paragraph(_notice, 12.5, Text));
 
         if (_loading && _shares is null)
         {
             page.Children.Add(new ProgressBar { IsIndeterminate = true, Foreground = Brush(Text), Background = Brush(Faint) });
-            return page;
+            return Wrap(page);
         }
         if (_error is not null)
         {
             page.Children.Add(Paragraph(_error, 12.5, Red));
             page.Children.Add(Soft(Loc.T("Réessayer"), Refresh));
-            return page;
+            return Wrap(page);
         }
         var shares = _shares ?? new List<Share>();
-        // 11/11 : la vitrine « Pour toi », puis les nouveautés.
-        if (Showcase)
-        {
-            page.Children.Add(ShowcaseRows());
-            if (shares.Count > 0 && (_followedPreview.Count > 0 || _creators.Count > 0 || _topPreview.Count > 0))
-            {
-                var news = SwissLabel(Loc.T("Nouveautés"), 11, Text);
-                news.Margin = new Thickness(0, 14, 0, 0);
-                page.Children.Add(new StackPanel { Spacing = 8, Children = { news, Rule(LineColor) } });
-            }
-        }
         if (shares.Count == 0)
         {
             page.Children.Add(Empty());
-            return page;
+            return Wrap(page);
         }
-        var grid = new Grid { ColumnSpacing = 20, RowSpacing = 20 };
-        var cols = Math.Max(1, Math.Min(columns, 2));
-        for (var c = 0; c < cols; c++) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        // Deux colonnes de cases qui partagent leurs traits, numérotées (chaque case trace sa droite et son bas ; la
+        // grille, son haut et sa gauche).
+        var grid = new Grid { BorderBrush = Brush(LineColor), BorderThickness = new Thickness(1, 1, 0, 0) };
+        for (var c = 0; c < 2; c++) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         for (var i = 0; i < shares.Count; i++)
         {
-            if (i % cols == 0) grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            var card = Card(shares[i]);
-            Grid.SetColumn(card, i % cols);
-            Grid.SetRow(card, i / cols);
+            if (i % 2 == 0) grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var card = Card(shares[i], i + 1);
+            Grid.SetColumn(card, i % 2);
+            Grid.SetRow(card, i / 2);
             grid.Children.Add(card);
         }
         page.Children.Add(grid);
-        return page;
+        return Wrap(page);
+    }
+
+    /// La page de la Communauté sous les marges des pages lisibles (800 points au plus, collée à gauche).
+    private static Grid Wrap(FrameworkElement content)
+    {
+        var host = new Grid { Margin = new Thickness(56, 4, 56, 40) };
+        host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 800 });
+        host.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        host.Children.Add(content);
+        return host;
     }
 
     /// Pages vides, comme le Mac : recherche sans résultat, membre sans partage, filtre vide, rien du tout.
@@ -340,81 +329,82 @@ internal sealed partial class CommunityPage
             Loc.T("Partager une macro…"), StartComposing);
     }
 
-    /// Un partage en carte, comme CommunityShareCard du Mac (10/11, « les cartes ne sont pas les mêmes ») : en haut la
-    /// photo ronde, @pseudo (tous ses partages) et la date en petites capitales, la sorte à droite ; le titre en grand,
-    /// deux lignes de l'explication (la place gardée même vide), puis « Voir » et « Ajouter à mes macros » (« Utiliser
-    /// ces raccourcis », ou « Partagé par toi »). Toute la carte ouvre la fiche ; bordée d'encre au survol ; clic droit :
-    /// ses partages, Signaler…, Supprimer. Les cartes d'une même rangée ont la même hauteur.
-    private FrameworkElement Card(Share share)
+    /// Un partage en case (maquette « plus lisible » du 16/11, comme le Mac) : son numéro et sa sorte en haut, le titre
+    /// en gras en bas, puis « @pseudo · ★ 4,6 · 312 ajouts » et « AJOUTER » (qui ouvre la fiche : rien ne s'ajoute
+    /// sans l'avoir lue). Toute la case ouvre la fiche ; clic droit : sa page, Signaler…, Supprimer.
+    private FrameworkElement Card(Share share, int number)
     {
         var mine = Mine(share);
-        var stack = new StackPanel { Spacing = 8 };
+        var grid = new Grid { RowSpacing = 0 };
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-        var top = new Grid { ColumnSpacing = 8 };
-        foreach (var width in new[] { GridLength.Auto, GridLength.Auto, GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto })
-            top.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
-        var avatar = AccountPage.Avatar(_photos.GetValueOrDefault(share.AuthorId), share.AuthorName, 18);
-        avatar.VerticalAlignment = VerticalAlignment.Center;
-        top.Children.Add(avatar);
-        var name = Label("@" + DisplayText.Safe(share.AuthorName, 24), 11, Secondary, bold: true);
-        name.CharacterSpacing = 110;
-        name.MaxWidth = 150;
-        var showAuthor = _author?.Id != share.AuthorId;
-        var authorButton = new Button { Style = PlainButton, Content = name, IsEnabled = showAuthor, VerticalAlignment = VerticalAlignment.Center };
-        authorButton.Click += (_, _) => OpenPerson(share.AuthorId, share.AuthorName);
-        if (showAuthor) ToolTipService.SetToolTip(authorButton, Loc.F("Voir la page de @%@", DisplayText.Safe(share.AuthorName, 24)));
-        Grid.SetColumn(authorButton, 1);
-        top.Children.Add(authorButton);
-        var day = SwissLabel("· " + share.Day, 11);
-        Grid.SetColumn(day, 2);
-        top.Children.Add(day);
-        var kind = SwissLabel(share.IsMacro ? Loc.T("Macro") : Loc.T("Raccourcis"), 11);
-        Grid.SetColumn(kind, 4);
+        var top = new Grid();
+        top.Children.Add(SwissLabel(number.ToString("00", System.Globalization.CultureInfo.InvariantCulture), 10.5));
+        var kind = SwissLabel(share.IsMacro ? Loc.T("Macro") : Loc.T("Raccourcis"), 10.5);
+        kind.HorizontalAlignment = HorizontalAlignment.Right;
         top.Children.Add(kind);
-        stack.Children.Add(top);
+        grid.Children.Add(top);
 
         var title = Label(DisplayText.Safe(share.Title, 80), 24, Text, bold: true);
         title.TextWrapping = TextWrapping.Wrap;
         title.MaxLines = 2;
         title.CharacterSpacing = -30;
-        stack.Children.Add(title);
-        var notes = Paragraph(share.Notes.Trim().Length > 0 ? share.Notes.Trim() : " ", 12.5, Secondary);
-        notes.MaxLines = 2;
-        notes.MinHeight = 34;                                 // deux lignes gardées, comme le Mac
-        notes.TextTrimming = TextTrimming.CharacterEllipsis;
-        stack.Children.Add(notes);
+        title.Margin = new Thickness(0, 36, 0, 0);
+        Grid.SetRow(title, 2);
+        grid.Children.Add(title);
 
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 0, Margin = new Thickness(0, 4, 0, 0) };
-        var view = Small(Soft(Loc.T("Voir"), () => Open(share)));
-        ToolTipService.SetToolTip(view, Loc.T("Lire l'explication et voir ce que fait ce partage, avant de l'ajouter"));
-        actions.Children.Add(view);
+        var bottom = new Grid { ColumnSpacing = 8, Margin = new Thickness(0, 14, 0, 0) };
+        foreach (var width in new[] { GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto })
+            bottom.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
+        var avatar = AccountPage.Avatar(_photos.GetValueOrDefault(share.AuthorId), share.AuthorName, 18);
+        avatar.VerticalAlignment = VerticalAlignment.Center;
+        bottom.Children.Add(avatar);
+        var meta = "@" + DisplayText.Safe(share.AuthorName, 24);
+        if (CommunityStats.Compact(share) is { } stats) meta += " · " + stats;
+        var metaLabel = Label(meta, 13, Secondary);
+        metaLabel.TextTrimming = TextTrimming.CharacterEllipsis;
+        metaLabel.VerticalAlignment = VerticalAlignment.Center;
+        var showAuthor = _author?.Id != share.AuthorId;
+        var authorButton = new Button { Style = PlainButton, Content = metaLabel, IsEnabled = showAuthor, Padding = new Thickness(0), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
+        authorButton.Click += (_, _) => OpenPerson(share.AuthorId, share.AuthorName);
+        if (showAuthor) ToolTipService.SetToolTip(authorButton, Loc.F("Voir la page de @%@", DisplayText.Safe(share.AuthorName, 24)));
+        Grid.SetColumn(authorButton, 1);
+        bottom.Children.Add(authorButton);
+        FrameworkElement action;
         if (mine)
         {
-            var label = SwissLabel(Loc.T("Partagé par toi"), 10.5);
-            label.Margin = new Thickness(12, 0, 0, 0);
-            actions.Children.Add(label);
+            var label = SwissLabel(Loc.T("Partagé par toi"), 10);
+            label.VerticalAlignment = VerticalAlignment.Center;
+            action = label;
         }
         else
         {
-            var add = Small(Primary(share.IsMacro ? Loc.T("Ajouter à mes macros") : Loc.T("Utiliser ces raccourcis"), () => Open(share)));
+            var add = Small(Soft(Loc.T("Ajouter"), () => Open(share)));
             ToolTipService.SetToolTip(add, Loc.T("Lire la fiche, puis l'ajouter"));
-            actions.Children.Add(add);
+            action = add;
         }
-        stack.Children.Add(WithStats(actions, share));       // 11/11 : « ★ 4,6 · Ajoutée 312 fois » à droite
+        Grid.SetColumn(action, 2);
+        bottom.Children.Add(action);
+        Grid.SetRow(bottom, 3);
+        grid.Children.Add(bottom);
 
         var border = new Border
         {
-            Child = stack,
-            Padding = new Thickness(20, 18, 20, 18),
+            Child = grid,
+            Padding = new Thickness(24),
+            MinHeight = 204,
             Background = Brush(MacLook.WindowColor),
             BorderBrush = Brush(LineColor),
-            BorderThickness = new Thickness(1),
+            BorderThickness = new Thickness(0, 0, 1, 1),
             VerticalAlignment = VerticalAlignment.Stretch,
         };
-        Color ink = Text, line = LineColor;
-        border.PointerEntered += (_, _) => border.BorderBrush = Brush(ink);
-        border.PointerExited += (_, _) => border.BorderBrush = Brush(line);
-        // Un clic n'importe où sur la carte ouvre la fiche (sauf sur ses boutons, qui font le leur).
+        Color paper = MacLook.WindowColor, hover = Faint;
+        border.PointerEntered += (_, _) => border.Background = Brush(hover);
+        border.PointerExited += (_, _) => border.Background = Brush(paper);
+        // Un clic n'importe où sur la case ouvre la fiche (sauf sur ses boutons, qui font le leur).
         border.Tapped += (_, e) =>
         {
             for (var d = e.OriginalSource as DependencyObject; d is not null && d != border; d = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(d))

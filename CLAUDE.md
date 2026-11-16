@@ -909,7 +909,11 @@
   (`ReadableGroup`/`ReadableRow`/`KeyBox` : nom du groupe à gauche, touche dans sa case, rouge si changée, ↺) ; Macros
   en liste (`MacroLibraryLine`, `NewMacroButton` : Enregistrer / Macro vide / Modèle ; `MacroLibraryActions`) ;
   Communauté : onglets soulignés, « Chercher » à droite, cases numérotées sur 2 colonnes (`CommunityStats.compact`),
-  plus de vitrine. Mac : `MainReadable.swift`. Windows : à faire pareil.
+  plus de vitrine. Mac : `MainReadable.swift`. Windows (même jour) : `MainShellReadable.cs` (barre, « appuie sur un
+  raccourci » construite une fois pour garder la main pendant la frappe, `ReadableRow`, `ShowGroups`), `MacLook.KeyBox`,
+  `MacrosPage.MacroLine/HeaderActions/NewMacroButton` (la touche d'une macro ouvre la fiche de son raccourci,
+  `EditShortcut`), Communauté `Tabs` soulignés + `Card(share, number)` + `CommunityStats.Compact`. Photos CI
+  `trouver*.png` (Mac), `principale-trouver.png` (Windows).
 
 ## Pas encore vérifié sur le vrai FL
 - Icônes (31/10) : clic droit › « Change icon… » sur le vrai FL (macro « Nom et couleur » après un clic sur le nom ;

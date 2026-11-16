@@ -32,6 +32,10 @@ public sealed class CommunitySocialTests
         Assert.Equal("4,6", CommunityStats.Rating(1435.0 / 312, fr));
         Assert.Equal("4.6", CommunityStats.Rating(1435.0 / 312, en));
         Assert.Equal("★ 4,6 · " + CommunityStats.Added(312), CommunityStats.Line(Share(adds: 312, sum: 1435, count: 312), fr));
+        // Cases de la maquette du 16/11 (comme le Mac) : « ★ 4,6 · 312 ajouts », rien sans note ni ajout.
+        Assert.StartsWith("★ 4,6 · 312", CommunityStats.Compact(Share(adds: 312, sum: 1435, count: 312), fr));
+        Assert.Null(CommunityStats.Compact(Share(adds: 0, sum: 0, count: 0), fr));
+        Assert.NotEqual(CommunityStats.Compact(Share(adds: 1, sum: 0, count: 0), fr), CommunityStats.Compact(Share(adds: 2, sum: 0, count: 0), fr));
         Assert.Null(CommunityStats.Added(0));
         Assert.NotEqual(CommunityStats.Added(1), CommunityStats.Added(2));
         Assert.Equal("1,284", CommunityStats.Number(1284, en));

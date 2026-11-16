@@ -328,28 +328,24 @@ internal sealed partial class CommunityPage
 
     private static Rectangle RedDot() => new() { Width = 7, Height = 7, Fill = Brush(Red), VerticalAlignment = VerticalAlignment.Center };
 
-    /// Onglets en cases collées (la choisie pleine d'encre) ; « Abonnements » porte le point rouge.
+    /// Onglets (maquette « plus lisible » du 16/11, comme le Mac) : des mots en petites capitales, le choisi à l'encre et
+    /// souligné, les autres en gris ; « Abonnements » porte le point rouge.
     private FrameworkElement Tabs()
     {
-        var tabs = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        var tabs = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 28, VerticalAlignment = VerticalAlignment.Center };
         foreach (var tab in Enum.GetValues<CommunityTab>())
         {
             if (!_social && tab.NeedsSocial()) continue;
             var t = tab;
             var on = _tab == t && _author is null && !Searching;
-            var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7 };
-            content.Children.Add(SwissLabel(t.Title(), 11, on ? MacLook.WindowColor : Text));
-            if (t == CommunityTab.Following && _newFromFollowed > 0)
-            {
-                var dot = RedDot();
-                if (on) dot.Fill = Brush(MacLook.WindowColor);
-                content.Children.Add(dot);
-            }
-            var chip = Option(content, () => Choose(t), on, minHeight: 36, padding: new Thickness(12, 0, 12, 0));
-            if (!on) chip.Background = Brush(MacLook.WindowColor);
-            chip.BorderBrush = Brush(MacLook.Text);
-            chip.BorderThickness = new Thickness(2);
-            chip.Margin = new Thickness(tabs.Children.Count > 0 ? -2 : 0, 0, 0, 0);
+            var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7, VerticalAlignment = VerticalAlignment.Center };
+            content.Children.Add(SwissLabel(t.Title(), 11, on ? Text : Secondary));
+            if (t == CommunityTab.Following && _newFromFollowed > 0) content.Children.Add(RedDot());
+            var cell = new Grid { Height = 44, Children = { content } };
+            if (on)
+                cell.Children.Add(new Rectangle { Height = 2, Fill = Brush(Text), VerticalAlignment = VerticalAlignment.Bottom, IsHitTestVisible = false });
+            var chip = new Button { Style = PlainButton, Content = cell, Padding = new Thickness(0) };
+            chip.Click += (_, _) => Choose(t);
             AutomationProperties.SetName(chip, t.Title());
             tabs.Children.Add(chip);
         }

@@ -30,7 +30,8 @@ internal sealed partial class MainShell
     /// Largeur de page à partir de laquelle les cartes passent sur deux colonnes (comme le Mac).
     private const double TwoColumnWidth = 660;
 
-    private enum PageKind { Section, Macros, Custom, Help, Account, Community }
+    /// 16/11 (maquette « plus lisible ») : « Trouver un raccourci » d'abord, la page d'ouverture.
+    private enum PageKind { Find, Section, Macros, Custom, Help, Account, Community }
 
     private readonly Window _window;
     private readonly Grid _root;
@@ -42,7 +43,7 @@ internal sealed partial class MainShell
     private bool _quitting;
 
     // Page affichée
-    private PageKind _kind = PageKind.Section;
+    private PageKind _kind = PageKind.Find;
     private FlSection _section = FlSection.General;
     private string _query = "";
     private KeyCombo? _keySearch;
@@ -53,8 +54,8 @@ internal sealed partial class MainShell
     // Éléments
     private readonly Grid _main = new() { Padding = new Thickness(8), ColumnSpacing = 8 };
     private readonly StackPanel _sidebarGroups = new() { Spacing = 14 };
+    /// Case « tape son nom » de « Trouver un raccourci » (maquette « plus lisible » du 16/11).
     private readonly TextBox _search = new();
-    private readonly Button _keyButton;
     /// Gros titre de page (style suisse : 46, gras, serré, souligné d'un trait blanc).
     private readonly TextBlock _title = SwissTitle();
     /// 11/11 : flèche seule, sans cadre, devant le titre de la page d'une personne de la Communauté (son pseudo).
@@ -70,7 +71,7 @@ internal sealed partial class MainShell
     private readonly Border _capsuleBorder;
     /// Bouton de la page dans l'en-tête, à gauche du compte (« Partager » de la Communauté, comme le Mac).
     private readonly ContentControl _headerAction = new() { VerticalAlignment = VerticalAlignment.Center, IsTabStop = false };
-    private readonly StackPanel _notices = new() { Spacing = 8, Margin = new Thickness(26, 0, 26, 0) };
+    private readonly StackPanel _notices = new() { Spacing = 8, Margin = new Thickness(ReadableInset, 0, ReadableInset, 0) };
     private readonly ScrollViewer _scroll = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
     /// Page posée au-dessus de la page (10/11, fiche et « Partager » de la Communauté, comme le Mac) : la page derrière
     /// s'assombrit et ne reçoit plus les clics ; la carte est au milieu. Tab reste dedans.
@@ -156,7 +157,6 @@ internal sealed partial class MainShell
 
         // Barre de gauche et page.
         // Barre de gauche : noire sous Orange (MacLook.Inverted), comme le Mac.
-        using (Inverted()) _keyButton = KeySearchButton();
         _capsuleBorder = new Border
         {
             Child = _capsule,
@@ -208,9 +208,11 @@ internal sealed partial class MainShell
         _app.SendSupport = _help.SendQuietly;
         UpdateAccountButton();
         _macros = new MacrosPage(_app, macroStore, photos, window,
-            listChanged: () => { if (_kind == PageKind.Macros && _query.Trim().Length == 0) RenderPage(); },
+            listChanged: () => { if (_kind == PageKind.Macros) RenderPage(); },
             creatorShown: on => _main.Visibility = on || !_app.Onboarded ? Visibility.Collapsed : Visibility.Visible,
             toast: ShowToast);
+        // Touche d'une macro (liste du 16/11) : la fiche de son raccourci, comme les autres raccourcis.
+        _macros.EditShortcut = EditCustomAsync;
         root.Children.Add(_main);
         root.Children.Add(_macros.Creator);
         root.Children.Add(_welcome);
@@ -468,7 +470,13 @@ internal sealed partial class MainShell
             case "communaute-abonnements": _kind = PageKind.Community; _community.DemoScreen("abonnements"); break;
             case "communaute-personne": _kind = PageKind.Community; _community.DemoScreen("personne"); break;
             case "communaute-note": _kind = PageKind.Community; _community.DemoScreen("note"); break;
-            case "recherche": _query = "Zoom"; _search.Text = _query; break;
+            case "trouver": _kind = PageKind.Find; _findTyping = false; break;
+            case "recherche":
+                _kind = PageKind.Find;
+                _findTyping = true;
+                _query = "Zoom";
+                _search.Text = _query;
+                break;
             case "macros": _kind = PageKind.Macros; break;
             case "macros-createur":
                 _kind = PageKind.Macros;
@@ -511,48 +519,27 @@ internal sealed partial class MainShell
         _search.Resources["TextControlPlaceholderForegroundPointerOver"] = Brush(Secondary);
         _search.BorderThickness = new Thickness(0);
         _search.Background = Brush(Colors.Transparent);
-        _search.PlaceholderText = Loc.T("Rechercher");
-        _search.FontSize = 13;
-        _search.Padding = new Thickness(4, 6, 4, 4);
+        _search.PlaceholderText = Loc.T("Tape son nom");
+        _search.FontSize = 18;
+        _search.Padding = new Thickness(0, 6, 4, 4);
         _search.MinHeight = 30;
         _search.VerticalAlignment = VerticalAlignment.Center;
-        AutomationProperties.SetName(_search, Loc.T("Rechercher"));
+        AutomationProperties.SetName(_search, Loc.T("Tape son nom"));
         _search.TextChanged += (_, _) =>
         {
             var text = _search.Text;
             if (text == _query) return;
+            var cleared = (text.Length == 0) != (_query.Length == 0);
             _query = text;
-            if (_keySearch is { } k && k.ToString() != text) _keySearch = null;
-            RenderSidebar();
-            RenderPage();
+            if (cleared) UpdateFindField();               // × apparaît ou disparaît (la case garde la main)
+            if (_kind == PageKind.Find) RenderFindResults();
         };
-        var searchRow = new Grid { ColumnSpacing = 2 };
-        searchRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        searchRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        searchRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var loupe = Icon("search", 13, Secondary);
-        loupe.Margin = new Thickness(2, 0, 0, 0);
-        searchRow.Children.Add(loupe);
-        Grid.SetColumn(_search, 1);
-        searchRow.Children.Add(_search);
-        Grid.SetColumn(_keyButton, 2);
-        searchRow.Children.Add(_keyButton);
-        var searchCapsule = new Border
-        {
-            Child = searchRow,
-            Height = 34,
-            Padding = new Thickness(8, 0, 6, 0),
-            CornerRadius = new CornerRadius(0),
-            Background = Brush(Colors.Transparent),
-            BorderBrush = Brush(Text),
-            BorderThickness = new Thickness(0, 0, 0, 1),              // style suisse : un trait blanc dessous
-        };
-        searchCapsule.Tapped += (_, _) => _search.Focus(FocusState.Programmatic);
 
-        var sidebarStack = new Grid { RowSpacing = 14 };
+        // 16/11 (maquette « plus lisible ») : « fl shortcuts. » en haut, puis les parties ; plus de recherche ici.
+        var sidebarStack = new Grid { RowSpacing = 0 };
         sidebarStack.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         sidebarStack.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        sidebarStack.Children.Add(searchCapsule);
+        sidebarStack.Children.Add(Brand());
         var groupsScroll = new ScrollViewer
         {
             Content = _sidebarGroups,
@@ -568,7 +555,7 @@ internal sealed partial class MainShell
             Background = Brush(MacLook.WindowColor),
             BorderBrush = Brush(LineColor),
             BorderThickness = new Thickness(0, 0, 1, 0),
-            Padding = new Thickness(10, 14, 10, 16),
+            Padding = new Thickness(12, 14, 10, 16),
             RequestedTheme = SurfaceTheme,
         };
         if (Theme == AppTheme.Orange)
@@ -585,32 +572,42 @@ internal sealed partial class MainShell
         page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         page.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        var header = new Grid { Margin = new Thickness(26, TitleBarHeight - 8, 26, 4), MinHeight = 72, Padding = new Thickness(0, 0, 0, 10) };
+        // 16/11 (maquette « plus lisible ») : le titre et son point carré, « CLIQUE SUR UNE TOUCHE POUR LA CHANGER »
+        // dessous sur les pages de touches, un trait fin ; à droite, les boutons de la page. Plus de cadre du compte
+        // en haut (Mon compte est sous « Plus »).
+        var header = new Grid { MinHeight = 72, Padding = new Thickness(0, 0, 0, 20) };
         ToolTipService.SetToolTip(_titleBack, Loc.T("Revenir à la Communauté"));
         AutomationProperties.SetName(_titleBack, Loc.T("Revenir"));
         _titleBack.Click += (_, _) => _community.LeavePerson();
+        _subtitle = SwissLabel(Loc.T("Clique sur une touche pour la changer"), 10.5);
         header.Children.Add(new StackPanel
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 14,
+            Spacing = 8,
             VerticalAlignment = VerticalAlignment.Bottom,
-            Children = { _titleBack, PageTitle(_title, 46) },
+            Children =
+            {
+                new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, Children = { _titleBack, PageTitle(_title, 54) } },
+                _subtitle,
+            },
         });
-        // À droite : la capsule de la page, puis le compte (sa photo, ou l'icône du compte).
         var right = new StackPanel
         {
             Orientation = Orientation.Horizontal,
-            Spacing = 10,
+            Spacing = 12,
             HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Center,
-            Children = { _headerAction, _capsuleBorder, _accountSlot },
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 6, 0, 0),
+            Children = { _headerAction },
         };
         header.Children.Add(right);
-        var titleRule = Rule(Text);
-        titleRule.VerticalAlignment = VerticalAlignment.Bottom;
-        titleRule.Margin = new Thickness(0, 0, 0, -10);
-        header.Children.Add(titleRule);
-        page.Children.Add(header);
+        _titleRule = Rule(LineColor);
+        _titleRule.VerticalAlignment = VerticalAlignment.Bottom;
+        header.Children.Add(_titleRule);
+        var headerHost = new Grid { Margin = new Thickness(ReadableInset, TitleBarHeight - 8 + 22, ReadableInset, 4) };
+        headerHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = ReadableMaxWidth });
+        headerHost.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        headerHost.Children.Add(header);
+        page.Children.Add(headerHost);
         Grid.SetRow(_notices, 1);
         page.Children.Add(_notices);
         Grid.SetRow(_scroll, 2);
@@ -629,106 +626,13 @@ internal sealed partial class MainShell
         _main.Children.Add(page);
     }
 
-    private void RenderSidebar()
-    {
-        using var inverted = Inverted();                 // noire sous Orange
-        _sidebarGroups.Children.Clear();
-        var searching = _query.Trim().Length > 0;
-        var fl = Group(Loc.T("FL Studio"));
-        foreach (var s in Enum.GetValues<FlSection>())
-        {
-            var section = s;
-            fl.Children.Add(SidebarRow(s.Title(),
-                !searching && _kind == PageKind.Section && _section == s, () => Choose(PageKind.Section, section)));
-        }
-        _sidebarGroups.Children.Add(fl);
-        var automate = Group(Loc.T("Automatiser"));
-        automate.Children.Add(SidebarRow(Loc.T("Macros"),
-            !searching && _kind == PageKind.Macros, () => Choose(PageKind.Macros, _section)));
-        _sidebarGroups.Children.Add(automate);
-        var custom = Group(Loc.T("Personnalisé"));
-        custom.Children.Add(SidebarRow(Loc.T("Mes raccourcis"),
-            !searching && _kind == PageKind.Custom, () => Choose(PageKind.Custom, _section)));
-        _sidebarGroups.Children.Add(custom);
-        var share = Group(Loc.T("Partager"));
-        var communityRow = SidebarRow(Loc.T("Communauté"),
-            !searching && _kind == PageKind.Community, () =>
-            {
-                // Déjà sur la page d'une personne : « Communauté » ramène à la liste.
-                if (_kind == PageKind.Community && _query.Trim().Length == 0 && _community.PersonName is not null)
-                    _community.LeavePerson();
-                else
-                    Choose(PageKind.Community, _section);
-            });
-        if (_community.NewFromFollowed > 0)
-        {
-            // 11/11 : point rouge, un partage d'une personne suivie depuis la dernière visite d'« Abonnements ».
-            var dot = new Rectangle
-            {
-                Width = 7, Height = 7, Fill = Brush(Red), IsHitTestVisible = false,
-                HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 12, 0),
-            };
-            share.Children.Add(new Grid { Children = { communityRow, dot } });
-        }
-        else
-        {
-            share.Children.Add(communityRow);
-        }
-        _sidebarGroups.Children.Add(share);
-        var help = Group(Loc.T("Compte et aide"));
-        help.Children.Add(SidebarRow(Loc.T("Mon compte"),
-            !searching && _kind == PageKind.Account, () => Choose(PageKind.Account, _section)));
-        help.Children.Add(SidebarRow(Loc.T("Aide"),
-            !searching && _kind == PageKind.Help, () => Choose(PageKind.Help, _section)));
-        _sidebarGroups.Children.Add(help);
-    }
-
-    /// Titre gris d'un groupe de la barre de gauche (« FL Studio », « Automatiser »…) et ses lignes.
-    private static StackPanel Group(string title)
-    {
-        var group = new StackPanel { Spacing = 2 };
-        var label = SwissLabel(title, 10.5);
-        label.Margin = new Thickness(10, 0, 10, 4);
-        AutomationProperties.SetHeadingLevel(label, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2);
-        group.Children.Add(label);
-        return group;
-    }
-
-    /// Une ligne de la barre de gauche (style suisse) : le carré de la page, puis le nom ; choisie (et au survol) :
-    /// pleine d'encre, texte en gras, comme le Mac. Carré (proposition A choisie le 05/11, « le A est parfait ») :
-    /// creux, d'un trait fin à l'encre ; rouge plein pour la page ouverte ; au survol, du trait de la couleur du fond.
-    private static Button SidebarRow(string title, bool selected, Action choose)
-    {
-        Color ink = Text, paper = WindowColor;          // pris maintenant : la barre a ses couleurs sous Orange
-        var square = new Rectangle
-        {
-            Width = 8,
-            Height = 8,
-            Fill = Brush(selected ? BrandRed : Colors.Transparent),
-            Stroke = selected ? null : Brush(ink),
-            StrokeThickness = selected ? 0 : 1,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        var tile = new Border { Width = 22, Height = 22, Child = square };
-        AutomationProperties.SetAccessibilityView(tile, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        row.Children.Add(tile);
-        row.Children.Add(Label(title, 13));
-        var button = Option(row, choose, selected, on => square.Stroke = Brush(on ? paper : ink));
-        AutomationProperties.SetName(button, title);
-        return button;
-    }
-
     private void Choose(PageKind kind, FlSection section)
     {
         if (kind != PageKind.Community) _community.Leave();
+        if (kind != PageKind.Find && _keyListening) StopKeySearch();
         _kind = kind;
         _section = section;
-        _query = "";
-        _keySearch = null;
-        _search.Text = "";
+        OpenPart(kind);
         RenderSidebar();
         RenderPage();
         UpdateAccountButton();
@@ -737,43 +641,21 @@ internal sealed partial class MainShell
 
     // ---------- Recherche avec une touche ----------
 
-    private Button KeySearchButton()
-    {
-        var button = new Button
-        {
-            Style = PlainButton,
-            Width = 26,
-            Height = 26,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            HorizontalContentAlignment = HorizontalAlignment.Center,
-            CornerRadius = new CornerRadius(0),
-            Content = Icon("keyboard", 15, Secondary),
-        };
-        ToolTipService.SetToolTip(button, Loc.T("Rechercher avec un raccourci : appuie sur les touches que tu connais"));
-        AutomationProperties.SetName(button, Loc.T("Rechercher avec un raccourci"));
-        button.Click += (_, _) =>
-        {
-            if (_keyListening) StopKeySearch();
-            else StartKeySearch();
-        };
-        return button;
-    }
-
+    /// La grande case de « Trouver un raccourci » attend les touches (Échap annule).
     private void StartKeySearch()
     {
         _keyListening = true;
+        _findTyping = false;
         _app.SetRecording(true);
-        using (Inverted()) _keyButton.Content = Icon("keyboard", 15, Accent);
-        _keyButton.Focus(FocusState.Programmatic);
-        RenderNotices();
+        UpdateFindField();
+        _findKey.Focus(FocusState.Programmatic);
     }
 
     private void StopKeySearch()
     {
         _keyListening = false;
         _app.SetRecording(false);
-        using (Inverted()) _keyButton.Content = Icon("keyboard", 15, Secondary);
-        RenderNotices();
+        UpdateFindField();
     }
 
     /// Touches appuyées pendant la recherche par raccourci (Échap annule) ; les autres touches suivent leur cours.
@@ -796,12 +678,9 @@ internal sealed partial class MainShell
             return;
         }
         if (!combo.IsValidKey) return;
-        StopKeySearch();
         _keySearch = combo;
-        _query = combo.ToString();
-        _search.Text = _query;
-        RenderSidebar();
-        RenderPage();
+        StopKeySearch();
+        RenderFindResults();
     }
 
     private static bool IsDown(Windows.System.VirtualKey key) =>
@@ -816,9 +695,6 @@ internal sealed partial class MainShell
     private void RenderNotices()
     {
         _notices.Children.Clear();
-        if (_keyListening)
-            _notices.Children.Add(Notice("keyboard", Blue, Loc.T("Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait."),
-                Loc.T("Annuler"), StopKeySearch));
         switch (_app.Status)
         {
             case StatusKind.Paused:
@@ -933,7 +809,7 @@ internal sealed partial class MainShell
         button.PointerExited += (_, _) => { button.Background = Brush(MacLook.WindowColor); button.Content = Face(false); };
         button.Click += (_, _) =>
         {
-            if (_account.Session is not null && _kind == PageKind.Account && _query.Trim().Length == 0) _account.EditProfile();
+            if (_account.Session is not null && _kind == PageKind.Account) _account.EditProfile();
             else Choose(PageKind.Account, _section);
         };
         ToolTipService.SetToolTip(button, help);
@@ -943,12 +819,10 @@ internal sealed partial class MainShell
 
     // ---------- Pages ----------
 
-    private sealed record PageCard(string Title, List<FrameworkElement> Rows);
-
     /// La fiche ou « Partager » de la Communauté, posés au-dessus de la page ; rien sur les autres pages.
     private void UpdateAbove()
     {
-        var card = _kind == PageKind.Community && _query.Trim().Length == 0 ? _community.Above() : null;
+        var card = _kind == PageKind.Community ? _community.Above() : null;
         _above.Children.Clear();
         if (card is null)
         {
@@ -965,134 +839,80 @@ internal sealed partial class MainShell
         if (!_app.Onboarded) return;
         UpdateAbove();
         var (rows, others) = _app.Catalog;
-        var q = _query.Trim();
         _capsule.Children.Clear();
         _capsuleBorder.Visibility = Visibility.Collapsed;
         _headerAction.Content = null;
         _titleBack.Visibility = Visibility.Collapsed;
-        List<PageCard> cards;
-        Color tint;
-        if (q.Length > 0)
+        switch (_kind)
         {
-            SetTitle(Loc.T("Rechercher"));
-            tint = Accent;
-            cards = SearchCards(rows, others, q);
-            if (cards.Count == 0)
+            case PageKind.Find:
+                // 16/11 (maquette « plus lisible ») : « appuie sur un raccourci », la grande case et ce qu'elle trouve.
+                SetTitle(Loc.T("Appuie sur un raccourci"));
+                SetHeaderDetails(keysPage: false, rule: false);
+                _scroll.Content = FindPage();
+                UpdateFindField();
+                RenderFindResults();
+                return;
+            case PageKind.Macros:
+                SetTitle(Loc.T("Macros"));
+                SetHeaderDetails(keysPage: _macros.HasMacros, rule: true);
+                _headerAction.Content = _macros.HeaderActions();
+                _scroll.Content = _macros.ListContent(_columns);
+                return;
+            case PageKind.Community:
+                // 11/11 : sur la page d'une personne, son pseudo à la place de « communauté. », la flèche pour revenir.
+                SetTitle(_community.PersonName ?? Loc.T("Communauté"));
+                SetHeaderDetails(keysPage: false, rule: true);
+                if (_community.PersonName is not null) _titleBack.Visibility = Visibility.Visible;
+                _scroll.Content = _community.Content(_columns);
+                _headerAction.Content = _community.HeaderShare();
+                return;
+            case PageKind.Account:
+                SetTitle(Loc.T("Mon compte"));
+                SetHeaderDetails(keysPage: false, rule: true);
+                // Sans compte, la connexion seule (07/11 au soir : plus la carte des thèmes) ; connecté, le thème est
+                // sous le profil.
+                _scroll.Content = _account.Content(_columns);
+                return;
+            case PageKind.Help:
+                SetTitle(Loc.T("Aide"));
+                SetHeaderDetails(keysPage: false, rule: true);
+                _scroll.Content = _help.Content(_columns);
+                return;
+            case PageKind.Custom:
             {
-                ShowEmpty("search",
-                    _keySearch is not null ? Loc.T("Aucun raccourci") : Loc.T("Aucun résultat"),
-                    _keySearch is { } k ? Loc.F("Rien n'utilise %@ : ces touches sont libres.", k.ToString())
-                                        : Loc.F("Aucun raccourci ne correspond à « %@ ».", q));
+                SetTitle(Loc.T("Mes raccourcis"));
+                // 05/11 (« juste action, page, puis raccourci, avec le bouton réinitialiser derrière ») : une seule liste
+                // courte, comme le Mac ; lignes lisibles du 16/11.
+                var changed = MyShortcuts.Changed(rows);
+                var created = MyShortcuts.Created(others, _app.Starters);
+                SetHeaderDetails(keysPage: changed.Count + created.Count > 0, rule: true);
+                if (changed.Count == 0 && created.Count == 0)
+                {
+                    ShowEmpty("star", Loc.T("Aucun raccourci changé"),
+                        Loc.T("Chaque raccourci que tu changes arrive ici, avec ceux que tu crées. Les macros ont leur page."));
+                    return;
+                }
+                var list = new StackPanel();
+                foreach (var r in changed) list.Children.Add(CatalogLine(r, FindDetail(r), bold: true));
+                foreach (var c in created) list.Children.Add(CustomLine(c, Loc.T("Créé par toi"), bold: true));
+                _scroll.Content = Readable(list);
+                return;
+            }
+            default:
+            {
+                SetTitle(_section.Title());
+                SetHeaderDetails(keysPage: true, rule: true);
+                // 16/11 (maquette) : chaque groupe de FL avec son nom à gauche, puis les actions en plus.
+                var mine = rows.Where(r => r.Entry.Section == _section).ToList();
+                var groups = CatalogGroups.Cards(_section, mine.Where(r => r.Entry.IsNative), r => r.Entry)
+                    .Select(c => (c.Title, c.Rows.Select(r => CatalogLine(r)).ToList())).ToList();
+                var extras = mine.Where(r => !r.Entry.IsNative).ToList();
+                if (extras.Count > 0) groups.Add((Loc.T("Actions en plus"), extras.Select(r => CatalogLine(r)).ToList()));
+                ShowGroups(groups);
                 return;
             }
         }
-        else if (_kind == PageKind.Macros)
-        {
-            SetTitle(Loc.T("Macros"));
-            _scroll.Content = _macros.ListContent(_columns);
-            return;
-        }
-        else if (_kind == PageKind.Community)
-        {
-            // 11/11 : sur la page d'une personne, son pseudo à la place de « communauté. », la flèche pour revenir.
-            SetTitle(_community.PersonName ?? Loc.T("Communauté"));
-            if (_community.PersonName is not null) _titleBack.Visibility = Visibility.Visible;
-            _scroll.Content = _community.Content(_columns);
-            _headerAction.Content = _community.HeaderShare();
-            return;
-        }
-        else if (_kind == PageKind.Account)
-        {
-            SetTitle(Loc.T("Mon compte"));
-            // Sans compte, la connexion seule (07/11 au soir : plus la carte des thèmes) ; connecté, le thème est
-            // sous le profil.
-            _scroll.Content = _account.Content(_columns);
-            return;
-        }
-        else if (_kind == PageKind.Help)
-        {
-            SetTitle(Loc.T("Aide"));
-            _scroll.Content = _help.Content(_columns);
-            return;
-        }
-        else if (_kind == PageKind.Custom)
-        {
-            SetTitle(Loc.T("Mes raccourcis"));
-            tint = Pink;
-            // 05/11 (« juste action, page, puis raccourci, avec le bouton réinitialiser derrière ») : une seule liste
-            // courte, comme le Mac.
-            var changed = MyShortcuts.Changed(rows);
-            var created = MyShortcuts.Created(others, _app.Starters);
-            if (changed.Count == 0 && created.Count == 0)
-            {
-                ShowEmpty("star", Loc.T("Aucun raccourci changé"),
-                    Loc.T("Chaque raccourci que tu changes arrive ici, avec ceux que tu crées. Les macros ont leur page."));
-                return;
-            }
-            // Toute la largeur de la page, comme le Mac (la touche et ↺ au bout de la ligne).
-            var list = new StackPanel { Spacing = 0 };
-            foreach (var r in changed)
-                list.Children.Add(MineRow(r.Entry.Title, r.Entry.Section.Title(), r.Current, () => EditKey(r),
-                    RoundIcon("reset", Loc.T("Revenir à : ") + (r.Entry.DefaultTrigger?.ToString() ?? Loc.T("aucune touche")), () => Reset(r), 28)));
-            foreach (var c in created)
-            {
-                var line = MineRow(_app.TitleOf(c), Loc.T("Créé par toi"), c.Trigger, async () => await EditCustomAsync(c),
-                    RoundIcon("trash", Loc.T("Supprimer"), () => Delete(c), 28));
-                line.Opacity = c.Enabled ? 1 : 0.5;
-                list.Children.Add(line);
-            }
-            _scroll.Content = new Border { Padding = new Thickness(26, 10, 26, 24), Child = list };
-            return;
-        }
-        else
-        {
-            SetTitle(_section.Title());
-            tint = Tint(_section);
-            var mine = rows.Where(r => r.Entry.Section == _section).ToList();
-            cards = CatalogGroups.Cards(_section, mine.Where(r => r.Entry.IsNative), r => r.Entry)
-                .Select(c => new PageCard(c.Title, c.Rows.Select(r => CatalogRowView(r)).ToList())).ToList();
-            var extras = mine.Where(r => !r.Entry.IsNative).ToList();
-            if (extras.Count > 0)
-                cards.Add(new PageCard(Loc.T("Actions en plus"), extras.Select(r => CatalogRowView(r)).ToList()));
-        }
-        ShowCards(cards);
-    }
-
-    /// Recherche : les raccourcis de toutes les pages, une carte par page ; avec une touche appuyée (bouton clavier) :
-    /// ce qui se lance sur ces touches, ou les portait dans FL.
-    private List<PageCard> SearchCards(List<CatalogRow> rows, List<Shortcut> others, string q)
-    {
-        bool Matches(CatalogRow r) => _keySearch is { } k
-            ? r.Current == k || r.Entry.DefaultTrigger == k
-            : $"{r.Entry.Title} {r.Entry.Detail} {r.Current} {r.Entry.Section.Title()}".Contains(q, StringComparison.CurrentCultureIgnoreCase);
-        var cards = new List<PageCard>();
-        foreach (var s in Enum.GetValues<FlSection>())
-        {
-            var found = rows.Where(r => r.Entry.Section == s && Matches(r)).ToList();
-            if (found.Count > 0) cards.Add(new PageCard(s.Title(), found.Select(r => CatalogRowView(r)).ToList()));
-        }
-        var mine = others.Where(o => o.Kind != ShortcutKind.Macro && (_keySearch is { } k
-            ? o.Trigger == k
-            : $"{_app.TitleOf(o)} {o.Trigger}".Contains(q, StringComparison.CurrentCultureIgnoreCase))).ToList();
-        if (mine.Count > 0) cards.Add(new PageCard(Loc.T("Mes raccourcis"), mine.Select(o => CustomRowView(o)).ToList()));
-        return cards;
-    }
-
-    /// Cartes sur une ou deux colonnes (comme CardMasonry du Mac) ; la page repart du haut.
-    private void ShowCards(List<PageCard> cards)
-    {
-        var columns = CatalogGroups.Columns(cards, _columns, c => c.Rows.Count);
-        var grid = new Grid { ColumnSpacing = 24, Padding = new Thickness(26, 10, 26, 24) };
-        for (var i = 0; i < Math.Max(_columns, columns.Count); i++)
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        for (var i = 0; i < columns.Count; i++)
-        {
-            var stack = new StackPanel { Spacing = 20 };
-            foreach (var card in columns[i]) stack.Children.Add(TitledCard(card.Title, card.Rows));
-            Grid.SetColumn(stack, i);
-            grid.Children.Add(stack);
-        }
-        _scroll.Content = grid;
     }
 
     /// Page vide, comme celle du Mac (08/11, « la page quand tu n'as pas de raccourci n'est pas la même ») : au milieu de
@@ -1111,147 +931,6 @@ internal sealed partial class MainShell
         body.TextAlignment = TextAlignment.Center;
         stack.Children.Add(body);
         _scroll.Content = new Grid { MinHeight = 420, Padding = new Thickness(24), Children = { stack } };
-    }
-
-    /// Carte de raccourcis : son titre gris au-dessus, ses lignes dans une plaque claire, un trait fin entre deux.
-    internal static StackPanel TitledCard(string title, List<FrameworkElement> rows)
-    {
-        // Style suisse : le titre en petites capitales blanches souligné d'un trait blanc, les lignes séparées de
-        // traits fins #222, sans cadre (comme les rubriques du Mac).
-        var card = new StackPanel { Spacing = 0 };
-        var label = SwissLabel(title, 11, Text);
-        label.Margin = new Thickness(0, 0, 0, 6);
-        AutomationProperties.SetHeadingLevel(label, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level3);
-        card.Children.Add(label);
-        card.Children.Add(Rule(Text));
-        foreach (var row in rows)
-        {
-            var cell = new Grid();
-            cell.Children.Add(row);
-            var line = Rule(Faint);
-            line.VerticalAlignment = VerticalAlignment.Bottom;
-            cell.Children.Add(line);
-            card.Children.Add(cell);
-        }
-        return card;
-    }
-
-    /// Ligne d'un raccourci de FL : son nom ; ⚠ si la touche est prise ; ↺ juste avant une touche changée ; la touche
-    /// (bleue si changée). Un clic ouvre « Changer la touche ».
-    private FrameworkElement CatalogRowView(CatalogRow row)
-    {
-        var grid = new Grid { ColumnSpacing = 8 };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var title = Label(row.Entry.Title, 13);
-        ToolTipService.SetToolTip(title, row.Entry.IsNative ? Loc.T("Raccourci d'origine de FL Studio") : row.Entry.Detail);
-        grid.Children.Add(title);
-
-        var warnings = new List<string>();
-        if (row.TakenBy is { } taken)
-            warnings.Add(Loc.F("Touche aussi utilisée par « %@ ». Clique sur la touche pour en choisir une autre.", taken));
-        if (row.Shortcut is { } s) warnings.AddRange(_app.IssuesOf(s.Id).Select(i => i.Message));
-        if (warnings.Count > 0)
-        {
-            var warn = Icon("warning", 13, Orange, WindowColor);
-            ToolTipService.SetToolTip(warn, string.Join("\n", warnings));
-            Grid.SetColumn(warn, 1);
-            grid.Children.Add(warn);
-        }
-        if (!row.IsDefault)
-        {
-            var reset = RoundIcon("reset", Loc.T("Revenir à : ") + (row.Entry.DefaultTrigger?.ToString() ?? Loc.T("aucune touche")),
-                () => Reset(row), 28);
-            Grid.SetColumn(reset, 2);
-            grid.Children.Add(reset);
-        }
-        var keys = Keys(row.Current, changed: !row.IsDefault);
-        Grid.SetColumn(keys, 3);
-        grid.Children.Add(keys);
-
-        var option = Option(grid, () => EditKey(row), minHeight: 36);
-        AutomationProperties.SetName(option, $"{row.Entry.Title} : {row.Current?.ToString() ?? Loc.T("aucune")}");
-        AutomationProperties.SetHelpText(option, Loc.T("Changer la touche"));
-        var menu = new MenuFlyout();
-        var change = new MenuFlyoutItem { Text = Loc.T("Changer la touche…") };
-        change.Click += (_, _) => EditKey(row);
-        var resetItem = new MenuFlyoutItem { Text = Loc.T("Réinitialiser"), IsEnabled = !row.IsDefault };
-        resetItem.Click += (_, _) => Reset(row);
-        menu.Items.Add(change);
-        menu.Items.Add(resetItem);
-        option.ContextFlyout = SwissMenu(menu);
-        return option;
-    }
-
-    /// Ligne de « Mes raccourcis » (comme MineLine du Mac) : l'action en gras, sa page en gris, la touche, puis le bouton
-    /// qui suit (↺ ou Supprimer) ; toute la ligne ouvre sa fiche ; trait fin dessous.
-    private FrameworkElement MineRow(string title, string page, KeyCombo? combo, Action open, FrameworkElement trailing)
-    {
-        var grid = new Grid { ColumnSpacing = 12 };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.Children.Add(Label(title, 13.5, null, bold: true));
-        var pageLabel = Label(page, 12, Secondary);
-        Grid.SetColumn(pageLabel, 1);
-        grid.Children.Add(pageLabel);
-        var keys = Keys(combo, changed: true);
-        Grid.SetColumn(keys, 2);
-        grid.Children.Add(keys);
-        Grid.SetColumn(trailing, 3);
-        grid.Children.Add(trailing);
-        var option = Option(grid, open, minHeight: 40);
-        AutomationProperties.SetName(option, $"{title} : {combo?.ToString() ?? Loc.T("aucune")}");
-        var cell = new Grid();
-        cell.Children.Add(option);
-        var line = Rule(Faint);
-        line.VerticalAlignment = VerticalAlignment.Bottom;
-        cell.Children.Add(line);
-        return cell;
-    }
-
-    /// Ligne d'un raccourci que tu as créé : son nom (et sa fenêtre de FL), sa touche, « Supprimer ».
-    private FrameworkElement CustomRowView(Shortcut s)
-    {
-        var grid = new Grid { ColumnSpacing = 8 };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 1 };
-        text.Children.Add(Label(_app.TitleOf(s), 13));
-        var caption = _app.SubtitleOf(s);
-        if (caption.Length > 0) text.Children.Add(Label(char.ToUpper(caption[0]) + caption[1..], 11, Secondary));
-        grid.Children.Add(text);
-        var issues = _app.IssuesOf(s.Id);
-        if (issues.Count > 0)
-        {
-            var warn = Icon("warning", 13, Orange, WindowColor);
-            ToolTipService.SetToolTip(warn, string.Join("\n", issues.Select(i => i.Message)));
-            Grid.SetColumn(warn, 1);
-            grid.Children.Add(warn);
-        }
-        var keys = Keys(s.Trigger);
-        Grid.SetColumn(keys, 2);
-        grid.Children.Add(keys);
-        var delete = RoundIcon("trash", Loc.T("Supprimer"), () => Delete(s), 28);
-        Grid.SetColumn(delete, 3);
-        grid.Children.Add(delete);
-        var option = Option(grid, async () => await EditCustomAsync(s), minHeight: 40);
-        option.Opacity = s.Enabled ? 1 : 0.5;
-        AutomationProperties.SetName(option, $"{_app.TitleOf(s)} : {s.Trigger?.ToString() ?? Loc.T("aucune")}");
-        var menu = new MenuFlyout();
-        var toggle = new MenuFlyoutItem { Text = s.Enabled ? Loc.T("Désactiver") : Loc.T("Activer") };
-        toggle.Click += (_, _) => _app.Upsert(s with { Enabled = !s.Enabled });
-        var remove = new MenuFlyoutItem { Text = Loc.T("Supprimer") };
-        remove.Click += (_, _) => Delete(s);
-        menu.Items.Add(toggle);
-        menu.Items.Add(remove);
-        option.ContextFlyout = SwissMenu(menu);
-        return option;
     }
 
     private void Reset(CatalogRow row)
