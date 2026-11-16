@@ -602,6 +602,7 @@ internal sealed partial class MainShell
         header.Children.Add(right);
         _titleRule = Rule(LineColor);
         _titleRule.VerticalAlignment = VerticalAlignment.Bottom;
+        _titleRule.Margin = new Thickness(0, 0, 0, -20);       // sous la marge de l'en-tête, comme la maquette
         header.Children.Add(_titleRule);
         var headerHost = new Grid { Margin = new Thickness(ReadableInset, TitleBarHeight - 8 + 22, ReadableInset, 4) };
         headerHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = ReadableMaxWidth });

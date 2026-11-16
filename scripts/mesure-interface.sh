@@ -199,7 +199,9 @@ search_test() {   # $1 : rapport gardé (position de la fenêtre)
   search_step 3-clic-dedans "$sx" "$sy"
   search_step 4-en-tete-de-page $(( ox + 600 )) $(( oy + 140 ))
   search_step 5-clic-dedans "$sx" "$sy"
-  search_step 6-bureau 20 400
+  # Hors de la fenêtre (980 points de large depuis x 0) : le bureau, à droite (16/11 : 20,400 tombait sur « Mixer »
+  # de la nouvelle barre de gauche, puis le clic suivant ouvrait une ligne du Mixer).
+  search_step 6-bureau 1005 400
   search_step 7-retour-barre-de-titre $(( ox + 520 )) $(( oy + 26 ))
   search_step 8-clic-dedans "$sx" "$sy"
   search_step 9-ligne-de-la-barre-laterale $(( ox + 120 )) $(( oy + 330 ))
