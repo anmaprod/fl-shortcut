@@ -523,13 +523,12 @@ internal sealed class MacrosPage
         }
         var notes = MacroExchange.Notes(preview);
         var text = "« " + DisplayText.Safe(preview.Doc.Name, 60) + " »"
-                   + (notes.Count == 0 ? "" : "\n\n• " + string.Join("\n• ", notes))
-                   + "\n\n" + Loc.T("Elle arrive sans raccourci : relis-la dans le créateur, puis choisis-lui un raccourci.");
+                   + (notes.Count == 0 ? "" : "\n\n• " + string.Join("\n• ", notes));
         if (!await AskAsync(Loc.T("Importer cette macro ?"), text, Loc.T("Importer"), Loc.T("Annuler"))) return;
         var doc = preview.Doc;
         doc.Name = _store.UniqueName(doc.Name);
         var added = _store.Add(doc);
-        _toast(Loc.F("« %@ » importée, sans raccourci : relis-la dans le créateur", DisplayText.Safe(added.Name, 40)), null);
+        _toast(Loc.F("« %@ » importée", DisplayText.Safe(added.Name, 40)), null);
         Open(added.Id);
     }
 
@@ -553,7 +552,7 @@ internal sealed class MacrosPage
             _store.Remove(doc.Id);
             return;
         }
-        if (!await AskAsync(Loc.F("Supprimer « %@ » ?", name), Loc.T("La macro et son raccourci sont supprimés."),
+        if (!await AskAsync(Loc.F("Supprimer « %@ » ?", name), "",
                             Loc.T("Supprimer"), Loc.T("Annuler"), destructive: true))
             return;
         var undo = _app.DeleteMacro(doc.Id);
@@ -886,7 +885,7 @@ internal sealed class MacrosPage
             Background = Brush(WindowColor),
             BorderBrush = Brush(LineColor),
             Title = title,
-            Content = Paragraph(text, 13, Text),
+            Content = text.Length == 0 ? null : Paragraph(text, 13, Text),
             PrimaryButtonText = primary,
             CloseButtonText = close,
             DefaultButton = ContentDialogButton.Close,
@@ -1017,7 +1016,7 @@ internal sealed class MacrosPage
     {
         var recording = _capturing == slot;
         UIElement content = recording
-            ? Label(Loc.T("Appuie sur tes touches… Échap annule"), 12, Text)
+            ? Label(Loc.T("Appuie sur tes touches…"), 12, Text)
             : combo is { } c ? (UIElement)Keys(c) : Label(prompt, 12, Link);
         var button = new Button
         {
@@ -1365,7 +1364,7 @@ internal sealed class MacrosPage
             StrokeDashArray = new DoubleCollection { 5, 4 },
         };
         zone.Children.Add(border);
-        var text = Paragraph(Loc.T("Glisse un bloc ici, ou clique-le dans la liste à gauche"), 13);
+        var text = Paragraph(Loc.T("Glisse un bloc ici"), 13);
         text.TextAlignment = TextAlignment.Center;
         text.HorizontalAlignment = HorizontalAlignment.Center;
         text.VerticalAlignment = VerticalAlignment.Center;
@@ -1521,9 +1520,6 @@ internal sealed class MacrosPage
         var title = Label(Loc.T("Aucun bloc choisi"), 14, Text, semibold: true);
         title.HorizontalAlignment = HorizontalAlignment.Center;
         stack.Children.Add(title);
-        var text = Paragraph(Loc.T("Choisis une ligne pour la régler."), 12);
-        text.TextAlignment = TextAlignment.Center;
-        stack.Children.Add(text);
         return stack;
     }
 
@@ -1756,7 +1752,7 @@ internal sealed class MacrosPage
                 }
                 var teach = Soft(Loc.T("Montrer dans FL…"), () => LearnDrag(shown => set(new BlockBody.Drag(shown.From, shown.To))));
                 teach.HorizontalAlignment = HorizontalAlignment.Left;
-                ToolTipService.SetToolTip(teach, Loc.T("FL passe devant : fais le glisser-déposer une fois (il agit aussi dans FL). Échap annule."));
+                ToolTipService.SetToolTip(teach, Loc.T("Glisse et lâche dans FL."));
                 yield return teach;
                 break;
             case BlockBody.MouseClick mc:
@@ -1943,7 +1939,7 @@ internal sealed class MacrosPage
             else RenderSoon();
             _window.Activate();
         }, visual);
-        _notice = problem ?? Loc.T("Clique dans FL à l'endroit voulu. Échap annule.");
+        _notice = problem ?? Loc.T("Clique dans FL.");
         RenderSoon();
     }
 
@@ -1958,7 +1954,7 @@ internal sealed class MacrosPage
             else RenderSoon();
             _window.Activate();
         });
-        _notice = problem ?? Loc.T("FL passe devant : fais le glisser-déposer une fois (il agit aussi dans FL). Échap annule.");
+        _notice = problem ?? Loc.T("Glisse et lâche dans FL.");
         RenderSoon();
     }
 

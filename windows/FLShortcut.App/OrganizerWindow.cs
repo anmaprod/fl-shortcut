@@ -362,7 +362,7 @@ internal sealed partial class OrganizerWindow : Window
         var hands = Loc.T("Ne touche pas à FL.");
         if (_controller.ApplyStep is { } step) return step + " " + hands;
         return _controller.OrganizesCopy
-            ? Loc.T("FL ouvre la copie rangée de ton projet, puis tout s'y range… Ne touche pas à FL.")
+            ? Loc.T("Rangement… Ne touche pas à FL.")
             : Loc.T("Application dans FL… Ne touche pas à FL.");
     }
 
@@ -413,11 +413,11 @@ internal sealed partial class OrganizerWindow : Window
     {
         OrganizerWait.RestartFl => ("arrow.clockwise", Loc.T("Quitte et rouvre FL"), ""),
         OrganizerWait.NoResponse => ("antenna.radiowaves.left.and.right", Loc.T("En attente de FL Studio"),
-            Loc.T("FL ne répond pas encore : il se relie à FL Shortcuts en démarrant. Quitte et rouvre FL.")),
+            Loc.T("Quitte et rouvre FL.")),
         OrganizerWait.WrongInput => ("link", Loc.T("Le lien est sur la mauvaise entrée"),
             Loc.T("Ta carte son a le Controller type « FL Shortcuts » : remets-la sur « (generic controller) ».")),
-        OrganizerWait.OpenFl => ("macwindow", Loc.T("Ouvre FL Studio"), Loc.T("Organiser commence dès que FL est ouvert, avec ton projet.")),
-        _ => ("stop.fill", Loc.T("Arrête la lecture dans FL"), Loc.T("Organiser écoute chaque son seul : FL doit être à l'arrêt.")),
+        OrganizerWait.OpenFl => ("macwindow", Loc.T("Ouvre FL Studio"), ""),
+        _ => ("stop.fill", Loc.T("Arrête la lecture dans FL"), ""),
     };
 
     /// En attente de FL (comme le Mac) : ce qu'il faut faire, en une phrase ; Organiser vérifie tout seul et continue
@@ -428,8 +428,8 @@ internal sealed partial class OrganizerWindow : Window
         if (reason == OrganizerWait.RestartFl)
             _content.Children.Add(LinkSteps(2, ""));
         else
-            _content.Children.Add(Ruled(Stack(4, Label(title, 14, Text, bold: true), Paragraph(detail, 12)), 14));
-        _content.Children.Add(Note(Loc.T("Organiser continue tout seul dès que FL est prêt.")));
+            _content.Children.Add(Ruled(detail.Length == 0 ? Label(title, 14, Text, bold: true)
+                                                           : Stack(4, Label(title, 14, Text, bold: true), Paragraph(detail, 12)), 14));
         if (reason is OrganizerWait.RestartFl or OrganizerWait.NoResponse)
         {
             // 07/11 (comme le Mac) : FL quitté et rouvert d'un clic ; FL fermé : l'ouvrir. 15/11 : aussi quand FL ne

@@ -23,12 +23,12 @@ struct AuthCard<Content: View>: View {
 }
 
 /// Ce que donne un compte (05/11) : « tes raccourcis, tes macros, partout. » en grand, puis trois lignes numérotées
-/// séparées d'un trait.
+/// séparées d'un trait ; le mot seul (16/11, plus de phrase dessous : « enlève les phrases qui expliquent trop »).
 struct AuthPitch: View {
-    private var rows: [(String, String, String)] {
-        [("01", String(localized: "Sauvegarde"), String(localized: "Toujours en ligne, toujours à jour.")),
-         ("02", String(localized: "Tous tes ordis"), String(localized: "Les mêmes sur ton Mac et ton PC.")),
-         ("03", String(localized: "Communauté"), String(localized: "Partage et récupère des macros."))]
+    private var rows: [(String, String)] {
+        [("01", String(localized: "Sauvegarde")),
+         ("02", String(localized: "Tous tes ordis")),
+         ("03", String(localized: "Communauté"))]
     }
 
     var body: some View {
@@ -43,10 +43,7 @@ struct AuthPitch: View {
                 let row = rows[i]
                 HStack(alignment: .firstTextBaseline, spacing: 16) {
                     Text(verbatim: row.0).font(Swiss.font(13)).foregroundStyle(Swiss.red)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(row.1).font(Swiss.font(16)).tracking(-0.3)
-                        Text(row.2).font(.system(size: 13)).foregroundStyle(Swiss.gray)
-                    }
+                    Text(row.1).font(Swiss.font(16)).tracking(-0.3)
                 }
                 .padding(.vertical, 14)
                 .frame(maxWidth: .infinity, alignment: .leading)

@@ -789,7 +789,8 @@ public class MacroExchangeTests
         Assert.StartsWith("1. ", preview.Lines[0]);
         Assert.StartsWith("    4.1. ", preview.Lines[4]);
         Assert.Contains(preview.Warnings, w => w.Contains("chaque clic"));
-        Assert.Contains(MacroExchange.Notes(preview), n => n.Contains("sans raccourci"));
+        // 16/11 : plus de « Elle arrive sans raccourci… » (« enlève les phrases qui expliquent trop pour rien »).
+        Assert.DoesNotContain(MacroExchange.Notes(preview), n => n.Contains("sans raccourci"));
     }
 
     [Fact]

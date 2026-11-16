@@ -134,7 +134,7 @@ struct HelpPage: View {
     private var faqCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             if entries.isEmpty {
-                Text("Aucune réponse pour « \(query.displaySafe(max: 30)) » : écris-nous juste en dessous, on te répond.")
+                Text("Aucune réponse pour « \(query.displaySafe(max: 30)) ».")
                     .font(.system(size: 13))
                     .foregroundStyle(Swiss.gray)
                     .padding(18)
@@ -201,9 +201,6 @@ struct HelpPage: View {
                         .font(.system(size: 12))
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text("Dis en quelques mots ce que tu faisais juste avant : ça nous aide beaucoup.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
                 }
                 .padding(8)
                 .background(Rectangle().fill(Color.orange.opacity(0.08)))
@@ -228,11 +225,11 @@ struct HelpPage: View {
                     .font(.system(size: 10).monospacedDigit())
                     .foregroundStyle(.tertiary)
             }
-            TextField("Ton mail", text: $message.email, prompt: Text("Ton mail, pour qu'on te réponde (facultatif)"))
+            TextField("Ton mail", text: $message.email, prompt: Text("Ton mail (facultatif)"))
                 .swissField()
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                    Toggle("Joindre l'état de l'appli (recommandé)", isOn: $includeDiagnostic)
+                    Toggle("Joindre l'état de l'appli", isOn: $includeDiagnostic)
                         .toggleStyle(SwissCheckboxStyle())
                     Spacer()
                     Button(showDiagnostic ? String(localized: "Masquer") : String(localized: "Voir ce qui est joint")) {
@@ -254,12 +251,9 @@ struct HelpPage: View {
                     .frame(maxHeight: 200)
                     .background(Rectangle().fill(Color.primary.opacity(0.05)))
                 }
-                Label("Jamais envoyé : tes touches, tes noms de pistes, tes fichiers.", systemImage: "lock")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
             }
             if mailOpened {
-                Label("Ton app de mail s'est ouverte avec le message tout prêt : vérifie-le, puis envoie-le.",
+                Label("Message prêt dans ton app de mail.",
                       systemImage: "envelope")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
@@ -346,10 +340,8 @@ struct HelpPage: View {
                 .foregroundStyle(.green)
             let mail = message.email.trimmingCharacters(in: .whitespaces)
             Text(mail.isEmpty
-                 ? String(localized: """
-                     On lira ton message. Sans mail, on ne peut pas te répondre : écris-en un la prochaine fois si tu veux une réponse.
-                     """)
-                 : String(localized: "On te répond à \(mail) dès que possible."))
+                 ? String(localized: "On lira ton message.")
+                 : String(localized: "On te répond à \(mail)."))
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -376,9 +368,7 @@ struct HelpPage: View {
         defer { sending = false }
         refreshAttached()
         if let why = await community.sendSupport(outgoing) {
-            failure = SupportConfig.email == nil
-                ? String(localized: "Envoi impossible : \(why) Tu peux le copier ou ouvrir un ticket.")
-                : String(localized: "Envoi impossible : \(why) Tu peux l'envoyer par mail.")
+            failure = String(localized: "Envoi impossible : \(why)")
         } else {
             sent = true
         }
@@ -394,7 +384,7 @@ struct HelpPage: View {
         if let url = SupportRules.mailURL(outgoing, to: address, appVersion: MacroFileActions.appVersion) {
             mailOpened = NSWorkspace.shared.open(url)
             if !mailOpened {
-                failure = String(localized: "Aucune app de mail ne s'est ouverte : copie le message et envoie-le à \(address).")
+                failure = String(localized: "Aucune app de mail : écris à \(address).")
             }
         }
     }

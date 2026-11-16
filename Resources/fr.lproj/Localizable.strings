@@ -1,10 +1,8 @@
 /* FL Shortcuts en français : chaque clé est son propre texte. Écrit par scripts/localisation.py generer. */
 "" = "";
-"\n\nElle arrive sans raccourci : relis-la dans le créateur, puis choisis-lui un raccourci." = "\n\nElle arrive sans raccourci : relis-la dans le créateur, puis choisis-lui un raccourci.";
 "\n\nLa piste et le REC sont prêts : il ne reste qu'à changer d'entrée ou de sortie." = "\n\nLa piste et le REC sont prêts : il ne reste qu'à changer d'entrée ou de sortie.";
 "\n\nRefusé(s) par sécurité :\n• " = "\n\nRefusé(s) par sécurité :\n• ";
 "\n\nTes raccourcis actuels seront remplacés (annulable)." = "\n\nTes raccourcis actuels seront remplacés (annulable).";
-"\n\nUn raccourci ne peut servir qu'une fois. Si tu remplaces, tu pourras choisir tout de suite " = "\n\nUn raccourci ne peut servir qu'une fois. Si tu remplaces, tu pourras choisir tout de suite ";
 "\n\nÀ faire :\n• " = "\n\nÀ faire :\n• ";
 " %lld geste%@ hors de FL (ou dans un menu refermé) ignoré%@." = " %lld geste%@ hors de FL (ou dans un menu refermé) ignoré%@.";
 " (au-delà du canal 10, seul le lien avec FL le fait)" = " (au-delà du canal 10, seul le lien avec FL le fait)";
@@ -94,6 +92,7 @@
 "%lld sorties" = "%lld sorties";
 "%lld touches" = "%lld touches";
 "%lld étapes tapent des touches, cliquent ou ouvrent des fichiers : relis-les dans le créateur." = "%lld étapes tapent des touches, cliquent ou ouvrent des fichiers : relis-les dans le créateur.";
+"%lld étapes à relire dans le créateur." = "%lld étapes à relire dans le créateur.";
 "%lld étoiles" = "%lld étoiles";
 "%lld/%lld" = "%lld/%lld";
 "(aucune)" = "(aucune)";
@@ -128,7 +127,7 @@
 "1 sortie" = "1 sortie";
 "1 touche" = "1 touche";
 "1 à %lld" = "1 à %lld";
-"1 étape tape des touches, clique ou ouvre un fichier : relis-la dans le créateur." = "1 étape tape des touches, clique ou ouvre un fichier : relis-la dans le créateur.";
+"1 étape à relire dans le créateur." = "1 étape à relire dans le créateur.";
 "1 étoile" = "1 étoile";
 "1. Quitte FL (⌘Q), puis rouvre-le.\n2. Dans FL : Options › MIDI Settings.\n3. Règle les 4 cases entourées, avec le même numéro de Port en haut et en bas.\n\nPas de « FL Shortcuts » dans Controller type : le lien est dans %@ ; compare avec Options › File settings › User data folder dans FL." = "1. Quitte FL (⌘Q), puis rouvre-le.\n2. Dans FL : Options › MIDI Settings.\n3. Règle les 4 cases entourées, avec le même numéro de Port en haut et en bas.\n\nPas de « FL Shortcuts » dans Controller type : le lien est dans %@ ; compare avec Options › File settings › User data folder dans FL.";
 "123456" = "123456";
@@ -332,7 +331,7 @@
 "Aucun titre ni aucune explication ne contient ce mot : choisis un membre plus haut pour voir ses partages." = "Aucun titre ni aucune explication ne contient ce mot : choisis un membre plus haut pour voir ses partages.";
 "Aucune" = "Aucune";
 "Aucune action trouvée" = "Aucune action trouvée";
-"Aucune app de mail ne s'est ouverte : copie le message et envoie-le à %@." = "Aucune app de mail ne s'est ouverte : copie le message et envoie-le à %@.";
+"Aucune app de mail : écris à %@." = "Aucune app de mail : écris à %@.";
 "Aucune carte son branchée trouvée (USB, Thunderbolt…) : choisis-la dans la liste." = "Aucune carte son branchée trouvée (USB, Thunderbolt…) : choisis-la dans la liste.";
 "Aucune macro" = "Aucune macro";
 "Aucune macro configurée." = "Aucune macro configurée.";
@@ -340,6 +339,7 @@
 "Aucune macro ouverte." = "Aucune macro ouverte.";
 "Aucune macro." = "Aucune macro.";
 "Aucune réponse pour « %@ » : écris-nous juste en dessous, on te répond." = "Aucune réponse pour « %@ » : écris-nous juste en dessous, on te répond.";
+"Aucune réponse pour « %@ »." = "Aucune réponse pour « %@ ».";
 "Aucune touche" = "Aucune touche";
 "Aucune touche de FL choisie." = "Aucune touche de FL choisie.";
 "Aucune touche reçue : macOS utilise peut-être ce raccourci." = "Aucune touche reçue : macOS utilise peut-être ce raccourci.";
@@ -353,6 +353,7 @@
 "Autorise de nouveau « Enregistrement de l'écran » (décoche puis recoche) : les plugins s'ouvriront plus vite." = "Autorise de nouveau « Enregistrement de l'écran » (décoche puis recoche) : les plugins s'ouvriront plus vite.";
 "Autorise l'Accessibilité à FL Shortcuts pour parcourir les menus de FL." = "Autorise l'Accessibilité à FL Shortcuts pour parcourir les menus de FL.";
 "Autorise l'Accessibilité à FL Shortcuts pour voir la liste de tes plugins, " = "Autorise l'Accessibilité à FL Shortcuts pour voir la liste de tes plugins, ";
+"Autorise l'Accessibilité, ou écris le nom." = "Autorise l'Accessibilité, ou écris le nom.";
 "Autorise le son de FL" = "Autorise le son de FL";
 "Autorise le son de FL :" = "Autorise le son de FL :";
 "Autorise « Audio du système »" = "Autorise « Audio du système »";
@@ -444,16 +445,13 @@
 "Catégorie" = "Catégorie";
 "Ce Mac" = "Ce Mac";
 "Ce Mac et ton compte ont chacun des changements" = "Ce Mac et ton compte ont chacun des changements";
-"Ce Mac et ton compte ont chacun des changements : choisis la version à garder ci-dessus." = "Ce Mac et ton compte ont chacun des changements : choisis la version à garder ci-dessus.";
-"Ce Mac et ton compte se comparent." = "Ce Mac et ton compte se comparent.";
+"Ce Mac reprend ta sauvegarde." = "Ce Mac reprend ta sauvegarde.";
 "Ce Mac reprend ta sauvegarde. Ce qu'il y avait ici est copié dans Application Support › FL Shortcuts." = "Ce Mac reprend ta sauvegarde. Ce qu'il y avait ici est copié dans Application Support › FL Shortcuts.";
 "Ce bloc vient d'une version plus récente de FL Shortcuts. Il est gardé tel quel, mais la macro ne tourne pas tant qu'il est là : mets l'app à jour, ou supprime-le." = "Ce bloc vient d'une version plus récente de FL Shortcuts. Il est gardé tel quel, mais la macro ne tourne pas tant qu'il est là : mets l'app à jour, ou supprime-le.";
 "Ce bouton n'a pas pu être retenu : recommence." = "Ce bouton n'a pas pu être retenu : recommence.";
 "Ce clic n'était ni dans une fenêtre de FL ni dans un de ses menus : recommence." = "Ce clic n'était ni dans une fenêtre de FL ni dans un de ses menus : recommence.";
 "Ce clic n'était pas dans une fenêtre de FL : recommence sur le bouton mute d'une piste." = "Ce clic n'était pas dans une fenêtre de FL : recommence sur le bouton mute d'une piste.";
 "Ce fichier n'est pas une macro de FL Shortcuts (.flsmacro)." = "Ce fichier n'est pas une macro de FL Shortcuts (.flsmacro).";
-"Ce membre n'a rien publié pour l'instant de ce genre." = "Ce membre n'a rien publié pour l'instant de ce genre.";
-"Ce membre n'a rien publié pour l'instant." = "Ce membre n'a rien publié pour l'instant.";
 "Ce menu est vide, ou FL l'a changé : reviens en arrière, ou relis les menus." = "Ce menu est vide, ou FL l'a changé : reviens en arrière, ou relis les menus.";
 "Ce n'est ni le dossier de données de FL Studio ni son « Settings/Hardware ». FL ne verrait pas le script." = "Ce n'est ni le dossier de données de FL Studio ni son « Settings/Hardware ». FL ne verrait pas le script.";
 "Ce n'était pas un glisser : reste cliqué et glisse jusqu'à l'endroit voulu, puis recommence." = "Ce n'était pas un glisser : reste cliqué et glisse jusqu'à l'endroit voulu, puis recommence.";
@@ -462,11 +460,9 @@
 "Ce projet n'a aucun son où poser les icônes : ouvre un nouveau projet dans FL (File › New)." = "Ce projet n'a aucun son où poser les icônes : ouvre un nouveau projet dans FL (File › New).";
 "Ce pseudo est déjà pris." = "Ce pseudo est déjà pris.";
 "Ce qu'est vraiment ce son" = "Ce qu'est vraiment ce son";
-"Ce que fait la macro, étape par étape" = "Ce que fait la macro, étape par étape";
 "Ce que l'Organiser range, et le diagnostic à copier pour l'équipe" = "Ce que l'Organiser range, et le diagnostic à copier pour l'équipe";
 "Ce que tu faisais, ce qui devait se passer, ce qui s'est passé. Ex. : « ma macro s'arrête au 3e bloc dans le Mixer »." = "Ce que tu faisais, ce qui devait se passer, ce qui s'est passé. Ex. : « ma macro s'arrête au 3e bloc dans le Mixer ».";
 "Ce qui te ferait gagner du temps dans FL Studio." = "Ce qui te ferait gagner du temps dans FL Studio.";
-"Ce raccourci lancera ta version ; le modèle d'origine reste dans Macros › Modèles." = "Ce raccourci lancera ta version ; le modèle d'origine reste dans Macros › Modèles.";
 "Ce raccourci ne marchera pas encore" = "Ce raccourci ne marchera pas encore";
 "Centrer sur la tête de lecture" = "Centrer sur la tête de lecture";
 "Ces réponses partent à l'équipe de FL Shortcuts avec le diagnostic (des nombres, aucun nom de son)." = "Ces réponses partent à l'équipe de FL Shortcuts avec le diagnostic (des nombres, aucun nom de son).";
@@ -499,7 +495,6 @@
 "Channel rack illisible : instrument ouvert par le menu." = "Channel rack illisible : instrument ouvert par le menu.";
 "Channel rack pas entièrement rangé : FL n'est pas resté devant. Couleurs et noms sont posés." = "Channel rack pas entièrement rangé : FL n'est pas resté devant. Couleurs et noms sont posés.";
 "Chaque macro devient un fichier .flsmacro. Les endroits appris (clics montrés dans FL) ne sont pas exportés." = "Chaque macro devient un fichier .flsmacro. Les endroits appris (clics montrés dans FL) ne sont pas exportés.";
-"Chaque raccourci que tu changes arrive ici, avec ceux que tu crées. Les macros ont leur page." = "Chaque raccourci que tu changes arrive ici, avec ceux que tu crées. Les macros ont leur page.";
 "Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, 808… pour le changer : tout le projet suit (Channel rack, patterns, Mixer, Playlist)." = "Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, 808… pour le changer : tout le projet suit (Channel rack, patterns, Mixer, Playlist).";
 "Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, 808… pour le changer, ou « Écrire… » pour lui donner ton nom : tout le projet suit (Channel rack, patterns, Mixer, Playlist). Glisse une famille par sa poignée pour changer leur ordre." = "Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, 808… pour le changer, ou « Écrire… » pour lui donner ton nom : tout le projet suit (Channel rack, patterns, Mixer, Playlist). Glisse une famille par sa poignée pour changer leur ordre.";
 "Chargement des partages…" = "Chargement des partages…";
@@ -555,7 +550,6 @@
 "Choisis un menu de FL, puis ce qu'il contient, jusqu'à l'élément voulu." = "Choisis un menu de FL, puis ce qu'il contient, jusqu'à l'élément voulu.";
 "Choisis un mot de passe différent de l'ancien." = "Choisis un mot de passe différent de l'ancien.";
 "Choisis un état de piste du Mixer (.fst)" = "Choisis un état de piste du Mixer (.fst)";
-"Choisis une ligne pour la régler." = "Choisis une ligne pour la régler.";
 "Choisis une ligne pour la régler. Ajoute des blocs depuis la palette, glisse les lignes pour les ranger ; ⌘D duplique, ⌫ supprime, ⌘Z annule." = "Choisis une ligne pour la régler. Ajoute des blocs depuis la palette, glisse les lignes pour les ranger ; ⌘D duplique, ⌫ supprime, ⌘Z annule.";
 "Choisis une nouvelle touche pour « %@ »." = "Choisis une nouvelle touche pour « %@ ».";
 "Choisis une page à gauche." = "Choisis une page à gauche.";
@@ -604,10 +598,10 @@
 "Clics appris" = "Clics appris";
 "Clics de secours" = "Clics de secours";
 "Clique au milieu de la tranche d'une piste du Mixer, puis tape le raccourci : ton preset fixe est déposé sur la piste (sinon File › Open mixer track state pour le choisir), armement, REC, entrée 1, et le larsen vérifié en dernier. Ce qui est déjà allumé n'est pas touché." = "Clique au milieu de la tranche d'une piste du Mixer, puis tape le raccourci : ton preset fixe est déposé sur la piste (sinon File › Open mixer track state pour le choisir), armement, REC, entrée 1, et le larsen vérifié en dernier. Ce qui est déjà allumé n'est pas touché.";
+"Clique dans FL." = "Clique dans FL.";
 "Clique dans la fenêtre de FL." = "Clique dans la fenêtre de FL.";
 "Clique dans la fenêtre du Mixer." = "Clique dans la fenêtre du Mixer.";
 "Clique et tape dans FL (flèches, raccourcis…), dans l'ordre." = "Clique et tape dans FL (flèches, raccourcis…), dans l'ordre.";
-"Clique et tape dans FL, puis « Terminer » en haut à droite." = "Clique et tape dans FL, puis « Terminer » en haut à droite.";
 "Clique ici" = "Clique ici";
 "Clique ici, puis appuie sur le bouton de ta souris" = "Clique ici, puis appuie sur le bouton de ta souris";
 "Clique le bouton mute (le petit rond en haut) d'une piste du Mixer, puis reclique-le pour remettre le son. Échap : annuler." = "Clique le bouton mute (le petit rond en haut) d'une piste du Mixer, puis reclique-le pour remettre le son. Échap : annuler.";
@@ -619,12 +613,10 @@
 "Clique sur une touche, comme ⌘Z, puis tape la nouvelle : elle remplace celle de FL. « Réinitialiser » remet celle d'origine." = "Clique sur une touche, comme ⌘Z, puis tape la nouvelle : elle remplace celle de FL. « Réinitialiser » remet celle d'origine.";
 "Clique sur « File »." = "Clique sur « File ».";
 "Clique sur « Open mixer track state… » (Échap pour fermer la boîte)." = "Clique sur « Open mixer track state… » (Échap pour fermer la boîte).";
-"Clique sur ⟳ pour lire la liste dans FL (le menu Add s'ouvre un instant), ou écris le nom." = "Clique sur ⟳ pour lire la liste dans FL (le menu Add s'ouvre un instant), ou écris le nom.";
+"Clique sur ⟳ ou écris le nom." = "Clique sur ⟳ ou écris le nom.";
 "Clique une fois à l'endroit voulu dans FL. Échap annule." = "Clique une fois à l'endroit voulu dans FL. Échap annule.";
 "Clique une piste pour voir où elle va." = "Clique une piste pour voir où elle va.";
 "Clique une touche, puis tape la nouvelle." = "Clique une touche, puis tape la nouvelle.";
-"Clique à l'endroit voulu dans FL (une fois). Échap : annuler." = "Clique à l'endroit voulu dans FL (une fois). Échap : annuler.";
-"Clique, utilise les flèches, tes raccourcis… : chaque geste devient un bloc, que tu peux " = "Clique, utilise les flèches, tes raccourcis… : chaque geste devient un bloc, que tu peux ";
 "Cliquer pour enregistrer" = "Cliquer pour enregistrer";
 "Cliquer sur" = "Cliquer sur";
 "Cliquer sur…" = "Cliquer sur…";
@@ -644,7 +636,7 @@
 "Coller depuis le presse-papiers MIDI" = "Coller depuis le presse-papiers MIDI";
 "Coller les notes entre elles (glue)" = "Coller les notes entre elles (glue)";
 "Coller les pas / la partition" = "Coller les pas / la partition";
-"Coloré et renommé dans FL. « Revenir comme avant » défait tout, sauf les sons supprimés." = "Coloré et renommé dans FL. « Revenir comme avant » défait tout, sauf les sons supprimés.";
+"Coloré et renommé dans FL." = "Coloré et renommé dans FL.";
 "Commande" = "Commande";
 "Comme « Gradient color… » de FL : de la première couleur (First) à la dernière (Last), sur les pistes ou les canaux sélectionnés (au moins 2). Le nom ne change pas." = "Comme « Gradient color… » de FL : de la première couleur (First) à la dernière (Last), sur les pistes ou les canaux sélectionnés (au moins 2). Le nom ne change pas.";
 "Commence par un clic droit." = "Commence par un clic droit.";
@@ -710,7 +702,6 @@
 "Crée ton compte." = "Crée ton compte.";
 "Crée un compte : mail, mot de passe et nom d'utilisateur. Seul ton nom est visible des autres." = "Crée un compte : mail, mot de passe et nom d'utilisateur. Seul ton nom est visible des autres.";
 "Crée un pattern vide et ouvre le Piano Roll" = "Crée un pattern vide et ouvre le Piano Roll";
-"Crée une macro, ou ouvre-en une depuis la fenêtre Raccourcis › Macros." = "Crée une macro, ou ouvre-en une depuis la fenêtre Raccourcis › Macros.";
 "Créer et renommer" = "Créer et renommer";
 "Créer mon compte" = "Créer mon compte";
 "Créer sa piste audio (Playlist)" = "Créer sa piste audio (Playlist)";
@@ -727,8 +718,6 @@
 "Dans FL : clic droit sur une piste du Mixer." = "Dans FL : clic droit sur une piste du Mixer.";
 "Dans FL : clique le bouton mute d'une piste du Mixer, puis reclique-le (Échap pour annuler)." = "Dans FL : clique le bouton mute d'une piste du Mixer, puis reclique-le (Échap pour annuler).";
 "Dans FL : clique sur ta piste du Mixer (la souris sera là quand tu utiliseras le raccourci)." = "Dans FL : clique sur ta piste du Mixer (la souris sera là quand tu utiliseras le raccourci).";
-"Dans FL : clique une fois à l'endroit voulu (Échap pour annuler)." = "Dans FL : clique une fois à l'endroit voulu (Échap pour annuler).";
-"Dans FL : reste cliqué sur ce qu'il faut attraper, glisse et lâche à l'endroit voulu (Échap pour annuler)." = "Dans FL : reste cliqué sur ce qu'il faut attraper, glisse et lâche à l'endroit voulu (Échap pour annuler).";
 "Dans FL : ⌘Q, puis rouvre-le." = "Dans FL : ⌘Q, puis rouvre-le.";
 "Dans FL Studio : %@" = "Dans FL Studio : %@";
 "Dans FL, clique le bouton mute (le petit rond en haut) d'une piste, puis reclique-le pour remettre le son." = "Dans FL, clique le bouton mute (le petit rond en haut) d'une piste, puis reclique-le pour remettre le son.";
@@ -739,6 +728,7 @@
 "Dans la fenêtre de macOS, clique « Ouvrir Réglages Système… » (pas de fenêtre ? « Ouvrir les réglages » ci-dessous)." = "Dans la fenêtre de macOS, clique « Ouvrir Réglages Système… » (pas de fenêtre ? « Ouvrir les réglages » ci-dessous).";
 "Dans le menu" = "Dans le menu";
 "Dans une copie, « %@ », à côté de l'original : l'original n'a pas bougé." = "Dans une copie, « %@ », à côté de l'original : l'original n'a pas bougé.";
+"Dans une copie, « %@ »." = "Dans une copie, « %@ ».";
 "De tes abonnements" = "De tes abonnements";
 "Demande le lien avec FL (Organiser › Installer le lien)." = "Demande le lien avec FL (Organiser › Installer le lien).";
 "Demande le lien avec FL." = "Demande le lien avec FL.";
@@ -753,7 +743,6 @@
 "Descendre les canaux" = "Descendre les canaux";
 "Deux versions différentes" = "Deux versions différentes";
 "Dis ce qui n'allait pas : l'ordinateur apprend de ses erreurs" = "Dis ce qui n'allait pas : l'ordinateur apprend de ses erreurs";
-"Dis en quelques mots ce que tu faisais juste avant : ça nous aide beaucoup." = "Dis en quelques mots ce que tu faisais juste avant : ça nous aide beaucoup.";
 "Dis-nous ce qui ne va pas" = "Dis-nous ce qui ne va pas";
 "Disponible à partir de FL %@" = "Disponible à partir de FL %@";
 "Donne un nom et une couleur à l'élément choisi dans FL." = "Donne un nom et une couleur à l'élément choisi dans FL.";
@@ -825,9 +814,9 @@
 "Effacer la longueur des notes" = "Effacer la longueur des notes";
 "Effacer la recherche" = "Effacer la recherche";
 "Effet Liquid Glass" = "Effet Liquid Glass";
-"Elle arrive sans raccourci : rien ne se lance tant que tu ne lui en as pas choisi un." = "Elle arrive sans raccourci : rien ne se lance tant que tu ne lui en as pas choisi un.";
 "Elle continue de marcher dans FL : ta touche s'ajoute." = "Elle continue de marcher dans FL : ta touche s'ajoute.";
 "Elle disparaît pour tout le monde ; son initiale la remplace. Ses signalements sont traités." = "Elle disparaît pour tout le monde ; son initiale la remplace. Ses signalements sont traités.";
+"Elle disparaît pour tout le monde." = "Elle disparaît pour tout le monde.";
 "En arrière" = "En arrière";
 "En attente de FL Studio" = "En attente de FL Studio";
 "En attente de FL Studio…" = "En attente de FL Studio…";
@@ -838,12 +827,9 @@
 "En bas de cette page, « Écrire à l'équipe ». Quand une macro échoue, le bouton « Signaler » de son bandeau (ou « Signaler ce problème… » dans le menu de l'icône en haut de l'écran) prépare le message avec l'erreur et le journal de la macro : tu vois tout ce qui est joint avant l'envoi." = "En bas de cette page, « Écrire à l'équipe ». Quand une macro échoue, le bouton « Signaler » de son bandeau (ou « Signaler ce problème… » dans le menu de l'icône en haut de l'écran) prépare le message avec l'erreur et le journal de la macro : tu vois tout ce qui est joint avant l'envoi.";
 "En bas de cette page, « Écrire à l'équipe ». Quand une macro échoue, « Signaler ce problème… » dans le menu de l'icône près de l'horloge prépare le message avec l'erreur : tu vois tout ce qui est joint avant l'envoi." = "En bas de cette page, « Écrire à l'équipe ». Quand une macro échoue, « Signaler ce problème… » dans le menu de l'icône près de l'horloge prépare le message avec l'erreur : tu vois tout ce qui est joint avant l'envoi.";
 "En cours" = "En cours";
-"En fermant, tu choisiras de garder cette version ou de revenir à l'original." = "En fermant, tu choisiras de garder cette version ou de revenir à l'original.";
 "En ligne" = "En ligne";
 "En pause" = "En pause";
-"En pause : FL Studio utilise ses raccourcis d'origine" = "En pause : FL Studio utilise ses raccourcis d'origine";
 "Enchaîne des clics et des touches dans FL, sans MIDI" = "Enchaîne des clics et des touches dans FL, sans MIDI";
-"Enchaîne des clics, des touches et des menus de FL Studio sur un seul raccourci. Le plus simple : enregistre ce que tu fais dans FL, chaque geste devient un bloc." = "Enchaîne des clics, des touches et des menus de FL Studio sur un seul raccourci. Le plus simple : enregistre ce que tu fais dans FL, chaque geste devient un bloc.";
 "Enchaîne les prises sur la boucle" = "Enchaîne les prises sur la boucle";
 "Encore %lld autre(s) projet(s) ensuite." = "Encore %lld autre(s) projet(s) ensuite.";
 "Encore aucun partage" = "Encore aucun partage";
@@ -883,6 +869,7 @@
 "Entrée « 1 » retenue sur ce Mac." = "Entrée « 1 » retenue sur ce Mac.";
 "Entrée « 1 » à montrer une fois." = "Entrée « 1 » à montrer une fois.";
 "Entrée à la fin" = "Entrée à la fin";
+"Envoi impossible : %@" = "Envoi impossible : %@";
 "Envoi impossible : %@ Tu peux l'envoyer par mail." = "Envoi impossible : %@ Tu peux l'envoyer par mail.";
 "Envoi impossible : %@ Tu peux le copier ou ouvrir un ticket." = "Envoi impossible : %@ Tu peux le copier ou ouvrir un ticket.";
 "Envoie " = "Envoie ";
@@ -952,6 +939,7 @@
 "FL Shortcuts est désinstallé" = "FL Shortcuts est désinstallé";
 "FL Shortcuts est prêt" = "FL Shortcuts est prêt";
 "FL Shortcuts n'a pas accès au clavier : tes raccourcis sont inactifs." = "FL Shortcuts n'a pas accès au clavier : tes raccourcis sont inactifs.";
+"FL Shortcuts n'a pas accès au clavier." = "FL Shortcuts n'a pas accès au clavier.";
 "FL Shortcuts n'agit que sur un FL Studio signé par Image-Line. Réinstalle FL Studio depuis le site d'Image-Line, puis relance-le." = "FL Shortcuts n'agit que sur un FL Studio signé par Image-Line. Réinstalle FL Studio depuis le site d'Image-Line, puis relance-le.";
 "FL Shortcuts travaille en arrière-plan, depuis la barre des menus." = "FL Shortcuts travaille en arrière-plan, depuis la barre des menus.";
 "FL Shortcuts – Raccourcis" = "FL Shortcuts – Raccourcis";
@@ -1010,10 +998,8 @@
 "FL ne répond pas (essayé il y a peu)" = "FL ne répond pas (essayé il y a peu)";
 "FL ne répond pas : le script FL Shortcuts n'est pas chargé dans FL. Vérifie ces réglages, puis « Réessayer »." = "FL ne répond pas : le script FL Shortcuts n'est pas chargé dans FL. Vérifie ces réglages, puis « Réessayer ».";
 "FL ne répond pas : quitte et rouvre FL Studio, il relie « %@ » tout seul en démarrant. Toujours rien : dans Options › MIDI Settings, entrée « %@ », choisis le Controller type « FL Shortcuts » (pas « generic controller »), et donne le même numéro de Port à l'entrée et à la sortie" = "FL ne répond pas : quitte et rouvre FL Studio, il relie « %@ » tout seul en démarrant. Toujours rien : dans Options › MIDI Settings, entrée « %@ », choisis le Controller type « FL Shortcuts » (pas « generic controller »), et donne le même numéro de Port à l'entrée et à la sortie";
-"FL ne répond pas encore : il se relie à FL Shortcuts en démarrant. Quitte et rouvre FL." = "FL ne répond pas encore : il se relie à FL Shortcuts en démarrant. Quitte et rouvre FL.";
 "FL ne répond pas encore. Dans FL › MIDI Settings › Output, « FL Shortcuts » doit s'afficher à côté de « FL Shortcuts Link », seul sur son Port. Sinon : « Ça ne marche toujours pas ? » ci-dessous." = "FL ne répond pas encore. Dans FL › MIDI Settings › Output, « FL Shortcuts » doit s'afficher à côté de « FL Shortcuts Link », seul sur son Port. Sinon : « Ça ne marche toujours pas ? » ci-dessous.";
 "FL ne répond plus assez vite depuis l'ouverture de la copie rangée. Elle est ouverte dans FL avec sa Playlist rangée : relance l'Organiser dessus pour finir le reste. Ton projet d'origine n'a pas bougé." = "FL ne répond plus assez vite depuis l'ouverture de la copie rangée. Elle est ouverte dans FL avec sa Playlist rangée : relance l'Organiser dessus pour finir le reste. Ton projet d'origine n'a pas bougé.";
-"FL ouvre la copie rangée de ton projet, puis tout s'y range… Ne touche pas à FL." = "FL ouvre la copie rangée de ton projet, puis tout s'y range… Ne touche pas à FL.";
 "FL ouvre la copie rangée…" = "FL ouvre la copie rangée…";
 "FL ouvre la copie rangée… %lld s" = "FL ouvre la copie rangée… %lld s";
 "FL passe devant : clique et tape dans l'ordre (menus, Options › Audio, boutons de ses fenêtres, flèches, raccourcis…), puis « Terminer ». Chaque clic et chaque touche devient un bloc, ajouté sous la ligne choisie." = "FL passe devant : clique et tape dans l'ordre (menus, Options › Audio, boutons de ses fenêtres, flèches, raccourcis…), puis « Terminer ». Chaque clic et chaque touche devient un bloc, ajouté sous la ligne choisie.";
@@ -1030,7 +1016,6 @@
 "FX" = "FX";
 "Facultatif" = "Facultatif";
 "Facultatif : sert seulement à retrouver les boutons de FL par leur nom. Seule la fenêtre de FL est lue, au moment du clic, jamais enregistrée." = "Facultatif : sert seulement à retrouver les boutons de FL par leur nom. Seule la fenêtre de FL est lue, au moment du clic, jamais enregistrée.";
-"Fais le glisser-déposer dans FL (une fois). Échap : annuler." = "Fais le glisser-déposer dans FL (une fois). Échap : annuler.";
 "Fais ta suite dans FL : chaque clic, flèche ou raccourci devient un bloc." = "Fais ta suite dans FL : chaque clic, flèche ou raccourci devient un bloc.";
 "Fais ta suite dans FL une fois : chaque clic, flèche ou raccourci devient un bloc." = "Fais ta suite dans FL une fois : chaque clic, flèche ou raccourci devient un bloc.";
 "Fais un clic gauche." = "Fais un clic gauche.";
@@ -1083,11 +1068,12 @@
 "Ghost channels" = "Ghost channels";
 "Glisse FL Shortcuts dans la Corbeille." = "Glisse FL Shortcuts dans la Corbeille.";
 "Glisse d'un endroit de FL à un autre." = "Glisse d'un endroit de FL à un autre.";
+"Glisse et lâche dans FL." = "Glisse et lâche dans FL.";
 "Glisse la famille au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre" = "Glisse la famille au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre";
 "Glisse la photo pour la placer" = "Glisse la photo pour la placer";
 "Glisse le fichier sur la dernière piste cliquée dans le Mixer, comme depuis le Finder : FL y charge l'état de piste, sans menu ni boîte « Open »." = "Glisse le fichier sur la dernière piste cliquée dans le Mixer, comme depuis le Finder : FL y charge l'état de piste, sans menu ni boîte « Open ».";
 "Glisse les lignes pour les ranger" = "Glisse les lignes pour les ranger";
-"Glisse un bloc ici, ou clique-le dans la liste à gauche" = "Glisse un bloc ici, ou clique-le dans la liste à gauche";
+"Glisse un bloc ici" = "Glisse un bloc ici";
 "Glisser" = "Glisser";
 "Glisser à montrer dans FL : choisis le bloc puis « Montrer dans FL… »." = "Glisser à montrer dans FL : choisis le bloc puis « Montrer dans FL… ».";
 "Glisser à montrer dans FL." = "Glisser à montrer dans FL.";
@@ -1117,7 +1103,6 @@
 "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? Retire-le avec « – », puis ajoute-le avec « + » (dossier Applications)." = "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? Retire-le avec « – », puis ajoute-le avec « + » (dossier Applications).";
 "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? Retire-le avec « – », puis glisse FL Shortcuts depuis la fenêtre du Finder dans la liste." = "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? Retire-le avec « – », puis glisse FL Shortcuts depuis la fenêtre du Finder dans la liste.";
 "Il écoute chaque son" = "Il écoute chaque son";
-"Ils partent dans quelques secondes." = "Ils partent dans quelques secondes.";
 "Impact" = "Impact";
 "Import impossible" = "Import impossible";
 "Importer" = "Importer";
@@ -1158,11 +1143,9 @@
 "J'ai compris" = "J'ai compris";
 "J'ai déjà un compte" = "J'ai déjà un compte";
 "Jamais" = "Jamais";
-"Jamais envoyé : tes touches, tes noms de pistes, tes fichiers." = "Jamais envoyé : tes touches, tes noms de pistes, tes fichiers.";
-"Jamais partagé : ton mail, tes positions apprises, les chemins de tes fichiers." = "Jamais partagé : ton mail, tes positions apprises, les chemins de tes fichiers.";
 "Je n'ai pas reçu le code par mail" = "Je n'ai pas reçu le code par mail";
 "Je ne retrouve pas le fichier de ton projet. Clique sur « Choisir le fichier… » et montre-moi le projet ouvert dans FL (le fichier .flp). S'il n'a jamais été enregistré, enregistre-le d'abord dans FL (Fichier › Enregistrer)." = "Je ne retrouve pas le fichier de ton projet. Clique sur « Choisir le fichier… » et montre-moi le projet ouvert dans FL (le fichier .flp). S'il n'a jamais été enregistré, enregistre-le d'abord dans FL (Fichier › Enregistrer).";
-"Joindre l'état de l'appli (recommandé)" = "Joindre l'état de l'appli (recommandé)";
+"Joindre l'état de l'appli" = "Joindre l'état de l'appli";
 "Journal" = "Journal";
 "Jusqu'à ce que " = "Jusqu'à ce que ";
 "Jusqu'à ce que %@ · %@ au plus" = "Jusqu'à ce que %@ · %@ au plus";
@@ -1181,7 +1164,6 @@
 "L'icône en haut de l'écran ouvre le menu." = "L'icône en haut de l'écran ouvre le menu.";
 "L'icône en haut de l'écran ouvre son menu : modifier les raccourcis, organiser, mettre en pause." = "L'icône en haut de l'écran ouvre son menu : modifier les raccourcis, organiser, mettre en pause.";
 "L'ordinateur retient %lld sons corrigés sur ce Mac : la prochaine fois, ils seront rangés comme tu l'as dit." = "L'ordinateur retient %lld sons corrigés sur ce Mac : la prochaine fois, ils seront rangés comme tu l'as dit.";
-"L'équipe la regarde et la retire si elle n'a rien à faire ici. Le membre ne sait pas qui l'a signalée." = "L'équipe la regarde et la retire si elle n'a rien à faire ici. Le membre ne sait pas qui l'a signalée.";
 "La Communauté" = "La Communauté";
 "La Communauté n'est pas encore ouverte" = "La Communauté n'est pas encore ouverte";
 "La Communauté n'est pas encore ouverte dans cette version." = "La Communauté n'est pas encore ouverte dans cette version.";
@@ -1191,9 +1173,7 @@
 "La carte son branchée (USB, Thunderbolt…) devient la sortie et l'entrée du Mac ; FL la suit tout seul s'il est réglé une fois sur « Default audio device » (Output) et « Default input device » (Input) dans Options › Audio settings." = "La carte son branchée (USB, Thunderbolt…) devient la sortie et l'entrée du Mac ; FL la suit tout seul s'il est réglé une fois sur « Default audio device » (Output) et « Default input device » (Input) dans Options › Audio settings.";
 "La copie rangée n'a pas pu être écrite à côté de ton projet : rien n'a été touché." = "La copie rangée n'a pas pu être écrite à côté de ton projet : rien n'a été touché.";
 "La copie rangée ouverte dans FL n'a pas les mêmes sons que l'analyse (%lld au lieu de %lld) : rien d'autre n'a été fait. Ton projet n'a pas bougé." = "La copie rangée ouverte dans FL n'a pas les mêmes sons que l'analyse (%lld au lieu de %lld) : rien d'autre n'a été fait. Ton projet n'a pas bougé.";
-"La macro choisie, avec ses étapes." = "La macro choisie, avec ses étapes.";
 "La macro est vide." = "La macro est vide.";
-"La macro et son raccourci sont supprimés." = "La macro et son raccourci sont supprimés.";
 "La macro ne tourne pas tant qu'il n'est pas montré." = "La macro ne tourne pas tant qu'il n'est pas montré.";
 "La page de FL a changé pendant le rangement : Organiser s'est arrêté. « Revenir comme avant » défait ce qui a été fait." = "La page de FL a changé pendant le rangement : Organiser s'est arrêté. « Revenir comme avant » défait ce qui a été fait.";
 "La piste sélectionnée dans le Mixer prend ce nom, par le lien avec FL. Sans le lien : la fenêtre " = "La piste sélectionnée dans le Mixer prend ce nom, par le lien avec FL. Sans le lien : la fenêtre ";
@@ -1207,7 +1187,6 @@
 "Lance une action de FL (Mixer, Playlist, métronome…)." = "Lance une action de FL (Mixer, Playlist, métronome…).";
 "Lance une action de FL par le lien avec FL (réveil bref, puis il se rendort). Sans lien : son équivalent au clavier, s'il existe." = "Lance une action de FL par le lien avec FL (réveil bref, puis il se rendort). Sans lien : son équivalent au clavier, s'il existe.";
 "Lancer le REC" = "Lancer le REC";
-"Laquelle garder ?" = "Laquelle garder ?";
 "Last devient aussi First" = "Last devient aussi First";
 "Le %@ du canal est basculé par le lien avec FL : ni souris, ni touche. Sans " = "Le %@ du canal est basculé par le lien avec FL : ni souris, ni touche. Sans ";
 "Le Channel rack a changé depuis l'analyse : relance Organiser." = "Le Channel rack a changé depuis l'analyse : relance Organiser.";
@@ -1235,14 +1214,12 @@
 "Le menu s'ouvre un instant dans FL, le temps de le lire, puis se referme" = "Le menu s'ouvre un instant dans FL, le temps de le lire, puis se referme";
 "Le menu ⋯ charge un profil tout prêt, ou importe et exporte tes raccourcis." = "Le menu ⋯ charge un profil tout prêt, ou importe et exporte tes raccourcis.";
 "Le message de la macro dit à quel bloc elle s'est arrêtée. Si FL a changé de taille ou d'écran, remontre l'endroit de ce bloc. Si une fenêtre de FL met du temps à s'ouvrir, ajoute un bloc « Attendre » juste avant." = "Le message de la macro dit à quel bloc elle s'est arrêtée. Si FL a changé de taille ou d'écran, remontre l'endroit de ce bloc. Si une fenêtre de FL met du temps à s'ouvrir, ajoute un bloc « Attendre » juste avant.";
-"Le modèle devient une macro en blocs que tu modifies étape par étape dans le créateur. " = "Le modèle devient une macro en blocs que tu modifies étape par étape dans le créateur. ";
 "Le même compte sert à la Communauté : ajoute des macros toutes faites, partage les tiennes." = "Le même compte sert à la Communauté : ajoute des macros toutes faites, partage les tiennes.";
 "Le même numéro de Port en haut et en bas." = "Le même numéro de Port en haut et en bas.";
+"Le partage disparaît pour tout le monde." = "Le partage disparaît pour tout le monde.";
 "Le partage disparaît pour tout le monde. Tes macros et raccourcis ne changent pas." = "Le partage disparaît pour tout le monde. Tes macros et raccourcis ne changent pas.";
 "Le problème signalé" = "Le problème signalé";
-"Le raccourci de FL Studio à déplacer sur ta touche." = "Le raccourci de FL Studio à déplacer sur ta touche.";
 "Le raccourci de cette macro est désactivé." = "Le raccourci de cette macro est désactivé.";
-"Le raccourci garde le modèle, qui continue de marcher. %@" = "Le raccourci garde le modèle, qui continue de marcher. %@";
 "Le script FL a été modifié : réinstalle le lien." = "Le script FL a été modifié : réinstalle le lien.";
 "Le script FL a été modifié depuis son installation." = "Le script FL a été modifié depuis son installation.";
 "Le script FL n'a pas de clé : réinstalle-le" = "Le script FL n'a pas de clé : réinstalle-le";
@@ -1264,11 +1241,7 @@
 "Legato rapide" = "Legato rapide";
 "Les actions FL demandent FL Studio %@ ou plus récent" = "Les actions FL demandent FL Studio %@ ou plus récent";
 "Les actions FL demandent FL Studio %@ ou plus récent (tu as %@). Les raccourcis « Touche de FL » restent disponibles sans le script." = "Les actions FL demandent FL Studio %@ ou plus récent (tu as %@). Les raccourcis « Touche de FL » restent disponibles sans le script.";
-"Les administrateurs le relisent et le retirent s'il le faut. L'auteur ne sait pas qui l'a signalé." = "Les administrateurs le relisent et le retirent s'il le faut. L'auteur ne sait pas qui l'a signalé.";
-"Les autres pourront lire ton explication, voir chaque étape, puis l'ajouter chez eux." = "Les autres pourront lire ton explication, voir chaque étape, puis l'ajouter chez eux.";
-"Les autres voient ton pseudo et ta photo, jamais ton e-mail." = "Les autres voient ton pseudo et ta photo, jamais ton e-mail.";
 "Les blocs ajoutés maintenant (palette à gauche) vont à la fin de cette liste. Tu peux aussi y glisser une ligne." = "Les blocs ajoutés maintenant (palette à gauche) vont à la fin de cette liste. Tu peux aussi y glisser une ligne.";
-"Les blocs ajoutés vont à la fin de cette liste." = "Les blocs ajoutés vont à la fin de cette liste.";
 "Les comptes ne sont pas encore ouverts" = "Les comptes ne sont pas encore ouverts";
 "Les couleurs" = "Les couleurs";
 "Les couleurs ou les noms ne me plaisent pas" = "Les couleurs ou les noms ne me plaisent pas";
@@ -1276,29 +1249,25 @@
 "Les macros" = "Les macros";
 "Les macros et les raccourcis des autres, et les tiens." = "Les macros et les raccourcis des autres, et les tiens.";
 "Les miens" = "Les miens";
-"Les mêmes sur ton Mac et ton PC." = "Les mêmes sur ton Mac et ton PC.";
-"Les partages ajoutés par les membres arrivent ici." = "Les partages ajoutés par les membres arrivent ici.";
 "Les photos et le changement de pseudo ne sont pas encore ouverts : réessaie plus tard." = "Les photos et le changement de pseudo ne sont pas encore ouverts : réessaie plus tard.";
 "Les pistes de la Playlist sont remontées par leur menu (« Move up ») : FL Shortcuts lit alors la fenêtre de FL (autorisation « Enregistrement de l'écran »). Les patterns restent à leur place." = "Les pistes de la Playlist sont remontées par leur menu (« Move up ») : FL Shortcuts lit alors la fenêtre de FL (autorisation « Enregistrement de l'écran »). Les patterns restent à leur place.";
 "Les plus ajoutées" = "Les plus ajoutées";
 "Les plus récentes" = "Les plus récentes";
 "Les raccourcis d'Ableton Live font la même chose dans FL : F9 enregistre, ⌘D duplique, ⌘E découpe, " = "Les raccourcis d'Ableton Live font la même chose dans FL : F9 enregistre, ⌘D duplique, ⌘E découpe, ";
 "Les raccourcis de Logic Pro font la même chose dans FL : Retour revient au début, K métronome, " = "Les raccourcis de Logic Pro font la même chose dans FL : Retour revient au début, K métronome, ";
-"Les raccourcis qu'il contient" = "Les raccourcis qu'il contient";
 "Les réponses aux questions fréquentes, et l'équipe si ça ne suffit pas." = "Les réponses aux questions fréquentes, et l'équipe si ça ne suffit pas.";
 "Les sauvegarder d'abord" = "Les sauvegarder d'abord";
 "Les sons rangés d'après leur nom n'y sont pas : l'ordinateur ne les a pas écoutés." = "Les sons rangés d'après leur nom n'y sont pas : l'ordinateur ne les a pas écoutés.";
 "Lettres" = "Lettres";
 "Lettres d'un menu de FL" = "Lettres d'un menu de FL";
 "Lettres du menu" = "Lettres du menu";
-"Lettres soulignées (F de File, puis O de Open…)." = "Lettres soulignées (F de File, puis O de Open…).";
-"Lettres soulignées (F de File…)." = "Lettres soulignées (F de File…).";
 "Lettres soulignées dans le menu de la piste de FL : les sous-menus (F de File), puis l'élément (O de Open…)." = "Lettres soulignées dans le menu de la piste de FL : les sous-menus (F de File), puis l'élément (O de Open…).";
 "Lettres soulignées du menu ouvert (F de File…), dans l'ordre." = "Lettres soulignées du menu ouvert (F de File…), dans l'ordre.";
 "Libre" = "Libre";
 "Lien avec FL" = "Lien avec FL";
 "Lien avec FL Studio non installé" = "Lien avec FL Studio non installé";
 "Lien inactif" = "Lien inactif";
+"Lien inactif : quitte et rouvre FL" = "Lien inactif : quitte et rouvre FL";
 "Lien inactif : quitte et rouvre FL (il relie « FL Shortcuts Link » tout seul)" = "Lien inactif : quitte et rouvre FL (il relie « FL Shortcuts Link » tout seul)";
 "Lien installé" = "Lien installé";
 "Liens" = "Liens";
@@ -1378,6 +1347,7 @@
 "Mes raccourcis ne font rien dans FL" = "Mes raccourcis ne font rien dans FL";
 "Message" = "Message";
 "Message envoyé" = "Message envoyé";
+"Message prêt dans ton app de mail." = "Message prêt dans ton app de mail.";
 "Mesure précédente (mode Song)" = "Mesure précédente (mode Song)";
 "Mesure suivante (mode Song)" = "Mesure suivante (mode Song)";
 "Met devant une page de FL (Playlist, Channel Rack, Mixer…), seulement si elle n'y est pas déjà. Les options de « Cliquer sur… » juste en dessous sont celles de cette page." = "Met devant une page de FL (Playlist, Channel Rack, Mixer…), seulement si elle n'y est pas déjà. Les options de « Cliquer sur… » juste en dessous sont celles de cette page.";
@@ -1463,7 +1433,6 @@
 "Ne fait pas ce que dit son explication" = "Ne fait pas ce que dit son explication";
 "Ne plus envoyer dans cette piste" = "Ne plus envoyer dans cette piste";
 "Ne plus suivre" = "Ne plus suivre";
-"Ne quitte pas l'app tout de suite." = "Ne quitte pas l'app tout de suite.";
 "Ne touche pas à FL jusqu'à la fin." = "Ne touche pas à FL jusqu'à la fin.";
 "Ne touche pas à FL pendant l'écoute." = "Ne touche pas à FL pendant l'écoute.";
 "Ne touche pas à FL." = "Ne touche pas à FL.";
@@ -1501,8 +1470,10 @@
 "Nouvelle macro" = "Nouvelle macro";
 "Numéro du canal dans le Channel rack (1 = le premier en haut)." = "Numéro du canal dans le Channel rack (1 = le premier en haut).";
 "OK" = "OK";
+"On lira ton message." = "On lira ton message.";
 "On lira ton message. Sans mail, on ne peut pas te répondre : écris-en un la prochaine fois si tu veux une réponse." = "On lira ton message. Sans mail, on ne peut pas te répondre : écris-en un la prochaine fois si tu veux une réponse.";
 "On te répond à %@ dès que possible." = "On te répond à %@ dès que possible.";
+"On te répond à %@." = "On te répond à %@.";
 "Open Hat" = "Open Hat";
 "Option" = "Option";
 "Options" = "Options";
@@ -1514,13 +1485,10 @@
 "Organiser : macOS le demande une fois, à la première écoute" = "Organiser : macOS le demande une fois, à la première écoute";
 "Organiser : étape impossible (%@)." = "Organiser : étape impossible (%@).";
 "Organiser arrêté : FL est remis comme avant." = "Organiser arrêté : FL est remis comme avant.";
-"Organiser commence dès que FL est ouvert, avec ton projet." = "Organiser commence dès que FL est ouvert, avec ton projet.";
-"Organiser continue tout seul dès que FL est prêt." = "Organiser continue tout seul dès que FL est prêt.";
 "Organiser le projet" = "Organiser le projet";
 "Organiser parle à FL par un script que FL Shortcuts installe dans FL Studio. Ensuite, tout se fait seul." = "Organiser parle à FL par un script que FL Shortcuts installe dans FL Studio. Ensuite, tout se fait seul.";
 "Organiser ton projet" = "Organiser ton projet";
 "Organiser · %lld sons sur %lld" = "Organiser · %lld sons sur %lld";
-"Organiser écoute chaque son seul : FL doit être à l'arrêt." = "Organiser écoute chaque son seul : FL doit être à l'arrêt.";
 "Organiser écoute seulement le son de FL, sans l'enregistrer. Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et audio du système : active FL Shortcuts dans la liste du haut, puis « Quitter et rouvrir »." = "Organiser écoute seulement le son de FL, sans l'enregistrer. Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et audio du système : active FL Shortcuts dans la liste du haut, puis « Quitter et rouvrir ».";
 "Organiser écoute seulement le son de FL, sans l'enregistrer. Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système : active FL Shortcuts dans « Audio du système uniquement »." = "Organiser écoute seulement le son de FL, sans l'enregistrer. Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système : active FL Shortcuts dans « Audio du système uniquement ».";
 "Organiser…" = "Organiser…";
@@ -1620,7 +1588,6 @@
 "Parcourir les propriétés de note" = "Parcourir les propriétés de note";
 "Pars d'un modèle, puis modifie-le bloc par bloc dans le créateur." = "Pars d'un modèle, puis modifie-le bloc par bloc dans le créateur.";
 "Pars d'une macro toute prête." = "Pars d'une macro toute prête.";
-"Partage et récupère des macros." = "Partage et récupère des macros.";
 "Partage les tiennes, avec une explication pour les autres." = "Partage les tiennes, avec une explication pour les autres.";
 "Partage publié." = "Partage publié.";
 "Partager" = "Partager";
@@ -1628,8 +1595,6 @@
 "Partager une macro ou tes raccourcis" = "Partager une macro ou tes raccourcis";
 "Partager une macro…" = "Partager une macro…";
 "Partages de %@" = "Partages de %@";
-"Partagé : la macro, le titre, ton explication, ton nom d'utilisateur." = "Partagé : la macro, le titre, ton explication, ton nom d'utilisateur.";
-"Partagé : tes raccourcis, le titre, ton explication, ton nom d'utilisateur." = "Partagé : tes raccourcis, le titre, ton explication, ton nom d'utilisateur.";
 "Partir d'un modèle…" = "Partir d'un modèle…";
 "Partout" = "Partout";
 "Pas" = "Pas";
@@ -1682,8 +1647,6 @@
 "Personnaliser « Enregistrement rapide » ?" = "Personnaliser « Enregistrement rapide » ?";
 "Personnalisé" = "Personnalisé";
 "Personne d'autre ne peut lire ta sauvegarde. Ton mail reste privé." = "Personne d'autre ne peut lire ta sauvegarde. Ton mail reste privé.";
-"Personne n'a encore partagé de macro." = "Personne n'a encore partagé de macro.";
-"Personne n'a encore partagé de raccourcis." = "Personne n'a encore partagé de raccourcis.";
 "PgPréc" = "PgPréc";
 "PgSuiv" = "PgSuiv";
 "Photo retirée : son initiale la remplace pour tout le monde." = "Photo retirée : son initiale la remplace pour tout le monde.";
@@ -1700,8 +1663,8 @@
 "Pistes" = "Pistes";
 "Pistes, solo, liens, rendu" = "Pistes, solo, liens, rendu";
 "Playlist" = "Playlist";
-"Playlist : %lld clips déplacés sur la piste de leur son (un son par piste)." = "Playlist : %lld clips déplacés sur la piste de leur son (un son par piste).";
-"Playlist : %lld clips n'ont pas pu rejoindre la piste de leur son (leur nom n'a pas été lu dans la fenêtre de FL, ou FL ne l'a pas laissé faire) : ils sont restés à leur place." = "Playlist : %lld clips n'ont pas pu rejoindre la piste de leur son (leur nom n'a pas été lu dans la fenêtre de FL, ou FL ne l'a pas laissé faire) : ils sont restés à leur place.";
+"Playlist : %lld clips déplacés sur la piste de leur son." = "Playlist : %lld clips déplacés sur la piste de leur son.";
+"Playlist : %lld clips restés à leur place." = "Playlist : %lld clips restés à leur place.";
 "Playlist : %lld pistes colorées, %lld renommées" = "Playlist : %lld pistes colorées, %lld renommées";
 "Playlist : %lld pistes colorées, %lld renommées, rangées comme le Channel rack" = "Playlist : %lld pistes colorées, %lld renommées, rangées comme le Channel rack";
 "Playlist : %lld sons qui partageaient une piste ont chacun la leur." = "Playlist : %lld sons qui partageaient une piste ont chacun la leur.";
@@ -1790,6 +1753,7 @@
 "Quitte et rouvre FL Studio" = "Quitte et rouvre FL Studio";
 "Quitte et rouvre FL Studio : il trouve « FL Shortcuts Link » en démarrant et le relie tout seul. Puis « Réessayer »." = "Quitte et rouvre FL Studio : il trouve « FL Shortcuts Link » en démarrant et le relie tout seul. Puis « Réessayer ».";
 "Quitte et rouvre FL pour qu'il le voie." = "Quitte et rouvre FL pour qu'il le voie.";
+"Quitte et rouvre FL." = "Quitte et rouvre FL.";
 "Quitter" = "Quitter";
 "Quitter FL Shortcuts" = "Quitter FL Shortcuts";
 "Quitter et rouvrir FL" = "Quitter et rouvrir FL";
@@ -1818,6 +1782,7 @@
 "Range, colore et renomme tout le projet." = "Range, colore et renomme tout le projet.";
 "Rangement automatique" = "Rangement automatique";
 "Rangement dans la copie…" = "Rangement dans la copie…";
+"Rangement… Ne touche pas à FL." = "Rangement… Ne touche pas à FL.";
 "Re-stretch de tous les clips audio" = "Re-stretch de tous les clips audio";
 "Recherche" = "Recherche";
 "Rechercher" = "Rechercher";
@@ -1911,6 +1876,7 @@
 "Rien de reconnaissable à cet endroit : endroit retenu sans image." = "Rien de reconnaissable à cet endroit : endroit retenu sans image.";
 "Rien n'a été supprimé." = "Rien n'a été supprimé.";
 "Rien n'utilise %@ : ces touches sont libres." = "Rien n'utilise %@ : ces touches sont libres.";
+"Rien n'utilise %@." = "Rien n'utilise %@.";
 "Rien où retourner pour l'instant" = "Rien où retourner pour l'instant";
 "Rien reçu ? Regarde dans les spams." = "Rien reçu ? Regarde dans les spams.";
 "Rien à régler." = "Rien à régler.";
@@ -1952,6 +1918,7 @@
 "Sa signature d'Image-Line est introuvable : réinstalle FL Studio depuis le site d'Image-Line." = "Sa signature d'Image-Line est introuvable : réinstalle FL Studio depuis le site d'Image-Line.";
 "Saisie sécurisée active dans une autre app : macOS ne transmet plus les touches." = "Saisie sécurisée active dans une autre app : macOS ne transmet plus les touches.";
 "Saisie sécurisée active dans une autre app : raccourcis muets." = "Saisie sécurisée active dans une autre app : raccourcis muets.";
+"Saisie sécurisée active dans une autre app." = "Saisie sécurisée active dans une autre app.";
 "Sans le lien avec FL : bouton mute à montrer une fois." = "Sans le lien avec FL : bouton mute à montrer une fois.";
 "Sans le lien seulement : clique ta piste dans le Mixer, puis lance la macro ; clic droit sur son " = "Sans le lien seulement : clique ta piste dans le Mixer, puis lance la macro ; clic droit sur son ";
 "Sans le lien seulement : clique ta piste dans le Mixer, puis lance la macro ; son bouton mute est " = "Sans le lien seulement : clique ta piste dans le Mixer, puis lance la macro ; son bouton mute est ";
@@ -2015,7 +1982,6 @@
 "Si… sinon" = "Si… sinon";
 "Snap" = "Snap";
 "Snare" = "Snare";
-"Sois le premier : partage une macro qui te fait gagner du temps, avec une petite explication pour les autres." = "Sois le premier : partage une macro qui te fait gagner du temps, avec une petite explication pour les autres.";
 "Solo" = "Solo";
 "Solo avec les pistes reliées" = "Solo avec les pistes reliées";
 "Solo d'un canal (son numéro)" = "Solo d'un canal (son numéro)";
@@ -2050,7 +2016,6 @@
 "Sub" = "Sub";
 "Suis le petit panneau en bas à droite : clavier, puis fenêtre de FL. C'est détecté tout seul." = "Suis le petit panneau en bas à droite : clavier, puis fenêtre de FL. C'est détecté tout seul.";
 "Suis les étapes : règle les 4 cases entourées, dans l'ordre." = "Suis les étapes : règle les 4 cases entourées, dans l'ordre.";
-"Suis un créateur : ses partages arrivent ici." = "Suis un créateur : ses partages arrivent ici.";
 "Suivant" = "Suivant";
 "Suivre" = "Suivre";
 "Suivre et noter ne sont pas encore ouverts : réessaie plus tard." = "Suivre et noter ne sont pas encore ouverts : réessaie plus tard.";
@@ -2120,6 +2085,7 @@
 "Tes macros ne peuvent pas être enregistrées : la copie de secours du fichier a échoué (%@). Le fichier n'est pas remplacé." = "Tes macros ne peuvent pas être enregistrées : la copie de secours du fichier a échoué (%@). Le fichier n'est pas remplacé.";
 "Tes macros ne peuvent pas être enregistrées : le fichier n'a pas pu être copié avant d'être remplacé." = "Tes macros ne peuvent pas être enregistrées : le fichier n'a pas pu être copié avant d'être remplacé.";
 "Tes raccourcis" = "Tes raccourcis";
+"Tes raccourcis actuels sont remplacés par ceux-ci." = "Tes raccourcis actuels sont remplacés par ceux-ci.";
 "Tes raccourcis actuels sont remplacés par ceux-ci. Tu peux annuler juste après, depuis la notification en bas de la fenêtre." = "Tes raccourcis actuels sont remplacés par ceux-ci. Tu peux annuler juste après, depuis la notification en bas de la fenêtre.";
 "Tes raccourcis dans FL Studio (indispensable)" = "Tes raccourcis dans FL Studio (indispensable)";
 "Tes raccourcis et tes macros ne sont pas sauvegardés : ils seront perdus." = "Tes raccourcis et tes macros ne sont pas sauvegardés : ils seront perdus.";
@@ -2147,16 +2113,14 @@
 "Titre : %lld à %lld caractères." = "Titre : %lld à %lld caractères.";
 "Titres" = "Titres";
 "Tom" = "Tom";
-"Ton app de mail s'est ouverte avec le message tout prêt : vérifie-le, puis envoie-le." = "Ton app de mail s'est ouverte avec le message tout prêt : vérifie-le, puis envoie-le.";
 "Ton compte" = "Ton compte";
 "Ton compte FL Shortcuts" = "Ton compte FL Shortcuts";
 "Ton compte est supprimé. Tes raccourcis et tes macros restent sur ce Mac." = "Ton compte est supprimé. Tes raccourcis et tes macros restent sur ce Mac.";
 "Ton compte n'est pas encore confirmé : un code vient de partir à %@." = "Ton compte n'est pas encore confirmé : un code vient de partir à %@.";
 "Ton compte, ta sauvegarde en ligne et tes partages dans la Communauté seront effacés pour toujours. Tes raccourcis et tes macros restent sur ce Mac." = "Ton compte, ta sauvegarde en ligne et tes partages dans la Communauté seront effacés pour toujours. Tes raccourcis et tes macros restent sur ce Mac.";
-"Ton jeu de raccourcis complet : les autres pourront le mettre à la place du leur." = "Ton jeu de raccourcis complet : les autres pourront le mettre à la place du leur.";
 "Ton mail" = "Ton mail";
+"Ton mail (facultatif)" = "Ton mail (facultatif)";
 "Ton mail reste privé : les autres ne voient que ton nom d'utilisateur." = "Ton mail reste privé : les autres ne voient que ton nom d'utilisateur.";
-"Ton mail, pour qu'on te réponde (facultatif)" = "Ton mail, pour qu'on te réponde (facultatif)";
 "Ton mot de passe" = "Ton mot de passe";
 "Ton mot de passe du Mac, une seule fois (ancienne installation)" = "Ton mot de passe du Mac, une seule fois (ancienne installation)";
 "Ton partage" = "Ton partage";
@@ -2166,11 +2130,13 @@
 "Ton projet d'origine n'a pas pu aller à la Corbeille : rien n'a été touché." = "Ton projet d'origine n'a pas pu aller à la Corbeille : rien n'a été touché.";
 "Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée part à la Corbeille dès que FL l'a quittée." = "Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée part à la Corbeille dès que FL l'a quittée.";
 "Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée reste à côté, si tu la veux." = "Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée reste à côté, si tu la veux.";
+"Ton projet d'origine se rouvre dans FL." = "Ton projet d'origine se rouvre dans FL.";
 "Ton projet ne bouge pas : tu valides la copie, ou tu reviens en arrière." = "Ton projet ne bouge pas : tu valides la copie, ou tu reviens en arrière.";
 "Ton pseudo" = "Ton pseudo";
 "Tools › Purge unused audio clips, par le menu de FL en haut de l'écran : FL retire du projet les clips audio qui ne sont pas dans la Playlist (rien n'est effacé de ton disque)." = "Tools › Purge unused audio clips, par le menu de FL en haut de l'écran : FL retire du projet les clips audio qui ne sont pas dans la Playlist (rien n'est effacé de ton disque).";
 "Touche" = "Touche";
 "Touche %u" = "Touche %u";
+"Touche aussi utilisée par « %@ »." = "Touche aussi utilisée par « %@ ».";
 "Touche aussi utilisée par « %@ ». Clique sur la touche pour en choisir une autre." = "Touche aussi utilisée par « %@ ». Clique sur la touche pour en choisir une autre.";
 "Touche ce qui ne va pas et corrige-le. L'ordinateur s'en souviendra la prochaine fois." = "Touche ce qui ne va pas et corrige-le. L'ordinateur s'en souviendra la prochaine fois.";
 "Touche de FL" = "Touche de FL";
@@ -2184,7 +2150,6 @@
 "Touche seule : laissée à FL quand tu tapes du texte, qu'un menu de FL est ouvert ou que le clavier-piano est actif." = "Touche seule : laissée à FL quand tu tapes du texte, qu'un menu de FL est ouvert ou que le clavier-piano est actif.";
 "Touche utilisée par %@" = "Touche utilisée par %@";
 "Toujours" = "Toujours";
-"Toujours en ligne, toujours à jour." = "Toujours en ligne, toujours à jour.";
 "Toujours le même preset" = "Toujours le même preset";
 "Toujours rien : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même numéro de Port à l'entrée et à la sortie. Dans Output, « FL Shortcuts Link » seul sur ce numéro : « FL Shortcuts » doit s'afficher à côté de lui, pas de ta carte son." = "Toujours rien : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même numéro de Port à l'entrée et à la sortie. Dans Output, « FL Shortcuts Link » seul sur ce numéro : « FL Shortcuts » doit s'afficher à côté de lui, pas de ta carte son.";
 "Toujours rien ?" = "Toujours rien ?";
@@ -2227,7 +2192,6 @@
 "Trousseau indisponible (%d)." = "Trousseau indisponible (%d).";
 "Trouver un raccourci" = "Trouver un raccourci";
 "Tu as déjà signalé cette photo." = "Tu as déjà signalé cette photo.";
-"Tu n'as pas encore de macro : crée-en une dans la page Macros." = "Tu n'as pas encore de macro : crée-en une dans la page Macros.";
 "Tu ne suis personne." = "Tu ne suis personne.";
 "Tu valides : l'ancienne version part à la Corbeille. Tu reviens en arrière : c'est la version organisée qui y part." = "Tu valides : l'ancienne version part à la Corbeille. Tu reviens en arrière : c'est la version organisée qui y part.";
 "Tu valides la version organisée ?" = "Tu valides la version organisée ?";
@@ -2260,7 +2224,6 @@
 "Une action de FL Shortcuts (Mixer, Playlist, métronome…) : par le lien avec FL s'il est installé, sinon la touche équivalente de FL." = "Une action de FL Shortcuts (Mixer, Playlist, métronome…) : par le lien avec FL s'il est installé, sinon la touche équivalente de FL.";
 "Une copie rangée" = "Une copie rangée";
 "Une couleur" = "Une couleur";
-"Une fois l'Organiser fermé, FL Shortcuts te demandera si tu valides cette version : « Valider » met ton projet d'origine à la Corbeille et lui donne son nom, « Retourner en arrière » la supprime et rouvre ton projet d'avant." = "Une fois l'Organiser fermé, FL Shortcuts te demandera si tu valides cette version : « Valider » met ton projet d'origine à la Corbeille et lui donne son nom, « Retourner en arrière » la supprime et rouvre ton projet d'avant.";
 "Une idée" = "Une idée";
 "Une macro" = "Une macro";
 "Une macro ajoutée arrive sans raccourci : rien ne se lance tant que tu ne lui en as pas choisi un." = "Une macro ajoutée arrive sans raccourci : rien ne se lance tant que tu ne lui en as pas choisi un.";
@@ -2419,7 +2382,6 @@
 "en cours" = "en cours";
 "endroit où attraper introuvable (fenêtre de FL pas ouverte, ou changée de taille : montre de nouveau le glisser)" = "endroit où attraper introuvable (fenêtre de FL pas ouverte, ou changée de taille : montre de nouveau le glisser)";
 "endroit où lâcher introuvable (fenêtre de FL pas ouverte, ou changée de taille : montre de nouveau le glisser)" = "endroit où lâcher introuvable (fenêtre de FL pas ouverte, ou changée de taille : montre de nouveau le glisser)";
-"ensuite modifier, ranger ou supprimer." = "ensuite modifier, ranger ou supprimer.";
 "entrée à réapprendre (fiche du raccourci)" = "entrée à réapprendre (fiche du raccourci)";
 "et %lld autre(s)" = "et %lld autre(s)";
 "et attend qu'elle s'ouvre. Si elle change de taille, montre-le de nouveau." = "et attend qu'elle s'ouvre. Si elle change de taille, montre-le de nouveau.";
@@ -2570,7 +2532,6 @@
 "option inconnue" = "option inconnue";
 "option à choisir" = "option à choisir";
 "ou appuie sur le raccourci" = "ou appuie sur le raccourci";
-"ou glisse des blocs de la palette, à gauche" = "ou glisse des blocs de la palette, à gauche";
 "ou tape son nom" = "ou tape son nom";
 "ou écris le nom." = "ou écris le nom.";
 "ouvert" = "ouvert";
@@ -2672,13 +2633,12 @@
 "« %@ » ajoutée, sans raccourci" = "« %@ » ajoutée, sans raccourci";
 "« %@ » couvre FL à cet endroit" = "« %@ » couvre FL à cet endroit";
 "« %@ » couvre le menu de FL" = "« %@ » couvre le menu de FL";
-"« %@ » est dans Macros : modifie-la bloc par bloc" = "« %@ » est dans Macros : modifie-la bloc par bloc";
+"« %@ » est dans Macros" = "« %@ » est dans Macros";
 "« %@ » est ton projet « %@ » rangé par l'Organiser." = "« %@ » est ton projet « %@ » rangé par l'Organiser.";
-"« %@ » importée, sans raccourci : relis-la dans le créateur" = "« %@ » importée, sans raccourci : relis-la dans le créateur";
+"« %@ » importée" = "« %@ » importée";
 "« %@ » n'a pas répondu" = "« %@ » n'a pas répondu";
 "« %@ » réinitialisé" = "« %@ » réinitialisé";
 "« %@ » supprimée" = "« %@ » supprimée";
-"« %@ » utilise maintenant cette touche. " = "« %@ » utilise maintenant cette touche. ";
 "« %@ » — %@%@." = "« %@ » — %@%@.";
 "« %@ »%@, ton raccourci" = "« %@ »%@, ton raccourci";
 "« %@ »%@, touche d'origine de FL" = "« %@ »%@, touche d'origine de FL";
@@ -2708,6 +2668,7 @@
 "À gauche, choisis une page : Général, Playlist, Mixer… Elle montre les raccourcis de FL qui s'y appliquent." = "À gauche, choisis une page : Général, Playlist, Mixer… Elle montre les raccourcis de FL qui s'y appliquent.";
 "À installer" = "À installer";
 "À jour" = "À jour";
+"À quoi elle sert" = "À quoi elle sert";
 "À quoi elle sert, où l'utiliser dans FL (Mixer, Playlist…), ce qu'il faut faire avant de la lancer." = "À quoi elle sert, où l'utiliser dans FL (Mixer, Playlist…), ce qu'il faut faire avant de la lancer.";
 "À quoi sert loopMIDI ?" = "À quoi sert loopMIDI ?";
 "À savoir" = "À savoir";
@@ -2716,7 +2677,6 @@
 "Ça ne marche toujours pas ?" = "Ça ne marche toujours pas ?";
 "Échanger First et Last" = "Échanger First et Last";
 "Échap" = "Échap";
-"Échap pour annuler, ⌫ pour effacer." = "Échap pour annuler, ⌫ pour effacer.";
 "Échec" = "Échec";
 "Échec au bloc %@ (%@) : %@" = "Échec au bloc %@ (%@) : %@";
 "Échec au bloc %lld%@ : %@" = "Échec au bloc %lld%@ : %@";
@@ -2756,6 +2716,7 @@
 "Étape %lld : touche interdite (%@)." = "Étape %lld : touche interdite (%@).";
 "Étape %lld : touche non prise en charge." = "Étape %lld : touche non prise en charge.";
 "Étape %lld sur 3" = "Étape %lld sur 3";
+"Étapes" = "Étapes";
 "Étapes, fenêtres de FL et clics de chaque macro, pour comprendre un échec. Aucune frappe, aucun nom de fichier." = "Étapes, fenêtres de FL et clics de chaque macro, pour comprendre un échec. Aucune frappe, aucun nom de fichier.";
 "Étendre la sélection vers le bas" = "Étendre la sélection vers le bas";
 "Étendre la sélection vers le haut" = "Étendre la sélection vers le haut";

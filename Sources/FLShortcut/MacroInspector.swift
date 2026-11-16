@@ -18,11 +18,9 @@ struct MacroInspectorView: View {
                 BlockInspector(model: model, block: block)
                     .id(block.id)                         // nouveau bloc : champs neufs
             } else if let row = model.selectedRow, case .end = row.kind {
-                hint(symbol: "arrow.turn.left.up", title: row.verb,
-                     text: String(localized: "Les blocs ajoutés vont à la fin de cette liste."))
+                hint(symbol: "arrow.turn.left.up", title: row.verb, text: "")
             } else if model.draft != nil {
-                hint(symbol: "slider.horizontal.3", title: String(localized: "Aucun bloc choisi"),
-                     text: String(localized: "Choisis une ligne pour la régler."))
+                hint(symbol: "slider.horizontal.3", title: String(localized: "Aucun bloc choisi"), text: "")
             } else {
                 Color.clear
             }
@@ -45,11 +43,13 @@ struct MacroInspectorView: View {
                 .font(.system(size: 26, weight: .light))
                 .foregroundStyle(.secondary)
             Text(title).font(.headline)
-            Text(text)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+            if !text.isEmpty {
+                Text(text)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -182,7 +182,7 @@ private struct BlockInspector: View {
         case (.repeatCount(let n, _), "count"):
             LabeledContent(p.label) { countField(n, range: 1...MacroValidation.maxRepeat, key: "count") }
         case (.menuLetters(let l, _), "letters"):
-            lettersField(p.label, l, max: 8, hint: String(localized: "Lettres soulignées (F de File…)."))
+            lettersField(p.label, l, max: 8, hint: "")
         case (.trackMenu(let l, _, _, _), "letters"):
             trackMenuPicker(p.label, l)
         case (.menuLetters(_, let e), "finalEnter"):
@@ -531,8 +531,7 @@ private struct BlockInspector: View {
                entries: MacroTemplates.trackMenuChoices.map { SwissPickerEntry<String>.option($0.id, $0.name) }
                    + [SwissPickerEntry<String>.divider, .option(other, String(localized: "Autre (lettres soulignées)…"))])
             if current == other {
-                lettersField(String(localized: "Lettres"), letters, max: 3,
-                             hint: String(localized: "Lettres soulignées (F de File, puis O de Open…)."))
+                lettersField(String(localized: "Lettres"), letters, max: 3, hint: "")
             }
         }
     }
@@ -550,7 +549,9 @@ private struct BlockInspector: View {
                     }
                 }
             }), prompt: Text("F O"))
-            Text(hint).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            if !hint.isEmpty {
+                Text(hint).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -1274,13 +1275,12 @@ final class FLPluginList: ObservableObject {
                 if !names.isEmpty || !installed.isEmpty {
                     self.state = .loaded(names)
                 } else if !trusted {
-                    self.state = .unavailable(String(localized: "Autorise l'Accessibilité à FL Shortcuts pour voir la liste de tes plugins, ")
-                                              + String(localized: "ou écris le nom."))
+                    self.state = .unavailable(String(localized: "Autorise l'Accessibilité, ou écris le nom."))
                 } else if pid == nil {
                     self.state = .unavailable(Self.flClosed)
                 } else {
                     self.state = .unavailable(open ? String(localized: "Liste introuvable dans FL : écris le nom.")
-                                              : String(localized: "Clique sur ⟳ pour lire la liste dans FL (le menu Add s'ouvre un instant), ou écris le nom."))
+                                              : String(localized: "Clique sur ⟳ ou écris le nom."))
                 }
             }
         }
@@ -1416,8 +1416,7 @@ final class ClickTeacher: ObservableObject {
         self.completion = completion
         returnWindow = window
         activeBlock = block
-        say(drag ? String(localized: "Dans FL : reste cliqué sur ce qu'il faut attraper, glisse et lâche à l'endroit voulu (Échap pour annuler).")
-                 : String(localized: "Dans FL : clique une fois à l'endroit voulu (Échap pour annuler)."), for: block)
+        say(drag ? String(localized: "Glisse et lâche dans FL.") : String(localized: "Clique dans FL."), for: block)
         history = []
         started = Date()
         CreatorPresence.stepAside()
@@ -1427,8 +1426,7 @@ final class ClickTeacher: ObservableObject {
             guard let self, self.activeBlock == block,
                   let main = FLWindows.list(pid: pid).filter({ $0.layer == 0 })
                     .max(by: { $0.bounds.width * $0.bounds.height < $1.bounds.width * $1.bounds.height }) else { return }
-            HintPanel.shared.show(drag ? String(localized: "Fais le glisser-déposer dans FL (une fois). Échap : annuler.")
-                                       : String(localized: "Clique à l'endroit voulu dans FL (une fois). Échap : annuler."),
+            HintPanel.shared.show(drag ? String(localized: "Glisse et lâche dans FL.") : String(localized: "Clique dans FL."),
                                   near: CGPoint(x: main.bounds.midX, y: main.bounds.minY + 70))
         }
         let t = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in self?.tick() }

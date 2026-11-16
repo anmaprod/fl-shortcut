@@ -193,10 +193,9 @@ public static class MacroExchange
     {
         var notes = new List<string>(preview.Warnings);
         if (preview.SensitiveCount == 1)
-            notes.Add(Loc.T("1 étape tape des touches, clique ou ouvre un fichier : relis-la dans le créateur."));
+            notes.Add(Loc.T("1 étape à relire dans le créateur."));
         else if (preview.SensitiveCount > 1)
             notes.Add(Loc.F("%lld étapes à relire dans le créateur.", preview.SensitiveCount));
-        notes.Add(Loc.T("Elle arrive sans raccourci : rien ne se lance tant que tu ne lui en as pas choisi un."));
         return notes;
     }
 }

@@ -123,8 +123,8 @@ final class ShortcutsLink: ObservableObject {
 
 /// Textes de l'en-tête de page.
 enum PageSummary {
-    /// Résumé des raccourcis de « Mes raccourcis ».
-    static let custom = String(localized: "Chaque raccourci que tu changes arrive ici, avec ceux que tu crées. Les macros ont leur page.")
+    /// « Mes raccourcis » vide : le titre seul (16/11, « enlève les phrases qui expliquent trop pour rien »).
+    static let custom = ""
 
     /// « 34 raccourcis · 3 modifiés ».
     static func count(_ count: Int, modified: Int) -> String {
@@ -656,8 +656,7 @@ struct EditorView: View {
                 if let followUp {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                         guard let next = store.catalogRows().rows.first(where: { $0.id == followUp }) else { return }
-                        editNotice = String(localized: "« \(row.entry.title) » utilise maintenant cette touche. ")
-                            + String(localized: "Choisis une nouvelle touche pour « \(next.entry.title) ».")
+                        editNotice = String(localized: "Choisis une nouvelle touche pour « \(next.entry.title) ».")
                         editingRow = next
                     }
                 }
@@ -742,7 +741,7 @@ struct EditorView: View {
             }
             if active {
                 if rows.isEmpty && others.isEmpty {
-                    Text(combo.map { String(localized: "Rien n'utilise \($0.display) : ces touches sont libres.") }
+                    Text(combo.map { String(localized: "Rien n'utilise \($0.display).") }
                          ?? String(localized: "Aucun raccourci ne correspond à « \(q) »."))
                         .font(.system(size: 15))
                         .foregroundStyle(Swiss.gray)
@@ -785,7 +784,7 @@ struct EditorView: View {
     private func catalogLine(_ row: CatalogRow, detail: String? = nil, bold: Bool = false) -> some View {
         let issues = row.remap.map { store.issues(for: $0.id) } ?? []
         let warning: String? = row.takenBy.map {
-            String(localized: "Touche aussi utilisée par « \($0) ». Clique sur la touche pour en choisir une autre.")
+            String(localized: "Touche aussi utilisée par « \($0) ».")
         } ?? (issues.isEmpty ? nil : issues.map(\.message).joined(separator: "\n"))
         let edit = { editNotice = nil; editingRow = row }
         return ReadableRow(title: row.entry.title, bold: bold, detail: detail, warning: warning,
@@ -836,7 +835,7 @@ struct EditorView: View {
         var out: [NoticeItem] = []
         if !status.accessibilityOK {
             out.append(NoticeItem(id: "ax", symbol: "exclamationmark.triangle.fill", tint: .orange,
-                                  text: String(localized: "FL Shortcuts n'a pas accès au clavier : tes raccourcis sont inactifs."),
+                                  text: String(localized: "FL Shortcuts n'a pas accès au clavier."),
                                   button: String(localized: "Autoriser…"), action: { AccessibilityGuide.start() }))
         } else if status.staleTCC {
             out.append(NoticeItem(id: "stale", symbol: "exclamationmark.triangle.fill", tint: .orange,
@@ -845,7 +844,7 @@ struct EditorView: View {
         }
         if status.secureInput {
             out.append(NoticeItem(id: "secure", symbol: "lock.fill", tint: .orange,
-                                  text: String(localized: "Saisie sécurisée active dans une autre app : macOS ne transmet plus les touches.")))
+                                  text: String(localized: "Saisie sécurisée active dans une autre app.")))
         }
         if !AppMode.light, status.scriptState == .modified {
             out.append(NoticeItem(id: "script", symbol: "exclamationmark.shield.fill", tint: .red,
@@ -1021,7 +1020,7 @@ private struct StatusBar: View {
 
     /// FL fermé : rien non plus (29/10, « le bouton FL n'est pas ouvert, tu peux l'enlever »).
     private var text: String? {
-        if !store.enabled { return String(localized: "En pause : FL Studio utilise ses raccourcis d'origine") }
+        if !store.enabled { return String(localized: "En pause") }
         // Clavier non autorisé : l'avertissement du haut le dit déjà, avec son bouton (16/11, pas de doublon en bas).
         if !status.accessibilityOK { return nil }
         if AppMode.light { return nil }
@@ -1030,7 +1029,7 @@ private struct StatusBar: View {
         case .inactive:
             if !link.snapshot.hasKey { return String(localized: "Lien avec FL Studio non installé") }
             if link.snapshot.incompatibleProtocol != nil { return String(localized: "Script FL d'une autre version") }
-            return String(localized: "Lien inactif : quitte et rouvre FL (il relie « FL Shortcuts Link » tout seul)")
+            return String(localized: "Lien inactif : quitte et rouvre FL")
         }
     }
 
@@ -1063,7 +1062,7 @@ private struct EmptyState: View {
             ContentUnavailableView {
                 Label(title, systemImage: symbol)
             } description: {
-                Text(text)
+                if !text.isEmpty { Text(text) }
             } actions: {
                 if let actionTitle, let action {
                     Button(actionTitle, action: action).primaryButton().controlSize(.large)
@@ -1077,10 +1076,12 @@ private struct EmptyState: View {
     private var legacy: some View {
         VStack(spacing: 6) {
             Text(title).font(Swiss.title(22)).tracking(Swiss.titleTracking(22)).foregroundStyle(.secondary)
-            Text(text)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+            if !text.isEmpty {
+                Text(text)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
             if let actionTitle, let action {
                 Button(actionTitle, action: action).secondaryButton().padding(.top, 6)
             }
@@ -1288,16 +1289,14 @@ struct EditSheet: View {
     /// raccourci lance désormais ; elle s'ouvre dans le créateur (comme « Convertir » dans Raccourcis d'Apple).
     private func customizeTemplate() {
         let template = draft.macro ?? Macro()
-        guard Dialogs.confirm(String(localized: "Personnaliser « Enregistrement rapide » ?"),
-                              String(localized: "Le modèle devient une macro en blocs que tu modifies étape par étape dans le créateur. ")
-                              + String(localized: "Ce raccourci lancera ta version ; le modèle d'origine reste dans Macros › Modèles."))
+        guard Dialogs.confirm(String(localized: "Personnaliser « Enregistrement rapide » ?"), "")
         else { return }
         let copy = MacroTemplates.customizedCopy(of: template,
                                                  name: store.library.uniqueName(String(localized: "Enregistrement rapide (personnalisé)")),
                                                  forbidden: store.forbidden)
         if let problem = copy.problem {
             Dialogs.inform(String(localized: "Personnalisation impossible"),
-                           String(localized: "Le raccourci garde le modèle, qui continue de marcher. \(problem)"))
+                           problem)
             return
         }
         let doc = store.library.add(copy.doc)
@@ -1309,7 +1308,7 @@ struct EditSheet: View {
         final.target = nil
         recorder.stop()
         if final.trigger != nil { store.upsert(final) }
-        onDone(ToastMessage(text: String(localized: "« \(doc.name) » est dans Macros : modifie-la bloc par bloc"), undo: nil))
+        onDone(ToastMessage(text: String(localized: "« \(doc.name) » est dans Macros"), undo: nil))
         dismiss()
         openCreator(doc.id)
     }
@@ -1388,9 +1387,6 @@ struct EditSheet: View {
                 CaptureField(id: "\(draft.id)-target", role: .target, combo: $draft.target)
                 if let t = draft.target, let name = store.conflicts.flConflict(t) {
                     Text("Dans FL Studio : \(name.replacingOccurrences(of: String(localized: "FL : "), with: ""))")
-                        .font(.system(size: 11)).foregroundStyle(.secondary)
-                } else {
-                    Text("Le raccourci de FL Studio à déplacer sur ta touche.")
                         .font(.system(size: 11)).foregroundStyle(.secondary)
                 }
             }
@@ -1575,7 +1571,6 @@ struct CaptureField: View {
     private var shape: Rectangle { Rectangle() }
 
     private var footnote: (text: String, warning: Bool)? {
-        if recording { return (String(localized: "Échap pour annuler, ⌫ pour effacer."), false) }
         if recorder.hintID == id, let hint = recorder.hint { return (hint, true) }
         return nil
     }
@@ -1911,8 +1906,6 @@ struct CatalogEditSheet: View {
     private func askReplace(_ found: [KeyClash]) {
         let title = String(localized: "\(combo?.display ?? String(localized: "Cette touche")) est déjà utilisée")
         let text = found.prefix(4).map(\.line).joined(separator: "\n")
-            + String(localized: "\n\nUn raccourci ne peut servir qu'une fois. Si tu remplaces, tu pourras choisir tout de suite ")
-            + String(localized: "une autre touche pour « \(found.first?.title ?? String(localized: "l'autre raccourci")) ».")
         let answer = SwissDialog.run(title, text, buttons: [String(localized: "Remplacer"), String(localized: "Annuler")],
                                      destructive: 0)
         if answer == 0 { apply(releasing: found) } else { pendingClashes = [] }

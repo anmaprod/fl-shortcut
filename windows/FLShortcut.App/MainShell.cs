@@ -695,7 +695,7 @@ internal sealed partial class MainShell
         switch (_app.Status)
         {
             case StatusKind.Paused:
-                _notices.Children.Add(Notice("warning", Orange, Loc.T("En pause : FL Studio utilise ses raccourcis d'origine"),
+                _notices.Children.Add(Notice("warning", Orange, Loc.T("En pause"),
                     Loc.T("Reprendre"), _app.Toggle));
                 break;
             case StatusKind.Elevated:
@@ -886,8 +886,7 @@ internal sealed partial class MainShell
                 SetTitleRule(true);
                 if (changed.Count == 0 && created.Count == 0)
                 {
-                    ShowEmpty("star", Loc.T("Aucun raccourci changé"),
-                        Loc.T("Chaque raccourci que tu changes arrive ici, avec ceux que tu crées. Les macros ont leur page."));
+                    ShowEmpty("star", Loc.T("Aucun raccourci changé"), "");
                     return;
                 }
                 var list = new StackPanel();
@@ -924,9 +923,12 @@ internal sealed partial class MainShell
         heading.HorizontalAlignment = HorizontalAlignment.Center;
         heading.Margin = new Thickness(0, 6, 0, 0);
         stack.Children.Add(heading);
-        var body = Paragraph(text, 12.5, Secondary);
-        body.TextAlignment = TextAlignment.Center;
-        stack.Children.Add(body);
+        if (text.Length > 0)
+        {
+            var body = Paragraph(text, 12.5, Secondary);
+            body.TextAlignment = TextAlignment.Center;
+            stack.Children.Add(body);
+        }
         _scroll.Content = new Grid { MinHeight = 420, Padding = new Thickness(24), Children = { stack } };
     }
 

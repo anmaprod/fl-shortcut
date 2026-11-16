@@ -921,6 +921,11 @@
   « Partagé par toi » ; résultats et Mes raccourcis : la page seule (plus « · AVANT ⌘S », « Créé par toi ») ; plus
   d'icône clavier/loupe dans la grande case ; Aide sans › ; Mac : plus de « Clavier non autorisé » en bas (déjà dit
   en haut). Gardés : noms des groupes, points rouges des nouveautés, numéros du classement « Les plus ajoutées ».
+  Puis (« enlève les sous phrases, les phrases qui expliquent trop pour rien ») : plus de phrase d'explication sous
+  un titre ni de seconde moitié de phrase, Mac et Windows : états vides (titre seul), Partager (plus de « Partagé :
+  … / Jamais partagé : … »), Signaler, inscription, accroche de la connexion (mots seuls), sauvegarde (état seul),
+  créateur (vide, réglages, « Glisse un bloc ici »), Aide (« Ton mail (facultatif) »…), Organiser (attentes, fin) ;
+  avertissements gardés mais courts (« FL Shortcuts n'a pas accès au clavier. »). NE PAS en remettre.
 
 ## Pas encore vérifié sur le vrai FL
 - Icônes (31/10) : clic droit › « Change icon… » sur le vrai FL (macro « Nom et couleur » après un clic sur le nom ;

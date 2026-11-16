@@ -299,14 +299,14 @@ struct CommunityPersonHeader: View {
 
     private func report() {
         guard Dialogs.confirm(String(localized: "Signaler la photo de @\(author.username.displaySafe(max: 24)) ?"),
-                              String(localized: "L'équipe la regarde et la retire si elle n'a rien à faire ici. Le membre ne sait pas qui l'a signalée."))
+                              "")
         else { return }
         Task { await community.reportPhoto(of: author) }
     }
 
     private func remove() {
         guard Dialogs.confirm(String(localized: "Retirer la photo de @\(author.username.displaySafe(max: 24)) ?"),
-                              String(localized: "Elle disparaît pour tout le monde ; son initiale la remplace. Ses signalements sont traités."))
+                              String(localized: "Elle disparaît pour tout le monde."))
         else { return }
         Task { await community.removePhoto(of: author) }
     }

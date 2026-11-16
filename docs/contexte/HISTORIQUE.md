@@ -1277,3 +1277,10 @@ entrée 1 ≈ 0,5 s.
   loupe, résultats avec la page seule (plus « · AVANT ⌘S ») ; Mes raccourcis sans « Créé par toi » ; Aide sans flèche
   › au bout des questions ; Mac : la pastille du bas ne répète plus « Clavier non autorisé » (l'avertissement du haut
   le dit avec son bouton). Mac et Windows ; traductions inutiles retirées.
+- 16/11 (« enlève les sous phrases, les phrases qui expliquent trop pour rien ») : Mac et Windows, toutes les phrases
+  d'explication sous un titre ou après « : » retirées dans la fenêtre (Mes raccourcis vide, Communauté vide,
+  Partager, Signaler, fiche d'un partage, inscription, accroche « tes raccourcis, tes macros, partout. » réduite aux
+  mots, sauvegarde, conflit de versions, questions Supprimer/Se déconnecter), le créateur (macro vide, « Aucun bloc
+  choisi », lettres soulignées, « Clique dans FL. », liste des plugins), l'Aide (formulaire, envoi) et l'Organiser
+  (attentes, fin, détails). Avertissements raccourcis à leur première moitié (« FL Shortcuts n'a pas accès au
+  clavier. », « Touche aussi utilisée par « X ». », « Rien n'utilise ⌘K. »). 74 traductions retirées.

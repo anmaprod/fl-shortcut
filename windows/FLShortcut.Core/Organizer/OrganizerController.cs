@@ -694,13 +694,12 @@ public sealed class OrganizerController
     {
         get
         {
-            var lines = new List<string> { Loc.T("C'est fait. « Revenir comme avant » défait tout.") };
+            var lines = new List<string> { Loc.T("C'est fait.") };
             if (LastApply?.Copy is { } copy)
             {
                 // Rangé dans une copie : son nom à l'écran (jamais dans le journal).
                 lines = new List<string> { Loc.F("C'est fait, dans une copie : « %@ ».", Path.GetFileName(copy)) };
                 if (LastApply.CopyNotSaved) lines.Add(Loc.T("Copie pas enregistrée : Ctrl+S dans FL."));
-                lines.Add(Loc.T("À la fermeture, tu valideras cette version."));
             }
             if (LastApply is { } outcome)
             {

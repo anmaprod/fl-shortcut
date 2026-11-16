@@ -8,10 +8,6 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-enum MacroPageText {
-    static let subtitle = String(localized: "Enchaîne des clics, des touches et des menus de FL Studio sur un seul raccourci. Le plus simple : enregistre ce que tu fais dans FL, chaque geste devient un bloc.")
-}
-
 /// Problème de la bibliothèque (enregistrement impossible, fichier relu en partie) : page Macros, même vide, et
 /// créateur. Rien si tout va bien.
 struct MacroLibraryProblemLabel: View {
@@ -173,7 +169,7 @@ private struct MacroLibraryList: View {
     private func delete(_ doc: MacroDoc) {
         let shown = doc.name.displaySafe(max: 40)
         guard Dialogs.choose(String(localized: "Supprimer « \(shown) » ?"),
-                             String(localized: "La macro et son raccourci sont supprimés."),
+                             "",
                              [String(localized: "Supprimer"), String(localized: "Annuler")], destructive: 0) == 0
         else { return }
         let shortcuts = store.remaps(forMacro: doc.id)
@@ -207,7 +203,7 @@ enum MacroLibraryActions {
                            toast: (ToastMessage) -> Void, open: (UUID) -> Void) {
         let docs = MacroFileActions.importMacros(into: library, layout: layout)
         if docs.count == 1, let doc = docs.first {
-            toast(ToastMessage(text: String(localized: "« \(doc.name) » importée, sans raccourci : relis-la dans le créateur"), undo: nil))
+            toast(ToastMessage(text: String(localized: "« \(doc.name) » importée"), undo: nil))
             open(doc.id)
         } else if docs.count > 1 {
             toast(ToastMessage(text: String(localized: "\(docs.count) macros importées, sans raccourci"), undo: nil))
@@ -500,7 +496,6 @@ enum MacroFileActions {
             ? String(localized: ", dont 1 à relire") : String(localized: ", dont \(preview.sensitiveCount) à relire")
         var text = String(localized: "« \(preview.doc.name) » — \(count)\(review).")
         if !preview.warnings.isEmpty { text += String(localized: "\n\nÀ faire :\n• ") + preview.warnings.joined(separator: "\n• ") }
-        text += String(localized: "\n\nElle arrive sans raccourci : relis-la dans le créateur, puis choisis-lui un raccourci.")
         // Au style suisse (02/11) : tous les blocs dans une liste qui défile, sous le texte.
         return SwissDialog.run(String(localized: "Importer cette macro ?"), text,
                                buttons: [String(localized: "Importer"), String(localized: "Annuler")],
@@ -548,6 +543,5 @@ struct MacroSidebarRow: View {
         SidebarLabel(title: Text("Macros"), symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint,
                      selected: selected)
             .sidebarRow(SidebarItem.macros.tint, selected: selected, choose: choose)
-            .help(MacroPageText.subtitle)
     }
 }

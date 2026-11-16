@@ -175,9 +175,6 @@ private struct MacroStepsPane: View {
                 VStack(spacing: 10) {
                     SectionIcon(symbol: "wand.and.stars", tint: .purple, size: 44)
                     Text("Aucune macro ouverte").font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
-                    Text("Crée une macro, ou ouvre-en une depuis la fenêtre Raccourcis › Macros.")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
                     Button("Nouvelle macro") { model.newMacro() }
                         .primaryButton()
                         .controlSize(.large)
@@ -255,17 +252,7 @@ private struct MacroStepsPane: View {
                         .foregroundStyle(.red)
                         .accessibilityHidden(true)
                     Text("Enregistre ce que tu fais dans FL").font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
-                    Text(String(localized: "Clique, utilise les flèches, tes raccourcis… : chaque geste devient un bloc, que tu peux ")
-                         + String(localized: "ensuite modifier, ranger ou supprimer."))
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: 340)
-                        .fixedSize(horizontal: false, vertical: true)
                     RecordStartButton(model: model)
-                    Text("ou glisse des blocs de la palette, à gauche")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
                 }
                 .padding(20)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -325,7 +312,7 @@ private struct MacroStepsPane: View {
 
     /// Zone en pointillés sous les étapes (maquette) : un bloc de la palette, ou de la liste, lâché ici va à la fin.
     private var dropZone: some View {
-        Text("Glisse un bloc ici, ou clique-le dans la liste à gauche")
+        Text("Glisse un bloc ici")
             .font(.system(size: 13))
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
@@ -356,18 +343,10 @@ private struct RecordHero: View {
                 Image(systemName: recorder.active ? "record.circle.fill" : "record.circle")
                     .font(.system(size: 22))
                     .hoverTint(.red)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(recorder.active ? String(localized: "Enregistrement en cours…")
-                                         : String(localized: "Enregistrer clics et touches"))
-                        .font(.system(size: 13, weight: .semibold))
-                    // Une phrase seulement pendant l'enregistrement : comment le finir.
-                    if recorder.active {
-                        Text("Clique et tape dans FL, puis « Terminer » en haut à droite.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
-                }
+                // 16/11 : plus de phrase pendant l'enregistrement (« Terminer » est dans la barre, en haut à droite).
+                Text(recorder.active ? String(localized: "Enregistrement en cours…")
+                                     : String(localized: "Enregistrer clics et touches"))
+                    .font(.system(size: 13, weight: .semibold))
                 Spacer(minLength: 0)
                 Text("⇧⌘R").font(.system(size: 11).monospacedDigit()).foregroundStyle(.tertiary)
             }
@@ -381,7 +360,6 @@ private struct RecordHero: View {
         .menuHover(tint: .red)
         .keyboardShortcut("r", modifiers: [.command, .shift])
         .disabled(recorder.active)
-        .help("FL passe devant : clique et tape dans l'ordre (menus, Options › Audio, boutons de ses fenêtres, flèches, raccourcis…), puis « Terminer ». Chaque clic et chaque touche devient un bloc, ajouté sous la ligne choisie.")
         .accessibilityLabel("Enregistrer clics et touches")
     }
 }

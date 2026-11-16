@@ -293,7 +293,7 @@ internal sealed partial class MainShell
             : $"{_app.TitleOf(o)} {o.Trigger}".Contains(q, StringComparison.CurrentCultureIgnoreCase))).ToList();
         if (found.Count == 0 && mine.Count == 0)
         {
-            var none = Paragraph(combo is { } c ? Loc.F("Rien n'utilise %@ : ces touches sont libres.", c.ToString())
+            var none = Paragraph(combo is { } c ? Loc.F("Rien n'utilise %@.", c.ToString())
                                                 : Loc.F("Aucun raccourci ne correspond à « %@ ».", q), 15, Secondary);
             none.Margin = new Thickness(0, 44, 0, 0);
             _findResults.Children.Add(none);
@@ -398,7 +398,7 @@ internal sealed partial class MainShell
     {
         var warnings = new List<string>();
         if (row.TakenBy is { } taken)
-            warnings.Add(Loc.F("Touche aussi utilisée par « %@ ». Clique sur la touche pour en choisir une autre.", taken));
+            warnings.Add(Loc.F("Touche aussi utilisée par « %@ ».", taken));
         if (row.Shortcut is { } s) warnings.AddRange(_app.IssuesOf(s.Id).Select(i => i.Message));
         var reset = row.IsDefault ? null
             : RoundIcon("reset", Loc.T("Revenir à : ") + (row.Entry.DefaultTrigger?.ToString() ?? Loc.T("aucune touche")), () => Reset(row), 32);

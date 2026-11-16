@@ -165,7 +165,7 @@ internal sealed class HelpPage
         var list = new StackPanel { Spacing = 14 };
         if (entries.Count == 0)
         {
-            var none = Paragraph(Loc.F("Aucune réponse pour « %@ » : écris-nous juste en dessous, on te répond.", DisplayText.Safe(_query, 30)), 13);
+            var none = Paragraph(Loc.F("Aucune réponse pour « %@ ».", DisplayText.Safe(_query, 30)), 13);
             list.Children.Add(new Border { Child = none, Padding = new Thickness(18), BorderBrush = Brush(LineColor), BorderThickness = new Thickness(1) });
             return list;
         }
@@ -283,7 +283,6 @@ internal sealed class HelpPage
             top.Children.Add(remove);
             reported.Children.Add(top);
             reported.Children.Add(Paragraph(error, 12.5, Text));
-            reported.Children.Add(Paragraph(Loc.T("Dis en quelques mots ce que tu faisais juste avant : ça nous aide beaucoup."), 11.5));
             form.Children.Add(new Border { Child = reported, BorderBrush = Brush(Orange), BorderThickness = new Thickness(2, 0, 0, 0) });
         }
 
@@ -311,7 +310,7 @@ internal sealed class HelpPage
         AutomationProperties.SetName(text, Loc.T("Écrire à l'équipe"));
         form.Children.Add(text);
 
-        var mail = Field(_message.Email, Loc.T("Ton mail pour la réponse, facultatif"));
+        var mail = Field(_message.Email, Loc.T("Ton mail (facultatif)"));
         mail.TextChanged += (_, _) => _message.Email = mail.Text;
         AutomationProperties.SetName(mail, Loc.T("Ton mail"));
         form.Children.Add(mail);
@@ -340,7 +339,6 @@ internal sealed class HelpPage
             shown.FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas");
             form.Children.Add(new Border { Child = shown, Padding = new Thickness(10), BorderBrush = Brush(LineColor), BorderThickness = new Thickness(1) });
         }
-        form.Children.Add(Paragraph(Loc.T("Jamais envoyé : tes touches, tes noms de pistes, tes fichiers."), 11));
 
         if (_problem is not null) form.Children.Add(Paragraph(_problem, 12, Red));
         var send = Primary(Loc.T("Envoyer"), Send);
@@ -456,7 +454,7 @@ internal sealed class HelpPage
         catch (Exception e) { AppLog.Write("SUPPORT", "clipboard refused (" + e.GetType().Name + ")"); }
         try { Process.Start(new ProcessStartInfo(SupportRules.IssueUri(_message, AppVersion).AbsoluteUri) { UseShellExecute = true }); }
         catch { /* pas de navigateur : le message reste copié */ }
-        _toast(Loc.F("Envoi impossible : %@ Tu peux le copier ou ouvrir un ticket.", why), null);
+        _toast(Loc.F("Envoi impossible : %@", why), null);
     }
 
     private FrameworkElement SentCard(SupportMessage sent)
@@ -465,7 +463,7 @@ internal sealed class HelpPage
         stack.Children.Add(Label(Loc.T("Message envoyé"), 18, bold: true));
         stack.Children.Add(Paragraph(Loc.F("Référence : %@", sent.Reference), 12.5, Text));
         if (sent.Email.Trim().Length > 0)
-            stack.Children.Add(Paragraph(Loc.F("On te répond à %@ dès que possible.", sent.Email.Trim()), 12.5));
+            stack.Children.Add(Paragraph(Loc.F("On te répond à %@.", sent.Email.Trim()), 12.5));
         stack.Children.Add(Soft(Loc.T("Écrire un autre message"), () =>
         {
             _sent = null;

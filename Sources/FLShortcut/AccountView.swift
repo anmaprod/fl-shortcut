@@ -34,10 +34,7 @@ enum AccountActions {
     static func signOut(_ backup: AccountBackup? = nil) async {
         let backup = backup ?? .shared
         guard Dialogs.choose(String(localized: "Se déconnecter ?"),
-                             String(localized: """
-                                 Tes raccourcis et tes macros seront retirés de ce Mac. Ils restent dans ton compte : \
-                                 reconnecte-toi, ici ou sur un autre Mac, pour les retrouver.
-                                 """),
+                             String(localized: "Tes raccourcis et tes macros restent dans ton compte."),
                              [String(localized: "Se déconnecter"), String(localized: "Annuler")]) == 0 else { return }
         var outcome = await backup.signOut()
         while case .notSaved(let why) = outcome {
@@ -77,7 +74,7 @@ struct AccountPage: View {
                 VStack(spacing: 0) {
                     CommunityMessage(symbol: "person.crop.circle.badge.xmark", tint: SidebarItem.account.tint,
                                      title: String(localized: "Les comptes ne sont pas encore ouverts"),
-                                     text: String(localized: "Tes raccourcis et tes macros restent sur ce Mac en attendant."))
+                                     text: "")
                 }
             } else if let session = community.session {
                 signedIn(session)
@@ -328,10 +325,12 @@ private struct AccountBackupStatus: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(look.title).font(Swiss.title(22)).tracking(-0.7)
                     .foregroundStyle(look.color == .red || look.color == .orange ? Swiss.red : Swiss.text)
-                Text(look.detail)
-                    .font(.system(size: 13))
-                    .foregroundStyle(Swiss.gray)
-                    .fixedSize(horizontal: false, vertical: true)
+                if !look.detail.isEmpty {
+                    Text(look.detail)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Swiss.gray)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             VStack(spacing: 0) {
                 row(String(localized: "Sur ce Mac"), here)
@@ -361,22 +360,21 @@ private struct AccountBackupStatus: View {
         switch status {
         case .off, .checking:
             return ("arrow.triangle.2.circlepath.icloud", .secondary, String(localized: "Vérification de ta sauvegarde…"),
-                    String(localized: "Ce Mac et ton compte se comparent."), true)
+                    "", true)
         case .upToDate(let date):
             return ("checkmark.icloud.fill", .green, String(localized: "Sauvegarde à jour"),
                     date.map { AccountText.when($0).capitalizedFirst } ?? String(localized: "Tout est en ligne."), false)
         case .pending:
             return ("icloud.and.arrow.up", .blue, String(localized: "Changements à envoyer"),
-                    String(localized: "Ils partent dans quelques secondes."), false)
+                    "", false)
         case .saving:
             return ("icloud.and.arrow.up.fill", .blue, String(localized: "Enregistrement en ligne…"),
-                    String(localized: "Ne quitte pas l'app tout de suite."), true)
+                    "", true)
         case .waiting(let why):
             return ("exclamationmark.icloud.fill", .orange, String(localized: "Pas encore en ligne"), why, false)
         case .choice:
             return ("exclamationmark.icloud.fill", .orange, String(localized: "À toi de choisir"),
-                    String(localized: "Ce Mac et ton compte ont chacun des changements : choisis la version à garder ci-dessus."),
-                    false)
+                    "", false)
         case .blocked(let why):
             return ("xmark.icloud.fill", .red, String(localized: "Sauvegarde arrêtée"), why, false)
         }
@@ -392,10 +390,7 @@ private struct AccountConflictCard: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
                 SectionIcon(symbol: "arrow.triangle.2.circlepath", tint: .orange, size: 40)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Deux versions différentes").font(.system(size: 15, weight: .bold))
-                    Text("Laquelle garder ?").font(.system(size: 12)).foregroundStyle(.secondary)
-                }
+                Text("Deux versions différentes").font(.system(size: 15, weight: .bold))
             }
             HStack(alignment: .top, spacing: 10) {
                 side(title: String(localized: "Ce Mac"), summary: conflict.here,
@@ -403,10 +398,7 @@ private struct AccountConflictCard: View {
                      button: String(localized: "Garder ce Mac"), prominent: true) { choose(false) }
                 side(title: String(localized: "Mon compte"), summary: conflict.account
                         + (conflict.remote.updatedAt.map { " · \(AccountText.when($0))" } ?? ""),
-                     effect: String(localized: """
-                         Ce Mac reprend ta sauvegarde. Ce qu'il y avait ici est copié dans Application Support › \
-                         FL Shortcuts.
-                         """),
+                     effect: String(localized: "Ce Mac reprend ta sauvegarde."),
                      button: String(localized: "Garder mon compte"), prominent: false) { choose(true) }
             }
         }

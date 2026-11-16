@@ -261,7 +261,7 @@ internal sealed class AccountPage
         _nameHint = null;
         _ruleLabels.Clear();
         if (HelpPage.Server is null)
-            return Message(Loc.T("Les comptes ne sont pas encore ouverts"), Loc.T("Tes raccourcis et tes macros restent sur ce PC en attendant."));
+            return Message(Loc.T("Les comptes ne sont pas encore ouverts"), "");
         if (_session is { } session) return SignedIn(session, columns);
         var card = _pending is { } pending ? CodeCard(pending.Kind, pending.Email) : SignInCard();
         if (_pending is not null) return new StackPanel { Children = { card }, Padding = new Thickness(26, 18, 26, 32) };
@@ -659,11 +659,12 @@ internal sealed class AccountPage
         panel.Children.Add(lastLine);
         var rows = new[]
         {
-            ("01", Loc.T("Sauvegarde"), Loc.T("Toujours en ligne, toujours à jour.")),
-            ("02", Loc.T("Tous tes ordis"), Loc.T("Les mêmes sur ton Mac et ton PC.")),
-            ("03", Loc.T("Communauté"), Loc.T("Partage et récupère des macros.")),
+            ("01", Loc.T("Sauvegarde")),
+            ("02", Loc.T("Tous tes ordis")),
+            ("03", Loc.T("Communauté")),
         };
-        foreach (var (number, title, text) in rows)
+        // 16/11 (« enlève les phrases qui expliquent trop pour rien ») : le mot seul, plus de phrase dessous.
+        foreach (var (number, title) in rows)
         {
             var grid = new Grid { ColumnSpacing = 16, Padding = new Thickness(0, 14, 0, 14), BorderBrush = Brush(LineColor), BorderThickness = new Thickness(0, 1, 0, 0) };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -671,9 +672,7 @@ internal sealed class AccountPage
             var n = Label(number, 13, Red, bold: true);
             n.VerticalAlignment = VerticalAlignment.Top;
             grid.Children.Add(n);
-            var words = new StackPanel { Spacing = 3 };
-            words.Children.Add(Label(title, 16, Text, bold: true));
-            words.Children.Add(Paragraph(text, 13));
+            var words = Label(title, 16, Text, bold: true);
             Grid.SetColumn(words, 1);
             grid.Children.Add(words);
             panel.Children.Add(grid);
@@ -732,10 +731,6 @@ internal sealed class AccountPage
         _submit.MinHeight = 40;
         card.Children.Add(_submit);
         card.Children.Add(Status());
-        if (_creating)
-        {
-            card.Children.Add(Paragraph(Loc.T("Les autres voient ton pseudo et ta photo, jamais ton e-mail."), 11.5));
-        }
         if (_creating) SetNameCheck(_nameCheck, _nameWhy); else UpdateSubmit();
         return Card(card);
     }
@@ -968,7 +963,7 @@ internal sealed class AccountPage
     {
         if (_session is null) return;
         if (!await _confirm(Loc.T("Se déconnecter ?"),
-                Loc.T("Tes raccourcis et macros quittent ce PC et restent dans ton compte."),
+                Loc.T("Tes raccourcis et tes macros restent dans ton compte."),
                 Loc.T("Se déconnecter"), false)) return;
         if (_backup is null)
         {
@@ -1032,12 +1027,12 @@ internal sealed class AccountPage
         var (color, title, detail, busy) = backup.Status switch
         {
             AccountBackupWin.State.UpToDate u => (Green, Loc.T("Sauvegarde à jour"), When(u.When) ?? Loc.T("Tout est en ligne."), false),
-            AccountBackupWin.State.Pending => (Blue, Loc.T("Changements à envoyer"), Loc.T("Ils partent dans quelques secondes."), false),
-            AccountBackupWin.State.Saving => (Blue, Loc.T("Enregistrement en ligne…"), Loc.T("Ne quitte pas l'app tout de suite."), true),
+            AccountBackupWin.State.Pending => (Blue, Loc.T("Changements à envoyer"), "", false),
+            AccountBackupWin.State.Saving => (Blue, Loc.T("Enregistrement en ligne…"), "", true),
             AccountBackupWin.State.Waiting w => (Orange, Loc.T("Pas encore en ligne"), w.Why, false),
-            AccountBackupWin.State.Choice => (Orange, Loc.T("À toi de choisir"), Loc.T("Ce PC et ton compte ont chacun des changements : choisis la version à garder ci-dessus."), false),
+            AccountBackupWin.State.Choice => (Orange, Loc.T("À toi de choisir"), "", false),
             AccountBackupWin.State.Blocked b => (Red, Loc.T("Sauvegarde arrêtée"), b.Why, false),
-            _ => (Secondary, Loc.T("Vérification de ta sauvegarde…"), Loc.T("Ce PC et ton compte se comparent."), true),
+            _ => (Secondary, Loc.T("Vérification de ta sauvegarde…"), "", true),
         };
         // Maquette du 05/11 (comme le Mac) : « SAUVEGARDE EN LIGNE » et le bouton à droite, l'état en grand, son détail,
         // puis ce PC et le compte en lignes séparées d'un trait.
@@ -1058,7 +1053,7 @@ internal sealed class AccountPage
         big.FontFamily = SwissFont;
         big.TextWrapping = TextWrapping.Wrap;
         card.Children.Add(big);
-        card.Children.Add(Paragraph(detail, 13));
+        if (detail.Length > 0) card.Children.Add(Paragraph(detail, 13));
         if (busy) card.Children.Add(new ProgressBar { IsIndeterminate = true, Foreground = Brush(Text), Background = Brush(Faint) });
         card.Children.Add(Line(Loc.T("Sur ce PC"), backup.HereSummary));
         card.Children.Add(Line(Loc.T("En ligne"), backup.OnlineSummary ?? "—"));
@@ -1085,14 +1080,13 @@ internal sealed class AccountPage
     {
         var card = new StackPanel { Spacing = 10 };
         card.Children.Add(Label(Loc.T("Deux versions différentes"), 15, Text, bold: true));
-        card.Children.Add(Paragraph(Loc.T("Laquelle garder ?"), 12));
         var sides = new Grid { ColumnSpacing = 12 };
         sides.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         sides.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         sides.Children.Add(Side(Loc.T("Ce PC"), choice.Here, Loc.T("La sauvegarde de ton compte est remplacée par ce qu'il y a ici."),
                                 Primary(Loc.T("Garder ce PC"), () => _ = backup.Resolve(keepAccount: false))));
         var account = Side(Loc.T("Mon compte"), choice.Account + (When(choice.Remote.UpdatedAt) is { } w ? " · " + w : ""),
-                           Loc.T("Ce PC prend ta sauvegarde. L'ancien contenu est copié."),
+                           Loc.T("Ce PC reprend ta sauvegarde."),
                            Soft(Loc.T("Garder mon compte"), () => _ = backup.Resolve(keepAccount: true)));
         Grid.SetColumn(account, 1);
         sides.Children.Add(account);
@@ -1448,7 +1442,7 @@ internal sealed class AccountPage
         var t = Label(title, 20, Text, bold: true);
         t.FontFamily = SwissFont;
         panel.Children.Add(t);
-        panel.Children.Add(Paragraph(text, 13));
+        if (text.Length > 0) panel.Children.Add(Paragraph(text, 13));
         return panel;
     }
 

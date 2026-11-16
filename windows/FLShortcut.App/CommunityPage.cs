@@ -151,7 +151,7 @@ internal sealed partial class CommunityPage
     public FrameworkElement Content(int columns)
     {
         if (HelpPage.Server is null && !_demo)
-            return Message(Loc.T("Les comptes ne sont pas encore ouverts"), Loc.T("Tes raccourcis et tes macros restent sur ce PC en attendant."), null, null);
+            return Message(Loc.T("Les comptes ne sont pas encore ouverts"), "", null, null);
         if (_account.Session is null && !_demo) return _account.Content(columns);
         // Premier passage : la liste est demandée, la page montre le chargement (sans se redessiner pendant sa construction).
         if (_shares is null && !_loading && _error is null)
@@ -316,16 +316,16 @@ internal sealed partial class CommunityPage
                 });
         if (_author is { } author)
             return Message(Loc.F("Aucun partage de @%@", DisplayText.Safe(author.Name, 24)),
-                Loc.T("Ce membre n'a rien publié pour l'instant."),
+                "",
                 Loc.T("Voir tout le monde"), () => Choose(CommunityTab.ForYou));
         if (_tab == CommunityTab.Following)
             return Message(_following.Count == 0 ? Loc.T("Tu ne suis personne.") : Loc.T("Rien de nouveau."),
-                Loc.T("Suis un créateur : ses partages arrivent ici."), Loc.T("Pour toi"), () => Choose(CommunityTab.ForYou));
+                "", Loc.T("Pour toi"), () => Choose(CommunityTab.ForYou));
         if (_tab == CommunityTab.MostAdded)
-            return Message(Loc.T("Rien d'ajouté pour l'instant."), Loc.T("Les partages ajoutés par les membres arrivent ici."),
+            return Message(Loc.T("Rien d'ajouté pour l'instant."), "",
                 Loc.T("Pour toi"), () => Choose(CommunityTab.ForYou));
         return Message(Loc.T("Encore aucun partage"),
-            Loc.T("Sois le premier : partage une macro qui te fait gagner du temps, avec une petite explication pour les autres."),
+            "",
             Loc.T("Partager une macro…"), StartComposing);
     }
 
@@ -513,7 +513,7 @@ internal sealed partial class CommunityPage
             {
                 list = Paragraph(Loc.T("Lecture du partage…"), 12);
             }
-            page.Children.Add(Part(Loc.T("Les raccourcis qu'il contient"), list));
+            page.Children.Add(Part(Loc.T("Raccourcis"), list));
             if (_profilePreview is { } p)
             {
                 var notes = new StackPanel { Spacing = 6 };
@@ -545,7 +545,7 @@ internal sealed partial class CommunityPage
                 loading.Children.Add(Paragraph(Loc.T("Lecture du partage…"), 12));
                 steps = loading;
             }
-            page.Children.Add(Part(Loc.T("Ce que fait la macro, étape par étape"), steps));
+            page.Children.Add(Part(Loc.T("Étapes"), steps));
             if (_preview is { } p)
             {
                 var notes = new StackPanel { Spacing = 6 };
@@ -663,7 +663,7 @@ internal sealed partial class CommunityPage
     private async void DeleteShare(Share share)
     {
         if (!await _confirm(Loc.F("Supprimer « %@ » ?", DisplayText.Safe(share.Title, 40)),
-                Loc.T("Le partage disparaît pour tout le monde. Tes macros et raccourcis ne changent pas."),
+                Loc.T("Le partage disparaît pour tout le monde."),
                 Loc.T("Supprimer"), true)) return;
         try
         {
@@ -684,7 +684,6 @@ internal sealed partial class CommunityPage
         var form = new StackPanel { Spacing = 10 };
         form.Children.Add(SwissLabel(Loc.F("Signaler « %@ »", DisplayText.Safe(share.Title, 40)), 11, Text));
         form.Children.Add(Rule(Text));
-        form.Children.Add(Paragraph(Loc.T("Les administrateurs le relisent. L'auteur ne saura pas qui."), 12));
         var reasons = new StackPanel { Spacing = 2 };
         for (var i = 0; i < Reasons.Length; i++)
         {
@@ -782,7 +781,6 @@ internal sealed partial class CommunityPage
         title.TextWrapping = TextWrapping.Wrap;
         title.CharacterSpacing = -20;
         page.Children.Add(title);
-        page.Children.Add(Paragraph(Loc.T("Les autres pourront lire ton explication, voir chaque étape, puis l'ajouter chez eux."), 12.5));
 
         var macros = _app.Macros.Macros;
         var kinds = new StackPanel { Orientation = Orientation.Horizontal };
@@ -799,8 +797,6 @@ internal sealed partial class CommunityPage
             kinds.Children.Add(chip);
         }
         var quoi = new StackPanel { Spacing = 6, Children = { kinds } };
-        quoi.Children.Add(Paragraph(_composeProfile ? Loc.T("Ton jeu de raccourcis complet : les autres pourront le mettre à la place du leur.")
-                                                    : Loc.T("La macro choisie, avec ses étapes."), 11.5));
         page.Children.Add(Field(Loc.T("Quoi"), quoi));
         if (_composeProfile)
         {
@@ -808,7 +804,7 @@ internal sealed partial class CommunityPage
         }
         else if (macros.Count == 0)
         {
-            page.Children.Add(Field(Loc.T("Macro"), Paragraph(Loc.T("Tu n'as pas encore de macro : crée-en une dans la page Macros."), 12.5, Orange)));
+            page.Children.Add(Field(Loc.T("Macro"), Paragraph(Loc.T("Aucune macro."), 12.5, Orange)));
         }
         else
         {
@@ -834,7 +830,7 @@ internal sealed partial class CommunityPage
         AutomationProperties.SetName(name, Loc.T("Titre"));
         page.Children.Add(Field(Loc.T("Titre"), name));
 
-        var notes = Input(_composeNotes, Loc.T("À quoi elle sert et où l'utiliser."));
+        var notes = Input(_composeNotes, Loc.T("À quoi elle sert"));
         notes.AcceptsReturn = true;
         notes.TextWrapping = TextWrapping.Wrap;
         notes.MinHeight = 120;
@@ -843,9 +839,6 @@ internal sealed partial class CommunityPage
         AutomationProperties.SetName(notes, Loc.T("Explication"));
         page.Children.Add(Field(Loc.T("Explication"), notes));
 
-        page.Children.Add(Paragraph(_composeProfile ? Loc.T("Partagé : tes raccourcis, le titre, ton explication, ton nom d'utilisateur.")
-                                                    : Loc.T("Partagé : la macro, le titre, ton explication, ton nom d'utilisateur."), 11.5));
-        page.Children.Add(Paragraph(Loc.T("Jamais partagé : ton mail, tes positions apprises, les chemins de tes fichiers."), 11.5));
         if (_composeProblem is not null) page.Children.Add(Paragraph(_composeProblem, 12, Red));
         if (_busy) page.Children.Add(new ProgressBar { IsIndeterminate = true, Foreground = Brush(Text), Background = Brush(Faint) });
 
@@ -977,9 +970,12 @@ internal sealed partial class CommunityPage
         t.HorizontalAlignment = HorizontalAlignment.Center;
         t.TextAlignment = TextAlignment.Center;
         panel.Children.Add(t);
-        var body = Paragraph(text, 12, Secondary);
-        body.TextAlignment = TextAlignment.Center;
-        panel.Children.Add(body);
+        if (text.Length > 0)
+        {
+            var body = Paragraph(text, 12, Secondary);
+            body.TextAlignment = TextAlignment.Center;
+            panel.Children.Add(body);
+        }
         if (button is not null && action is not null)
         {
             var b = Soft(button, action);

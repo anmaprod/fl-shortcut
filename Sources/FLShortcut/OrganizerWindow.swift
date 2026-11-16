@@ -1246,17 +1246,15 @@ final class OrganizerController: ObservableObject {
     var doneText: String { doneLines(short: false).joined(separator: "\n") }
 
     private func doneLines(short: Bool) -> [String] {
-        var lines = [short ? String(localized: "Coloré et renommé dans FL. « Revenir comme avant » défait tout, sauf les sons supprimés.")
+        var lines = [short ? String(localized: "Coloré et renommé dans FL.")
                      : String(localized: "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout, sauf les sons supprimés.")]
         if let copy = lastApply?.copy {
             // Rangé dans une copie : son nom à l'écran (jamais dans le journal).
-            lines = [short ? String(localized: "Dans une copie, « \(copy.lastPathComponent) », à côté de l'original : l'original n'a pas bougé.")
+            lines = [short ? String(localized: "Dans une copie, « \(copy.lastPathComponent) ».")
                      : String(localized: "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « \(copy.lastPathComponent) », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre et met la copie à la Corbeille.")]
             if lastApply?.copyNotSaved == true {
                 lines.append(String(localized: "FL n'a pas enregistré la copie rangée : enregistre-la dans FL (⌘S)."))
             }
-            lines.append(short ? String(localized: "En fermant, tu choisiras de garder cette version ou de revenir à l'original.")
-                         : String(localized: "Une fois l'Organiser fermé, FL Shortcuts te demandera si tu valides cette version : « Valider » met ton projet d'origine à la Corbeille et lui donne son nom, « Retourner en arrière » la supprime et rouvre ton projet d'avant."))
         }
         if let outcome = lastApply {
             if outcome.deleted > 0 {
@@ -1269,10 +1267,10 @@ final class OrganizerController: ObservableObject {
                 lines.append(String(localized: "Playlist : \(outcome.split) sons qui partageaient une piste ont chacun la leur."))
             }
             if outcome.reunited > 0 {
-                lines.append(String(localized: "Playlist : \(outcome.reunited) clips déplacés sur la piste de leur son (un son par piste)."))
+                lines.append(String(localized: "Playlist : \(outcome.reunited) clips déplacés sur la piste de leur son."))
             }
             if outcome.clipsLeft > 0 {
-                lines.append(String(localized: "Playlist : \(outcome.clipsLeft) clips n'ont pas pu rejoindre la piste de leur son (leur nom n'a pas été lu dans la fenêtre de FL, ou FL ne l'a pas laissé faire) : ils sont restés à leur place."))
+                lines.append(String(localized: "Playlist : \(outcome.clipsLeft) clips restés à leur place."))
             }
             if outcome.playlistMixed {
                 lines.append(String(localized: "Playlist : des pistes gardent deux sons, FL n'a pas laissé descendre leurs clips sur une piste à eux (dans FL, « Typing keyboard to piano keyboard » doit être éteint)."))
@@ -1768,7 +1766,7 @@ struct OrganizerView: View {
         let hands = String(localized: "Ne touche pas à FL.")
         if let step = controller.applyStep { return step + " " + hands }
         if controller.organizesCopy {
-            return String(localized: "FL ouvre la copie rangée de ton projet, puis tout s'y range… Ne touche pas à FL.")
+            return String(localized: "Rangement… Ne touche pas à FL.")
         }
         return String(localized: "Application dans FL… Ne touche pas à FL.")
     }
@@ -1959,7 +1957,7 @@ struct OrganizerView: View {
             }
         case .undone(let error):
             ending(error?.message ?? (controller.lastApply?.copy != nil
-                    ? String(localized: "Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée part à la Corbeille dès que FL l'a quittée.")
+                    ? String(localized: "Ton projet d'origine se rouvre dans FL.")
                     : String(localized: "FL est revenu comme avant.")),
                    ok: error == nil, linkHelp: error == .noResponse)
         case .failed(let message):
@@ -2201,10 +2199,12 @@ struct OrganizerView: View {
                     WaitingPulse(symbol: text.symbol, tint: tint)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(text.title).font(.system(size: 14, weight: .semibold))
-                        Text(text.detail)
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                        if !text.detail.isEmpty {
+                            Text(text.detail)
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                     Spacer(minLength: 0)
                 }
@@ -2212,12 +2212,6 @@ struct OrganizerView: View {
                 .organizerCard(tint)
                 .morphIn(1)
             }
-            HStack(spacing: 8) {
-                Text("Organiser continue tout seul dès que FL est prêt.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-            }
-            .morphIn(2)
             if reason == .audioPermission {
                 Button("Ouvrir les réglages") { controller.openAudioSettings() }
                     .primaryButton()
@@ -2275,7 +2269,7 @@ struct OrganizerView: View {
             return ("antenna.radiowaves.left.and.right", String(localized: "En attente de FL Studio"),
                     // 15/11 : FL relie le script à l'appareil présent à SON démarrage (FL Shortcuts le garde prêt tant
                     // que FL est fermé) : le rouvrir suffit ; MIDI Settings reste dans « Ça ne marche toujours pas ? ».
-                    String(localized: "FL ne répond pas encore : il se relie à FL Shortcuts en démarrant. Quitte et rouvre FL."))
+                    String(localized: "Quitte et rouvre FL."))
         case .wrongInput:
             return ("cable.connector", String(localized: "Le lien est sur la mauvaise entrée"),
                     String(localized: """
@@ -2284,11 +2278,9 @@ struct OrganizerView: View {
                         et choisis « FL Shortcuts ».
                         """))
         case .openFL:
-            return ("macwindow", String(localized: "Ouvre FL Studio"),
-                    String(localized: "Organiser commence dès que FL est ouvert, avec ton projet."))
+            return ("macwindow", String(localized: "Ouvre FL Studio"), "")
         case .stopPlayback:
-            return ("stop.fill", String(localized: "Arrête la lecture dans FL"),
-                    String(localized: "Organiser écoute chaque son seul : FL doit être à l'arrêt."))
+            return ("stop.fill", String(localized: "Arrête la lecture dans FL"), "")
         case .audioPermission:
             return ("speaker.wave.2.fill", String(localized: "Autorise « Enregistrement de l'écran et audio du système »"),
                     String(localized: """
