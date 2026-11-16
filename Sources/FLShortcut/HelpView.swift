@@ -437,9 +437,6 @@ private struct HelpEntryRow: View {
                         .font(Swiss.font(17)).tracking(-0.3)
                         .multilineTextAlignment(.leading)
                     Spacer(minLength: 8)
-                    Image(systemName: "chevron.right")
-                        .swissLabel()
-                        .rotationEffect(.degrees(open ? 90 : 0))
                 }
                 .contentShape(Rectangle())
             }

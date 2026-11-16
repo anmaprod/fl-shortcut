@@ -268,11 +268,12 @@ private struct CommunityBrowse: View {
                         .frame(maxWidth: .infinity)
                         .background(MockPlate(cornerRadius: 14)).swissCard()
                 } else {
-                    // Maquette du 16/11 : deux colonnes de cases qui partagent leurs traits, numérotées.
+                    // Maquette du 16/11 : deux colonnes de cases qui partagent leurs traits (plus de numéro ni de
+                    // sorte en haut : « enlève toutes les fioritures », 16/11).
                     LazyVGrid(columns: [GridItem(.flexible(), spacing: 0, alignment: .top),
                                         GridItem(.flexible(), spacing: 0, alignment: .top)], spacing: 0) {
-                        ForEach(Array(community.shares.enumerated()), id: \.element.id) { index, share in
-                            CommunityShareCard(share: share, number: index + 1, photo: community.photos[share.authorID],
+                        ForEach(community.shares) { share in
+                            CommunityShareCard(share: share, photo: community.photos[share.authorID],
                                                mine: community.isMine(share),
                                                canDelete: community.canDelete(share),
                                                showAuthor: community.author?.id == share.authorID ? nil : {
@@ -438,7 +439,6 @@ private struct CommunityFilters: View {
 /// Toute la case ouvre la fiche ; clic droit : la page de l'auteur, signaler, supprimer.
 private struct CommunityShareCard: View {
     let share: Share
-    let number: Int
     /// Photo de l'auteur (nil : son initiale de couleur).
     let photo: NSImage?
     let mine: Bool
@@ -452,17 +452,12 @@ private struct CommunityShareCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text(verbatim: String(format: "%02d", number)).swissLabel(size: 10.5)
-                Spacer(minLength: 8)
-                Text(share.kind.label).swissLabel(size: 10.5).fixedSize()
-            }
-            Spacer(minLength: 36)
             Text(share.title.displaySafe(max: 80))
                 .font(Swiss.title(24)).tracking(-0.8)
                 .foregroundStyle(Swiss.text)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 14)
             HStack(spacing: 8) {
                 AvatarView(photo: photo, username: share.authorName, size: 18)
                 Button {
@@ -480,9 +475,7 @@ private struct CommunityShareCard: View {
                     Text(verbatim: "· " + stats).font(.system(size: 13)).foregroundStyle(Swiss.gray).lineLimit(1)
                 }
                 Spacer(minLength: 8)
-                if mine {
-                    Text("Partagé par toi").swissLabel(size: 10).fixedSize()
-                } else {
+                if !mine {
                     Button("Ajouter", action: open)
                         .secondaryButton()
                         .controlSize(.small)
@@ -490,10 +483,9 @@ private struct CommunityShareCard: View {
                         .help("Lire la fiche, puis l'ajouter")
                 }
             }
-            .padding(.top, 14)
         }
         .padding(24)
-        .frame(maxWidth: .infinity, minHeight: 204, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
         .background(Rectangle().fill(hovering ? Swiss.faint : Swiss.background))
         .overlay(alignment: .trailing) { Rectangle().fill(Swiss.line).frame(width: 1).allowsHitTesting(false) }
         .overlay(alignment: .bottom) { Rectangle().fill(Swiss.line).frame(height: 1).allowsHitTesting(false) }

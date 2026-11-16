@@ -759,12 +759,8 @@ struct EditorView: View {
         .padding(.top, 18)
     }
 
-    /// « GÉNÉRAL » ; touche changée : « GÉNÉRAL · AVANT ⌘S ».
-    private func findDetail(_ row: CatalogRow) -> String {
-        guard !row.isDefault else { return row.entry.section.title }
-        return row.entry.section.title + " · " + String(localized: "avant") + " "
-            + (row.entry.defaultTrigger?.display ?? String(localized: "aucune touche"))
-    }
+    /// « GÉNÉRAL » : la page seule (16/11, plus de « · AVANT ⌘S » : « enlève toutes les fioritures »).
+    private func findDetail(_ row: CatalogRow) -> String { row.entry.section.title }
 
     /// « Mes raccourcis » (05/11, « juste action, page, puis raccourci, avec le bouton réinitialiser derrière ») : une
     /// ligne par raccourci de FL changé, puis par raccourci créé ou importé. Jamais les macros (page Macros).
@@ -778,7 +774,7 @@ struct EditorView: View {
             } else {
                 readablePage {
                     ForEach(changed) { row in catalogLine(row, detail: findDetail(row), bold: true) }
-                    ForEach(created) { remap in customLine(remap, detail: String(localized: "Créé par toi"), bold: true) }
+                    ForEach(created) { remap in customLine(remap, bold: true) }
                 }
                 .padding(.top, 10)
             }
@@ -1026,7 +1022,8 @@ private struct StatusBar: View {
     /// FL fermé : rien non plus (29/10, « le bouton FL n'est pas ouvert, tu peux l'enlever »).
     private var text: String? {
         if !store.enabled { return String(localized: "En pause : FL Studio utilise ses raccourcis d'origine") }
-        if !status.accessibilityOK { return String(localized: "Clavier non autorisé") }
+        // Clavier non autorisé : l'avertissement du haut le dit déjà, avec son bouton (16/11, pas de doublon en bas).
+        if !status.accessibilityOK { return nil }
         if AppMode.light { return nil }
         switch link.status {
         case .linked, .flClosed: return nil

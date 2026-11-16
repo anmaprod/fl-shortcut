@@ -307,10 +307,6 @@ struct FindShortcutField: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: typing ? "magnifyingglass" : "keyboard")
-                .font(.system(size: 16))
-                .foregroundStyle(Swiss.gray)
-                .accessibilityHidden(true)
             if typing {
                 SidebarSearchField(text: $query, prompt: String(localized: "Tape son nom"), focusSerial: focusSerial)
                     .frame(maxWidth: .infinity)

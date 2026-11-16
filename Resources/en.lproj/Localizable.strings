@@ -715,7 +715,6 @@
 "Créer mon compte" = "Create my account";
 "Créer sa piste audio (Playlist)" = "Create your audio track (Playlist)";
 "Créer un compte" = "Create an account";
-"Créé par toi" = "Created by you";
 "Créés par toi" = "Created by you";
 "Ctrl+Alt+Maj+F, n'importe où. « Reprendre » apparaît alors dans le menu de l'icône près de l'horloge." = "Ctrl+Alt+Shift+F, anywhere. “Resume” then appears in the menu of the icon next to the clock.";
 "Cymbal" = "Cymbal";
@@ -1631,7 +1630,6 @@
 "Partages de %@" = "Posts by %@";
 "Partagé : la macro, le titre, ton explication, ton nom d'utilisateur." = "Shared: the macro, the title, your description, your username.";
 "Partagé : tes raccourcis, le titre, ton explication, ton nom d'utilisateur." = "Shared: your shortcuts, the title, your description, your username.";
-"Partagé par toi" = "Shared by you";
 "Partir d'un modèle…" = "Start from a template…";
 "Partout" = "Everywhere";
 "Pas" = "Steps";
@@ -2350,7 +2348,6 @@
 "autorise « Enregistrement de l'écran » : le bouton mute de la piste est retrouvé dans la fenêtre de FL" = "allow “Screen Recording”: the track's mute button is found in the FL window";
 "autorise « Enregistrement de l'écran » : « Consolidate » est retrouvé dans le menu de FL" = "allow “Screen Recording”: “Consolidate” is found in FL's menu";
 "autorise « Enregistrement de l'écran » pour FL Shortcuts (Réglages Système › Confidentialité et sécurité ; déjà coché : décoche puis recoche)" = "allow “Screen Recording” for FL Shortcuts (System Settings › Privacy & Security; already on: turn it off, then on again)";
-"avant" = "was";
 "bientôt" = "soon";
 "bloc caché (ancien format)" = "hidden block (old format)";
 "bloc d'une version plus récente de FL Shortcuts : la macro est bloquée." = "block from a newer version of FL Shortcuts: the macro is blocked.";

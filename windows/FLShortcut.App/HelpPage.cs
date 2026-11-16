@@ -176,15 +176,11 @@ internal sealed class HelpPage
     private FrameworkElement Entry(HelpEntry entry)
     {
         var open = _open == entry.Id;
+        // 16/11 (« enlève toutes les fioritures ») : la question seule, plus de › / ⌄ à droite.
         var head = new Grid();
-        head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var question = Label(entry.Question, 17, bold: true);
         question.TextWrapping = TextWrapping.Wrap;
         head.Children.Add(question);
-        var chevron = Label(open ? "⌄" : "›", 15, Secondary);
-        Grid.SetColumn(chevron, 1);
-        head.Children.Add(chevron);
         var button = Option(head, () =>
         {
             _open = open ? null : entry.Id;

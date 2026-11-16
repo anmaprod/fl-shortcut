@@ -916,7 +916,11 @@
   `trouver*.png` (Mac), `principale-trouver.png` (Windows).
   16/11 (« la barre click a key to change it tu peux enlever, toutes fioritures tu les enlèves ») : plus de
   « CLIQUE SUR UNE TOUCHE POUR LA CHANGER » sous les titres ni au-dessus des résultats (Mac `pageHeader`/`findPage`,
-  Windows `SetTitleRule`/`RenderFindResults`) ; NE PAS remettre de phrase d'explication sur ces pages.
+  Windows `SetTitleRule`/`RenderFindResults`) ; NE PAS remettre de phrase d'explication sur ces pages. Puis
+  (« enlève toutes les fioritures ») : plus de numéro 01/02 ni de sorte en haut des cases de la Communauté, ni
+  « Partagé par toi » ; résultats et Mes raccourcis : la page seule (plus « · AVANT ⌘S », « Créé par toi ») ; plus
+  d'icône clavier/loupe dans la grande case ; Aide sans › ; Mac : plus de « Clavier non autorisé » en bas (déjà dit
+  en haut). Gardés : noms des groupes, points rouges des nouveautés, numéros du classement « Les plus ajoutées ».
 
 ## Pas encore vérifié sur le vrai FL
 - Icônes (31/10) : clic droit › « Change icon… » sur le vrai FL (macro « Nom et couleur » après un clic sur le nom ;

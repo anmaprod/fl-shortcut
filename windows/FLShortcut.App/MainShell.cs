@@ -892,7 +892,7 @@ internal sealed partial class MainShell
                 }
                 var list = new StackPanel();
                 foreach (var r in changed) list.Children.Add(CatalogLine(r, FindDetail(r), bold: true));
-                foreach (var c in created) list.Children.Add(CustomLine(c, Loc.T("Créé par toi"), bold: true));
+                foreach (var c in created) list.Children.Add(CustomLine(c, bold: true));
                 _scroll.Content = Readable(list);
                 return;
             }

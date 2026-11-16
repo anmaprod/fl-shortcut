@@ -283,7 +283,7 @@ internal sealed partial class CommunityPage
         for (var i = 0; i < shares.Count; i++)
         {
             if (i % 2 == 0) grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            var card = Card(shares[i], i + 1);
+            var card = Card(shares[i]);
             Grid.SetColumn(card, i % 2);
             Grid.SetRow(card, i / 2);
             grid.Children.Add(card);
@@ -332,28 +332,20 @@ internal sealed partial class CommunityPage
     /// Un partage en case (maquette « plus lisible » du 16/11, comme le Mac) : son numéro et sa sorte en haut, le titre
     /// en gras en bas, puis « @pseudo · ★ 4,6 · 312 ajouts » et « AJOUTER » (qui ouvre la fiche : rien ne s'ajoute
     /// sans l'avoir lue). Toute la case ouvre la fiche ; clic droit : sa page, Signaler…, Supprimer.
-    private FrameworkElement Card(Share share, int number)
+    // 16/11 (« enlève toutes les fioritures ») : plus de numéro ni de sorte en haut, ni « Partagé par toi » : le titre,
+    // puis l'auteur et « Ajouter ».
+    private FrameworkElement Card(Share share)
     {
         var mine = Mine(share);
         var grid = new Grid { RowSpacing = 0 };
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-        var top = new Grid();
-        top.Children.Add(SwissLabel(number.ToString("00", System.Globalization.CultureInfo.InvariantCulture), 10.5));
-        var kind = SwissLabel(share.IsMacro ? Loc.T("Macro") : Loc.T("Raccourcis"), 10.5);
-        kind.HorizontalAlignment = HorizontalAlignment.Right;
-        top.Children.Add(kind);
-        grid.Children.Add(top);
 
         var title = Label(DisplayText.Safe(share.Title, 80), 24, Text, bold: true);
         title.TextWrapping = TextWrapping.Wrap;
         title.MaxLines = 2;
         title.CharacterSpacing = -30;
-        title.Margin = new Thickness(0, 36, 0, 0);
-        Grid.SetRow(title, 2);
         grid.Children.Add(title);
 
         var bottom = new Grid { ColumnSpacing = 8, Margin = new Thickness(0, 14, 0, 0) };
@@ -373,29 +365,21 @@ internal sealed partial class CommunityPage
         if (showAuthor) ToolTipService.SetToolTip(authorButton, Loc.F("Voir la page de @%@", DisplayText.Safe(share.AuthorName, 24)));
         Grid.SetColumn(authorButton, 1);
         bottom.Children.Add(authorButton);
-        FrameworkElement action;
-        if (mine)
-        {
-            var label = SwissLabel(Loc.T("Partagé par toi"), 10);
-            label.VerticalAlignment = VerticalAlignment.Center;
-            action = label;
-        }
-        else
+        if (!mine)
         {
             var add = Small(Soft(Loc.T("Ajouter"), () => Open(share)));
             ToolTipService.SetToolTip(add, Loc.T("Lire la fiche, puis l'ajouter"));
-            action = add;
+            Grid.SetColumn(add, 2);
+            bottom.Children.Add(add);
         }
-        Grid.SetColumn(action, 2);
-        bottom.Children.Add(action);
-        Grid.SetRow(bottom, 3);
+        Grid.SetRow(bottom, 2);
         grid.Children.Add(bottom);
 
         var border = new Border
         {
             Child = grid,
             Padding = new Thickness(24),
-            MinHeight = 204,
+            MinHeight = 150,
             Background = Brush(MacLook.WindowColor),
             BorderBrush = Brush(LineColor),
             BorderThickness = new Thickness(0, 0, 1, 1),

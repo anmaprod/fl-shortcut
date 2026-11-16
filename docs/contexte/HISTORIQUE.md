@@ -1272,3 +1272,8 @@ entrée 1 ≈ 0,5 s.
   « CLIQUE SUR UNE TOUCHE POUR LA CHANGER » retirée partout (sous le titre des pages de touches, de Mes raccourcis et
   de Macros, et au-dessus des résultats de « appuie sur un raccourci ») ; il reste le titre, son trait, et un trait
   fin au-dessus du premier résultat. Mac et Windows ; traduction retirée.
+- 16/11 (« enlève toutes les fioritures ») : Communauté, cases sans numéro 01/02, sans « MACRO / RACCOURCIS » en haut
+  ni « Partagé par toi » (le titre, puis l'auteur et Ajouter) ; « appuie sur un raccourci » sans icône clavier ni
+  loupe, résultats avec la page seule (plus « · AVANT ⌘S ») ; Mes raccourcis sans « Créé par toi » ; Aide sans flèche
+  › au bout des questions ; Mac : la pastille du bas ne répète plus « Clavier non autorisé » (l'avertissement du haut
+  le dit avec son bouton). Mac et Windows ; traductions inutiles retirées.

@@ -225,18 +225,15 @@ internal sealed partial class MainShell
         var hadFocus = _search.XamlRoot is not null
                        && Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(_search.XamlRoot) == _search;
         if (_search.Parent is Panel holder) holder.Children.Remove(_search);
+        // 16/11 (« enlève toutes les fioritures ») : plus d'icône clavier ni de loupe devant.
         var grid = new Grid { ColumnSpacing = 14, Padding = new Thickness(20, 0, 14, 0) };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var icon = Icon(_findTyping ? "search" : "keyboard", 16, Secondary);
-        icon.VerticalAlignment = VerticalAlignment.Center;
-        grid.Children.Add(icon);
         if (_findTyping)
         {
             _search.PlaceholderText = Loc.T("Tape son nom");
             _search.FontSize = 18;
-            Grid.SetColumn(_search, 1);
+            Grid.SetColumn(_search, 0);
             grid.Children.Add(_search);
         }
         else
@@ -245,7 +242,7 @@ internal sealed partial class MainShell
                 ? Label(string.Join("+", k.Caps), 19, Text, bold: true)
                 : Label(_keyListening ? Loc.T("Appuie sur les touches…") : Loc.T("Clique ici"), 18, _keyListening ? Text : Secondary);
             text.VerticalAlignment = VerticalAlignment.Center;
-            Grid.SetColumn(text, 1);
+            Grid.SetColumn(text, 0);
             grid.Children.Add(text);
         }
         if ((_findTyping && _query.Length > 0) || (!_findTyping && _keySearch is not null))
@@ -258,7 +255,7 @@ internal sealed partial class MainShell
                 RenderFindResults();
             }, 28);
             clear.VerticalAlignment = VerticalAlignment.Center;
-            Grid.SetColumn(clear, 2);
+            Grid.SetColumn(clear, 1);
             grid.Children.Add(clear);
         }
         if (_findTyping)
@@ -309,10 +306,8 @@ internal sealed partial class MainShell
         foreach (var o in mine) _findResults.Children.Add(CustomLine(o, Loc.T("Mes raccourcis"), bold: true));
     }
 
-    /// « GÉNÉRAL » ; touche changée : « GÉNÉRAL · AVANT CTRL+S ».
-    private static string FindDetail(CatalogRow r) => r.IsDefault
-        ? r.Entry.Section.Title()
-        : r.Entry.Section.Title() + " · " + Loc.T("avant") + " " + (r.Entry.DefaultTrigger?.ToString() ?? Loc.T("aucune touche"));
+    /// « GÉNÉRAL » : la page seule (16/11, plus de « · AVANT CTRL+S » : « enlève toutes les fioritures »).
+    private static string FindDetail(CatalogRow r) => r.Entry.Section.Title();
 
     // ---------- Lignes et groupes ----------
 
