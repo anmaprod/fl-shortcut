@@ -2656,6 +2656,7 @@
 "« FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du script ci-dessous. Compare-le avec Options › File settings › User data folder dans FL (pas sur iCloud) ; s'il diffère, « Autre dossier de FL… » et choisis celui-là." = "“FL Shortcuts” missing from the Controller types: FL isn't reading the script folder below. Compare it with Options › File settings › User data folder in FL (not on iCloud); if it's different, click “Other FL folder…” and choose that one.";
 "« FL Studio n'est pas reconnu »" = "“FL Studio isn't recognized”";
 "« File › Open mixer track state » s'ouvre tout seul, au clavier (lettres soulignées du menu de FL). La première fois, une bulle te demande seulement de cliquer sur « (none) » puis sur l'entrée « 1 »." = "“File › Open mixer track state” opens on its own, from the keyboard (underlined letters in FL's menu). The first time, a bubble just asks you to click “(none)” then input “1”.";
+"« Nouvelle macro », puis « Enregistrer clics et touches »." = "“New macro”, then “Record clicks and keys”.";
 "« Ouvrir une page de FL » ajouté juste au-dessus : choisis d'abord la page, puis l'option à cliquer dans cette page." = "“Open an FL page” added just above: first choose the page, then the option to click on that page.";
 "« Partir d'un modèle… » propose des macros toutes faites, à adapter." = "“Start from a template…” offers ready-made macros you can adapt.";
 "« Renommer » de FL (F2), le nom tapé, puis Entrée." = "“Rename” window (F2), the typed name, then Return.";

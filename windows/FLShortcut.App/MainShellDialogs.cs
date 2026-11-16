@@ -97,13 +97,15 @@ internal sealed partial class MainShell
         return button;
     }
 
-    /// Champ de touche : la touche (ou « Aucune ») ; un clic, puis les touches appuyées la remplacent (Échap annule).
+    /// Champ de touche, comme CaptureField du Mac : la touche au milieu, ou ce qu'il faut faire ; un clic, puis les
+    /// touches appuyées la remplacent (Échap annule, ⌫ efface) ; bordé de rouge pendant l'écoute.
     private static Button CaptureButton() => new()
     {
         Style = PlainButton,
-        MinHeight = 40,
+        MinHeight = 52,
         HorizontalAlignment = HorizontalAlignment.Stretch,
-        HorizontalContentAlignment = HorizontalAlignment.Left,
+        HorizontalContentAlignment = HorizontalAlignment.Center,
+        VerticalContentAlignment = VerticalAlignment.Center,
         Padding = new Thickness(10, 6, 10, 6),
         CornerRadius = new CornerRadius(0),
         Background = Brush(MacLook.WindowColor),
@@ -111,63 +113,120 @@ internal sealed partial class MainShell
         BorderThickness = new Thickness(1),
     };
 
-    private static void SetCapture(Button button, KeyCombo? combo, bool recording, bool changed)
+    private static void SetCapture(Button button, KeyCombo? combo, bool recording, bool changed, string? placeholder = null)
     {
-        button.BorderBrush = Brush(recording ? Accent : White(0.16));
+        button.BorderBrush = Brush(recording ? Red : LineColor);
         button.BorderThickness = new Thickness(recording ? 2 : 1);
-        button.Content = recording ? Label(Loc.T("Appuie sur les touches…"), 13, Link) : Keys(combo, changed);
+        button.Content = recording ? Label(Loc.T("Appuie sur les touches…"), 13, Red)
+            : combo is null ? Label(placeholder ?? Loc.T("Cliquer pour enregistrer"), 13, Secondary)
+            : Keys(combo, changed);
         AutomationProperties.SetName(button, recording ? Loc.T("Appuie sur les touches…") : combo?.ToString() ?? Loc.T("Aucune"));
         if (recording) button.Focus(FocusState.Programmatic);
     }
 
-    /// Changer la touche d'un raccourci de FL ou d'une action en plus.
-    private async void EditKey(CatalogRow row)
+    /// Un avertissement comme SwissWarning du Mac : un petit carré rouge devant le texte, le texte à l'encre.
+    private static Grid WarningLine(string text, double size)
     {
-        if (_root.XamlRoot is null) return;
+        var grid = new Grid { ColumnSpacing = 8 };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.Children.Add(new Microsoft.UI.Xaml.Shapes.Rectangle
+        {
+            Width = 7,
+            Height = 7,
+            Fill = Brush(Red),
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, size * 0.45, 0, 0),
+        });
+        var label = Paragraph(text, size, Text);
+        Grid.SetColumn(label, 1);
+        grid.Children.Add(label);
+        return grid;
+    }
+
+    /// Changer la touche d'un raccourci de FL ou d'une action en plus : la même fiche que le Mac (CatalogEditSheet ;
+    /// 16/11, « c'est pas du tout le même que sur mac ») : la page en petites capitales et le nom en grand, souligné ;
+    /// TOUCHE (un clic, puis les touches ; ce qui l'utilise déjà dessous) ; D'ORIGINE ; puis Réinitialiser, Aucune
+    /// touche, Tester … Annuler, Valider. `notice` : la touche vient d'être reprise par un autre raccourci, celui-ci en
+    /// reçoit une nouvelle.
+    private async void EditKey(CatalogRow row, string? notice = null)
+    {
+        if (_root.XamlRoot is not { } root || DialogGuard.AnyOpen(root)) return;
         KeyCombo? combo = row.Current;
         var recording = false;
+        var saved = false;
         var native = row.Entry.Kind is CatalogEntryKind.Native(var n) ? n : (KeyCombo?)null;
-        var isAction = row.Entry.Kind is CatalogEntryKind.Action;
-        var dialog = NewDialog();
-        dialog.PrimaryButtonText = Loc.T("Valider");
-        dialog.CloseButtonText = Loc.T("Annuler");
-        dialog.SecondaryButtonText = Loc.T("Réinitialiser");
-        dialog.DefaultButton = ContentDialogButton.Primary;
+        int? actionId = row.Entry.Kind is CatalogEntryKind.Action(var id) ? id : null;
+        var dialog = SwissQuestion.SwissPanel(root);
 
-        var body = new StackPanel { Spacing = 14, MinWidth = 420 };
+        var body = new StackPanel { Spacing = 16, Width = 432 };
         body.Children.Add(SheetHeader(row.Entry.Section.Title(), row.Entry.Title));
+        if (notice is not null) body.Children.Add(WarningLine(notice, 12));
 
         var capture = CaptureButton();
         var clashPanel = new StackPanel { Spacing = 2 };
         var issuePanel = new StackPanel { Spacing = 2 };
-        var keyBlock = new StackPanel { Spacing = 6 };
-        keyBlock.Children.Add(Label(Loc.T("Touche"), 12, Secondary, semibold: true));
-        keyBlock.Children.Add(capture);
-        keyBlock.Children.Add(clashPanel);
-        keyBlock.Children.Add(issuePanel);
-        body.Children.Add(keyBlock);
+        body.Children.Add(SheetRow(Loc.T("Touche"), new StackPanel { Spacing = 6, Children = { capture, clashPanel, issuePanel } }));
+        body.Children.Add(SheetRow(Loc.T("D'origine"), Label(row.Entry.DefaultTrigger?.ToString() ?? Loc.T("Aucune"), 13, Text, bold: true)));
 
-        var origin = new StackPanel { Spacing = 2 };
-        origin.Children.Add(Label(Loc.T("D'origine"), 12, Secondary, semibold: true));
-        origin.Children.Add(Keys(row.Entry.DefaultTrigger));
-        if (native is not null) origin.Children.Add(Paragraph(Loc.T("Elle continue de marcher dans FL : ta touche s'ajoute."), 11));
-        body.Children.Add(origin);
-
-        var extra = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        if (isAction)
+        // Déclarés d'abord : Refresh les règle, et les boutons l'appellent.
+        Button reset = null!, save = null!;
+        Button? none = null;
+        reset = Soft(Loc.T("Réinitialiser"), "reset", () =>
         {
-            extra.Children.Add(Soft(Loc.T("Aucune touche"), () =>
+            combo = row.Entry.DefaultTrigger;
+            Refresh();
+        });
+        var left = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { reset } };
+        if (actionId is { } action)
+        {
+            none = Soft(Loc.T("Aucune touche"), () =>
             {
                 combo = null;
                 Refresh();
-            }));
-            if (!_app.Light && row.Entry.Kind is CatalogEntryKind.Action(var id))
-                extra.Children.Add(Soft(Loc.T("Tester"), () => _app.TestAction(id)));
+            });
+            left.Children.Add(none);
+            if (!_app.Light)
+            {
+                var test = Soft(Loc.T("Tester"), () => _app.TestAction(action));
+                ToolTipService.SetToolTip(test, Loc.T("Envoie l'action à FL Studio"));
+                left.Children.Add(test);
+            }
         }
-        if (extra.Children.Count > 0) body.Children.Add(extra);
+        save = Primary(Loc.T("Valider"), () =>
+        {
+            saved = true;
+            dialog.Hide();
+        });
+        var right = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
+        right.Children.Add(Soft(Loc.T("Annuler"), dialog.Hide));
+        right.Children.Add(save);
+        if (actionId is null)
+        {
+            // Une seule rangée, comme le Mac : Réinitialiser à gauche, Annuler et Valider à droite.
+            var buttons = new Grid();
+            buttons.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            buttons.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            buttons.Children.Add(left);
+            Grid.SetColumn(right, 1);
+            buttons.Children.Add(right);
+            body.Children.Add(buttons);
+        }
+        else
+        {
+            // Une action en plus a trois boutons de plus : Annuler et Valider passent dessous, à droite.
+            body.Children.Add(left);
+            body.Children.Add(right);
+        }
         dialog.Content = body;
 
         List<KeyClash> Clashes() => combo is { } c && c != row.Current ? _app.Clashes(c, row) : new List<KeyClash>();
+
+        static void Enable(Button button, bool on)
+        {
+            button.IsEnabled = on;
+            button.Opacity = on ? 1 : 0.35;
+        }
 
         void Refresh()
         {
@@ -176,23 +235,21 @@ internal sealed partial class MainShell
             var clashes = Clashes();
             if (clashes.Count > 0 && !recording)
             {
-                var title = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-                title.Children.Add(Icon("warning", 12, Orange, Rgb(0x1E, 0x1E, 0x21)));
-                title.Children.Add(Label(Loc.T("Déjà utilisée par :"), 11, Text));
-                clashPanel.Children.Add(title);
-                foreach (var c in clashes.Take(4)) clashPanel.Children.Add(Paragraph(Line(c), 11));
-                if (clashes.Count > 4) clashPanel.Children.Add(Paragraph(Loc.F("et %lld autres", clashes.Count - 4), 11));
+                clashPanel.Children.Add(WarningLine(Loc.T("Déjà utilisée par :"), 11));
+                foreach (var c in clashes.Take(4)) clashPanel.Children.Add(Paragraph(Line(c), 11, Secondary));
+                if (clashes.Count > 4) clashPanel.Children.Add(Paragraph(Loc.F("et %lld autres", clashes.Count - 4), 11, Secondary));
             }
             issuePanel.Children.Clear();
             var issues = combo is { } k && k != native
                 ? _app.IssuesFor(CatalogRows.Draft(row, combo))
                       .Where(i => i is not ShortcutIssue.NoTrigger and not ShortcutIssue.NoTarget).ToList()
                 : new List<ShortcutIssue>();
-            if (!recording)
-                foreach (var i in issues) issuePanel.Children.Add(Paragraph(i.Message, 11, i.IsBlocking ? Red : Orange));
-            dialog.IsPrimaryButtonEnabled = !recording && combo != row.Current && !issues.Any(i => i.IsBlocking)
-                                            && (combo is not null || isAction);
-            dialog.IsSecondaryButtonEnabled = combo != row.Entry.DefaultTrigger;
+            if (!recording && issues.Count > 0)
+                issuePanel.Children.Add(WarningLine(string.Join("\n", issues.Select(i => i.Message)), 11));
+            Enable(save, !recording && combo != row.Current && !issues.Any(i => i.IsBlocking)
+                         && (combo is not null || actionId is not null));
+            Enable(reset, combo != row.Entry.DefaultTrigger);
+            if (none is not null) Enable(none, combo is not null);
         }
 
         void Stop()
@@ -220,6 +277,12 @@ internal sealed partial class MainShell
                 Stop();
                 return;
             }
+            if (e.Key == Windows.System.VirtualKey.Back && !pressed.HasModifiers)
+            {
+                combo = null;                       // ⌫ : efface, comme le Mac
+                Stop();
+                return;
+            }
             if (!pressed.IsValidKey) return;
             combo = pressed;
             Stop();
@@ -233,27 +296,40 @@ internal sealed partial class MainShell
             Stop();
         }), true);
         capture.LostFocus += (_, _) => { if (recording) Stop(); };
-        dialog.SecondaryButtonClick += (_, args) =>
+        // Échap ferme la fiche, Entrée valide (comme le Mac) ; pendant l'écoute, les touches vont au champ.
+        dialog.PreviewKeyDown += (_, e) =>
         {
-            args.Cancel = true;                 // « Réinitialiser » remet la touche d'origine dans le champ
-            combo = row.Entry.DefaultTrigger;
-            Refresh();
+            if (recording) return;
+            if (e.Key == Windows.System.VirtualKey.Escape)
+            {
+                e.Handled = true;
+                dialog.Hide();
+            }
+            else if (e.Key == Windows.System.VirtualKey.Enter && save.IsEnabled)
+            {
+                e.Handled = true;
+                saved = true;
+                dialog.Hide();
+            }
         };
 
         Refresh();
-        var result = await dialog.ShowAsync();
+        await dialog.ShowSafeAsync();
         _app.SetRecording(false);
-        if (result != ContentDialogResult.Primary) return;
+        if (!saved) return;
 
+        // Une touche ne sert qu'une fois (comme le Mac) : ce qui l'utilise est dit d'abord, puis repris.
         var found = Clashes();
-        var mine = found.Where(c => !c.IsFlKey).ToList();
-        if (mine.Count > 0 && !await ConfirmReplace(combo, found)) return;
+        if (found.Count > 0 && !await ConfirmReplace(combo, found)) return;
         _app.SetKey(row, combo, found);
         ShowToast(Loc.F("« %@ » : ", row.Entry.Title) + (combo?.ToString() ?? Loc.T("aucune touche")));
-        // Touche reprise à un autre raccourci de FL : une nouvelle touche lui est proposée tout de suite.
-        if (mine.FirstOrDefault(c => c.Row is not null)?.Row?.Id is { } next
+        // L'entrée qui a perdu sa touche en reçoit une nouvelle tout de suite (la fiche d'avant s'est refermée).
+        if (found.FirstOrDefault(c => c.Row is not null)?.Row?.Id is { } next
             && _app.Catalog.Rows.FirstOrDefault(r => r.Id == next) is { } nextRow)
-            EditKey(nextRow);
+        {
+            await Task.Delay(400);
+            EditKey(nextRow, Loc.F("Choisis une nouvelle touche pour « %@ ».", nextRow.Entry.Title));
+        }
     }
 
     /// Ce qui utilise déjà une touche, en une ligne (comme le Mac).
@@ -264,56 +340,29 @@ internal sealed partial class MainShell
                          : Loc.F("« %@ »%@, ton raccourci", c.Title, place);
     }
 
-    /// Une question (Mon compte : se déconnecter, supprimer le compte) ; vrai si l'on choisit `primary`. « Annuler »
-    /// est le choix par défaut.
+    /// Une question (Mon compte : se déconnecter, supprimer le compte) ; vrai si l'on choisit `primary`. Question
+    /// suisse comme le Mac (SwissQuestion) ; Entrée ne choisit jamais une action qui efface.
     private async Task<bool> ConfirmAsync(string title, string text, string primary, bool destructive)
     {
-        if (_root.XamlRoot is null) return false;
-        var dialog = NewDialog();
-        dialog.Title = title;
-        dialog.Content = Paragraph(text, 13, Text);
-        dialog.PrimaryButtonText = primary;
-        dialog.CloseButtonText = Loc.T("Annuler");
-        dialog.DefaultButton = ContentDialogButton.Close;
-        if (destructive)
-        {
-            var red = new Style(typeof(Button));
-            red.Setters.Add(new Setter(Control.ForegroundProperty, Brush(Red)));
-            dialog.PrimaryButtonStyle = red;
-        }
-        return await dialog.ShowAsync() == ContentDialogResult.Primary;
+        if (_root.XamlRoot is not { } root) return false;
+        return await SwissQuestion.AskAsync(root, title, text, new[] { primary, Loc.T("Annuler") },
+                                            destructive ? 0 : null) == 0;
     }
 
     /// Une question à trois réponses : 0 (`first`), 1 (`second`), 2 (Annuler, le choix par défaut).
     private async Task<int> ChooseAsync(string title, string text, string first, string second)
     {
-        if (_root.XamlRoot is null) return 2;
-        var dialog = NewDialog();
-        dialog.Title = title;
-        dialog.Content = Paragraph(text, 13, Text);
-        dialog.PrimaryButtonText = first;
-        dialog.SecondaryButtonText = second;
-        dialog.CloseButtonText = Loc.T("Annuler");
-        dialog.DefaultButton = ContentDialogButton.Close;
-        return await dialog.ShowAsync() switch
-        {
-            ContentDialogResult.Primary => 0,
-            ContentDialogResult.Secondary => 1,
-            _ => 2,
-        };
+        if (_root.XamlRoot is not { } root) return 2;
+        return await SwissQuestion.AskAsync(root, title, text, new[] { first, second, Loc.T("Annuler") });
     }
 
-    /// Une touche ne sert qu'une fois : ce qui l'utilise est annoncé avant de la reprendre.
+    /// Une touche ne sert qu'une fois : ce qui l'utilise est dit avant de la reprendre (comme le Mac : les lignes seules).
     private async Task<bool> ConfirmReplace(KeyCombo? combo, List<KeyClash> clashes)
     {
-        var dialog = NewDialog();
-        dialog.Title = Loc.F("%@ est déjà utilisée", combo?.ToString() ?? Loc.T("Cette touche"));
-        dialog.Content = Paragraph(string.Join("\n", clashes.Take(4).Select(Line))
-            + "\n\n" + Loc.F("Une touche ne sert qu'une fois : « %@ » en prendra une autre.", clashes.FirstOrDefault()?.Title ?? Loc.T("l'autre raccourci")), 13, Text);
-        dialog.PrimaryButtonText = Loc.T("Remplacer");
-        dialog.CloseButtonText = Loc.T("Annuler");
-        dialog.DefaultButton = ContentDialogButton.Close;
-        return await dialog.ShowAsync() == ContentDialogResult.Primary;
+        if (_root.XamlRoot is not { } root) return false;
+        return await SwissQuestion.AskAsync(root, Loc.F("%@ est déjà utilisée", combo?.ToString() ?? Loc.T("Cette touche")),
+                                            string.Join("\n", clashes.Take(4).Select(Line)),
+                                            new[] { Loc.T("Remplacer"), Loc.T("Annuler") }, destructive: 0) == 0;
     }
 
     /// Fiche d'un raccourci que tu as créé : sa touche, ce qu'il fait (action dans FL, touche de FL, macro), où.
@@ -377,7 +426,7 @@ internal sealed partial class MainShell
         {
             refreshing = true;
             SetCapture(triggerButton, draft.Trigger, recordingFor == "trigger", false);
-            SetCapture(targetButton, draft.Target, recordingFor == "target", false);
+            SetCapture(targetButton, draft.Target, recordingFor == "target", false, Loc.T("Cliquer, puis taper la touche de FL"));
             kinds.SelectedIndex = draft.Kind switch { ShortcutKind.FlAction => 0, ShortcutKind.Keystroke => 1, _ => 2 };
             actionPanel.Visibility = draft.Kind == ShortcutKind.FlAction ? Visibility.Visible : Visibility.Collapsed;
             keyPanel.Visibility = draft.Kind == ShortcutKind.Keystroke ? Visibility.Visible : Visibility.Collapsed;
@@ -496,7 +545,7 @@ internal sealed partial class MainShell
         };
 
         Refresh();
-        var result = await dialog.ShowAsync();
+        var result = await dialog.ShowSafeAsync();
         _app.SetRecording(false);
         if (result == ContentDialogResult.Primary)
         {

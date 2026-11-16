@@ -1284,3 +1284,11 @@ entrée 1 ≈ 0,5 s.
   choisi », lettres soulignées, « Clique dans FL. », liste des plugins), l'Aide (formulaire, envoi) et l'Organiser
   (attentes, fin, détails). Avertissements raccourcis à leur première moitié (« FL Shortcuts n'a pas accès au
   clavier. », « Touche aussi utilisée par « X ». », « Rien n'utilise ⌘K. »). 74 traductions retirées.
+- 16/11 soir (essai sur PC, « j'essaye de changer un raccourci ça crash et c'est pas du tout le même que sur mac ») :
+  cause trouvée dans le code : le clic sur la case de la touche faisait aussi le `Tapped` de la ligne, donc deux fiches
+  l'une sur l'autre ; WinUI refuse la deuxième (« Only a single ContentDialog… ») et l'erreur, dans une méthode async
+  void, fermait l'appli. Corrigé : un clic sur un bouton d'une ligne ne remonte plus (raccourcis, macros ; les cartes
+  de la Communauté le faisaient déjà) ; toutes les boîtes passent par `ShowSafeAsync` (jamais deux, erreur notée au
+  journal). Fiche « Touche » de Windows refaite comme celle du Mac, questions au style suisse comme `SwissDialog`.
+  « Nouvelle macro » ouvre directement le créateur (Mac et Windows), plus de menu Enregistrer / Macro vide / Modèle ni
+  de fenêtre des modèles ; guide mis à jour. Pas encore vu sur un PC.

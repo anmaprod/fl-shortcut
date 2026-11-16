@@ -907,7 +907,7 @@
   choisie ouvre sa partie), plus de recherche dans la barre ni de cadre du compte en haut ; « appuie sur un
   raccourci » = page d'accueil (`SidebarItem.find`, `FindShortcutField`, « ou tape son nom ») ; pages en une liste
   (`ReadableGroup`/`ReadableRow`/`KeyBox` : nom du groupe à gauche, touche dans sa case, rouge si changée, ↺) ; Macros
-  en liste (`MacroLibraryLine`, `NewMacroButton` : Enregistrer / Macro vide / Modèle ; `MacroLibraryActions`) ;
+  en liste (`MacroLibraryLine`, `NewMacroButton` : ouvre tout de suite le créateur sur une macro vide ; `MacroLibraryActions`) ;
   Communauté : onglets soulignés, « Chercher » à droite, cases numérotées sur 2 colonnes (`CommunityStats.compact`),
   plus de vitrine. Mac : `MainReadable.swift`. Windows (même jour) : `MainShellReadable.cs` (barre, « appuie sur un
   raccourci » construite une fois pour garder la main pendant la frappe, `ReadableRow`, `ShowGroups`), `MacLook.KeyBox`,
@@ -926,6 +926,17 @@
   … / Jamais partagé : … »), Signaler, inscription, accroche de la connexion (mots seuls), sauvegarde (état seul),
   créateur (vide, réglages, « Glisse un bloc ici »), Aide (« Ton mail (facultatif) »…), Organiser (attentes, fin) ;
   avertissements gardés mais courts (« FL Shortcuts n'a pas accès au clavier. »). NE PAS en remettre.
+  16/11 soir (essai sur PC : « j'essaye de changer un raccourci ça crash et c'est pas du tout le même que sur mac ») :
+  le clic sur la case d'une touche remontait à la ligne (`Tapped`), qui ouvrait une 2e fiche ; WinUI refuse 2
+  `ContentDialog` à la fois, l'erreur fermait l'appli. Lignes de raccourcis et de macros : un clic sur un de leurs
+  boutons ne fait plus que le sien (`MacLook.OnButton`) ; TOUTES les boîtes par `ShowSafeAsync` (`DialogGuard.cs` :
+  jamais deux, erreur notée `DIALOG`). Fiche « Touche » Windows = celle du Mac (en-tête, TOUCHE, D'ORIGINE, ↺
+  Réinitialiser / Aucune touche / Tester … Annuler / Valider, ⌫ efface, rouge pendant l'écoute, « Remplacer » même pour
+  une touche de FL, puis nouvelle touche pour l'entrée qui l'a perdue) ; questions Windows au style suisse comme
+  `SwissDialog` (`SwissQuestion.AskAsync`, `MacLook.Danger`), plus de boîte à barre grise. « Nouvelle macro » (Mac et
+  Windows, « j'avais demandé de supprimer enregistrer macro et modèle ») : ouvre le créateur sur une macro vide, plus
+  de menu ; fenêtre des modèles retirée (Mac `MacroTemplatesSheet`, Windows `ShowTemplates`) ; guide : « « Nouvelle
+  macro », puis « Enregistrer clics et touches ». ».
 
 ## Pas encore vérifié sur le vrai FL
 - Icônes (31/10) : clic droit › « Change icon… » sur le vrai FL (macro « Nom et couleur » après un clic sur le nom ;

@@ -385,7 +385,8 @@ internal sealed partial class MainShell
         grid.Children.Add(line);
         grid.Tapped += (_, e) =>
         {
-            if (e.Handled) return;
+            // La touche, ↺ et la corbeille font le leur : la ligne n'ouvre pas une deuxième fiche (16/11, plantage).
+            if (e.Handled || OnButton(e, grid)) return;
             e.Handled = true;
             onKey();
         };

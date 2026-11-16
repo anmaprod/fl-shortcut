@@ -1,7 +1,8 @@
 // Fenêtre « Raccourcis » › Macros (maquette « plus lisible » du 16/11) : une ligne par macro (nom, touche dans sa
 // case, interrupteur) ; « Importer », « Exporter » et « Nouvelle macro » dans l'en-tête de la page (EditorView), cette
-// dernière proposant d'enregistrer une macro, d'en partir d'une vide ou d'un modèle. Sans macro : « Aucune macro. » et
-// « Nouvelle macro ». Une macro s'ouvre dans le créateur d'un clic, clic droit pour le reste.
+// dernière ouvrant tout de suite le créateur sur une macro vide (16/11 : plus d'« Enregistrer une macro » ni de
+// modèles). Sans macro : « Aucune macro. » et « Nouvelle macro ». Une macro s'ouvre dans le créateur d'un clic, clic
+// droit pour le reste.
 // Aussi : export / import .flsmacro (fichier relu avant d'être accepté) et le champ « Macro » d'un raccourci relié
 // à la bibliothèque.
 import AppKit
@@ -68,7 +69,6 @@ private struct MacroLibraryList: View {
     let open: (UUID) -> Void
     let toast: (ToastMessage) -> Void
     let editKey: (Remap, Bool) -> Void
-    @ObservedObject private var templates = MacroTemplatesLink.shared
 
     var body: some View {
         Group {
@@ -90,12 +90,6 @@ private struct MacroLibraryList: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-        }
-        .sheet(isPresented: $templates.showing) {
-            MacroTemplatesSheet(templates: MacroTemplates.gallery(layout: store.layout)) { template in
-                use(template)
-            }
-            .swissSheet()
         }
     }
 
@@ -138,13 +132,6 @@ private struct MacroLibraryList: View {
     }
 
     // MARK: Actions
-
-    private func use(_ template: MacroTemplate) {
-        var doc = template.make(store.layout)
-        doc.name = library.uniqueName(doc.name)
-        let added = library.add(doc)
-        MacroCreatorLink.shared.open(added.id, isNew: true)
-    }
 
     private func duplicate(_ doc: MacroDoc) {
         var copy = MacroDoc(name: library.uniqueName(doc.name + String(localized: " (copie)")), blocks: MacroTemplates.freshIDs(doc.blocks),
@@ -192,13 +179,6 @@ enum MacroLibraryActions {
         MacroCreatorLink.shared.open(doc.id, isNew: true)       // au retour : l'enregistrer ou la supprimer
     }
 
-    /// « Enregistrer une macro » : nouvelle macro ouverte dans le créateur, et l'enregistrement des clics et des
-    /// touches qui démarre aussitôt (FL passe devant).
-    static func recordNewMacro(in library: MacroLibraryStore) {
-        let doc = library.add(MacroDoc(name: library.uniqueName(String(localized: "Nouvelle macro")), blocks: []))
-        MacroCreatorLink.shared.open(doc.id, isNew: true, record: true)
-    }
-
     static func importFile(into library: MacroLibraryStore, layout: KeyboardLayout,
                            toast: (ToastMessage) -> Void, open: (UUID) -> Void) {
         let docs = MacroFileActions.importMacros(into: library, layout: layout)
@@ -215,31 +195,17 @@ enum MacroLibraryActions {
     }
 }
 
-/// « Partir d'un modèle… » demandé par « Nouvelle macro » (en-tête ou page vide) : la page Macros montre les modèles.
-final class MacroTemplatesLink: ObservableObject {
-    static let shared = MacroTemplatesLink()
-    @Published var showing = false
-}
-
-/// « Nouvelle macro » (maquette du 16/11) : bouton plein ; un clic montre les trois façons de commencer.
+/// « Nouvelle macro » (maquette du 16/11) : bouton plein ; un clic ouvre tout de suite le créateur sur une macro vide
+/// (16/11 : « j'avais demandé de supprimer enregistrer macro et modèle… que ça ouvre juste la page de macro » ;
+/// l'enregistrement des clics et des touches reste dans le créateur).
 struct NewMacroButton: View {
     let library: MacroLibraryStore
 
     var body: some View {
-        Button("Nouvelle macro") {
-            SwissContextMenu.shared.show([
-                RightClickMenu.Item(title: String(localized: "Enregistrer une macro"),
-                                    action: { MacroLibraryActions.recordNewMacro(in: library) }),
-                RightClickMenu.Item(title: String(localized: "Macro vide"),
-                                    action: { MacroLibraryActions.newMacro(in: library) }),
-                RightClickMenu.Item(title: String(localized: "Partir d'un modèle…"),
-                                    action: { MacroTemplatesLink.shared.showing = true }),
-            ], at: NSEvent.mouseLocation)
-        }
-        .primaryButton()
-        .controlSize(.large)
-        .fixedSize()
-        .help("Enregistrer une macro, ou partir d'une macro vide ou d'un modèle")
+        Button("Nouvelle macro") { MacroLibraryActions.newMacro(in: library) }
+            .primaryButton()
+            .controlSize(.large)
+            .fixedSize()
     }
 }
 
@@ -316,84 +282,6 @@ final class MacrosLink: ObservableObject {
     @Published var pending = false
 
     func show() { pending = true }
-}
-
-// MARK: - Modèles
-
-struct MacroTemplatesSheet: View {
-    let templates: [MacroTemplate]
-    let choose: (MacroTemplate) -> Void
-    @Environment(\.dismiss) private var dismiss
-
-    /// 05/11 (« reprendre l'idée de base… mais refais-la un peu mieux… tout sur une page, sans scroll ») : le titre et
-    /// son point carré, puis les modèles en cartes sur deux colonnes (numéro, nom, phrase) ; un clic sur une carte la
-    /// prend. Tout tient sans défiler.
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            SwissPageTitle(text: String(localized: "Modèles"), size: 38)
-                .padding(.bottom, 12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .swissRule()
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)],
-                      alignment: .leading, spacing: 16) {
-                ForEach(Array(templates.enumerated()), id: \.element.id) { index, t in
-                    TemplateCard(number: String(format: "%02d", index + 1), title: t.title, summary: t.summary) {
-                        choose(t)
-                        dismiss()
-                    }
-                }
-            }
-            HStack(spacing: 0) {
-                Spacer()
-                Button("Fermer") { dismiss() }
-                    .secondaryButton()
-                    .keyboardShortcut(.cancelAction)
-            }
-            .padding(.top, 4)
-        }
-        .padding(26)
-        .frame(width: 680)
-        .fixedSize(horizontal: false, vertical: true)
-        .background(Swiss.background)
-    }
-}
-
-/// Un modèle (05/11) : son numéro, son nom en gras, sa phrase, « UTILISER » ; toute la carte le prend, pleine d'encre au
-/// survol.
-private struct TemplateCard: View {
-    let number: String
-    let title: String
-    let summary: String
-    let action: () -> Void
-    @State private var hovering = false
-
-    var body: some View {
-        Button(action: action) {
-            HStack(alignment: .center, spacing: 14) {
-                Text(verbatim: number).font(Swiss.font(14)).foregroundStyle(hovering ? Swiss.red : Swiss.gray)
-                    .frame(width: 24, alignment: .leading)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title).font(Swiss.font(16)).tracking(-0.3).lineLimit(1).minimumScaleFactor(0.8)
-                    Text(summary).font(.system(size: 12)).opacity(0.7).lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 6)
-                Text("Utiliser").font(Swiss.font(10.5)).tracking(1.1).textCase(.uppercase)
-                    .padding(.horizontal, 10).frame(height: 30)
-                    .overlay(Rectangle().strokeBorder(hovering ? Swiss.background : Swiss.text, lineWidth: 2))
-            }
-            .foregroundStyle(hovering ? Swiss.background : Swiss.text)
-            .padding(.horizontal, 16)
-            .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
-            .background(Rectangle().fill(hovering ? Swiss.text : Swiss.background))
-            .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering = $0 }
-        .accessibilityLabel(title)
-        .accessibilityHint(summary)
-    }
 }
 
 // MARK: - Fichiers .flsmacro

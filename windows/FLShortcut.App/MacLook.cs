@@ -418,6 +418,16 @@ internal static class MacLook
         return row;
     }
 
+    /// Un clic tombé sur un bouton d'une ligne ou d'une carte (la touche, ↺, la corbeille, l'interrupteur) : la ligne
+    /// ne fait rien de plus. 16/11 (« j'essaye de changer un raccourci ça crash ») : le clic sur la touche remontait à
+    /// la ligne, qui ouvrait une deuxième fiche par-dessus la première, et WinUI fermait l'appli.
+    public static bool OnButton(Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e, DependencyObject container)
+    {
+        for (var d = e.OriginalSource as DependencyObject; d is not null && d != container; d = VisualTreeHelper.GetParent(d))
+            if (d is Microsoft.UI.Xaml.Controls.Primitives.ButtonBase) return true;
+        return false;
+    }
+
     /// La touche d'un raccourci dans sa case (maquette « plus lisible » du 16/11, comme KeyBox du Mac) : « Ctrl+S » en
     /// gras, cadre gris ; changée : en rouge ; aucune : « — ».
     public static Border KeyBox(KeyCombo? combo, bool changed = false)
@@ -538,6 +548,11 @@ internal static class MacLook
 
     /// Bouton secondaire (Annuler, Réparer…) : rectangle bordé de blanc, capitales ; au survol, blanc plein.
     public static Button Soft(string text, Action click) => SwissButton(text, click, primary: false);
+    /// Secondaire avec une icône devant (« ↺ RÉINITIALISER » de la fiche d'une touche, comme le Mac).
+    public static Button Soft(string text, string icon, Action click) => SwissButton(text, click, primary: false, icon: icon);
+    /// Action qui efface (Supprimer, Remplacer) : bordée de rouge, texte rouge ; pleine de rouge au survol (comme le
+    /// bouton `danger` du Mac).
+    public static Button Danger(string text, Action click) => SwissButton(text, click, primary: false, danger: true);
 
     /// Menu du clic droit au style suisse (07/11, comme le Mac : « le bouton supprimer ou dupliquer dans le style
     /// suisse ») : fond plein, trait fin, coins carrés, ligne pleine d'encre au survol, « Supprimer » en rouge ; noir
@@ -678,22 +693,27 @@ internal static class MacLook
         Visibility = color is null ? Visibility.Collapsed : Visibility.Visible,
     };
 
-    private static Button SwissButton(string text, Action click, bool primary, string? icon = null)
+    private static Button SwissButton(string text, Action click, bool primary, string? icon = null, bool danger = false)
     {
         // Maquettes du 05/11 (comme le Mac) : le principal est plein. 06/11 : sans ombre au repos ; au survol, il garde
         // ses couleurs et se soulève sur son ombre nette (effet Gumroad). Le bordé (trait de 2 points, plein du fond :
         // la grille de Papier ne passe pas dedans) se remplit d'encre au survol.
-        Color ink = Text, paper = WindowColor, fill = PrimaryFill, onFill = PrimaryInk;
+        Color ink = danger ? Red : Text, paper = WindowColor, fill = PrimaryFill, onFill = PrimaryInk;
         var label = Label(text.ToUpper(CultureInfo.CurrentCulture), 12, primary ? onFill : ink, bold: true);
         label.CharacterSpacing = 80;
         label.HorizontalAlignment = HorizontalAlignment.Center;
         UIElement content = label;
+        StackPanel? row = null;
+        FrameworkElement Mark(Color color)
+        {
+            var mark = Icon(icon!, 13, color);
+            mark.VerticalAlignment = VerticalAlignment.Center;
+            return mark;
+        }
         if (icon is not null)
         {
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center };
-            var mark = Icon(icon, 13, primary ? onFill : ink);
-            mark.VerticalAlignment = VerticalAlignment.Center;
-            row.Children.Add(mark);
+            row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center };
+            row.Children.Add(Mark(primary ? onFill : ink));
             label.VerticalAlignment = VerticalAlignment.Center;
             row.Children.Add(label);
             content = row;
@@ -727,6 +747,7 @@ internal static class MacLook
             {
                 face.Background = Brush(on ? ink : paper);
                 label.Foreground = Brush(on ? paper : ink);
+                if (row is not null) row.Children[0] = Mark(on ? paper : ink);   // l'icône reste lisible au survol
             }
         }
         button.PointerEntered += (_, _) => Set(true);

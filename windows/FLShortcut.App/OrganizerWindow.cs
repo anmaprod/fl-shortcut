@@ -1392,7 +1392,7 @@ internal sealed partial class OrganizerWindow : Window
             _controller.ResetBaseColors();
             Fill();
         };
-        await dialog.ShowAsync();
+        await dialog.ShowSafeAsync();
         Render();
     }
 
