@@ -914,6 +914,9 @@
   `MacrosPage.MacroLine/HeaderActions/NewMacroButton` (la touche d'une macro ouvre la fiche de son raccourci,
   `EditShortcut`), Communauté `Tabs` soulignés + `Card(share, number)` + `CommunityStats.Compact`. Photos CI
   `trouver*.png` (Mac), `principale-trouver.png` (Windows).
+  16/11 (« la barre click a key to change it tu peux enlever, toutes fioritures tu les enlèves ») : plus de
+  « CLIQUE SUR UNE TOUCHE POUR LA CHANGER » sous les titres ni au-dessus des résultats (Mac `pageHeader`/`findPage`,
+  Windows `SetTitleRule`/`RenderFindResults`) ; NE PAS remettre de phrase d'explication sur ces pages.
 
 ## Pas encore vérifié sur le vrai FL
 - Icônes (31/10) : clic droit › « Change icon… » sur le vrai FL (macro « Nom et couleur » après un clic sur le nom ;

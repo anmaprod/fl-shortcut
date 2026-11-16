@@ -616,7 +616,6 @@
 "Clique sur le bouton d'armement de la piste (enregistrement)." = "Click the track's arm button (recording).";
 "Clique sur le sélecteur d'entrée audio (panneau de droite du Mixer)." = "Click the audio input selector (right panel of the Mixer).";
 "Clique sur un partage : tu lis l'explication de son auteur et ce qu'il fait, étape par étape." = "Click a post: you'll read its author's description and what it does, step by step.";
-"Clique sur une touche pour la changer" = "Click a key to change it";
 "Clique sur une touche, comme ⌘Z, puis tape la nouvelle : elle remplace celle de FL. « Réinitialiser » remet celle d'origine." = "Click a key, like ⌘Z, then type the new one: it replaces FL's. “Reset” brings back the original.";
 "Clique sur « File »." = "Click “File”.";
 "Clique sur « Open mixer track state… » (Échap pour fermer la boîte)." = "Click “Open mixer track state…” (Esc to close the dialog).";

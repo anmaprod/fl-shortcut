@@ -1268,3 +1268,7 @@ entrée 1 ≈ 0,5 s.
   colonnes (« @pseudo · ★ 4,6 · 312 ajouts », AJOUTER), plus de vitrine à part sur « Pour toi ». Windows pareil le même
   jour (page « appuie sur un raccourci » qui garde la main pendant la frappe ; touche d'une macro = fiche de son
   raccourci). Pas encore vu sur un vrai Mac ni un PC.
+- 16/11 (« la barre click a key to change it tu peux enlever, toutes fioritures tu les enlèves ») : la phrase
+  « CLIQUE SUR UNE TOUCHE POUR LA CHANGER » retirée partout (sous le titre des pages de touches, de Mes raccourcis et
+  de Macros, et au-dessus des résultats de « appuie sur un raccourci ») ; il reste le titre, son trait, et un trait
+  fin au-dessus du premier résultat. Mac et Windows ; traduction retirée.

@@ -472,19 +472,12 @@ struct EditorView: View {
         }
     }
 
-    /// En-tête de la page (maquette « plus lisible » du 16/11) : le grand titre en minuscules et son point carré ; sous
-    /// lui, sur les pages de touches, « CLIQUE SUR UNE TOUCHE POUR LA CHANGER », puis un trait (pas sur « appuie sur un
-    /// raccourci »). À droite : « Partager » (Communauté), « Importer », « Exporter », « Nouvelle macro » (Macros). Plus
-    /// de cadre du compte en haut (il est sous « Plus ›  Mon compte »).
+    /// En-tête de la page (maquette « plus lisible » du 16/11) : le grand titre en minuscules et son point carré, puis
+    /// un trait (pas sur « appuie sur un raccourci »). Plus de « CLIQUE SUR UNE TOUCHE POUR LA CHANGER » dessous (16/11,
+    /// « tu peux enlever, toutes fioritures »). À droite : « Partager » (Communauté), « Importer », « Exporter »,
+    /// « Nouvelle macro » (Macros). Plus de cadre du compte en haut (il est sous « Plus ›  Mon compte »).
     private var pageHeader: some View {
         let current = selection ?? .find
-        let keysPage: Bool = {
-            switch current {
-            case .section, .custom: return true
-            case .macros: return !store.library.macros.isEmpty
-            default: return false
-            }
-        }()
         return HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .center, spacing: 14) {
@@ -505,9 +498,6 @@ struct EditorView: View {
                     }
                     SwissPageTitle(text: title)
                         .accessibilityAddTraits(.isHeader)
-                }
-                if keysPage {
-                    Text("Clique sur une touche pour la changer").swissLabel(size: 10.5)
                 }
             }
             Spacer(minLength: 8)
@@ -758,10 +748,8 @@ struct EditorView: View {
                         .foregroundStyle(Swiss.gray)
                         .padding(.top, 44)
                 } else {
-                    Text("Clique sur une touche pour la changer").swissLabel(size: 10.5)
+                    Color.clear.frame(height: 1)
                         .padding(.top, 44)
-                        .padding(.bottom, 10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                         .swissRule(Swiss.faint)
                     ForEach(rows) { row in catalogLine(row, detail: findDetail(row), bold: true) }
                     ForEach(others) { remap in customLine(remap, detail: String(localized: "Mes raccourcis"), bold: true) }

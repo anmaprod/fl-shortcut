@@ -572,23 +572,19 @@ internal sealed partial class MainShell
         page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         page.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        // 16/11 (maquette « plus lisible ») : le titre et son point carré, « CLIQUE SUR UNE TOUCHE POUR LA CHANGER »
-        // dessous sur les pages de touches, un trait fin ; à droite, les boutons de la page. Plus de cadre du compte
-        // en haut (Mon compte est sous « Plus »).
+        // 16/11 (maquette « plus lisible ») : le titre et son point carré, un trait fin ; à droite, les boutons de la
+        // page. Plus de « CLIQUE SUR UNE TOUCHE POUR LA CHANGER » dessous (16/11, « toutes fioritures tu les enlèves »)
+        // ni de cadre du compte en haut (Mon compte est sous « Plus »).
         var header = new Grid { MinHeight = 72, Padding = new Thickness(0, 0, 0, 20) };
         ToolTipService.SetToolTip(_titleBack, Loc.T("Revenir à la Communauté"));
         AutomationProperties.SetName(_titleBack, Loc.T("Revenir"));
         _titleBack.Click += (_, _) => _community.LeavePerson();
-        _subtitle = SwissLabel(Loc.T("Clique sur une touche pour la changer"), 10.5);
         header.Children.Add(new StackPanel
         {
-            Spacing = 8,
+            Orientation = Orientation.Horizontal,
+            Spacing = 14,
             VerticalAlignment = VerticalAlignment.Bottom,
-            Children =
-            {
-                new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, Children = { _titleBack, PageTitle(_title, 54) } },
-                _subtitle,
-            },
+            Children = { _titleBack, PageTitle(_title, 54) },
         });
         var right = new StackPanel
         {
@@ -849,35 +845,35 @@ internal sealed partial class MainShell
             case PageKind.Find:
                 // 16/11 (maquette « plus lisible ») : « appuie sur un raccourci », la grande case et ce qu'elle trouve.
                 SetTitle(Loc.T("Appuie sur un raccourci"));
-                SetHeaderDetails(keysPage: false, rule: false);
+                SetTitleRule(false);
                 _scroll.Content = FindPage();
                 UpdateFindField();
                 RenderFindResults();
                 return;
             case PageKind.Macros:
                 SetTitle(Loc.T("Macros"));
-                SetHeaderDetails(keysPage: _macros.HasMacros, rule: true);
+                SetTitleRule(true);
                 _headerAction.Content = _macros.HeaderActions();
                 _scroll.Content = _macros.ListContent(_columns);
                 return;
             case PageKind.Community:
                 // 11/11 : sur la page d'une personne, son pseudo à la place de « communauté. », la flèche pour revenir.
                 SetTitle(_community.PersonName ?? Loc.T("Communauté"));
-                SetHeaderDetails(keysPage: false, rule: true);
+                SetTitleRule(true);
                 if (_community.PersonName is not null) _titleBack.Visibility = Visibility.Visible;
                 _scroll.Content = _community.Content(_columns);
                 _headerAction.Content = _community.HeaderShare();
                 return;
             case PageKind.Account:
                 SetTitle(Loc.T("Mon compte"));
-                SetHeaderDetails(keysPage: false, rule: true);
+                SetTitleRule(true);
                 // Sans compte, la connexion seule (07/11 au soir : plus la carte des thèmes) ; connecté, le thème est
                 // sous le profil.
                 _scroll.Content = _account.Content(_columns);
                 return;
             case PageKind.Help:
                 SetTitle(Loc.T("Aide"));
-                SetHeaderDetails(keysPage: false, rule: true);
+                SetTitleRule(true);
                 _scroll.Content = _help.Content(_columns);
                 return;
             case PageKind.Custom:
@@ -887,7 +883,7 @@ internal sealed partial class MainShell
                 // courte, comme le Mac ; lignes lisibles du 16/11.
                 var changed = MyShortcuts.Changed(rows);
                 var created = MyShortcuts.Created(others, _app.Starters);
-                SetHeaderDetails(keysPage: changed.Count + created.Count > 0, rule: true);
+                SetTitleRule(true);
                 if (changed.Count == 0 && created.Count == 0)
                 {
                     ShowEmpty("star", Loc.T("Aucun raccourci changé"),
@@ -903,7 +899,7 @@ internal sealed partial class MainShell
             default:
             {
                 SetTitle(_section.Title());
-                SetHeaderDetails(keysPage: true, rule: true);
+                SetTitleRule(true);
                 // 16/11 (maquette) : chaque groupe de FL avec son nom à gauche, puis les actions en plus.
                 var mine = rows.Where(r => r.Entry.Section == _section).ToList();
                 var groups = CatalogGroups.Cards(_section, mine.Where(r => r.Entry.IsNative), r => r.Entry)

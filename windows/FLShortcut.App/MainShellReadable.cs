@@ -30,7 +30,6 @@ internal sealed partial class MainShell
     private readonly StackPanel _findResults = new();
     private FrameworkElement? _findPage;
     /// « CLIQUE SUR UNE TOUCHE POUR LA CHANGER » sous le titre des pages de touches.
-    private TextBlock _subtitle = null!;
     private Rectangle _titleRule = null!;
 
     /// Contenu d'une page lisible : 800 points au plus, collé à gauche, sous les marges de la page.
@@ -185,13 +184,9 @@ internal sealed partial class MainShell
 
     // ---------- En-tête ----------
 
-    /// Sous le titre des pages de touches : « CLIQUE SUR UNE TOUCHE POUR LA CHANGER » ; un trait sous l'en-tête, sauf
-    /// sur « appuie sur un raccourci ».
-    private void SetHeaderDetails(bool keysPage, bool rule)
-    {
-        _subtitle.Visibility = keysPage ? Visibility.Visible : Visibility.Collapsed;
+    /// Un trait sous l'en-tête, sauf sur « appuie sur un raccourci ».
+    private void SetTitleRule(bool rule) =>
         _titleRule.Visibility = rule ? Visibility.Visible : Visibility.Collapsed;
-    }
 
     // ---------- Trouver un raccourci ----------
 
@@ -307,10 +302,9 @@ internal sealed partial class MainShell
             _findResults.Children.Add(none);
             return;
         }
-        var label = SwissLabel(Loc.T("Clique sur une touche pour la changer"), 10.5);
-        label.Margin = new Thickness(0, 44, 0, 10);
-        _findResults.Children.Add(label);
-        _findResults.Children.Add(Rule(Faint));
+        var top = Rule(Faint);
+        top.Margin = new Thickness(0, 44, 0, 0);
+        _findResults.Children.Add(top);
         foreach (var r in found) _findResults.Children.Add(CatalogLine(r, FindDetail(r), bold: true));
         foreach (var o in mine) _findResults.Children.Add(CustomLine(o, Loc.T("Mes raccourcis"), bold: true));
     }
