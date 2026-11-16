@@ -1292,3 +1292,10 @@ entrée 1 ≈ 0,5 s.
   journal). Fiche « Touche » de Windows refaite comme celle du Mac, questions au style suisse comme `SwissDialog`.
   « Nouvelle macro » ouvre directement le créateur (Mac et Windows), plus de menu Enregistrer / Macro vide / Modèle ni
   de fenêtre des modèles ; guide mis à jour. Pas encore vu sur un PC.
+- 16/11 (suite, « le loopmidi installation de lien a été oublié pour win », réponse « Installer avec l'appli ») :
+  l'installeur Windows propose une case cochée « Installer loopMIDI » quand son pilote manque ; loopMIDI est
+  téléchargé sur le site de son auteur pendant l'installation (pas copié dans notre installeur : il faudrait
+  l'accord de son auteur), reconnu à son empreinte SHA-256, puis son installeur tourne avec une barre de progression seule.
+  Les boutons « Installer loopMIDI » de l'accueil et de l'Organiser font la même chose depuis l'appli (avant : ils
+  ouvraient seulement la page). Textes : plus « puis ferme-le », mais « clique Oui si Windows le demande ». Pas encore
+  vu sur un PC.

@@ -937,6 +937,14 @@
   Windows, « j'avais demandé de supprimer enregistrer macro et modèle ») : ouvre le créateur sur une macro vide, plus
   de menu ; fenêtre des modèles retirée (Mac `MacroTemplatesSheet`, Windows `ShowTemplates`) ; guide : « « Nouvelle
   macro », puis « Enregistrer clics et touches ». ».
+- **loopMIDI installé avec l'appli** (16/11, « le loopmidi installation de lien a été oublié pour win », choix
+  « Installer avec l'appli ») : case cochée de l'installeur (`FLShortcut.iss`, seulement si `teVirtualMIDI64.dll` manque,
+  x64) : l'archive officielle de Tobias Erichsen téléchargée (jamais dans le dépôt ni l'installeur), vérifiée à son
+  SHA-256, son installeur WiX lancé en `/passive /norestart` (Windows demande l'autorisation) ; pas de réseau, refus
+  ou autre fichier : FL Shortcuts s'installe quand même. « Installer loopMIDI » de l'accueil et de l'Organiser fait
+  pareil (`Services/LoopMidiInstaller.cs`), la page de téléchargement seulement en secours. Valeurs dans
+  `LoopMidiDownload` (cœur), l'installeur doit les garder (`LoopMidiDownloadTests`). Silencieux (CI) : rien. Mac :
+  rien (pas de loopMIDI). Pas encore vu sur un PC.
 
 ## Pas encore vérifié sur le vrai FL
 - Icônes (31/10) : clic droit › « Change icon… » sur le vrai FL (macro « Nom et couleur » après un clic sur le nom ;

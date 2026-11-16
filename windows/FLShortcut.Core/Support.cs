@@ -208,7 +208,7 @@ public static class HelpContent
             Loc.T("Il n'y a aucun virus. Autorise FL Shortcuts dans ton antivirus : Avast › Menu › Paramètres › Exceptions."),
             "antivirus avast virus bloque defender smartscreen exception menace"),
         new(13, Loc.T("À quoi sert loopMIDI ?"),
-            Loc.T("Installe loopMIDI, puis ferme-le : rien à faire dedans. L'app crée elle-même les ports qui la relient à FL."),
+            Loc.T("Il relie l'app à FL. L'installation de FL Shortcuts l'ajoute, sinon : accueil › Installer loopMIDI. Rien à faire dedans."),
             "loopmidi midi port lien organiser actions installer windows 11 25h2 services"),
         new(16, Loc.T("FL ne répond pas au lien"),
             Loc.T("Quitte et rouvre FL : il voit le lien seulement à son ouverture. Puis MIDI Settings : Controller type « FL Shortcuts », même Port pour la sortie « FL Shortcuts »."),

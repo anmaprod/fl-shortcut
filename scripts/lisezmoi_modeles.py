@@ -399,7 +399,7 @@ win = {
         "installe": "<li>Lance <b>FLShortcuts-Windows-Setup.exe</b>.</li>"
                     "<li>Bloqué ? Informations complémentaires › <b>Exécuter quand même</b>.</li>"
                     "<li>Ton antivirus râle ? Autorise FL Shortcuts : il n'y a aucun virus.</li>"
-                    "<li>Installe aussi <b>loopMIDI</b>, puis ferme-le : rien à faire dedans.</li>",
+                    "<li><b>loopMIDI</b> s'installe avec : clique <b>Oui</b> si Windows le demande.</li>",
         "debut_titre": "deux ports midi",
         "debut": "<li>Ouvre <b>FL Shortcuts</b>, puis FL Studio.</li><li>Les ports MIDI se créent tout seuls.</li>",
         "debut_panel": accueil("loopMIDI", [("FL Shortcuts", OK.format("Prêt"))]),
@@ -409,7 +409,7 @@ win = {
         "installe": "<li>Run <b>FLShortcuts-Windows-Setup.exe</b>.</li>"
                     "<li>Blocked? More info › <b>Run anyway</b>.</li>"
                     "<li>Antivirus complaining? Allow FL Shortcuts: there is no virus.</li>"
-                    "<li>Also install <b>loopMIDI</b>, then close it: nothing to do in it.</li>",
+                    "<li><b>loopMIDI</b> comes with it: click <b>Yes</b> if Windows asks.</li>",
         "debut_titre": "two midi ports",
         "debut": "<li>Open <b>FL Shortcuts</b>, then FL Studio.</li><li>The MIDI ports create themselves.</li>",
         "debut_panel": accueil("loopMIDI", [("FL Shortcuts", OK.format("Ready"))]),

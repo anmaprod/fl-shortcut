@@ -224,12 +224,31 @@ internal sealed partial class MainShell
             try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(LoopMidiPage) { UseShellExecute = true }); }
             catch (Exception e) { AppLog.Write("STATUS", "page loopMIDI non ouverte (" + e.GetType().Name + ")"); }
         }
-        UIElement portsState = ok ? Done(Loc.T("Prêts")) : ToDo(Loc.T("Installer loopMIDI"), OpenLoopMidiPage);
+        // 16/11 (« Installer avec l'appli ») : le bouton installe loopMIDI lui-même, comme l'installeur ; la page de
+        // téléchargement seulement s'il n'y arrive pas (pas de réseau, refus).
+        async void InstallLoopMidi()
+        {
+            try
+            {
+                if (LoopMidiInstaller.Running) return;
+                var installing = LoopMidiInstaller.InstallAsync();
+                ShowWelcomePorts();
+                var installed = await installing;
+                if (installed) _ = Task.Run(() => MidiServicesPorts.EnsureIfNeeded());
+                else if (!VirtualMidiPorts.DriverInstalled) OpenLoopMidiPage();
+                if (_welcome.Visibility == Visibility.Visible && !_onLinkStep) ShowWelcomePorts();
+            }
+            catch (Exception e) { AppLog.Write("STATUS", "accueil loopMIDI (" + e.GetType().Name + ")"); }
+        }
+        UIElement portsState = ok ? Done(Loc.T("Prêts"))
+                             : LoopMidiInstaller.Running ? Done(Loc.T("Installation…"))
+                             : ToDo(Loc.T("Installer loopMIDI"), InstallLoopMidi);
         // 08/11 (« il faut bien guider parce que dans loopMIDI après on sait pas quoi faire ») : rien à faire dedans,
         // c'est dit ; la ligne passe toute seule à « Prêts » dès que loopMIDI est installé.
         rows.Children.Add(WelcomeRow(Loc.T("Ports MIDI"), restart ? Loc.T("Relance FL Studio : il voit les ports seulement à son ouverture.")
                                                         : ok ? Loc.T("Rien à faire dans loopMIDI : l'app crée les ports.")
-                                                             : Loc.T("Installe loopMIDI, puis ferme-le : rien à faire dedans."), portsState));
+                                                        : LoopMidiInstaller.Running ? Loc.T("Clique Oui si Windows le demande.")
+                                                             : Loc.T("Pour le lien avec FL Studio."), portsState));
         // 13/11 (comme le Mac, « installer le lien midi dès l'installation du logiciel ») : le lien avec FL, posé tout
         // seul au lancement s'il trouve le dossier de FL ; sinon « À installer » (dossier de FL demandé). Il n'empêche
         // jamais d'entrer : FL peut ne pas être encore installé.
@@ -240,12 +259,12 @@ internal sealed partial class MainShell
         _welcomeContent.Children.Add(WelcomeCard(rows));
 
         // 12/11, comme le Mac (« il faut que le deuxième aussi soit autorisé pour qu'on puisse rentrer ») : on n'entre
-        // qu'avec les ports prêts ; avant, le grand bouton fait ce qui manque (la page de loopMIDI).
+        // qu'avec les ports prêts ; avant, le grand bouton fait ce qui manque (installer loopMIDI, 16/11).
         var next = Primary(ok ? Loc.T("Continuer") : Loc.T("Installer loopMIDI"), () =>
         {
             if (!ok)
             {
-                OpenLoopMidiPage();
+                InstallLoopMidi();
                 return;
             }
             if (light)

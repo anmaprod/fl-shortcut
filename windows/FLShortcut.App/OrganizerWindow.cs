@@ -397,15 +397,32 @@ internal sealed partial class OrganizerWindow : Window
     private void PortsCard()
     {
         if (MidiLink.PortsUsable()) return;
+        // 16/11 (« Installer avec l'appli ») : le lien installe loopMIDI lui-même (LoopMidiInstaller), sa page de
+        // téléchargement seulement s'il n'y arrive pas.
         var link = new HyperlinkButton
         {
-            Content = Label(Loc.T("Télécharger loopMIDI"), 12, Text),
-            NavigateUri = new Uri("https://www.tobias-erichsen.de/software/loopmidi.html"),
+            Content = Label(LoopMidiInstaller.Running ? Loc.T("Installation…") : Loc.T("Installer loopMIDI"), 12, Text),
             Padding = new Thickness(0),
+            IsEnabled = !LoopMidiInstaller.Running,
+        };
+        link.Click += async (_, _) =>
+        {
+            try
+            {
+                link.IsEnabled = false;
+                link.Content = Label(Loc.T("Installation…"), 12, Text);
+                if (await LoopMidiInstaller.InstallAsync() || VirtualMidiPorts.DriverInstalled)
+                    _ = Task.Run(() => MidiServicesPorts.EnsureIfNeeded());
+                else
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://www.tobias-erichsen.de/software/loopmidi.html") { UseShellExecute = true });
+                link.IsEnabled = true;
+                link.Content = Label(Loc.T("Installer loopMIDI"), 12, Text);
+            }
+            catch (Exception e) { AppLog.Write("STATUS", "Organiser loopMIDI (" + e.GetType().Name + ")"); }
         };
         _content.Children.Add(Ruled(Row(new Rectangle { Width = 10, Height = 10, Fill = Brush(Red) }, Stack(4,
             Label(Loc.T("Installe d'abord loopMIDI"), 14, Text, bold: true),
-            Paragraph(Loc.T("Installe loopMIDI, puis ferme-le : rien à faire dedans."), 12),
+            Paragraph(Loc.T("Clique Oui si Windows le demande."), 12),
             link), 12)));
     }
 

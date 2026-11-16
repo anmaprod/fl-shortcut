@@ -7,8 +7,18 @@
 ;   (raccourcis, macros, réglages, session du compte, journal, script dans FL : « --uninstall-cleanup » de l'app,
 ;   UninstallTraces). Une mise à jour garde tout.
 ;
+; - loopMIDI (16/11, « le loopmidi installation de lien a été oublié pour win », choix « Installer avec l'appli ») :
+;   case cochée si son pilote manque (x64), loopMIDI téléchargé sur le site de son auteur (jamais copié ici), reconnu à
+;   son empreinte, puis son installeur lancé (barre de progression seule ; Windows demande l'autorisation). Pas de
+;   réseau, refus ou fichier changé : FL Shortcuts s'installe quand même et son accueil propose « Installer loopMIDI ».
+;   Mêmes valeurs que windows/FLShortcut.Core/LoopMidiDownload.cs (essai LoopMidiDownloadTests).
+;
 ; Compilation (Windows) : iscc /DAppVersion=0.3.0 /DDistDir=..\..\dist windows\installer\FLShortcut.iss
 ; Le workflow GitHub (.github/workflows/build.yml) le fait à chaque compilation.
+
+#if VER < EncodeVer(6,1,0)
+  #error Inno Setup 6.1 ou plus est nécessaire (téléchargement de loopMIDI)
+#endif
 
 #ifndef AppVersion
   #define AppVersion "0.0.0"
@@ -70,10 +80,19 @@ fr.DesktopTask=Créer une icône sur le Bureau
 en.DesktopTask=Create a desktop icon
 fr.LaunchNow=Lancer FL Shortcuts maintenant
 en.LaunchNow=Launch FL Shortcuts now
+fr.LoopMidiTask=Installer loopMIDI, gratuit, pour le lien avec FL Studio
+en.LoopMidiTask=Install loopMIDI, free, for the link with FL Studio
+fr.LoopMidiDownload=Téléchargement de loopMIDI
+en.LoopMidiDownload=Downloading loopMIDI
+fr.LoopMidiFrom=Depuis le site de son auteur, Tobias Erichsen.
+en.LoopMidiFrom=From its author's website, Tobias Erichsen.
+fr.LoopMidiInstalling=Installation de loopMIDI : clique Oui si Windows le demande.
+en.LoopMidiInstalling=Installing loopMIDI: click Yes if Windows asks.
 
 [Tasks]
 Name: "startup"; Description: "{cm:StartupTask}"
 Name: "desktop"; Description: "{cm:DesktopTask}"; Flags: unchecked
+Name: "loopmidi"; Description: "{cm:LoopMidiTask}"; Check: LoopMidiMissing
 
 [Files]
 Source: "{#DistDir}\win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Check: not IsArm64
@@ -104,3 +123,137 @@ Filename: "{app}\FLShortcut.exe"; Description: "{cm:LaunchNow}"; Flags: nowait p
 ; (dans cet ordre : l'appli fermée ne réécrit plus ses réglages).
 Filename: "{sys}\taskkill.exe"; Parameters: "/f /im FLShortcut.exe"; Flags: runhidden waituntilterminated; RunOnceId: "StopFLShortcut"
 Filename: "{app}\FLShortcut.exe"; Parameters: "--uninstall-cleanup"; Flags: runhidden waituntilterminated; RunOnceId: "CleanFLShortcut"
+
+[Code]
+const
+  // Mêmes valeurs que windows/FLShortcut.Core/LoopMidiDownload.cs.
+  LoopMidiUrl = 'https://www.tobias-erichsen.de/wp-content/uploads/2020/01/loopMIDISetup_1_0_16_27.zip';
+  LoopMidiSha256 = '975399eb76e2c5a1d553ecd8975ab361261ccab8fd9412b8060b19877cb4e0d5';
+  LoopMidiSetupName = 'loopMIDISetup.exe';
+  LoopMidiSetupArguments = '/passive /norestart';
+  LoopMidiArchive = 'loopMIDISetup.zip';
+
+var
+  LoopMidiPage: TDownloadWizardPage;
+  LoopMidiDownloaded: Boolean;
+
+// Le pilote de loopMIDI manque (il n'existe qu'en x64 : l'appli ARM64 ne s'en sert pas). Lu dans le vrai System32.
+function LoopMidiMissing: Boolean;
+var
+  Previous: Boolean;
+begin
+  Result := False;
+  if IsArm64 then
+    Exit;
+  Previous := EnableFsRedirection(False);
+  try
+    Result := not FileExists(ExpandConstant('{sys}\teVirtualMIDI64.dll'));
+  finally
+    EnableFsRedirection(Previous);
+  end;
+end;
+
+function OnLoopMidiProgress(const Url, FileName: String; const Progress, ProgressMax: Int64): Boolean;
+begin
+  Result := True;
+end;
+
+procedure InitializeWizard;
+begin
+  LoopMidiPage := CreateDownloadPage(CustomMessage('LoopMidiDownload'), CustomMessage('LoopMidiFrom'), @OnLoopMidiProgress);
+end;
+
+// « Installer » (la page des cases est la dernière) : loopMIDI téléchargé avant les fichiers, vérifié à son empreinte.
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  Result := True;
+  if (CurPageID <> wpSelectTasks) or WizardSilent then
+    Exit;
+  if not WizardIsTaskSelected('loopmidi') then
+    Exit;
+  LoopMidiPage.Clear;
+  LoopMidiPage.Add(LoopMidiUrl, LoopMidiArchive, LoopMidiSha256);
+  LoopMidiPage.Show;
+  try
+    try
+      LoopMidiPage.Download;
+      LoopMidiDownloaded := True;
+    except
+      // Pas de réseau, site changé, autre fichier ou « Abandonner » : FL Shortcuts s'installe quand même.
+      Log('loopMIDI non téléchargé : ' + GetExceptionMessage);
+    end;
+  finally
+    LoopMidiPage.Hide;
+  end;
+end;
+
+function PowerShellQuoted(Text: String): String;
+begin
+  Result := Text;
+  StringChangeEx(Result, '''', '''''', True);
+end;
+
+// L'archive ouverte par le tar de Windows (10 1803 et plus), PowerShell en secours.
+function LoopMidiUnzipped(const Archive, Folder: String): Boolean;
+var
+  Code: Integer;
+  Previous: Boolean;
+begin
+  Previous := EnableFsRedirection(False);
+  try
+    Result := Exec(ExpandConstant('{sys}\tar.exe'), '-xf "' + Archive + '" -C "' + Folder + '"', '', SW_HIDE,
+      ewWaitUntilTerminated, Code);
+    if Result then
+      Result := Code = 0;
+    if not Result then
+    begin
+      Result := Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+        '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "Expand-Archive -LiteralPath ''' +
+        PowerShellQuoted(Archive) + ''' -DestinationPath ''' + PowerShellQuoted(Folder) + ''' -Force"', '', SW_HIDE,
+        ewWaitUntilTerminated, Code);
+      if Result then
+        Result := Code = 0;
+    end;
+  finally
+    EnableFsRedirection(Previous);
+  end;
+end;
+
+procedure InstallLoopMidi;
+var
+  Archive, Folder, Setup: String;
+  Code: Integer;
+begin
+  Archive := ExpandConstant('{tmp}\' + LoopMidiArchive);
+  Folder := ExpandConstant('{tmp}\loopMIDI');
+  Setup := Folder + '\' + LoopMidiSetupName;
+  WizardForm.StatusLabel.Caption := CustomMessage('LoopMidiInstalling');
+  WizardForm.FilenameLabel.Caption := '';
+  if not ForceDirectories(Folder) then
+  begin
+    Log('loopMIDI : dossier temporaire non créé');
+    Exit;
+  end;
+  if not LoopMidiUnzipped(Archive, Folder) then
+  begin
+    Log('loopMIDI : archive non ouverte');
+    Exit;
+  end;
+  if not FileExists(Setup) then
+  begin
+    Log('loopMIDI : installeur absent de l''archive');
+    Exit;
+  end;
+  // Installeur de loopMIDI (WiX) : il demande lui-même l'autorisation de Windows pour son pilote. Refusé ou annulé :
+  // l'accueil de l'appli propose « Installer loopMIDI ».
+  if Exec(Setup, LoopMidiSetupArguments, Folder, SW_SHOW, ewWaitUntilTerminated, Code) then
+    Log(Format('loopMIDI : installeur terminé, code %d', [Code]))
+  else
+    Log('loopMIDI : installeur non lancé : ' + SysErrorMessage(Code));
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if (CurStep = ssPostInstall) and LoopMidiDownloaded then
+    InstallLoopMidi;
+end;
