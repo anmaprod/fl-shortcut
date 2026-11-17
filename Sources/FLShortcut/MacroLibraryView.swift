@@ -79,8 +79,12 @@ private struct MacroLibraryList: View {
                     VStack(alignment: .leading, spacing: 0) {
                         MacroLibraryProblemLabel(library: library)
                             .padding(.bottom, 10)
-                        ForEach(library.macros, id: \.id) { doc in
-                            row(doc)
+                        // Direction A (17/11) : un tableau numéroté (N°, Macro, Touche, Active).
+                        IndexTableHeader(title: String(localized: "Macro"), last: String(localized: "Active"),
+                                         lastWidth: MacroLibraryLine.switchColumn)
+                            .padding(.top, 14)
+                        ForEach(Array(library.macros.enumerated()), id: \.element.id) { i, doc in
+                            row(doc, number: i + 1)
                         }
                     }
                     .frame(maxWidth: ReadableLayout.maxWidth, alignment: .leading)
@@ -107,18 +111,18 @@ private struct MacroLibraryList: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    private func row(_ doc: MacroDoc) -> some View {
+    private func row(_ doc: MacroDoc, number: Int) -> some View {
         let sample = sampleRemaps[doc.id]
         let remap = sample ?? store.remaps(forMacro: doc.id).first
         let program = store.programs[doc.id]
         let flags = MacroOutline.flags(doc.blocks, learnedInput: MacroSpots.loadPath(.input) != nil)
         var alert: (String, Color, String)?
         if flags.toLearn {
-            alert = (String(localized: "À apprendre"), Color.purple, String(localized: "Un endroit ou l'entrée 1 est à montrer dans FL."))
+            alert = (String(localized: "À apprendre"), Swiss.red, String(localized: "Un endroit ou l'entrée 1 est à montrer dans FL."))
         } else if let problem = program?.problem {
             alert = (String(localized: "À corriger"), Swiss.red, problem)
         }
-        return MacroLibraryLine(doc: doc, trigger: remap?.trigger, disabled: remap.map { !$0.enabled } ?? false,
+        return MacroLibraryLine(doc: doc, number: number, trigger: remap?.trigger, disabled: remap.map { !$0.enabled } ?? false,
                                 alert: alert,
                                 onOpen: { open(doc.id) },
                                 onKey: {
@@ -212,7 +216,11 @@ struct NewMacroButton: View {
 /// Une macro (maquette) : son nom (gris si son raccourci est désactivé), « À APPRENDRE » ou « À CORRIGER », sa touche
 /// dans sa case, l'interrupteur. Un clic l'ouvre dans le créateur ; la touche ouvre la fiche de son raccourci.
 private struct MacroLibraryLine: View {
+    /// Largeur de la colonne de l'interrupteur (« ACTIVE »).
+    static let switchColumn: CGFloat = 62
+
     let doc: MacroDoc
+    let number: Int
     let trigger: KeyCombo?
     let disabled: Bool
     let alert: (String, Color, String)?
@@ -225,16 +233,32 @@ private struct MacroLibraryLine: View {
 
     var body: some View {
         HStack(spacing: 0) {
+            Text(String(format: "%02d", number))
+                .font(Swiss.font(12, .regular)).monospacedDigit()
+                .foregroundStyle(Swiss.gray)
+                .frame(width: IndexTable.numberColumn, alignment: .leading)
             Text(doc.name.displaySafe(max: 60))
-                .font(Swiss.font(15))
+                .font(Swiss.font(17, .semibold))
                 .foregroundStyle(disabled ? Swiss.gray : Swiss.text)
                 .lineLimit(1)
                 .layoutPriority(-1)
             if let alert {
-                Text(alert.0).swissLabel(alert.1, size: 10).fixedSize().padding(.leading, 12).help(alert.2)
+                Text(alert.0).swissLabel(alert.1, size: 11).fixedSize().padding(.leading, 14).help(alert.2)
             }
             Spacer(minLength: 12)
-            Button(action: onKey) { KeyBox(combo: trigger) }
+            Button(action: onKey) {
+                if trigger == nil {
+                    // Pas encore de touche (maquette A) : « Choisir », cadre en pointillés.
+                    Text("Choisir")
+                        .font(Swiss.font(12, .medium))
+                        .foregroundStyle(Swiss.gray)
+                        .frame(width: ReadableLayout.keyWidth, height: 32)
+                        .overlay(Rectangle().strokeBorder(Swiss.gray, style: StrokeStyle(lineWidth: 1, dash: [3, 3])))
+                        .contentShape(Rectangle())
+                } else {
+                    KeyBox(combo: trigger)
+                }
+            }
                 .buttonStyle(.plain)
                 .opacity(disabled ? 0.55 : 1)
                 .help(String(localized: "Changer la touche"))
@@ -248,9 +272,9 @@ private struct MacroLibraryLine: View {
                     Color.clear.frame(width: 40, height: 20)
                 }
             }
-            .padding(.leading, 22)
+            .frame(width: Self.switchColumn, alignment: .trailing)
         }
-        .frame(maxWidth: .infinity, minHeight: ReadableLayout.rowHeight, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
         .swissRule(Swiss.faint)
         .contentShape(Rectangle())
         .onTapGesture(perform: onOpen)                  // un seul clic pour rentrer dans la macro

@@ -1,67 +1,90 @@
-// Fenêtre principale « plus lisible » (maquette du 16/11, « FL Shortcuts — plus lisible », 8 écrans) : une barre de
-// gauche en parties qui se déplient (Trouver un raccourci ; Raccourcis : les pages de FL et Mes raccourcis ; Macros ;
-// Plus : Communauté, Mon compte, Aide), la page choisie marquée d'un carré rouge ; les raccourcis en une seule liste
-// (nom, touche dans une case, ↺), rangés sous le nom de leur groupe à gauche ; « appuie sur un raccourci » pour en
-// trouver un par ses touches ou son nom. Pièces de EditorView ; rien n'y est enregistré.
+// Fenêtre principale « plus lisible » (maquette du 16/11), à la direction A depuis le 17/11 (« J'aime bien le A ») :
+// une barre de gauche en index numéroté (01 Trouver un raccourci, 02 Raccourcis et ses pages, 03 Macros, 04 Communauté,
+// 05 Mon compte, 06 Aide), chaque page sous un surtitre (« 02 — Raccourcis ») et un très grand titre ; les raccourcis
+// en une seule liste (nom, touche dans son cadre, rouge plein si changée, ↺), rangés sous le nom de leur groupe à
+// gauche ; « appuie sur un raccourci » pour en trouver un par ses touches ou son nom. Pièces de EditorView ; rien n'y
+// est enregistré.
 import SwiftUI
 
 /// Mise en page des pages lisibles (maquette : le titre et la liste partent du même bord, liste de 784 points au plus).
 enum ReadableLayout {
     static let inset: CGFloat = 56
     static let maxWidth: CGFloat = 800
-    /// Colonne du nom de groupe (« OUTILS ») à gauche des lignes d'une page de raccourcis.
-    static let groupColumn: CGFloat = 166
-    /// Case d'une touche (« ⌘S »).
-    static let keyWidth: CGFloat = 100
-    static let rowHeight: CGFloat = 51
+    /// Colonne du nom de groupe (« Outils 09 ») à gauche des lignes d'une page de raccourcis.
+    static let groupColumn: CGFloat = 170
+    /// Cadre d'une touche (« ⌘S », maquette A : 88 points).
+    static let keyWidth: CGFloat = 92
+    static let rowHeight: CGFloat = 50
 }
 
 // MARK: - Barre de gauche
 
-/// La barre de gauche de la maquette : « fl shortcuts. », puis les parties. Un clic sur « Raccourcis » ou « Plus » les
-/// ouvre ou les ferme ; la page ouverte a son carré rouge.
+/// La barre de gauche de la direction A (17/11, « J'aime bien le A ») : « fl shortcuts. », puis un index numéroté
+/// (01 Trouver un raccourci, 02 Raccourcis et ses pages, 03 Macros, 04 Communauté, 05 Mon compte, 06 Aide). Le numéro de
+/// la partie ouverte est rouge ; un clic sur « Raccourcis » ouvre ou ferme ses pages.
 struct ReadableSidebar: View {
     let selected: SidebarItem?
     @Binding var shortcutsOpen: Bool
-    @Binding var moreOpen: Bool
     /// Nouveautés d'une personne suivie (Communauté) ; ce Mac et le compte ont chacun leurs changements (Mon compte).
     var communityDot = false
     var accountDot = false
     let choose: (SidebarItem) -> Void
+
+    /// Numéro de la partie d'une page (« 02 » pour Playlist), le même que le surtitre de la page.
+    static func number(_ item: SidebarItem) -> Int {
+        switch item {
+        case .find: return 1
+        case .section, .custom: return 2
+        case .macros: return 3
+        case .community: return 4
+        case .account: return 5
+        case .help: return 6
+        }
+    }
+
+    private var inShortcuts: Bool {
+        switch selected {
+        case .section?, .custom?: return true
+        default: return false
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Place des boutons fermer / réduire / agrandir de la fenêtre.
             Color.clear.frame(height: 12)
             brand
-                .padding(.top, 22)
-                .padding(.bottom, 30)
+                .padding(.top, 26)
+                .padding(.bottom, 36)
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 0) {
-                    top(.find, String(localized: "Trouver un raccourci"))
-                    part(String(localized: "Raccourcis"), open: $shortcutsOpen) {
-                        ForEach(FLSection.allCases) { section in
-                            sub(.section(section), section.title)
+                VStack(alignment: .leading, spacing: 4) {
+                    top(1, String(localized: "Trouver un raccourci"), on: selected == .find) { choose(.find) }
+                    top(2, String(localized: "Raccourcis"), on: inShortcuts) { shortcutsOpen.toggle() }
+                        .accessibilityValue(shortcutsOpen ? String(localized: "ouvert") : String(localized: "fermé"))
+                    if shortcutsOpen {
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(FLSection.allCases) { section in
+                                sub(.section(section), section.title)
+                            }
+                            Rectangle().fill(Swiss.faint).frame(height: 1)
+                                .padding(.leading, IndexLayout.textColumn).padding(.trailing, 14)
+                                .padding(.vertical, 5)
+                            sub(.custom, String(localized: "Mes raccourcis"))
                         }
-                        Rectangle().fill(Swiss.line).frame(height: 1)
-                            .padding(.leading, 34).padding(.trailing, 12)
-                            .padding(.vertical, 6)
-                        sub(.custom, String(localized: "Mes raccourcis"))
+                        .padding(.bottom, 8)
                     }
-                    top(.macros, String(localized: "Macros"))
-                    part(String(localized: "Plus"), open: $moreOpen, dot: communityDot || accountDot) {
-                        sub(.community, String(localized: "Communauté"), dot: communityDot)
-                        sub(.account, String(localized: "Mon compte"), dot: accountDot)
-                        sub(.help, String(localized: "Aide"))
-                    }
+                    top(3, String(localized: "Macros"), on: selected == .macros) { choose(.macros) }
+                    top(4, String(localized: "Communauté"), on: selected == .community, dot: communityDot) { choose(.community) }
+                    top(5, String(localized: "Mon compte"), on: selected == .account, dot: accountDot) { choose(.account) }
+                    top(6, String(localized: "Aide"), on: selected == .help) { choose(.help) }
                 }
                 .padding(.bottom, 12)
             }
         }
-        .padding(.leading, 12)
+        .padding(.leading, 16)
         .frame(width: EditorView.sidebarWidth)
         .frame(maxHeight: .infinity, alignment: .top)
-        .overlay(alignment: .trailing) { Rectangle().fill(Swiss.line).frame(width: 1) }
+        .overlay(alignment: .trailing) { Rectangle().fill(Swiss.faint).frame(width: 1) }
         .background {
             Rectangle().fill(Swiss.background)
                 .padding(.leading, -8)
@@ -74,81 +97,34 @@ struct ReadableSidebar: View {
     /// « fl shortcuts. » : le nom en gras, son point carré rouge.
     private var brand: some View {
         HStack(alignment: .lastTextBaseline, spacing: 2) {
-            Text(verbatim: "fl shortcuts").font(Swiss.font(15)).tracking(-0.4).foregroundStyle(Swiss.text)
-            Rectangle().fill(Swiss.brandRed).frame(width: 4, height: 4)
+            Text(verbatim: "fl shortcuts").font(.custom(Swiss.titleFontName, size: 18).weight(.bold)).tracking(-0.6)
+                .foregroundStyle(Swiss.text)
+            Rectangle().fill(Swiss.red).frame(width: 5, height: 5)
         }
-        .padding(.leading, 8)
+        .padding(.leading, 4)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(verbatim: "FL Shortcuts"))
     }
 
-    /// Ligne du haut (« Trouver un raccourci », « Macros ») : carré rouge quand elle est ouverte.
-    private func top(_ item: SidebarItem, _ title: String) -> some View {
-        let isOn = selected == item
-        return SidebarTopRow(title: title, mark: isOn ? .square : .blank, selected: isOn) { choose(item) }
+    private func top(_ number: Int, _ title: String, on: Bool, dot: Bool = false,
+                     action: @escaping () -> Void) -> some View {
+        IndexTopRow(number: number, title: title, selected: on, dot: dot, action: action)
     }
 
-    /// Partie qui se déplie (« Raccourcis », « Plus ») : son triangle, puis ses pages dessous quand elle est ouverte.
-    private func part<Content: View>(_ title: String, open: Binding<Bool>, dot: Bool = false,
-                                     @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SidebarTopRow(title: title, mark: open.wrappedValue ? .open : .closed, selected: false,
-                          dot: dot && !open.wrappedValue) { open.wrappedValue.toggle() }
-                .accessibilityValue(open.wrappedValue ? String(localized: "ouvert") : String(localized: "fermé"))
-            if open.wrappedValue {
-                VStack(alignment: .leading, spacing: 0) { content() }
-                    .padding(.bottom, 8)
-            }
-        }
-    }
-
-    private func sub(_ item: SidebarItem, _ title: String, dot: Bool = false) -> some View {
-        SidebarSubRow(title: title, selected: selected == item, dot: dot) { choose(item) }
+    private func sub(_ item: SidebarItem, _ title: String) -> some View {
+        IndexSubRow(title: title, selected: selected == item) { choose(item) }
     }
 }
 
-/// Ligne du haut de la barre de gauche : sa marque (carré rouge, triangle), puis le titre en gras.
-private struct SidebarTopRow: View {
-    enum Mark { case blank, square, open, closed }
-    let title: String
-    let mark: Mark
-    let selected: Bool
-    var dot = false
-    let action: () -> Void
-    @State private var hovering = false
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 0) {
-                Group {
-                    switch mark {
-                    case .blank: Color.clear
-                    case .square: Rectangle().fill(Swiss.brandRed).frame(width: 6, height: 6)
-                    case .open: Image(systemName: "arrowtriangle.down.fill").font(.system(size: 7)).foregroundStyle(Swiss.gray)
-                    case .closed: Image(systemName: "arrowtriangle.right.fill").font(.system(size: 7)).foregroundStyle(Swiss.gray)
-                    }
-                }
-                .frame(width: 20, alignment: .leading)
-                .padding(.leading, 8)
-                Text(title).font(Swiss.font(15)).foregroundStyle(Swiss.text).lineLimit(1)
-                if dot {
-                    Rectangle().fill(Swiss.red).frame(width: 6, height: 6).padding(.leading, 8)
-                        .accessibilityLabel(String(localized: "Nouveautés"))
-                }
-                Spacer(minLength: 0)
-            }
-            .frame(height: 46)
-            .opacity(hovering && !selected ? 0.75 : 1)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering = $0 }
-        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
-    }
+/// Mesures de l'index de la barre de gauche (maquette A : numéro dans une colonne de 30 points).
+enum IndexLayout {
+    static let numberColumn: CGFloat = 30
+    static var textColumn: CGFloat { numberColumn + 4 }
 }
 
-/// Page d'une partie (« Playlist », « Communauté ») : en gris, blanche quand elle est ouverte, avec son carré rouge.
-private struct SidebarSubRow: View {
+/// Ligne de l'index : « 03 » en petit (rouge si la partie est ouverte), puis le titre en demi-gras.
+private struct IndexTopRow: View {
+    let number: Int
     let title: String
     let selected: Bool
     var dot = false
@@ -157,34 +133,99 @@ private struct SidebarSubRow: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 0) {
-                Group {
-                    if selected { Rectangle().fill(Swiss.brandRed).frame(width: 6, height: 6) } else { Color.clear }
-                }
-                .frame(width: 14, alignment: .leading)
-                .padding(.leading, 28)
+            HStack(alignment: .firstTextBaseline, spacing: 0) {
+                Text(String(format: "%02d", number))
+                    .font(Swiss.font(11, .medium))
+                    .monospacedDigit()
+                    .foregroundStyle(selected ? Swiss.red : Swiss.gray)
+                    .frame(width: IndexLayout.numberColumn, alignment: .leading)
+                    .padding(.leading, 4)
                 Text(title)
-                    .font(selected ? Swiss.font(14.5) : .system(size: 14.5))
-                    .foregroundStyle(selected || hovering ? Swiss.text : Swiss.soft)
+                    .font(Swiss.font(14, .semibold))
+                    .foregroundStyle(Swiss.text)
                     .lineLimit(1)
                 if dot {
                     Rectangle().fill(Swiss.red).frame(width: 6, height: 6).padding(.leading, 8)
+                        .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 1 }
                         .accessibilityLabel(String(localized: "Nouveautés"))
                 }
                 Spacer(minLength: 0)
             }
-            .frame(height: 29)
+            .frame(height: 34)
+            .opacity(hovering && !selected ? 0.7 : 1)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
+/// Page de « Raccourcis » (« Playlist ») : en gris foncé sous le titre ; ouverte, à l'encre, en demi-gras, avec son
+/// carré rouge.
+private struct IndexSubRow: View {
+    let title: String
+    let selected: Bool
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 0) {
+                Group {
+                    if selected { Rectangle().fill(Swiss.red).frame(width: 5, height: 5) } else { Color.clear }
+                }
+                .frame(width: IndexLayout.textColumn - 10, alignment: .trailing)
+                .padding(.trailing, 10)
+                Text(title)
+                    .font(Swiss.font(14, selected ? .semibold : .regular))
+                    .foregroundStyle(selected || hovering ? Swiss.text : Swiss.soft)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .frame(height: 27)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
+// MARK: - Titre de page (direction A)
+
+/// En-tête d'une page de la direction A : le surtitre (« 02 — RACCOURCIS »), puis le très grand titre en Inter Display
+/// gras, serré (« Playlist », « Appuie sur / un raccourci. ») ; il rétrécit plutôt que de se couper.
+struct IndexTitle: View {
+    let eyebrow: String
+    let text: String
+    var size: CGFloat = 72
+    var lines = 1
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(eyebrow).swissLabel(size: 11)
+            Text(text)
+                .font(Swiss.title(size))
+                .tracking(-size * 0.05)
+                .foregroundStyle(Swiss.text)
+                .lineLimit(lines)
+                .minimumScaleFactor(0.4)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+        }
     }
 }
 
 // MARK: - Touche et lignes
 
-/// La touche d'un raccourci dans sa case (maquette : « ⌘S » en gras, cadre gris) ; changée : en rouge.
+/// Mise en page des listes de la direction A (maquette : N° en tête de ligne, colonne de la page).
+enum IndexTable {
+    static let numberColumn: CGFloat = 46
+    static let pageColumn: CGFloat = 200
+}
+
+/// La touche d'un raccourci dans son cadre à l'encre (« ⌘S » en Inter Display) ; changée : rouge plein, texte blanc.
 struct KeyBox: View {
     let combo: KeyCombo?
     var changed = false
@@ -192,15 +233,16 @@ struct KeyBox: View {
     @State private var hovering = false
 
     var body: some View {
-        Text(combo?.display ?? placeholder)
-            .font(Swiss.font(14))
-            .foregroundStyle(changed ? Swiss.red : (combo == nil ? Swiss.gray : Swiss.text))
+        let onRed = AppTheme.current == .orange ? Swiss.background : Color.white
+        return Text(combo?.display ?? placeholder)
+            .font(.custom(Swiss.titleFontName, size: 15).weight(.semibold))
+            .foregroundStyle(changed ? onRed : (combo == nil ? Swiss.gray : Swiss.text))
             .lineLimit(1)
             .minimumScaleFactor(0.7)
             .padding(.horizontal, 6)
             .frame(width: ReadableLayout.keyWidth, height: 32)
-            .background(Rectangle().fill(hovering ? Swiss.faint : Swiss.background))
-            .overlay(Rectangle().strokeBorder(hovering ? Swiss.text : Swiss.keyLine, lineWidth: 1))
+            .background(Rectangle().fill(changed ? Swiss.red : (hovering ? Swiss.faint : Color.clear)))
+            .overlay(Rectangle().strokeBorder(changed ? Swiss.red : (hovering ? Swiss.text : Swiss.keyLine), lineWidth: 1))
             .contentShape(Rectangle())
             .onHover { hovering = $0 }
             .accessibilityElement(children: .ignore)
@@ -208,11 +250,40 @@ struct KeyBox: View {
     }
 }
 
-/// Une ligne des pages lisibles : le nom, un libellé en petites capitales (sa page, « avant ⌘S »), la touche dans sa
-/// case, puis ↺ (ou un autre bouton) ; un trait fin dessous. Toute la ligne ouvre la fiche de la touche.
+/// En-tête d'une liste numérotée (maquette A) : « N° », le nom de la colonne, « PAGE », « TOUCHE », sur un trait
+/// d'encre.
+struct IndexTableHeader: View {
+    let title: String
+    var page: String? = nil
+    var key = String(localized: "Touche")
+    /// Dernière colonne (« ACTIVE » des macros) et sa largeur.
+    var last: String? = nil
+    var lastWidth: CGFloat = 50
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Text(verbatim: "N°").swissLabel(size: 11).frame(width: IndexTable.numberColumn, alignment: .leading)
+            Text(title).swissLabel(size: 11)
+            Spacer(minLength: 12)
+            if let page {
+                Text(page).swissLabel(size: 11).frame(width: IndexTable.pageColumn, alignment: .leading)
+                    .padding(.trailing, 12)
+            }
+            Text(key).swissLabel(size: 11).frame(width: ReadableLayout.keyWidth, alignment: .leading)
+            Text(last ?? "").swissLabel(size: 11).frame(width: lastWidth, alignment: .trailing)
+        }
+        .padding(.bottom, 10)
+        .swissRule(Swiss.text)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Une ligne des pages lisibles : son numéro (listes de résultats), le nom, sa page en petites capitales, la touche
+/// dans son cadre, puis ↺ (ou un autre bouton) ; un trait fin dessous. Toute la ligne ouvre la fiche de la touche.
 struct ReadableRow<Trailing: View>: View {
     let title: String
     var bold = false
+    var number: Int? = nil
     var detail: String? = nil
     var dimmed = false
     var warning: String? = nil
@@ -223,8 +294,14 @@ struct ReadableRow<Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: 0) {
+            if let number {
+                Text(String(format: "%02d", number))
+                    .font(Swiss.font(12, .regular)).monospacedDigit()
+                    .foregroundStyle(Swiss.gray)
+                    .frame(width: IndexTable.numberColumn, alignment: .leading)
+            }
             Text(title)
-                .font(bold ? Swiss.font(15) : .system(size: 15))
+                .font(Swiss.font(15, bold ? .medium : .regular))
                 .foregroundStyle(dimmed ? Swiss.gray : Swiss.text)
                 .lineLimit(1)
                 .layoutPriority(-1)
@@ -235,7 +312,7 @@ struct ReadableRow<Trailing: View>: View {
             Spacer(minLength: 12)
             if let detail {
                 Text(detail).swissLabel(size: 10.5).lineLimit(1)
-                    .frame(maxWidth: 220, alignment: .leading)
+                    .frame(width: IndexTable.pageColumn, alignment: .leading)
                     .padding(.trailing, 12)
             }
             Button(action: onKey) { KeyBox(combo: combo, changed: changed) }
@@ -243,9 +320,9 @@ struct ReadableRow<Trailing: View>: View {
                 .help(String(localized: "Changer la touche"))
                 .accessibilityLabel(String(localized: "Changer la touche de \(title)"))
             trailing()
-                .frame(width: 50)
+                .frame(width: 50, alignment: .trailing)
         }
-        .frame(maxWidth: .infinity, minHeight: ReadableLayout.rowHeight, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: number == nil ? ReadableLayout.rowHeight : 62, alignment: .leading)
         .swissRule(Swiss.faint)
         .contentShape(Rectangle())
         .onTapGesture(perform: onKey)
@@ -260,8 +337,8 @@ struct ReadableResetButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: "arrow.counterclockwise")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Swiss.gray)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Swiss.text)
                 .frame(width: 32, height: 32)
                 .contentShape(Rectangle())
         }
@@ -271,29 +348,39 @@ struct ReadableResetButton: View {
     }
 }
 
-/// Une partie d'une page de raccourcis : le nom du groupe à gauche (« OUTILS »), ses lignes à droite.
+/// Une partie d'une page de raccourcis (maquette A) : le nom du groupe en demi-gras et son nombre en gris à gauche
+/// (« Outils 09 »), ses lignes à droite.
 struct ReadableGroup<Content: View>: View {
     let title: String
+    var count: Int? = nil
     @ViewBuilder let content: () -> Content
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
-            Text(title).swissLabel(size: 10.5)
-                .lineLimit(2)
-                .frame(width: ReadableLayout.groupColumn, alignment: .leading)
-                .padding(.top, 19)
-                .padding(.trailing, 10)
-                .accessibilityAddTraits(.isHeader)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(title).font(Swiss.font(13, .semibold)).foregroundStyle(Swiss.text)
+                    .lineLimit(2)
+                if let count {
+                    Text(String(format: "%02d", count)).font(Swiss.font(11, .medium)).monospacedDigit()
+                        .foregroundStyle(Swiss.gray)
+                }
+            }
+            .frame(width: ReadableLayout.groupColumn, alignment: .leading)
+            .padding(.top, 17)
+            .padding(.trailing, 10)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
             VStack(spacing: 0) { content() }
         }
-        .padding(.bottom, 34)
+        .padding(.bottom, 36)
     }
 }
 
 // MARK: - Trouver un raccourci
 
-/// « appuie sur un raccourci » : la grande case. Un clic attend les touches ; appuyées, elles s'y écrivent en gras,
-/// cadre rouge, avec × pour recommencer. En mode « ou tape son nom », la case devient une recherche par le nom.
+/// « Appuie sur un raccourci » (maquette A) : « TOUCHES », puis la grande ligne soulignée de rouge. Un clic attend les
+/// touches ; appuyées, elles s'y écrivent en très grand, avec × pour recommencer. En mode « ou tape son nom », la ligne
+/// devient une recherche par le nom.
 struct FindShortcutField: View {
     let combo: KeyCombo?
     let listening: Bool
@@ -303,41 +390,47 @@ struct FindShortcutField: View {
     let startListening: () -> Void
     let clear: () -> Void
 
-    private var lit: Bool { (combo != nil && !typing) || listening }
+    private var lit: Bool { (combo != nil && !typing) || listening || typing }
 
     var body: some View {
-        HStack(spacing: 14) {
-            if typing {
-                SidebarSearchField(text: $query, prompt: String(localized: "Tape son nom"), focusSerial: focusSerial)
-                    .frame(maxWidth: .infinity)
-            } else if let combo {
-                Text(combo.display).font(Swiss.font(19)).foregroundStyle(Swiss.text)
-                Spacer(minLength: 0)
-            } else {
-                Text(listening ? String(localized: "Appuie sur les touches…") : String(localized: "Clique ici"))
-                    .font(.system(size: 18))
-                    .foregroundStyle(listening ? Swiss.text : Swiss.gray)
-                Spacer(minLength: 0)
-            }
-            if (typing && !query.isEmpty) || (!typing && combo != nil) {
-                Button(action: clear) {
-                    Image(systemName: "xmark").font(.system(size: 13)).foregroundStyle(Swiss.gray)
-                        .frame(width: 28, height: 28).contentShape(Rectangle())
+        VStack(alignment: .leading, spacing: 8) {
+            Text(typing ? String(localized: "Nom") : String(localized: "Touches")).swissLabel(size: 11)
+            HStack(spacing: 12) {
+                if typing {
+                    SidebarSearchField(text: $query, prompt: String(localized: "Tape son nom"), focusSerial: focusSerial)
+                        .frame(maxWidth: .infinity)
+                } else if let combo {
+                    Text(combo.display).font(.custom(Swiss.titleFontName, size: 56).weight(.semibold))
+                        .tracking(-1.6).foregroundStyle(Swiss.text).lineLimit(1).minimumScaleFactor(0.5)
+                    Spacer(minLength: 0)
+                } else {
+                    Text(listening ? String(localized: "Appuie sur les touches…") : String(localized: "Clique ici"))
+                        .font(Swiss.font(26, .regular))
+                        .foregroundStyle(listening ? Swiss.text : Swiss.gray)
+                    Spacer(minLength: 0)
                 }
-                .buttonStyle(.plain)
-                .help(String(localized: "Effacer"))
-                .accessibilityLabel(String(localized: "Effacer"))
+                if (typing && !query.isEmpty) || (!typing && combo != nil) {
+                    Button(action: clear) {
+                        Image(systemName: "xmark").font(.system(size: 14, weight: .medium)).foregroundStyle(Swiss.text)
+                            .frame(width: 44, height: 44)
+                            .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(String(localized: "Effacer"))
+                    .accessibilityLabel(String(localized: "Effacer"))
+                }
             }
+            .frame(height: 80)
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(lit ? Swiss.red : Swiss.text).frame(height: 2)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { if !typing { startListening() } }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(typing ? String(localized: "Tape son nom") : String(localized: "Appuie sur un raccourci"))
         }
-        .padding(.horizontal, 20)
-        .frame(height: 66)
-        .background(Rectangle().fill(Swiss.background))
-        .overlay(Rectangle().strokeBorder(lit ? Swiss.red : Swiss.text, lineWidth: lit ? 1.5 : 1))
-        .contentShape(Rectangle())
-        .onTapGesture { if !typing { startListening() } }
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isButton)
-        .accessibilityLabel(typing ? String(localized: "Tape son nom") : String(localized: "Appuie sur un raccourci"))
     }
 }
 
@@ -348,7 +441,7 @@ struct ReadableLink: View {
 
     var body: some View {
         Button(action: action) {
-            Text(title).font(.system(size: 12.5)).foregroundStyle(Swiss.gray).underline()
+            Text(title).font(Swiss.font(13, .regular)).foregroundStyle(Swiss.soft).underline()
         }
         .buttonStyle(.plain)
     }

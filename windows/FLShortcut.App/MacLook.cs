@@ -1,5 +1,5 @@
 // Aspect du Mac sur Windows, au style suisse du Mac (validé le 01/11, porté le 03/11 : « le logiciel n'est pas le même
-// que la dernière version du mac ») : fond noir, texte blanc, Helvetica (Arial sous Windows), traits fins #333/#222,
+// que la dernière version du mac ») : fond noir, texte blanc, Inter (direction A du 17/11), traits fins #333/#222,
 // coins carrés partout, petits carrés de couleur à la place des tuiles, libellés en petites capitales espacées,
 // boutons rectangulaires en capitales, survol = blanc plein et texte noir, rouge #FF3B1F seulement pour ce qui compte.
 // Mêmes valeurs que `Swiss` dans Sources/FLShortcut/GlassStyle.swift. Tout est construit en code : rien ne dépend du
@@ -23,7 +23,7 @@ internal static class MacLook
     // ---------- Couleurs (thèmes du 04/11 : Noir, Papier, Orange ; mêmes valeurs que le Mac) ----------
 
     /// Thème de l'app, pris au lancement (settings.json, « Theme ») : un changement relance l'app (AccountPage).
-    public static AppTheme Theme { get; set; } = AppTheme.Noir;
+    public static AppTheme Theme { get; set; } = AppTheme.Papier;
     private static int _inverted;
 
     /// Partie noire sous Orange (barre de gauche) : ce qui est construit pendant ce temps prend les couleurs inversées.
@@ -65,7 +65,7 @@ internal static class MacLook
     /// Le rouge de la marque, le même dans tous les thèmes (logo).
     public static readonly Color BrandRed = Rgb(0xFF, 0x3B, 0x1F);
     /// Texte posé sur un fond `Red` (pastilles numérotées).
-    public static Color OnRed => P.Red == ThemePalette.BrandRed ? Colors.White : C(P.Background);
+    public static Color OnRed => P.Red == 0xFFFFFF ? C(P.Background) : Colors.White;
     public static readonly Color Green = Rgb(0x30, 0xD1, 0x58);
     public static readonly Color Gray = Rgb(0x8E, 0x8E, 0x93);
     public static readonly Color Purple = Rgb(0xBF, 0x5A, 0xF2);
@@ -85,9 +85,12 @@ internal static class MacLook
     /// Texte de lecture un peu effacé (#A8A8A8 sous Noir) : pages de la barre de gauche (maquette du 16/11).
     public static Color SoftText => C(P.Soft);
 
-    private static FontFamily? _font;
-    /// Helvetica comme le Mac ; Arial (même dessin) sur un PC qui ne l'a pas.
-    public static FontFamily SwissFont => _font ??= new FontFamily("Helvetica Neue, Helvetica, Arial");
+    private static FontFamily? _font, _titleFont;
+    /// Polices de la direction A (17/11), les mêmes que le Mac : Inter pour le texte, Inter Display (dessin serré) pour
+    /// les grands titres, toutes deux dans Fonts\Inter-FLS.ttc à côté de l'exe (licence OFL, scripts/polices.py) ;
+    /// Arial si le fichier manquait.
+    public static FontFamily SwissFont => _font ??= new FontFamily("ms-appx:///Fonts/Inter-FLS.ttc#Inter, Helvetica Neue, Arial");
+    public static FontFamily TitleFont => _titleFont ??= new FontFamily("ms-appx:///Fonts/Inter-FLS.ttc#Inter Display, Helvetica Neue, Arial");
 
     public static Color Rgb(byte r, byte g, byte b) => Color.FromArgb(255, r, g, b);
     /// L'encre du thème, transparente (voiles, traits, survols discrets) : blanche sous Noir, noire sous Papier.
@@ -129,11 +132,12 @@ internal static class MacLook
         return label;
     }
 
-    /// Gros titre de page (46, gras, serré) comme swissTitle du Mac.
+    /// Gros titre de page (46, gras, serré) comme swissTitle du Mac : Inter Display, resserré comme la maquette A.
     public static TextBlock SwissTitle(double size = 46)
     {
         var title = Label("", size, Text, bold: true);
-        title.CharacterSpacing = -39;
+        title.FontFamily = TitleFont;
+        title.CharacterSpacing = -44;
         return title;
     }
 
@@ -430,26 +434,73 @@ internal static class MacLook
 
     /// La touche d'un raccourci dans sa case (maquette « plus lisible » du 16/11, comme KeyBox du Mac) : « Ctrl+S » en
     /// gras, cadre gris ; changée : en rouge ; aucune : « — ».
+    /// Largeur du cadre d'une touche (maquette A : 88 points), de la colonne des numéros et de celle de la page.
+    public const double KeyWidth = 92, NumberColumn = 46, PageColumn = 200;
+
+    /// La touche d'un raccourci dans son cadre à l'encre (direction A du 17/11, comme le Mac) : Inter Display demi-gras ;
+    /// changée, rouge plein et texte blanc.
     public static Border KeyBox(KeyCombo? combo, bool changed = false)
     {
         var text = combo is { } c ? string.Join("+", c.Caps) : "—";
-        var label = Label(text, 14, changed ? Red : combo is null ? Secondary : Text, bold: true);
+        var label = Label(text, 15, changed ? OnRed : combo is null ? Secondary : Text, semibold: true);
+        label.FontFamily = TitleFont;
         label.HorizontalAlignment = HorizontalAlignment.Center;
         label.VerticalAlignment = VerticalAlignment.Center;
         label.TextTrimming = TextTrimming.CharacterEllipsis;
+        var rest = changed ? Red : Tertiary;
         var box = new Border
         {
-            Width = 100,
+            Width = KeyWidth,
             Height = 32,
             Padding = new Thickness(6, 0, 6, 0),
-            Background = Brush(WindowColor),
-            BorderBrush = Brush(Tertiary),
+            Background = Brush(changed ? Red : Colors.Transparent),
+            BorderBrush = Brush(rest),
             BorderThickness = new Thickness(1),
             Child = label,
         };
-        box.PointerEntered += (_, _) => box.BorderBrush = Brush(Text);
-        box.PointerExited += (_, _) => box.BorderBrush = Brush(Tertiary);
+        box.PointerEntered += (_, _) => { if (!changed) { box.BorderBrush = Brush(Text); box.Background = Brush(Faint); } };
+        box.PointerExited += (_, _) => { box.BorderBrush = Brush(rest); box.Background = Brush(changed ? Red : Colors.Transparent); };
         return box;
+    }
+
+    /// Numéro d'une ligne de tableau (« 01 »), gris, chiffres de même largeur.
+    public static TextBlock RowNumber(int number)
+    {
+        var label = Label(number.ToString("00", CultureInfo.InvariantCulture), 12, Secondary);
+        label.Width = NumberColumn;
+        label.VerticalAlignment = VerticalAlignment.Center;
+        return label;
+    }
+
+    /// En-tête d'un tableau numéroté (maquette A, comme le Mac IndexTableHeader) : « N° », le nom de la colonne, « PAGE »,
+    /// « TOUCHE », puis la dernière colonne (« ACTIVE » des macros), sur un trait d'encre.
+    public static Grid IndexHeader(string title, string? page = null, string? last = null, double lastWidth = 50)
+    {
+        var grid = new Grid { Padding = new Thickness(0, 0, 0, 10) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(NumberColumn) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = page is null ? new GridLength(0) : new GridLength(PageColumn + 12) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(KeyWidth) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(lastWidth) });
+        void Put(string text, int column, bool right = false)
+        {
+            var label = SwissLabel(text, 11);
+            label.HorizontalAlignment = right ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+            Grid.SetColumn(label, column);
+            grid.Children.Add(label);
+        }
+        Put("N°", 0);
+        Put(title, 1);
+        if (page is not null) Put(page, 2);
+        Put(Loc.T("Touche"), 3);
+        if (last is not null) Put(last, 4, right: true);
+        var line = Rule(Text);
+        line.VerticalAlignment = VerticalAlignment.Bottom;
+        line.Margin = new Thickness(0, 0, 0, -10);
+        Grid.SetColumnSpan(line, 5);
+        grid.Children.Add(line);
+        AutomationProperties.SetAccessibilityView(grid, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
+        return grid;
     }
 
     /// Touche changée (06/11, comme le Mac : « si on change une touche, il y a un relief ») : pleine de rouge, bordée
@@ -657,15 +708,18 @@ internal static class MacLook
         resources["TextControlBorderBrushFocused"] = Brush(Text);
     }
 
-    /// Bouton principal et carte principale (maquettes du 05/11, comme le Mac) : plein blanc sous Noir et Orange, noir
-    /// sous Papier ; ombre nette rouge sous Papier, noire sous Orange, aucune sous Noir (et dans les parties sombres).
-    public static Color PrimaryFill => Theme == AppTheme.Papier && !DarkSurface ? Colors.Black : Colors.White;
-    public static Color PrimaryInk => Theme == AppTheme.Papier && !DarkSurface ? Colors.White : Colors.Black;
-    public static Color? PrimaryShadow => DarkSurface ? null : Theme == AppTheme.Papier ? BrandRed : Colors.Black;
+    /// Bouton principal et carte principale (maquettes du 05/11, comme le Mac) : plein blanc sous Noir et Orange, encre
+    /// sous Papier (texte papier, direction A) ; ombre nette rouge sous Papier, noire sous Orange, aucune sous Noir (et
+    /// dans les parties sombres).
+    private static bool OnPaper => Theme == AppTheme.Papier && !DarkSurface;
+    public static Color PrimaryFill => OnPaper ? C(ThemePalette.Papier.Text) : Colors.White;
+    public static Color PrimaryInk => OnPaper ? C(ThemePalette.Papier.Background) : Colors.Black;
+    public static Color? PrimaryShadow => DarkSurface ? null : OnPaper ? C(ThemePalette.PaperRed) : Colors.Black;
 
     /// Ombre de l'effet Gumroad au survol (06/11, comme le Mac `Swiss.primaryLift`) : noire sur le fond orange, rouge
-    /// partout ailleurs (sous Noir aussi).
-    public static Color LiftColor => Theme == AppTheme.Orange && !DarkSurface ? Colors.Black : BrandRed;
+    /// partout ailleurs (sous Noir aussi ; le rouge de la direction A sur le papier).
+    public static Color LiftColor => Theme == AppTheme.Orange && !DarkSurface ? Colors.Black
+                                     : OnPaper ? C(ThemePalette.PaperRed) : BrandRed;
 
     /// Ombre de l'effet Gumroad, cachée au repos (voir SetLift).
     public static Rectangle LiftShadow(Color? color = null) => new()

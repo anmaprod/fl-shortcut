@@ -1299,3 +1299,9 @@ entrée 1 ≈ 0,5 s.
   Les boutons « Installer loopMIDI » de l'accueil et de l'Organiser font la même chose depuis l'appli (avant : ils
   ouvraient seulement la page). Textes : plus « puis ferme-le », mais « clique Oui si Windows le demande ». Pas encore
   vu sur un PC.
+- 17/11 : nouvelles directions graphiques (« le logiciel n'est pas du tout assez beau… regarde ce que les pros font »)
+  : 4 propositions sur 3 écrans (A Index, B Studio, C Instrument, D Affiche ; artefact privé
+  `S9Fsbeo6fuSChhDWSUfARE`). Choix : « J'aime bien le A », pour tout le monde, thèmes Noir et Orange gardés avec un
+  compte. Fait sur Mac et Windows : papier clair par défaut, polices Inter / Inter Display intégrées, barre de gauche
+  numérotée, surtitres et très grands titres, touches dans un cadre (rouge plein si changées), Trouver et Macros en
+  tableaux numérotés. Pas encore vu sur son Mac.

@@ -2,6 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Polices de la direction A (17/11) : Inter et Inter Display (Resources/Fonts, licence OFL). -->
+	<key>ATSApplicationFontsPath</key>
+	<string>Fonts</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
     <!-- Langue : celle du Mac (en.lproj, fr.lproj) ; toute autre langue prend l'anglais (région de développement). -->

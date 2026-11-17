@@ -275,14 +275,24 @@ enum Swiss {
         static let soft = SwissPalette.adaptive(.soft)
         static let line = SwissPalette.adaptive(.line)
     }
-    static let fontName = "Helvetica Neue"
+    /// Polices de la direction A (17/11) : Inter pour le texte, Inter Display (dessin serré des grands titres) pour les
+    /// titres ; libres (OFL), dans l'app (Resources/Fonts/Inter-FLS.ttc, ATSApplicationFontsPath ; scripts/polices.py).
+    /// Absentes (essais sans l'app empaquetée) : la police du système.
+    static let fontName = "Inter"
+    static let titleFontName = "Inter Display"
 
     /// Gros titre (46 pour une page, 30 à 34 pour une petite fenêtre) : gras, serré.
-    static func title(_ size: CGFloat) -> Font { .custom(fontName, size: size).weight(.bold) }
-    /// Texte en Helvetica (gras par défaut).
+    static func title(_ size: CGFloat) -> Font { .custom(titleFontName, size: size).weight(.bold) }
+    /// Texte en Inter (gras par défaut).
     static func font(_ size: CGFloat, _ weight: Font.Weight = .bold) -> Font { .custom(fontName, size: size).weight(weight) }
-    /// Resserrement des gros titres (−1,8 à 46 points).
-    static func titleTracking(_ size: CGFloat) -> CGFloat { -size * 0.039 }
+    /// Resserrement des gros titres (−2 à 46 points, comme la maquette A).
+    static func titleTracking(_ size: CGFloat) -> CGFloat { -size * 0.044 }
+
+    /// Les mêmes polices pour AppKit (questions, champs) : Inter, ou Inter Display pour un titre.
+    static func nsFont(_ size: CGFloat, bold: Bool = true, title: Bool = false) -> NSFont {
+        let name = title ? (bold ? "InterDisplay-Bold" : "InterDisplay-SemiBold") : (bold ? "Inter-Bold" : "Inter-Regular")
+        return NSFont(name: name, size: size) ?? (bold ? .boldSystemFont(ofSize: size) : .systemFont(ofSize: size))
+    }
 }
 
 // MARK: - Avertissement suisse
@@ -901,9 +911,10 @@ private struct KeyLikeButtonBody<Label: View>: View {
         let theme = AppTheme.current
         // 06/11 : sa couleur au repos, sans ombre ; au survol, il se soulève sur son ombre nette (effet Gumroad).
         let lifted = hovering && enabled && !pressed
-        let restFill: Color = theme == .noir ? Swiss.background : .white
-        let restInk: Color = theme == .noir ? Swiss.text : .black
-        let edge: Color = theme == .noir ? Swiss.text.opacity(0.87) : .black
+        // Papier (direction A, 17/11) : le papier et l'encre du thème ; blanc et noir seulement sur le fond orange.
+        let restFill: Color = theme == .orange ? .white : Swiss.background
+        let restInk: Color = theme == .orange ? .black : Swiss.text
+        let edge: Color = theme == .noir ? Swiss.text.opacity(0.87) : theme == .papier ? Swiss.text : .black
         return label
             .font(Swiss.font(12))
             .tracking(1.2)

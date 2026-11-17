@@ -166,6 +166,7 @@
 "Action inconnue (« %@ ») : mets à jour FL Shortcuts." = "Action inconnue (« %@ ») : mets à jour FL Shortcuts.";
 "Action à choisir" = "Action à choisir";
 "Actions en plus" = "Actions en plus";
+"Active" = "Active";
 "Active FL Shortcuts" = "Active FL Shortcuts";
 "Active FL Shortcuts dans la page qui vient de s'ouvrir, puis autorise le son. C'est détecté tout seul." = "Active FL Shortcuts dans la page qui vient de s'ouvrir, puis autorise le son. C'est détecté tout seul.";
 "Active l'interrupteur à côté de FL Shortcuts." = "Active l'interrupteur à côté de FL Shortcuts.";
@@ -248,6 +249,7 @@
 "Apprendre" = "Apprendre";
 "Apprendre les icônes de FL" = "Apprendre les icônes de FL";
 "Apprise au premier passage" = "Apprise au premier passage";
+"Appuie sur\nun raccourci." = "Appuie sur\nun raccourci.";
 "Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait." = "Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait.";
 "Appuie sur les touches…" = "Appuie sur les touches…";
 "Appuie sur un bouton de ta souris…" = "Appuie sur un bouton de ta souris…";
@@ -2149,6 +2151,7 @@
 "Touche ou raccourci" = "Touche ou raccourci";
 "Touche seule : laissée à FL quand tu tapes du texte, qu'un menu de FL est ouvert ou que le clavier-piano est actif." = "Touche seule : laissée à FL quand tu tapes du texte, qu'un menu de FL est ouvert ou que le clavier-piano est actif.";
 "Touche utilisée par %@" = "Touche utilisée par %@";
+"Touches" = "Touches";
 "Toujours" = "Toujours";
 "Toujours le même preset" = "Toujours le même preset";
 "Toujours rien : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même numéro de Port à l'entrée et à la sortie. Dans Output, « FL Shortcuts Link » seul sur ce numéro : « FL Shortcuts » doit s'afficher à côté de lui, pas de ta carte son." = "Toujours rien : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même numéro de Port à l'entrée et à la sortie. Dans Output, « FL Shortcuts Link » seul sur ce numéro : « FL Shortcuts » doit s'afficher à côté de lui, pas de ta carte son.";
@@ -2190,6 +2193,7 @@
 "Trop de variables (%lld au plus)." = "Trop de variables (%lld au plus).";
 "Trop profond pour être rejoué par la macro" = "Trop profond pour être rejoué par la macro";
 "Trousseau indisponible (%d)." = "Trousseau indisponible (%d).";
+"Trouver" = "Trouver";
 "Trouver un raccourci" = "Trouver un raccourci";
 "Tu as déjà signalé cette photo." = "Tu as déjà signalé cette photo.";
 "Tu ne suis personne." = "Tu ne suis personne.";

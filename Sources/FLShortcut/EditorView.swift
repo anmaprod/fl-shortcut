@@ -197,7 +197,6 @@ struct EditorView: View {
     @State private var selection: SidebarItem? = .find
     /// Parties de la barre de gauche ouvertes (Raccourcis, Plus) ; une page choisie ouvre sa partie.
     @State private var shortcutsOpen = true
-    @State private var moreOpen = false
     /// « ou tape son nom » : la grande case de « Trouver un raccourci » cherche par le nom.
     @State private var findTyping = false
     @State private var query = ""
@@ -417,8 +416,6 @@ struct EditorView: View {
             // Sous la barre de titre : elle ne laisse passer aucun clic.
             .padding(.top, MainWindowChrome.contentTop)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // Thème Papier : la grille de douze colonnes derrière la page (maquette).
-            .background(SwissPaperGrid())
         }
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -478,9 +475,9 @@ struct EditorView: View {
     /// « Nouvelle macro » (Macros). Plus de cadre du compte en haut (il est sous « Plus ›  Mon compte »).
     private var pageHeader: some View {
         let current = selection ?? .find
-        return HStack(alignment: .top, spacing: 12) {
+        return HStack(alignment: .bottom, spacing: 12) {
             VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .center, spacing: 14) {
+                HStack(alignment: .bottom, spacing: 14) {
                     if personPageShown {
                         // 11/11 (« j'aime pas le carré à côté du nom ») : une flèche seule, sans cadre, pour revenir.
                         Button {
@@ -496,8 +493,9 @@ struct EditorView: View {
                         .help(String(localized: "Revenir à la Communauté"))
                         .accessibilityLabel(String(localized: "Revenir"))
                     }
-                    SwissPageTitle(text: title)
-                        .accessibilityAddTraits(.isHeader)
+                    // Direction A (17/11) : surtitre numéroté comme la barre de gauche, puis le très grand titre.
+                    IndexTitle(eyebrow: eyebrow, text: current == .find ? String(localized: "Appuie sur\nun raccourci.") : title,
+                               size: current == .find ? 64 : 76, lines: current == .find ? 2 : 1)
                 }
             }
             Spacer(minLength: 8)
@@ -516,9 +514,9 @@ struct EditorView: View {
             }
         }
         .padding(.top, 30)
-        .padding(.bottom, current == .find ? 4 : 20)
+        .padding(.bottom, current == .find ? 4 : 24)
         .overlay(alignment: .bottom) {
-            if current != .find { Rectangle().fill(Swiss.line).frame(height: 1) }
+            if current != .find { Rectangle().fill(Swiss.text).frame(height: 1) }
         }
         .frame(maxWidth: ReadableLayout.maxWidth, alignment: .leading)
         .padding(.horizontal, ReadableLayout.inset)
@@ -544,6 +542,21 @@ struct EditorView: View {
             }
         }
         .fixedSize()
+    }
+
+    /// Surtitre de la page (direction A) : son numéro dans la barre de gauche et le nom de sa partie (« 02 — RACCOURCIS »).
+    private var eyebrow: String {
+        let item = selection ?? .find
+        let part: String
+        switch item {
+        case .find: part = String(localized: "Trouver")
+        case .section, .custom: part = String(localized: "Raccourcis")
+        case .macros: part = String(localized: "Macros")
+        case .community: part = String(localized: "Communauté")
+        case .account: part = String(localized: "Mon compte")
+        case .help: part = String(localized: "Aide")
+        }
+        return String(format: "%02d — %@", ReadableSidebar.number(item), part)
     }
 
     private var title: String {
@@ -581,11 +594,10 @@ struct EditorView: View {
         selection = item
     }
 
-    /// Une page choisie ouvre sa partie de la barre de gauche (Raccourcis, Plus).
+    /// Une page de Raccourcis choisie ouvre sa partie de la barre de gauche.
     private func openPart(for item: SidebarItem?) {
         switch item {
         case .section?, .custom?: shortcutsOpen = true
-        case .community?, .account?, .help?: moreOpen = true
         default: break
         }
     }
@@ -593,9 +605,9 @@ struct EditorView: View {
     /// La page d'une personne est à l'écran.
     private var personPageShown: Bool { isShown(.community) && community.personName != nil }
 
-    /// Barre de gauche (maquette « plus lisible » du 16/11) : ReadableSidebar.
+    /// Barre de gauche (direction A du 17/11) : ReadableSidebar.
     private var sidebar: some View {
-        ReadableSidebar(selected: selection, shortcutsOpen: $shortcutsOpen, moreOpen: $moreOpen,
+        ReadableSidebar(selected: selection, shortcutsOpen: $shortcutsOpen,
                         communityDot: community.newFromFollowed > 0, accountDot: backup.conflict != nil) { item in
             choose(item)
         }
@@ -688,17 +700,17 @@ struct EditorView: View {
         let extras = mine.filter { !$0.entry.isNative }
         return readablePage {
             ForEach(Array(groups.enumerated()), id: \.offset) { _, group in
-                ReadableGroup(title: group.title) {
+                ReadableGroup(title: group.title, count: group.rows.count) {
                     ForEach(group.rows) { catalogLine($0) }
                 }
             }
             if !extras.isEmpty {
-                ReadableGroup(title: String(localized: "Actions en plus")) {
+                ReadableGroup(title: String(localized: "Actions en plus"), count: extras.count) {
                     ForEach(extras) { catalogLine($0) }
                 }
             }
             if !custom.isEmpty {
-                ReadableGroup(title: String(localized: "Tes raccourcis sur cette page")) {
+                ReadableGroup(title: String(localized: "Tes raccourcis sur cette page"), count: custom.count) {
                     ForEach(custom) { customLine($0) }
                 }
             }
@@ -747,11 +759,15 @@ struct EditorView: View {
                         .foregroundStyle(Swiss.gray)
                         .padding(.top, 44)
                 } else {
-                    Color.clear.frame(height: 1)
+                    // Direction A : un tableau numéroté (N°, Raccourci, Page, Touche).
+                    IndexTableHeader(title: String(localized: "Raccourci"), page: String(localized: "Page"))
                         .padding(.top, 44)
-                        .swissRule(Swiss.faint)
-                    ForEach(rows) { row in catalogLine(row, detail: findDetail(row), bold: true) }
-                    ForEach(others) { remap in customLine(remap, detail: String(localized: "Mes raccourcis"), bold: true) }
+                    ForEach(Array(rows.enumerated()), id: \.element.id) { i, row in
+                        catalogLine(row, detail: findDetail(row), bold: true, number: i + 1)
+                    }
+                    ForEach(Array(others.enumerated()), id: \.element.id) { i, remap in
+                        customLine(remap, detail: String(localized: "Mes raccourcis"), bold: true, number: rows.count + i + 1)
+                    }
                 }
             }
         }
@@ -772,8 +788,13 @@ struct EditorView: View {
                            text: PageSummary.custom)
             } else {
                 readablePage {
-                    ForEach(changed) { row in catalogLine(row, detail: findDetail(row), bold: true) }
-                    ForEach(created) { remap in customLine(remap, bold: true) }
+                    IndexTableHeader(title: String(localized: "Raccourci"), page: String(localized: "Page"))
+                    ForEach(Array(changed.enumerated()), id: \.element.id) { i, row in
+                        catalogLine(row, detail: findDetail(row), bold: true, number: i + 1)
+                    }
+                    ForEach(Array(created.enumerated()), id: \.element.id) { i, remap in
+                        customLine(remap, bold: true, number: changed.count + i + 1)
+                    }
                 }
                 .padding(.top, 10)
             }
@@ -781,13 +802,13 @@ struct EditorView: View {
     }
 
     /// Ligne d'un raccourci de FL : nom, touche (rouge si changée), ↺ ; clic droit : changer, réinitialiser.
-    private func catalogLine(_ row: CatalogRow, detail: String? = nil, bold: Bool = false) -> some View {
+    private func catalogLine(_ row: CatalogRow, detail: String? = nil, bold: Bool = false, number: Int? = nil) -> some View {
         let issues = row.remap.map { store.issues(for: $0.id) } ?? []
         let warning: String? = row.takenBy.map {
             String(localized: "Touche aussi utilisée par « \($0) ».")
         } ?? (issues.isEmpty ? nil : issues.map(\.message).joined(separator: "\n"))
         let edit = { editNotice = nil; editingRow = row }
-        return ReadableRow(title: row.entry.title, bold: bold, detail: detail, warning: warning,
+        return ReadableRow(title: row.entry.title, bold: bold, number: number, detail: detail, warning: warning,
                            combo: row.current, changed: !row.isDefault, onKey: edit) {
             if !row.isDefault {
                 ReadableResetButton(help: String(localized: "Revenir à : ")
@@ -803,10 +824,10 @@ struct EditorView: View {
     }
 
     /// Ligne d'un raccourci que tu as créé : nom (gris s'il est désactivé), touche, Supprimer.
-    private func customLine(_ remap: Remap, detail: String? = nil, bold: Bool = false) -> some View {
+    private func customLine(_ remap: Remap, detail: String? = nil, bold: Bool = false, number: Int? = nil) -> some View {
         let issues = store.issues(for: remap.id)
         let open = { editingIsNew = false; editing = remap }
-        return ReadableRow(title: remap.title, bold: bold, detail: detail, dimmed: !remap.enabled,
+        return ReadableRow(title: remap.title, bold: bold, number: number, detail: detail, dimmed: !remap.enabled,
                            warning: issues.isEmpty ? nil : issues.map(\.message).joined(separator: "\n"),
                            combo: remap.trigger, onKey: open) {
             Button { delete(remap) } label: {

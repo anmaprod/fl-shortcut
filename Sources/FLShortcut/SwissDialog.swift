@@ -60,14 +60,14 @@ enum SwissDialog {
         stack.translatesAutoresizingMaskIntoConstraints = false
 
         // Le titre, souligné d'un trait blanc sur toute la largeur.
-        let heading = label(title, font: NSFont(name: "HelveticaNeue-Bold", size: 22) ?? .boldSystemFont(ofSize: 22),
-                            color: dialogColor(.text), kern: -22 * 0.039)
+        let heading = label(title, font: Swiss.nsFont(22, title: true),
+                            color: dialogColor(.text), kern: Swiss.titleTracking(22))
         stack.addArrangedSubview(heading)
         stack.setCustomSpacing(10, after: heading)
         stack.addArrangedSubview(rule(dialogColor(.text)))
 
         if !text.isEmpty {
-            stack.addArrangedSubview(label(text, font: .systemFont(ofSize: 13), color: dialogColor(.soft)))
+            stack.addArrangedSubview(label(text, font: Swiss.nsFont(13, bold: false), color: dialogColor(.soft)))
         }
         if let image {
             let view = NSImageView(image: image)
@@ -216,7 +216,7 @@ final class SwissButton: NSButton {
 
     private func text(_ color: NSColor) -> NSAttributedString {
         NSAttributedString(string: title.uppercased(), attributes: [
-            .font: NSFont(name: "HelveticaNeue-Bold", size: 12) ?? .boldSystemFont(ofSize: 12),
+            .font: Swiss.nsFont(12),
             .foregroundColor: color,
             .kern: 1.2,
         ])

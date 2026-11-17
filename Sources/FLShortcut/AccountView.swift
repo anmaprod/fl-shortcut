@@ -224,8 +224,8 @@ struct ThemePreview: View {
             return Colors(page: 0x000000, side: 0x000000, sideLine: 0x333333, sideInk: 0xFFFFFF, ink: 0xFFFFFF,
                           frame: 0x333333)
         case .papier:
-            return Colors(page: 0xFFFFFF, side: 0xFFFFFF, sideLine: 0xCFCFCF, sideInk: 0x000000, ink: 0x000000,
-                          frame: 0xCFCFCF)
+            return Colors(page: 0xF3F2EE, side: 0xF3F2EE, sideLine: 0xD9D6CF, sideInk: 0x111111, ink: 0x111111,
+                          frame: 0xD9D6CF)
         case .orange:
             return Colors(page: SwissPalette.brandRed, side: 0x000000, sideLine: 0x000000, sideInk: 0xFFFFFF,
                           ink: 0x000000, frame: 0x000000)

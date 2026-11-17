@@ -243,9 +243,11 @@ internal sealed class MacrosPage
         // Maquette « plus lisible » du 16/11 (comme le Mac) : une ligne par macro (nom, touche dans sa case,
         // interrupteur) ; sans macro, « Aucune macro. » et « Nouvelle macro ».
         if (_store.Macros.Count == 0) return EmptyList();
-        var list = new StackPanel();
-        foreach (var doc in _store.Macros) list.Children.Add(MacroLine(doc));
-        var host = new Grid { Margin = new Thickness(56, 4, 56, 80) };
+        // Direction A (17/11, comme le Mac) : un tableau numéroté (N°, Macro, Touche, Active).
+        var list = new StackPanel { Children = { IndexHeader(Loc.T("Macro"), last: Loc.T("Active"), lastWidth: SwitchColumn) } };
+        var n = 0;
+        foreach (var doc in _store.Macros) list.Children.Add(MacroLine(doc, ++n));
+        var host = new Grid { Margin = new Thickness(56, 18, 56, 80) };
         host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 800 });
         host.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         host.Children.Add(list);
@@ -255,34 +257,52 @@ internal sealed class MacrosPage
     /// Une macro (maquette) : son nom (gris si son raccourci est désactivé), « À APPRENDRE » ou « À CORRIGER », sa
     /// touche dans sa case, l'interrupteur. Un clic l'ouvre dans le créateur ; la touche ouvre la fiche de son
     /// raccourci (sans raccourci : le créateur, où il se choisit).
-    private FrameworkElement MacroLine(MacroDoc doc)
+    /// Largeur de la colonne de l'interrupteur (« ACTIVE »).
+    private const double SwitchColumn = 62;
+
+    private FrameworkElement MacroLine(MacroDoc doc, int number)
     {
         var shortcut = _demo ? null : _app.MacroShortcut(doc.Id);
         var disabled = shortcut is { Enabled: false };
-        var grid = new Grid { MinHeight = 51, Background = Brush(Colors.Transparent) };
+        var grid = new Grid { MinHeight = 64, Background = Brush(Colors.Transparent) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(NumberColumn) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(62) });
-        var name = Label(DisplayText.Safe(doc.Name, MacroValidation.MaxNameLength), 15, disabled ? Secondary : Text, bold: true);
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(SwitchColumn) });
+        grid.Children.Add(RowNumber(number));
+        var name = Label(DisplayText.Safe(doc.Name, MacroValidation.MaxNameLength), 17, disabled ? Secondary : Text, semibold: true);
         name.TextTrimming = TextTrimming.CharacterEllipsis;
         name.VerticalAlignment = VerticalAlignment.Center;
-        var left = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Center, Children = { name } };
+        var left = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, VerticalAlignment = VerticalAlignment.Center, Children = { name } };
+        Grid.SetColumn(left, 1);
         if (MacroDrafts.ToLearn(doc.Blocks))
         {
-            var badge = SwissLabel(Loc.T("À apprendre"), 10, Purple);
+            var badge = SwissLabel(Loc.T("À apprendre"), 11, Red);
             badge.VerticalAlignment = VerticalAlignment.Center;
             ToolTipService.SetToolTip(badge, Loc.T("Un endroit est à montrer dans FL."));
             left.Children.Add(badge);
         }
         else if (Issue(doc) is { } problem)
         {
-            var badge = SwissLabel(Loc.T("À corriger"), 10, Red);
+            var badge = SwissLabel(Loc.T("À corriger"), 11, Red);
             badge.VerticalAlignment = VerticalAlignment.Center;
             ToolTipService.SetToolTip(badge, problem);
             left.Children.Add(badge);
         }
         grid.Children.Add(left);
-        var keyBox = KeyBox(shortcut?.Trigger);
+        // Pas encore de touche (maquette A) : « Choisir », cadre en pointillés.
+        FrameworkElement keyBox = shortcut?.Trigger is null
+            ? new Grid
+            {
+                Width = KeyWidth,
+                Height = 32,
+                Children =
+                {
+                    new Rectangle { Stroke = Brush(Secondary), StrokeThickness = 1, StrokeDashArray = new DoubleCollection { 3, 3 } },
+                    new TextBlock { Text = Loc.T("Choisir"), FontFamily = SwissFont, FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = Brush(Secondary), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
+                },
+            }
+            : KeyBox(shortcut.Trigger);
         keyBox.Opacity = disabled ? 0.55 : 1;
         var key = new Button { Style = PlainButton, Content = keyBox, Padding = new Thickness(0), VerticalAlignment = VerticalAlignment.Center };
         key.Click += async (_, _) =>
@@ -292,7 +312,7 @@ internal sealed class MacrosPage
         };
         ToolTipService.SetToolTip(key, Loc.T("Changer la touche"));
         AutomationProperties.SetName(key, Loc.F("Changer la touche de %@", DisplayText.Safe(doc.Name, MacroValidation.MaxNameLength)));
-        Grid.SetColumn(key, 1);
+        Grid.SetColumn(key, 2);
         grid.Children.Add(key);
         if (shortcut is { } sc)
         {
@@ -300,12 +320,12 @@ internal sealed class MacrosPage
                                 sc.Enabled ? Loc.T("Désactiver le raccourci") : Loc.T("Activer le raccourci"));
             toggle.HorizontalAlignment = HorizontalAlignment.Right;
             toggle.VerticalAlignment = VerticalAlignment.Center;
-            Grid.SetColumn(toggle, 2);
+            Grid.SetColumn(toggle, 3);
             grid.Children.Add(toggle);
         }
         var line = Rule(Faint);
         line.VerticalAlignment = VerticalAlignment.Bottom;
-        Grid.SetColumnSpan(line, 3);
+        Grid.SetColumnSpan(line, 4);
         grid.Children.Add(line);
         grid.Tapped += (_, e) =>
         {

@@ -29,8 +29,10 @@ final class AppThemeTests: XCTestCase {
         XCTAssertEqual(SwissPalette.of(.noir, dark: true), .noir)
         XCTAssertEqual(SwissPalette.noir.background, 0x000000)
         XCTAssertEqual(SwissPalette.noir.text, 0xFFFFFF)
-        XCTAssertEqual(SwissPalette.of(.papier, dark: false).background, 0xFFFFFF)
-        XCTAssertEqual(SwissPalette.of(.papier, dark: false).text, 0x000000)
+        // Direction A (17/11) : papier clair, encre presque noire, rouge plus profond.
+        XCTAssertEqual(SwissPalette.of(.papier, dark: false).background, 0xF3F2EE)
+        XCTAssertEqual(SwissPalette.of(.papier, dark: false).text, 0x111111)
+        XCTAssertEqual(SwissPalette.of(.papier, dark: false).red, 0xC62D17)
         XCTAssertEqual(SwissPalette.of(.orange, dark: false).background, SwissPalette.brandRed)
         XCTAssertEqual(SwissPalette.of(.orange, dark: false).text, 0x000000)
         // Sous Orange, ce qui compte est blanc (le rouge ne se verrait pas sur le fond rouge) ; rouge dans les cartes.
@@ -42,8 +44,8 @@ final class AppThemeTests: XCTestCase {
         XCTAssertEqual(AppTheme.orange.appearanceName, .aqua)
     }
 
-    /// Demande du 07/11 : les thèmes seulement avec un compte connecté ; sans compte, Noir, et le choix revient à la
-    /// connexion.
+    /// Demande du 07/11 : les thèmes seulement avec un compte connecté ; sans compte, Papier (direction A du 17/11, pour
+    /// tout le monde), et le choix revient à la connexion.
     @MainActor func testThemesOnlyWithAnAccount() {
         let defaults = UserDefaults.standard
         let theme = defaults.object(forKey: AppTheme.key), account = defaults.object(forKey: AppTheme.accountKey)
@@ -52,16 +54,16 @@ final class AppThemeTests: XCTestCase {
             defaults.set(account, forKey: AppTheme.accountKey)
         }
         AppTheme.use(nil)
-        AppTheme.choose(.papier)
+        AppTheme.choose(.noir)
         AppTheme.accountChanged(signedIn: false)
         XCTAssertFalse(AppTheme.unlocked)
-        XCTAssertEqual(AppTheme.current, .noir)
-        XCTAssertEqual(AppTheme.chosen, .papier, "choix gardé pour la prochaine connexion")
-        AppTheme.accountChanged(signedIn: true)
         XCTAssertEqual(AppTheme.current, .papier)
+        XCTAssertEqual(AppTheme.chosen, .noir, "choix gardé pour la prochaine connexion")
+        AppTheme.accountChanged(signedIn: true)
+        XCTAssertEqual(AppTheme.current, .noir)
         XCTAssertTrue(defaults.bool(forKey: AppTheme.accountKey), "état gardé pour le lancement")
         AppTheme.accountChanged(signedIn: false)
-        XCTAssertEqual(AppTheme.current, .noir)
+        XCTAssertEqual(AppTheme.current, .papier)
         // Photos de la CI : un thème montré passe avant le compte.
         AppTheme.use(.orange)
         XCTAssertEqual(AppTheme.current, .orange)
@@ -75,8 +77,8 @@ final class AppThemeTests: XCTestCase {
 
     func testAppKitColorsFollowTheThemeAndTheAppearance() throws {
         AppTheme.use(.papier)
-        XCTAssertEqual(hex(try srgb(Swiss.NS.background, in: .aqua)), 0xFFFFFF)
-        XCTAssertEqual(hex(try srgb(Swiss.NS.text, in: .aqua)), 0x000000)
+        XCTAssertEqual(hex(try srgb(Swiss.NS.background, in: .aqua)), 0xF3F2EE)
+        XCTAssertEqual(hex(try srgb(Swiss.NS.text, in: .aqua)), 0x111111)
         AppTheme.use(.orange)
         XCTAssertEqual(hex(try srgb(Swiss.NS.background, in: .aqua)), SwissPalette.brandRed)
         XCTAssertEqual(hex(try srgb(Swiss.NS.background, in: .darkAqua)), 0x000000)

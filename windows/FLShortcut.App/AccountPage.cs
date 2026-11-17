@@ -174,7 +174,7 @@ internal sealed class AccountPage
     {
         var (page, side, sideLine, sideInk, ink, frame) = theme switch
         {
-            AppTheme.Papier => (0xFFFFFFu, 0xFFFFFFu, 0xCFCFCFu, 0x000000u, 0x000000u, 0xCFCFCFu),
+            AppTheme.Papier => (0xF3F2EEu, 0xF3F2EEu, 0xD9D6CFu, 0x111111u, 0x111111u, 0xD9D6CFu),
             AppTheme.Orange => (ThemePalette.BrandRed, 0x000000u, 0x000000u, 0xFFFFFFu, 0x000000u, 0x000000u),
             _ => (0x000000u, 0x000000u, 0x333333u, 0xFFFFFFu, 0xFFFFFFu, 0x333333u),
         };

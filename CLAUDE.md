@@ -945,6 +945,22 @@
   pareil (`Services/LoopMidiInstaller.cs`), la page de téléchargement seulement en secours. Valeurs dans
   `LoopMidiDownload` (cœur), l'installeur doit les garder (`LoopMidiDownloadTests`). Silencieux (CI) : rien. Mac :
   rien (pas de loopMIDI). Pas encore vu sur un PC.
+- **Direction A « Index »** (17/11, « J'aime bien le A » parmi 4 propositions, artefact privé `S9Fsbeo6fuSChhDWSUfARE` ;
+  réponse « A pour tous, thèmes gardés ») : Papier = la direction A (papier #F3F2EE, encre #111111, gris #67655F/#4A4843,
+  traits #D9D6CF, rouge #C62D17 `paperRed`), thème de TOUT LE MONDE sans compte et par défaut (Mac `AppTheme.current`,
+  Windows `ThemePalette.Shown/Parse`) ; Noir et Orange au choix avec un compte ; plus de grille derrière la page.
+  Polices Inter (texte) et Inter Display (titres), OFL, dans `Resources/Fonts/Inter-FLS.ttc` (allégée par
+  `scripts/polices.py`) : Mac `ATSApplicationFontsPath` + `build.sh`, `Swiss.fontName/titleFontName/nsFont` ;
+  Windows Content `Fonts\` + `MacLook.SwissFont/TitleFont` (ms-appx). Fenêtre principale : barre de gauche en index
+  numéroté 01 Trouver, 02 Raccourcis (pages dépliées), 03 Macros, 04 Communauté, 05 Mon compte, 06 Aide (plus de
+  « Plus ▸ » ; numéro rouge = partie ouverte ; Mac `ReadableSidebar`/`IndexTopRow`, Windows `IndexTop/IndexSub`) ;
+  surtitre « 02 — RACCOURCIS » + très grand titre (76, « Appuie sur / un raccourci. » 64), trait d'encre (Mac
+  `IndexTitle`, Windows `_eyebrow` + Viewbox) ; groupes « Outils 09 » ; touche dans un cadre d'encre, rouge plein si
+  changée (`KeyBox`) ; Trouver : « TOUCHES » + grande ligne soulignée de rouge, résultats et Mes raccourcis en
+  tableau N° / Raccourci / Page / Touche (`IndexTableHeader`, `MacLook.IndexHeader`) ; Macros en tableau N° / Macro /
+  Touche / Active, « À apprendre » en rouge, « Choisir » en pointillés. Les autres fenêtres gardent leurs titres en
+  minuscules + carré (`SwissPageTitle`). Photos CI : Papier par défaut, `theme-noir-*`/`theme-orange-*`. Pas encore vu
+  sur son Mac ni sur un PC.
 
 ## Pas encore vérifié sur le vrai FL
 - Icônes (31/10) : clic droit › « Change icon… » sur le vrai FL (macro « Nom et couleur » après un clic sur le nom ;

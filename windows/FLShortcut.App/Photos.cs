@@ -77,8 +77,9 @@ internal static class Photos
                 }
             }
             main.Close();
-            // Thèmes Papier et Orange (04/11) : une page de raccourcis et Mon compte (le choix du thème), puis Noir.
-            foreach (var theme in new[] { FLShortcut.Core.AppTheme.Papier, FLShortcut.Core.AppTheme.Orange })
+            // Thèmes Noir et Orange (04/11 ; Papier, la direction A du 17/11, est celui de toutes les autres photos) : une
+            // page de raccourcis et Mon compte (le choix du thème), puis de nouveau Papier.
+            foreach (var theme in new[] { FLShortcut.Core.AppTheme.Noir, FLShortcut.Core.AppTheme.Orange })
             {
                 MacLook.Theme = theme;
                 var key = FLShortcut.Core.ThemePalette.Key(theme);
@@ -97,7 +98,7 @@ internal static class Photos
                 }
                 themed.Close();
             }
-            MacLook.Theme = FLShortcut.Core.AppTheme.Noir;
+            MacLook.Theme = FLShortcut.Core.AppTheme.Papier;
             // Le menu de l'icône (noir, comme le Mac).
             Note("menu-icone : création");
             var menu = TrayMenu.Demo();
