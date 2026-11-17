@@ -1213,8 +1213,10 @@ internal sealed partial class OrganizerWindow : Window
             Height = 22;
             CornerRadius = new CornerRadius(0);
             VerticalAlignment = VerticalAlignment.Center;
-            Background = Brush(Color.FromArgb(0x47, 0, 0, 0));
-            BorderBrush = Brush(chosen ? tint : White(0.12));
+            // Comme le Mac : pleine du fond de la page, trait à l'encre très légère (avant : voile noir, gris foncé sur
+            // le papier de la direction A).
+            Background = Brush(WindowColor);
+            BorderBrush = Brush(chosen ? tint : WithOpacity(Text, 0.12));
             BorderThickness = new Thickness(1);
             ProtectedCursor = InputSystemCursor.Create(InputSystemCursorShape.SizeNorthSouth);
             var label = new TextBlock
@@ -1226,8 +1228,8 @@ internal sealed partial class OrganizerWindow : Window
             Children.Add(label);
             if (!chosen)
             {
-                PointerEntered += (_, _) => BorderBrush = Brush(White(0.35));
-                PointerExited += (_, _) => BorderBrush = Brush(LineColor);
+                PointerEntered += (_, _) => BorderBrush = Brush(WithOpacity(Text, 0.35));
+                PointerExited += (_, _) => BorderBrush = Brush(WithOpacity(Text, 0.12));
             }
             double? start = null;
             var from = value ?? 1;
