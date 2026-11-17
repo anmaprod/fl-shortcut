@@ -130,7 +130,7 @@ struct AccountPage: View {
                         .font(.system(size: 12))
                 }
             }
-            .padding(.horizontal, 26)
+            .readableColumn()                     // direction A : la colonne du titre
             .padding(.top, 10)
             .padding(.bottom, 24)
         }

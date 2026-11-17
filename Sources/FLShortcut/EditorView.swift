@@ -477,26 +477,11 @@ struct EditorView: View {
         let current = selection ?? .find
         return HStack(alignment: .bottom, spacing: 12) {
             VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .bottom, spacing: 14) {
-                    if personPageShown {
-                        // 11/11 (« j'aime pas le carré à côté du nom ») : une flèche seule, sans cadre, pour revenir.
-                        Button {
-                            Task { await community.leavePerson() }
-                        } label: {
-                            Image(systemName: "arrow.left")
-                                .font(.system(size: 26, weight: .bold))
-                                .foregroundStyle(Swiss.text)
-                                .frame(width: 30, height: 40)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .help(String(localized: "Revenir à la Communauté"))
-                        .accessibilityLabel(String(localized: "Revenir"))
-                    }
-                    // Direction A (17/11) : surtitre numéroté comme la barre de gauche, puis le très grand titre.
-                    IndexTitle(eyebrow: eyebrow, text: current == .find ? String(localized: "Appuie sur\nun raccourci.") : title,
-                               size: current == .find ? 64 : 76, lines: current == .find ? 2 : 1)
-                }
+                // Direction A (17/11) : surtitre numéroté comme la barre de gauche, puis le très grand titre ; 11/11
+                // (« j'aime pas le carré à côté du nom ») : sur la page d'une personne, une flèche seule pour revenir.
+                IndexTitle(eyebrow: eyebrow, text: current == .find ? String(localized: "Appuie sur\nun raccourci.") : title,
+                           size: current == .find ? 64 : 76, lines: current == .find ? 2 : 1,
+                           back: backToCommunity)
             }
             Spacer(minLength: 8)
             if current == .macros {
@@ -604,6 +589,12 @@ struct EditorView: View {
 
     /// La page d'une personne est à l'écran.
     private var personPageShown: Bool { isShown(.community) && community.personName != nil }
+
+    /// Flèche ← du titre sur la page d'une personne : retour à la liste de la Communauté.
+    private var backToCommunity: (() -> Void)? {
+        guard personPageShown else { return nil }
+        return { Task { await community.leavePerson() } }
+    }
 
     /// Barre de gauche (direction A du 17/11) : ReadableSidebar.
     private var sidebar: some View {

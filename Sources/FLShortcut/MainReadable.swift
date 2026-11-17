@@ -192,6 +192,17 @@ private struct IndexSubRow: View {
     }
 }
 
+// MARK: - Colonne de la page (direction A)
+
+extension View {
+    /// La colonne des pages (direction A, 17/11) : du même bord que le titre et son trait, 800 points au plus.
+    func readableColumn() -> some View {
+        frame(maxWidth: ReadableLayout.maxWidth, alignment: .leading)
+            .padding(.horizontal, ReadableLayout.inset)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 // MARK: - Titre de page (direction A)
 
 /// En-tête d'une page de la direction A : le surtitre (« 02 — RACCOURCIS »), puis le très grand titre en Inter Display
@@ -201,18 +212,34 @@ struct IndexTitle: View {
     let text: String
     var size: CGFloat = 72
     var lines = 1
+    /// Flèche ← devant le titre seulement (page d'une personne) : le surtitre reste au bord de la page.
+    var back: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(eyebrow).swissLabel(size: 11)
-            Text(text)
-                .font(Swiss.title(size))
-                .tracking(-size * 0.05)
-                .foregroundStyle(Swiss.text)
-                .lineLimit(lines)
-                .minimumScaleFactor(0.4)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityAddTraits(.isHeader)
+            HStack(alignment: .center, spacing: 14) {
+                if let back {
+                    Button(action: back) {
+                        Image(systemName: "arrow.left")
+                            .font(.system(size: 26, weight: .bold))
+                            .foregroundStyle(Swiss.text)
+                            .frame(width: 30, height: 40)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(String(localized: "Revenir à la Communauté"))
+                    .accessibilityLabel(String(localized: "Revenir"))
+                }
+                Text(text)
+                    .font(Swiss.title(size))
+                    .tracking(-size * 0.05)
+                    .foregroundStyle(Swiss.text)
+                    .lineLimit(lines)
+                    .minimumScaleFactor(0.4)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
+            }
         }
     }
 }

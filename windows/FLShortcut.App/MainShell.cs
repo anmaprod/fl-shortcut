@@ -594,18 +594,19 @@ internal sealed partial class MainShell
             HorizontalAlignment = HorizontalAlignment.Left,
             Child = _title,
         };
-        var titleStack = new StackPanel { Spacing = 14, VerticalAlignment = VerticalAlignment.Bottom, Children = { _eyebrow, titleFit } };
-        // Une grille (pas une pile horizontale) : la largeur du titre est bornée, la Viewbox peut le rétrécir.
+        // Une grille (pas une pile horizontale) : la largeur du titre est bornée, la Viewbox peut le rétrécir ; la
+        // flèche ← (page d'une personne) seulement devant le titre, le surtitre reste au bord de la page.
         var titleRow = new Grid { VerticalAlignment = VerticalAlignment.Bottom };
         titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        _titleBack.VerticalAlignment = VerticalAlignment.Bottom;
-        // L'écart seulement quand la flèche est là (page d'une personne) : le titre part du bord de la liste.
+        _titleBack.VerticalAlignment = VerticalAlignment.Center;
+        // L'écart seulement quand la flèche est là : sinon le titre part du bord de la liste.
         _titleBack.Margin = new Thickness(0, 0, 14, 0);
         titleRow.Children.Add(_titleBack);
-        Grid.SetColumn(titleStack, 1);
-        titleRow.Children.Add(titleStack);
-        header.Children.Add(titleRow);
+        Grid.SetColumn(titleFit, 1);
+        titleRow.Children.Add(titleFit);
+        var titleStack = new StackPanel { Spacing = 14, VerticalAlignment = VerticalAlignment.Bottom, Children = { _eyebrow, titleRow } };
+        header.Children.Add(titleStack);
         var right = new StackPanel
         {
             Orientation = Orientation.Horizontal,

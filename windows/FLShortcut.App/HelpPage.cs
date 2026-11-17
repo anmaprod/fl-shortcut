@@ -85,7 +85,8 @@ internal sealed class HelpPage
 
     public FrameworkElement Content(int columns)
     {
-        var page = new StackPanel { Spacing = 22, Padding = new Thickness(26, 4, 26, 24) };
+        // Direction A (17/11, comme le Mac) : la colonne du titre (avant : 26 du bord, plus à gauche que lui).
+        var page = new StackPanel { Spacing = 22, Padding = new Thickness(56, 4, 56, 24), MaxWidth = 912, HorizontalAlignment = HorizontalAlignment.Left };
         page.Children.Add(SearchField());
         var found = HelpContent.Faq.Where(e => e.Matches(_query)).ToList();
         var faq = Faq(found);
@@ -205,7 +206,8 @@ internal sealed class HelpPage
     private static FrameworkElement Answer(string answer)
     {
         var stack = new StackPanel { Spacing = 10, Padding = new Thickness(20, 0, 20, 18) };
-        var soft = Rgb(0xC8, 0xC8, 0xC8);
+        // À l'encre du thème (avant : gris clair fait pour le fond noir, presque illisible sur le papier).
+        var soft = Text;
         if (HelpEntry.Steps(answer) is not { } parsed)
         {
             stack.Children.Add(Paragraph(answer, 12.5, soft));

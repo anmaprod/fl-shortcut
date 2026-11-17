@@ -264,12 +264,12 @@ internal sealed class AccountPage
             return Message(Loc.T("Les comptes ne sont pas encore ouverts"), "");
         if (_session is { } session) return SignedIn(session, columns);
         var card = _pending is { } pending ? CodeCard(pending.Kind, pending.Email) : SignInCard();
-        if (_pending is not null) return new StackPanel { Children = { card }, Padding = new Thickness(26, 18, 26, 32) };
+        if (_pending is not null) return new StackPanel { Children = { card }, Padding = new Thickness(56, 18, 56, 32), MaxWidth = 912, HorizontalAlignment = HorizontalAlignment.Left };
         // 05/11 (comme le Mac) : à gauche ce que donne un compte, à droite le formulaire ; l'un sous l'autre si étroit.
         // 10/11 (photo de la CI : « your shortc… » coupé) : comme ViewThatFits du Mac, côte à côte seulement si le grand
         // titre tient en entier à côté de la carte ; sinon l'un sous l'autre.
         var pitch = Pitch();
-        if (columns < 2) return new StackPanel { Spacing = 30, Children = { pitch, card }, Padding = new Thickness(26, 18, 26, 32) };
+        if (columns < 2) return new StackPanel { Spacing = 30, Children = { pitch, card }, Padding = new Thickness(56, 18, 56, 32), MaxWidth = 912, HorizontalAlignment = HorizontalAlignment.Left };
         return SideBySideIfItFits(pitch, card);
     }
 
@@ -279,7 +279,7 @@ internal sealed class AccountPage
     private static Grid SideBySideIfItFits(FrameworkElement pitch, FrameworkElement card)
     {
         const double gap = 44;
-        var grid = new Grid { Padding = new Thickness(26, 18, 26, 32) };
+        var grid = new Grid { Padding = new Thickness(56, 18, 56, 32), MaxWidth = 912, HorizontalAlignment = HorizontalAlignment.Left };
         var first = new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) };
         var second = new ColumnDefinition { Width = GridLength.Auto };
         grid.ColumnDefinitions.Add(first);
@@ -894,7 +894,7 @@ internal sealed class AccountPage
             // Page ouverte : le compte est relu s'il n'a pas été vu depuis 2 minutes (après ce dessin).
             Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() => _ = backup.RefreshIfStale());
         }
-        var page = new StackPanel { Spacing = 22, Padding = new Thickness(26, 10, 26, 24) };
+        var page = new StackPanel { Spacing = 22, Padding = new Thickness(56, 10, 56, 24), MaxWidth = 912, HorizontalAlignment = HorizontalAlignment.Left };
         if (columns >= 2)
         {
             var grid = new Grid { ColumnSpacing = 20 };

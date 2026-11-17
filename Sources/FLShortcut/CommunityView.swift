@@ -768,8 +768,7 @@ struct CommunitySignIn: View {
                 }
             }
             .softSwitch(community.pendingCode == nil ? 0 : 1, quick: true)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 26)
+            .readableColumn()                     // direction A : la colonne du titre
             .padding(.top, 18)
             .padding(.bottom, 32)
         }
