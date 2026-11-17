@@ -964,7 +964,11 @@
   tableau N° / Raccourci / Page / Touche (`IndexTableHeader`, `MacLook.IndexHeader`) ; Macros en tableau N° / Macro /
   Touche / Active, « À apprendre » en rouge, « Choisir » en pointillés. Les autres fenêtres gardent leurs titres en
   minuscules + carré (`SwissPageTitle`). Photos CI : Papier par défaut, `theme-noir-*`/`theme-orange-*`. Pas encore vu
-  sur son Mac ni sur un PC.
+  sur son Mac ni sur un PC. Photos relues le 17/11 (Inter bien chargée des deux côtés) puis : Aide, Mon compte et la
+  connexion dans la colonne du titre (Mac `readableColumn()`, Windows marges 56 + largeur 912), flèche ← de la page
+  d'une personne devant le titre seul (`IndexTitle(back:)`), bandeau d'avertissement du Mac dans la colonne, étapes de
+  l'Aide Windows à l'encre (avant : gris clair du fond noir), tous les contrôles WinUI à coins carrés
+  (`ControlCornerRadius`/`OverlayCornerRadius` 0 dans les ressources de l'app).
 
 ## Pas encore vérifié sur le vrai FL
 - Icônes (31/10) : clic droit › « Change icon… » sur le vrai FL (macro « Nom et couleur » après un clic sur le nom ;

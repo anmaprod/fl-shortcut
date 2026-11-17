@@ -706,6 +706,10 @@ internal static class MacLook
         resources["TextControlForegroundFocused"] = Brush(Text);
         resources["TextControlSelectionHighlightColor"] = Brush(Tertiary);
         resources["TextControlBorderBrushFocused"] = Brush(Text);
+        // Style suisse (direction A, 17/11) : tous les contrôles de WinUI à coins carrés, comme le Mac (cases de
+        // nombre, champs, boutons ordinaires, listes, bulles).
+        resources["ControlCornerRadius"] = new CornerRadius(0);
+        resources["OverlayCornerRadius"] = new CornerRadius(0);
     }
 
     /// Bouton principal et carte principale (maquettes du 05/11, comme le Mac) : plein blanc sous Noir et Orange, encre

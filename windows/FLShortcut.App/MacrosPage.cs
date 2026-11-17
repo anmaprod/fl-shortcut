@@ -1244,11 +1244,10 @@ internal sealed class MacrosPage
     private FrameworkElement DropZone(MacroDoc doc)
     {
         var zone = new Grid { MinHeight = 52, AllowDrop = true, Background = Brush(Colors.Transparent) };
+        // Coins carrés et pointillés gris (direction A, comme le Mac).
         var border = new Rectangle
         {
-            RadiusX = 14,
-            RadiusY = 14,
-            Stroke = Brush(White(0.25)),
+            Stroke = Brush(Tertiary),
             StrokeThickness = 1,
             StrokeDashArray = new DoubleCollection { 5, 4 },
         };
@@ -1260,7 +1259,7 @@ internal sealed class MacrosPage
         text.Margin = new Thickness(16, 10, 16, 10);
         zone.Children.Add(text);
         zone.DragEnter += (_, _) => border.Stroke = Brush(Accent);
-        zone.DragLeave += (_, _) => border.Stroke = Brush(White(0.25));
+        zone.DragLeave += (_, _) => border.Stroke = Brush(Tertiary);
         AcceptDrops(zone, doc.Blocks.Count, null);
         return zone;
     }
@@ -1429,6 +1428,7 @@ internal sealed class MacrosPage
             Value = value, Minimum = min, Maximum = max, SmallChange = step, LargeChange = step * 10, Width = 140,
             HorizontalAlignment = HorizontalAlignment.Left,
             SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact,
+            CornerRadius = new CornerRadius(0),
         };
         box.ValueChanged += (_, e) =>
         {
