@@ -596,10 +596,12 @@ internal sealed partial class MainShell
         };
         var titleStack = new StackPanel { Spacing = 14, VerticalAlignment = VerticalAlignment.Bottom, Children = { _eyebrow, titleFit } };
         // Une grille (pas une pile horizontale) : la largeur du titre est bornée, la Viewbox peut le rétrécir.
-        var titleRow = new Grid { ColumnSpacing = 14, VerticalAlignment = VerticalAlignment.Bottom };
+        var titleRow = new Grid { VerticalAlignment = VerticalAlignment.Bottom };
         titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         _titleBack.VerticalAlignment = VerticalAlignment.Bottom;
+        // L'écart seulement quand la flèche est là (page d'une personne) : le titre part du bord de la liste.
+        _titleBack.Margin = new Thickness(0, 0, 14, 0);
         titleRow.Children.Add(_titleBack);
         Grid.SetColumn(titleStack, 1);
         titleRow.Children.Add(titleStack);

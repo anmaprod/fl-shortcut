@@ -955,27 +955,28 @@ private struct NoticeStack: View {
 
     var body: some View {
         if !items.isEmpty {
-            GlassGroup(spacing: 6) {
-                VStack(spacing: 6) {
-                    ForEach(items) { item in
-                        HStack(spacing: 10) {
-                            StatusSymbol(name: item.symbol, size: 14, tint: item.tint)
-                            Text(item.text).fixedSize(horizontal: false, vertical: true)
-                            Spacer(minLength: 8)
-                            if let title = item.button, let action = item.action {
-                                Button(title, action: action).controlSize(.small).onGlassButton()
-                            }
+            // Direction A (17/11) : dans la colonne de la page, à plat, un trait fin dessous (plus de plaque de verre).
+            VStack(spacing: 0) {
+                ForEach(items) { item in
+                    HStack(spacing: 10) {
+                        StatusSymbol(name: item.symbol, size: 14, tint: item.tint)
+                        Text(item.text).fixedSize(horizontal: false, vertical: true)
+                            .foregroundStyle(Swiss.text)
+                        Spacer(minLength: 8)
+                        if let title = item.button, let action = item.action {
+                            Button(title, action: action).controlSize(.small).onGlassButton()
                         }
-                        .font(.system(size: 12))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .glassSurface(Rectangle(),
-                                      tint: item.tint == Color.secondary ? nil : item.tint)
                     }
+                    .font(Swiss.font(13, .regular))
+                    .padding(.vertical, 10)
+                    .swissRule(Swiss.faint)
                 }
             }
-            .padding(.horizontal, 14)
-            .padding(.top, 8)
+            .frame(maxWidth: ReadableLayout.maxWidth, alignment: .leading)
+            .padding(.horizontal, ReadableLayout.inset)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Swiss.background)
+            .padding(.top, 4)
         }
     }
 }
