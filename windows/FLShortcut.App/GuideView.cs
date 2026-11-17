@@ -4,8 +4,10 @@
 // orange). Une partie : carré creux + titre, puis ses trois étapes (numéro rouge, phrase en gras) entre des traits
 // fins. En bas : « Passer » (sauf à la fin), les points de pagination, « Précédent » et le bouton principal
 // (« Découvrir », « Suivant », « C'est parti »). Entrée : le bouton principal ; Échap : « Passer ».
-// Contenu : GuideContent (cœur, mêmes textes que le Mac sauf « Au quotidien »). Aucune animation continue : la page
-// qui arrive glisse et se fond une fois (rien si Windows a coupé les animations).
+// Contenu : GuideContent (cœur, mêmes textes que le Mac sauf « Au quotidien »). Animations comme le Mac (17/11, « les
+// anims du guide sur mac n'y sont pas sur win ») : à l'ouverture et à chaque page, le titre puis les lignes arrivent
+// l'un après l'autre (transparents, un peu plus bas, puis nets à leur place) ; la page qui s'en va monte en s'effaçant
+// pendant ce temps ; le carré de la partie ouverte apparaît d'un petit rebond. Rien si Windows a coupé les animations.
 using FLShortcut.Core;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
@@ -33,8 +35,9 @@ internal sealed class GuideView
 
     public FrameworkElement View => _card;
 
-    /// `page` : 0 « Bienvenue », 1… les parties. `close` : « Passer », « C'est parti ».
-    public GuideView(int page, Action close)
+    /// `page` : 0 « Bienvenue », 1… les parties. `close` : « Passer », « C'est parti ». `animate` : faux pour les photos
+    /// de la CI (la page montrée telle quelle).
+    public GuideView(int page, Action close, bool animate = true)
     {
         _close = close;
         _current = GuideContent.Clamp(page);
@@ -56,7 +59,7 @@ internal sealed class GuideView
             Child = inside,
         };
         AutomationProperties.SetName(_card, Loc.T("Bienvenue"));
-        Render(forward: null);
+        Render(forward: null, entrance: animate);
     }
 
     /// Entrée : le bouton principal. Échap : « Passer » (pas à la fin, où il n'y est plus). Vrai si la touche a servi.
@@ -105,29 +108,49 @@ internal sealed class GuideView
         Focus();
     }
 
-    /// `forward` : sens du changement (en avant, la page glisse depuis la droite ; en arrière, simple fondu comme le
-    /// Mac) ; null : montrée d'un coup.
-    private void Render(bool? forward)
+    /// `forward` : un changement de page (dans un sens ou l'autre, comme le Mac) : l'ancienne page monte en s'effaçant
+    /// pendant que la nouvelle arrive ; null : montrée d'un coup (photos de la CI), avec `entrance` à l'ouverture.
+    private void Render(bool? forward, bool entrance = false)
     {
-        _page.Children.Clear();
-        var content = GuideContent.Part(_current) is { } part ? Part(part) : Welcome();
+        var (content, pieces, mark) = GuideContent.Part(_current) is { } part ? Part(part) : Welcome();
+        if (forward is null)
+        {
+            _page.Children.Clear();
+        }
+        else
+        {
+            foreach (var old in _page.Children.OfType<FrameworkElement>().ToList())
+            {
+                old.IsHitTestVisible = false;
+                Motion.Leave(old, () => _page.Children.Remove(old));
+            }
+        }
         _page.Children.Add(content);
-        if (forward is { } ahead) Motion.Enter(content, fromX: ahead ? 24 : 0, fromY: 0, durationMs: Motion.Normal);
+        if (forward is not null || entrance)
+        {
+            // Comme le Mac (morphIn) : 0,15 s puis 0,1 s de plus par élément.
+            for (var i = 0; i < pieces.Length; i++) Motion.Morph(pieces[i], delayMs: 150 + 100 * i);
+            if (mark is not null) Motion.Pop(mark, delayMs: 120, from: 0.4);
+        }
         RenderFooter();
     }
 
     // ---------- « Bienvenue » ----------
 
-    private FrameworkElement Welcome()
+    /// La page, ce qui arrive l'un après l'autre (titre, lignes), et le carré de la partie (aucun ici).
+    private (FrameworkElement Content, FrameworkElement[] Pieces, FrameworkElement? Mark) Welcome()
     {
         var stack = new StackPanel();
-        stack.Children.Add(Heading(Loc.T("Bienvenue"), 46, null));
-        foreach (var page in GuideContent.Pages) stack.Children.Add(WelcomeRow(page));
-        return stack;
+        var (head, _) = Heading(Loc.T("Bienvenue"), 46, null);
+        stack.Children.Add(head);
+        var rows = new StackPanel();
+        foreach (var page in GuideContent.Pages) rows.Children.Add(WelcomeRow(page));
+        stack.Children.Add(rows);
+        return (stack, new FrameworkElement[] { head, rows }, null);
     }
 
     /// Gros titre en minuscules avec son point carré, souligné à l'encre ; `mark` : le carré creux d'une partie, devant.
-    private static FrameworkElement Heading(string text, double size, FrameworkElement? mark)
+    private static (StackPanel Head, StackPanel Line) Heading(string text, double size, FrameworkElement? mark)
     {
         var title = SwissTitle(size);
         title.Text = text.ToLower(System.Globalization.CultureInfo.CurrentCulture);
@@ -142,7 +165,7 @@ internal sealed class GuideView
         var head = new StackPanel { Spacing = 12 };
         head.Children.Add(line);
         head.Children.Add(Rule(Text));
-        return head;
+        return (head, line);
     }
 
     /// Carré creux à l'encre (BlockSquare du Mac) ; orange sur la ligne survolée.
@@ -194,15 +217,18 @@ internal sealed class GuideView
 
     // ---------- Une partie ----------
 
-    private static FrameworkElement Part(GuidePage page)
+    private static (FrameworkElement Content, FrameworkElement[] Pieces, FrameworkElement? Mark) Part(GuidePage page)
     {
         var stack = new StackPanel();
+        var steps = new StackPanel();
         // 13/11 (essai 1.3 : « il faut que les carrés deviennent orange sur chaque page ») : la partie ouverte a son
         // carré plein d'orange, comme la page ouverte dans la barre de gauche.
         var mark = Square(14);
         mark.BorderBrush = Brush(BrandRed);
         mark.Background = Brush(BrandRed);
-        stack.Children.Add(Heading(page.Title, 40, mark));
+        var (head, line) = Heading(page.Title, 40, mark);
+        stack.Children.Add(head);
+        stack.Children.Add(steps);
         for (var i = 0; i < page.Steps.Count; i++)
         {
             var number = Label((i + 1).ToString("00", System.Globalization.CultureInfo.InvariantCulture), 11, Red, bold: true);
@@ -223,10 +249,11 @@ internal sealed class GuideView
             Grid.SetColumn(text, 1);
             row.Children.Add(text);
             AutomationProperties.SetName(row, $"{i + 1}. {page.Steps[i]}");
-            stack.Children.Add(row);
-            stack.Children.Add(Rule(LineColor));
+            steps.Children.Add(row);
+            steps.Children.Add(Rule(LineColor));
         }
-        return stack;
+        // Comme le Mac : le titre puis les étapes arrivent ; le trait sous le titre reste en place.
+        return (stack, new FrameworkElement[] { line, steps }, mark);
     }
 
     // ---------- Bas de la carte ----------

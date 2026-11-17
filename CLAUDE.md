@@ -459,6 +459,10 @@
   Précédent, Découvrir / Suivant / C'est parti ; Entrée, Échap ; points jamais sous les boutons), `MainShellGuide.cs`
   (après l'accueil sur fond plein, sinon à la 1re ouverture de la fenêtre sur la fenêtre assombrie ; réglage
   `GuideSeen`), « Revoir le guide » dans l'Aide ; photos CI `guide-0/1/4.png`. Pas encore vu sur un PC.
+  17/11 (« les anims du guide sur mac n'y sont pas sur win ») : comme le Mac, à l'ouverture et à chaque page le titre
+  puis les lignes arrivent l'un après l'autre (0,15 s + 0,1 s, transparents, 16 plus bas, à peine plus petits ;
+  `Motion.Morph`), l'ancienne page monte en s'effaçant en 0,5 s (`Motion.Leave`), carré de la partie en petit rebond
+  (`Motion.Pop`) ; rien pour les photos de la CI (`GuideView(animate:)`) ni si Windows coupe les animations.
   Revue Mac / Windows du 10/11 (« 1, 2, 3, 4, tu fais ») : Communauté Windows = cartes du Mac (photo ronde, @pseudo
   qui mène à ses partages, date, sorte à droite, titre, 2 lignes gardées, « Voir » + « Ajouter à mes macros » /
   « Utiliser ces raccourcis » / « Partagé par toi », clic droit, même hauteur par rangée ; recherche plus coupée) ;

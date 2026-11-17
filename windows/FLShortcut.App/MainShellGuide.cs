@@ -22,7 +22,7 @@ internal sealed partial class MainShell
     /// `plain` : sur le fond plein de la fenêtre (suite de l'accueil) ; sinon sur la fenêtre assombrie.
     private void ShowGuide(bool plain, int page = 0)
     {
-        _guide = new GuideView(page, CloseGuide);
+        _guide = new GuideView(page, CloseGuide, animate: !_photos);
         _guideLayer.Children.Clear();
         _guideLayer.Background = Brush(plain ? WindowColor : Color.FromArgb(0x99, 0, 0, 0));
         _guideLayer.Children.Add(_guide.View);

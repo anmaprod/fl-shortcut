@@ -1305,3 +1305,6 @@ entrée 1 ≈ 0,5 s.
   compte. Fait sur Mac et Windows : papier clair par défaut, polices Inter / Inter Display intégrées, barre de gauche
   numérotée, surtitres et très grands titres, touches dans un cadre (rouge plein si changées), Trouver et Macros en
   tableaux numérotés. Pas encore vu sur son Mac.
+- 17/11 : guide Windows animé comme le Mac (titre puis lignes qui arrivent l'un après l'autre, ancienne page qui
+  monte en s'effaçant). Direction A : bandeau « pas d'accès au clavier » du Mac remis dans la colonne de la page,
+  titre Windows aligné sur la liste (photos de la CI du 17/11 relues : polices Inter bien chargées des deux côtés).
