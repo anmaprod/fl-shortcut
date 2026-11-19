@@ -41,7 +41,7 @@ public sealed class ThemePaletteTests
         Assert.Equal(0xFFFFFFu, ThemePalette.Of(AppTheme.Noir).Text);
         Assert.Equal(0xF3F2EEu, ThemePalette.Of(AppTheme.Papier).Background);
         Assert.Equal(0x111111u, ThemePalette.Of(AppTheme.Papier).Text);
-        Assert.Equal(0xC62D17u, ThemePalette.Of(AppTheme.Papier).Red);
+        Assert.Equal(0xFF3B1Fu, ThemePalette.Of(AppTheme.Papier).Red);
         Assert.Equal(ThemePalette.BrandRed, ThemePalette.Of(AppTheme.Orange).Background);
         Assert.Equal(0xFFFFFFu, ThemePalette.Of(AppTheme.Orange).Red);
         Assert.Equal(0x000000u, ThemePalette.Of(AppTheme.Orange, inverse: true).Background);

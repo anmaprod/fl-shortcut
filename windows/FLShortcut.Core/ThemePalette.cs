@@ -14,7 +14,7 @@ public sealed record ThemePalette(uint Background, uint Text, uint Gray, uint So
     /// Le rouge de la marque (#FF3B1F), le même dans tous les thèmes (logo).
     public const uint BrandRed = 0xFF3B1F;
     /// Rouge de la direction A (17/11), sur le papier.
-    public const uint PaperRed = 0xC62D17;
+    public const uint PaperRed = 0xFF3B1F;     // le même orange que Noir (19/11)
 
     public static readonly ThemePalette Noir = new(0x000000, 0xFFFFFF, 0x8A8A8A, 0xA8A8A8, 0x333333, 0x222222,
                                                     0x555555, BrandRed, 0xDDDDDD);

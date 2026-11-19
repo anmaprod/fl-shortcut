@@ -4,7 +4,7 @@
 // réglages : rien de sensible n'en dépend (un autre programme qui l'écrirait ne changerait que les couleurs). Depuis le
 // 07/11, seulement avec un compte connecté (le choix est gardé pour la prochaine connexion). Direction A du 17/11
 // (« J'aime bien le A », réponse « A pour tous, thèmes gardés ») : Papier = la direction A (papier #F3F2EE, encre
-// #111111, rouge #C62D17), le thème de tout le monde sans compte et par défaut ; Noir et Orange au choix avec un compte.
+// #111111, rouge #FF3B1F comme Noir depuis le 19/11), le thème de tout le monde sans compte et par défaut ; Noir et Orange au choix avec un compte.
 //
 // Les couleurs du style suisse (`Swiss`) se lisent au moment du dessin, d'après le thème et l'apparence de macOS
 // (sombre pour Noir, claire pour Papier et Orange) : rien à reconstruire, la fenêtre se redessine quand l'apparence
@@ -145,7 +145,7 @@ struct SwissPalette: Equatable, Sendable {
 
     static let brandRed: UInt32 = 0xFF3B1F
     /// Rouge de la direction A (17/11), sur le papier.
-    static let paperRed: UInt32 = 0xC62D17
+    static let paperRed: UInt32 = 0xFF3B1F
 
     static let noir = SwissPalette(background: 0x000000, text: 0xFFFFFF, gray: 0x8A8A8A, soft: 0xA8A8A8,
                                    line: 0x333333, faint: 0x222222, keyLine: 0x555555, red: brandRed)

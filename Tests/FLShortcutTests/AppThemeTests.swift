@@ -32,7 +32,7 @@ final class AppThemeTests: XCTestCase {
         // Direction A (17/11) : papier clair, encre presque noire, rouge plus profond.
         XCTAssertEqual(SwissPalette.of(.papier, dark: false).background, 0xF3F2EE)
         XCTAssertEqual(SwissPalette.of(.papier, dark: false).text, 0x111111)
-        XCTAssertEqual(SwissPalette.of(.papier, dark: false).red, 0xC62D17)
+        XCTAssertEqual(SwissPalette.of(.papier, dark: false).red, 0xFF3B1F)
         XCTAssertEqual(SwissPalette.of(.orange, dark: false).background, SwissPalette.brandRed)
         XCTAssertEqual(SwissPalette.of(.orange, dark: false).text, 0x000000)
         // Sous Orange, ce qui compte est blanc (le rouge ne se verrait pas sur le fond rouge) ; rouge dans les cartes.

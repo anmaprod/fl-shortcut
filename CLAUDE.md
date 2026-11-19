@@ -951,7 +951,7 @@
   rien (pas de loopMIDI). Pas encore vu sur un PC.
 - **Direction A « Index »** (17/11, « J'aime bien le A » parmi 4 propositions, artefact privé `S9Fsbeo6fuSChhDWSUfARE` ;
   réponse « A pour tous, thèmes gardés ») : Papier = la direction A (papier #F3F2EE, encre #111111, gris #67655F/#4A4843,
-  traits #D9D6CF, rouge #C62D17 `paperRed`), thème de TOUT LE MONDE sans compte et par défaut (Mac `AppTheme.current`,
+  traits #D9D6CF, rouge #FF3B1F `paperRed` (le même que Noir depuis le 19/11)), thème de TOUT LE MONDE sans compte et par défaut (Mac `AppTheme.current`,
   Windows `ThemePalette.Shown/Parse`) ; Noir et Orange au choix avec un compte ; plus de grille derrière la page.
   Polices Inter (texte) et Inter Display (titres), OFL, dans `Resources/Fonts/Inter-FLS.ttc` (allégée par
   `scripts/polices.py`) : Mac `ATSApplicationFontsPath` + `build.sh`, `Swiss.fontName/titleFontName/nsFont` ;
