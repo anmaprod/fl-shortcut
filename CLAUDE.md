@@ -919,6 +919,14 @@
 - Mails du compte : 2 par heure (donc 2 inscriptions) tant que le propriétaire n'a pas fait l'étape 6 de
   `supabase/README.md` (11/11 : Gmail rien que pour l'app, 60 par heure ; plus tard Brevo avec le domaine du site).
   Bêta limitée (1 000 comptes, un compte = un ordinateur) mise de côté le 11/11 : choix dans HISTORIQUE.
+- **Communauté « Minimal »** (19/11, maquette `docs/maquettes/fl-shortcuts-minimal.html`) : cases = auteur, nom en
+  grand, note et ajouts en gros chiffres, « Ajouter » / « Utiliser » / « Ajoutée ✓ » ; demi-étoiles comme Letterboxd
+  (serveur `ratings.half`, `rate_share_half`, à RECOLLER par le propriétaire ; sans lui, étoiles entières) ; macro
+  ajoutée depuis la Communauté = origine `community` (« Dans tes macros ✓ » + « Supprimer de mes macros », question
+  d'abord) ; « Signaler » = page à 6 cases + « Autre » / « Pourquoi ? » (raisons jointes par « ; ») ; « Abonné ✓ »
+  comme « Suivre » ; page d'une personne : Abonnés et Partages en gros chiffres. Mac et Windows. Une touche ne fait
+  qu'une seule chose (même action dans deux pages : même touche permise ; page avant → après ; « Changer aussi dans
+  … ? »), Mac et Windows (06b6667).
 
 - **Fenêtre « plus lisible »** (16/11, maquette PDF/HTML « FL Shortcuts — plus lisible », 8 écrans, commencée par une
   autre session sans rien pousser) : barre de gauche en parties (`ReadableSidebar` : Trouver un raccourci, Raccourcis ▸

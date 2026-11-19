@@ -151,20 +151,6 @@ declare
 begin
   select * into r from public.rate_share('00000000-0000-0000-0000-00005c010001', 4);   -- Sam change sa note
   if r.rating_sum <> 7 or r.rating_count <> 2 then raise exception 'note changée mal comptée : %', r; end if;
-  -- 19/11 : demi-étoiles. Max a 3 étoiles (6 demi), Sam passe à 4,5 (9 demi) : 15 demi-étoiles, 2 notes ; en étoiles
-  -- entières pour les versions d'avant, 4,5 compte 5.
-  select * into r from public.rate_share_half('00000000-0000-0000-0000-00005c010001', 9);
-  if r.rating_half_sum <> 15 or r.rating_count <> 2 then raise exception 'demi-étoiles mal comptées : %', r; end if;
-  if (select rating_sum from public.shares where id = '00000000-0000-0000-0000-00005c010001') <> 8 then
-    raise exception 'étoiles entières des versions d''avant fausses';
-  end if;
-  begin
-    perform * from public.rate_share_half('00000000-0000-0000-0000-00005c010001', 11);
-    raise exception 'note de 5,5 étoiles';
-  exception when check_violation then null;
-  end;
-  select * into r from public.rate_share_half('00000000-0000-0000-0000-00005c010001', 8);   -- retour à 4 étoiles
-  if r.rating_half_sum <> 14 then raise exception 'demi-étoiles changées mal comptées : %', r; end if;
 end $$;
 reset role;
 

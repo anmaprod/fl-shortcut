@@ -18,7 +18,7 @@ for f in supabase-stubs.sql supabase-stubs-mail.sql ../schema.sql ../inscription
          ../corrections-ia.sql ../corrections-ia.sql ../profil.sql ../profil.sql "$MAIL" "$MAIL" policies.sql \
          profil.sql regles-sauvegarde.sql inscription.sql corrections-ia.sql messages-par-mail.sql "$MAIL" \
          messages-par-mail-recolle.sql communaute-suivre-11-11.sql communaute-suivre.sql ../communaute-suivre.sql \
-         ../communaute-suivre.sql communaute-relations.sql communaute-suivre-recolle.sql; do
+         ../communaute-suivre.sql communaute-relations.sql communaute-suivre-recolle.sql communaute-demi-etoiles.sql; do
   psql "$@" -d "$DB" -X -q -v ON_ERROR_STOP=1 -f "$f"
 done
 # Ci-dessus, la base du propriétaire : communaute-suivre.sql collé le 11/11 (copie communaute-suivre-11-11.sql), ses
@@ -28,6 +28,6 @@ NEUVE="${DB}_neuve"
 createdb "$@" "$NEUVE"
 trap 'rm -f "$MAIL"; dropdb "$@" "$DB" >/dev/null 2>&1 || true; dropdb "$@" "$NEUVE" >/dev/null 2>&1 || true' EXIT
 for f in supabase-stubs.sql ../schema.sql ../inscription.sql ../profil.sql ../communaute-suivre.sql \
-         ../communaute-suivre.sql communaute-suivre.sql communaute-relations.sql; do
+         ../communaute-suivre.sql communaute-suivre.sql communaute-relations.sql communaute-demi-etoiles.sql; do
   psql "$@" -d "$NEUVE" -X -q -v ON_ERROR_STOP=1 -f "$f"
 done

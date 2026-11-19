@@ -60,6 +60,22 @@ public static class CommunityStats
         return parts.Count == 0 ? null : string.Join(" · ", parts);
     }
 
+    /// Nombre d'ajouts des cases, en grand (19/11, « le nombre d'utilisation… + gros », comme le Mac) : le chiffre et son
+    /// mot à part (« 312 », « ajouts ») ; null sous 1. Un jeu de raccourcis : « utilisations ».
+    public static (string Number, string Word)? Adds(Share share, CultureInfo? culture = null)
+    {
+        var count = share.AddCount ?? 0;
+        if (count < 1) return null;
+        var word = (share.IsMacro, count) switch
+        {
+            (true, 1) => Loc.T("ajout"),
+            (true, _) => Loc.T("ajouts"),
+            (false, 1) => Loc.T("utilisation"),
+            _ => Loc.T("utilisations"),
+        };
+        return (Number(count, culture), word);
+    }
+
     public static string? Added(int count) => count switch
     {
         < 1 => null,

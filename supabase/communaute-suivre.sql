@@ -169,6 +169,16 @@ end $$;
 alter table public.ratings add column if not exists half smallint;
 update public.ratings set half = stars * 2 where half is null;
 alter table public.ratings alter column half set not null;
+-- Une note écrite sans demi-étoiles (ancienne fonction, ligne d'essai) : half = stars × 2, avant la vérification.
+create or replace function public.fill_rating_half() returns trigger
+language plpgsql set search_path = public as $$
+begin
+  if new.half is null then new.half := new.stars * 2; end if;
+  return new;
+end;
+$$;
+drop trigger if exists ratings_half on public.ratings;
+create trigger ratings_half before insert on public.ratings for each row execute function public.fill_rating_half();
 do $$
 begin
   if not exists (select 1 from pg_constraint where conrelid = 'public.ratings'::regclass and conname = 'ratings_half_1_10') then

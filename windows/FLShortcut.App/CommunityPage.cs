@@ -22,13 +22,16 @@ internal sealed partial class CommunityPage
     public static readonly Color Tint = Rgb(0xF5, 0xAD, 0x00);
 
     /// Raisons d'un signalement : le texte français est la valeur envoyée (comme le Mac), affiché traduit.
+    /// Raisons de « Signaler » (19/11, maquette « Minimal », comme le Mac) : plusieurs cases possibles, plus « Autre »
+    /// qui ouvre « Pourquoi ? » ; le texte français part tel quel au serveur.
     private static readonly string[] Reasons =
     {
-        "Dangereux : supprime, écrase ou envoie des choses sans prévenir",
-        "Ne fait pas ce que dit son explication",
-        "Contenu offensant",
-        "Publicité ou spam",
-        "Autre",
+        "Dangereux pour mon projet",
+        "Ne marche pas",
+        "Ne fait pas ce que dit le titre",
+        "Titre ou photo choquant",
+        "Pub ou spam",
+        "Copie du travail de quelqu'un",
     };
 
     private readonly AppController _app;
@@ -55,7 +58,8 @@ internal sealed partial class CommunityPage
     private ImportPreview? _profilePreview;
     private string? _previewError;
     private bool _reporting;
-    private int _reason;
+    private readonly HashSet<int> _reasons = new();
+    private bool _otherReason;
     private string _details = "";
 
     // Partager.
@@ -329,56 +333,73 @@ internal sealed partial class CommunityPage
             Loc.T("Partager une macro…"), StartComposing);
     }
 
-    /// Un partage en case (maquette « plus lisible » du 16/11, comme le Mac) : son numéro et sa sorte en haut, le titre
-    /// en gras en bas, puis « @pseudo · ★ 4,6 · 312 ajouts » et « AJOUTER » (qui ouvre la fiche : rien ne s'ajoute
-    /// sans l'avoir lue). Toute la case ouvre la fiche ; clic droit : sa page, Signaler…, Supprimer.
-    // 16/11 (« enlève toutes les fioritures ») : plus de numéro ni de sorte en haut, ni « Partagé par toi » : le titre,
-    // puis l'auteur et « Ajouter ».
+    /// Un partage en case (19/11, maquette « Minimal », comme le Mac) : qui (photo + pseudo), le nom en grand, puis la
+    /// note et les ajouts en gros chiffres et « Ajouter » / « Utiliser » (qui ouvre la fiche : rien ne s'ajoute sans
+    /// l'avoir lue), ou « Ajoutée ✓ ». Plus de détail ni de numéro. Toute la case ouvre la fiche ; clic droit : sa page,
+    /// Signaler…, Supprimer.
     private FrameworkElement Card(Share share)
     {
         var mine = Mine(share);
         var grid = new Grid { RowSpacing = 0 };
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-        var title = Label(DisplayText.Safe(share.Title, 80), 24, Text, bold: true);
+        var showAuthor = _author?.Id != share.AuthorId;
+        if (showAuthor || !mine)
+        {
+            var who = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            var avatar = AccountPage.Avatar(_photos.GetValueOrDefault(share.AuthorId), share.AuthorName, 20);
+            avatar.VerticalAlignment = VerticalAlignment.Center;
+            who.Children.Add(avatar);
+            var pseudo = Label(DisplayText.Safe(share.AuthorName, 24), 13, Text, semibold: true);
+            pseudo.TextTrimming = TextTrimming.CharacterEllipsis;
+            pseudo.VerticalAlignment = VerticalAlignment.Center;
+            who.Children.Add(pseudo);
+            var authorButton = new Button { Style = PlainButton, Content = who, IsEnabled = showAuthor, Padding = new Thickness(0), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 12) };
+            authorButton.Click += (_, _) => OpenPerson(share.AuthorId, share.AuthorName);
+            if (showAuthor) ToolTipService.SetToolTip(authorButton, Loc.F("Voir la page de @%@", DisplayText.Safe(share.AuthorName, 24)));
+            grid.Children.Add(authorButton);
+        }
+
+        var title = Label(DisplayText.Safe(share.Title, 80), 20, Text, bold: true);
+        title.FontFamily = TitleFont;
         title.TextWrapping = TextWrapping.Wrap;
         title.MaxLines = 2;
-        title.CharacterSpacing = -30;
+        title.CharacterSpacing = -20;
+        Grid.SetRow(title, 1);
         grid.Children.Add(title);
 
-        var bottom = new Grid { ColumnSpacing = 8, Margin = new Thickness(0, 14, 0, 0) };
-        foreach (var width in new[] { GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto })
-            bottom.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
-        var avatar = AccountPage.Avatar(_photos.GetValueOrDefault(share.AuthorId), share.AuthorName, 18);
-        avatar.VerticalAlignment = VerticalAlignment.Center;
-        bottom.Children.Add(avatar);
-        var meta = "@" + DisplayText.Safe(share.AuthorName, 24);
-        if (CommunityStats.Compact(share) is { } stats) meta += " · " + stats;
-        var metaLabel = Label(meta, 13, Secondary);
-        metaLabel.TextTrimming = TextTrimming.CharacterEllipsis;
-        metaLabel.VerticalAlignment = VerticalAlignment.Center;
-        var showAuthor = _author?.Id != share.AuthorId;
-        var authorButton = new Button { Style = PlainButton, Content = metaLabel, IsEnabled = showAuthor, Padding = new Thickness(0), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
-        authorButton.Click += (_, _) => OpenPerson(share.AuthorId, share.AuthorName);
-        if (showAuthor) ToolTipService.SetToolTip(authorButton, Loc.F("Voir la page de @%@", DisplayText.Safe(share.AuthorName, 24)));
-        Grid.SetColumn(authorButton, 1);
-        bottom.Children.Add(authorButton);
-        if (!mine)
+        var bottom = new Grid { ColumnSpacing = 12, Margin = new Thickness(0, 16, 0, 0) };
+        bottom.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        bottom.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        if (BigStats(share) is { } stats) bottom.Children.Add(stats);
+        FrameworkElement? action = null;
+        if (InMyMacros(share) is not null)
         {
-            var add = Small(Soft(Loc.T("Ajouter"), () => Open(share)));
-            ToolTipService.SetToolTip(add, Loc.T("Lire la fiche, puis l'ajouter"));
-            Grid.SetColumn(add, 2);
-            bottom.Children.Add(add);
+            var done = Label(Loc.T("Ajoutée ✓"), 14, Text, semibold: true);
+            done.VerticalAlignment = VerticalAlignment.Center;
+            action = done;
         }
-        Grid.SetRow(bottom, 2);
+        else if (!mine)
+        {
+            var add = Small(Soft(share.IsMacro ? Loc.T("Ajouter") : Loc.T("Utiliser"), () => Open(share)));
+            ToolTipService.SetToolTip(add, Loc.T("Lire la fiche, puis l'ajouter"));
+            action = add;
+        }
+        if (action is not null)
+        {
+            Grid.SetColumn(action, 1);
+            bottom.Children.Add(action);
+        }
+        Grid.SetRow(bottom, 3);
         grid.Children.Add(bottom);
 
         var border = new Border
         {
             Child = grid,
-            Padding = new Thickness(24),
+            Padding = new Thickness(20, 18, 20, 18),
             MinHeight = 150,
             Background = Brush(MacLook.WindowColor),
             BorderBrush = Brush(LineColor),
@@ -431,7 +452,8 @@ internal sealed partial class CommunityPage
         _profilePreview = null;
         _previewError = null;
         _reporting = report;
-        _reason = 0;
+        _reasons.Clear();
+        _otherReason = false;
         _details = "";
         _canRate = false;
         _half = null;
@@ -555,7 +577,11 @@ internal sealed partial class CommunityPage
             }
         }
 
-        if (_reporting) page.Children.Add(ReportForm(share));
+        if (_reporting)
+        {
+            page.Children.Clear();
+            page.Children.Add(ReportForm(share));
+        }
 
         var buttons = new Grid { ColumnSpacing = 10 };
         buttons.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -583,22 +609,40 @@ internal sealed partial class CommunityPage
         });
         Grid.SetColumn(close, 2);
         buttons.Children.Add(close);
-        var add = share.IsMacro ? Primary(Loc.T("Ajouter à mes macros"), () => Add())
-                                : Primary(Loc.T("Utiliser ces raccourcis"), () => UseShortcuts(share));
-        add.IsEnabled = share.IsMacro ? _preview is not null : _profilePreview is not null;
-        Grid.SetColumn(add, 3);
-        buttons.Children.Add(add);
+        // 19/11 : déjà dans mes macros (ajoutée depuis la Communauté) → « Dans tes macros ✓ » + « Supprimer de mes macros ».
+        if (InMyMacros(share) is { } owned)
+        {
+            var have = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+            var done = Label(Loc.T("Dans tes macros ✓"), 13, Text, semibold: true);
+            done.VerticalAlignment = VerticalAlignment.Center;
+            have.Children.Add(done);
+            have.Children.Add(Soft(Loc.T("Supprimer de mes macros"), () => RemoveFromMacros(owned)));
+            Grid.SetColumn(have, 3);
+            buttons.Children.Add(have);
+        }
+        else
+        {
+            var add = share.IsMacro ? Primary(Loc.T("Ajouter à mes macros"), () => Add())
+                                    : Primary(Loc.T("Utiliser ces raccourcis"), () => UseShortcuts(share));
+            add.IsEnabled = share.IsMacro ? _preview is not null : _profilePreview is not null;
+            Grid.SetColumn(add, 3);
+            buttons.Children.Add(add);
+        }
         buttons.Padding = new Thickness(16);
 
         var scroll = new ScrollViewer { Content = page, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
-        var pieces = new List<FrameworkElement> { head, Rule(LineColor), scroll, Rule(LineColor) };
-        // 11/11 : « Ta note », seulement après l'avoir ajouté (jamais le sien).
-        if (StarsRow(share) is { } starsRow)
+        var pieces = new List<FrameworkElement> { head, Rule(LineColor), scroll };
+        if (!_reporting)
         {
-            pieces.Add(starsRow);
             pieces.Add(Rule(LineColor));
+            // 11/11 : « Ta note », seulement après l'avoir ajouté (jamais le sien).
+            if (StarsRow(share) is { } starsRow)
+            {
+                pieces.Add(starsRow);
+                pieces.Add(Rule(LineColor));
+            }
+            pieces.Add(buttons);
         }
-        pieces.Add(buttons);
         var card = new Grid();
         foreach (var piece in pieces)
             card.RowDefinitions.Add(new RowDefinition { Height = piece == scroll ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
@@ -622,6 +666,7 @@ internal sealed partial class CommunityPage
         // Presets joints au partage : rangés dans Documents › FL Shortcuts › Presets (jamais par-dessus un autre fichier).
         if (MacroExchange.WriteAttached(preview.Files ?? Array.Empty<MacroExchange.AttachedFile>()) is { } why) _toast(why, null);
         doc.Name = _app.Macros.UniqueName(doc.Name);
+        if (share is { } from) doc.Origin = MacroOrigin.FromCommunity(from.Id);   // 19/11 : « Supprimer de mes macros »
         _app.Macros.Add(doc);
         AppLog.Write("COMMUNITY", $"macro ajoutée depuis un partage, {preview.Files?.Count ?? 0} preset(s) joint(s)");
         var text = Loc.F("« %@ » ajoutée à tes macros : choisis-lui un raccourci dans la page Macros", DisplayText.Safe(doc.Name, 40));
@@ -635,6 +680,27 @@ internal sealed partial class CommunityPage
             }
         }
         _toast(text, null);
+    }
+
+    /// La macro ajoutée depuis ce partage, si elle est encore dans mes macros (19/11).
+    private MacroDoc? InMyMacros(Share share) =>
+        share.IsMacro && !_demo ? _app.Macros.Macros.FirstOrDefault(m => m.Origin?.Share == share.Id) : null;
+
+    /// « Supprimer de mes macros » : question d'abord, puis la macro et ses raccourcis partent (annulable), comme le Mac.
+    private async void RemoveFromMacros(MacroDoc doc)
+    {
+        var name = DisplayText.Safe(doc.Name, 40);
+        if (!await _confirm(Loc.F("Supprimer « %@ » de tes macros ?", name), "", Loc.T("Supprimer"), true)) return;
+        var undo = _app.DeleteMacro(doc.Id);
+        AppLog.Write("COMMUNITY", "macro d'un partage retirée");
+        _toast(Loc.F("« %@ » supprimée de tes macros", name), undo is null ? null : () =>
+        {
+            undo();
+            _render();
+            RenderAbove();
+        });
+        _render();
+        RenderAbove();
     }
 
     /// Une ligne par raccourci : « Ctrl+S → Save · Mixer » (éteints marqués).
@@ -682,62 +748,86 @@ internal sealed partial class CommunityPage
         _render();
     }
 
+    /// Page « Signaler » (19/11, comme le Mac) : une case par raison, plusieurs possibles ; « Autre » ouvre « Pourquoi ? »
+    /// (champ qui grandit avec le texte) ; « Envoyer » seulement quand quelque chose est coché.
     private FrameworkElement ReportForm(Share share)
     {
-        var form = new StackPanel { Spacing = 10 };
+        var form = new StackPanel { Spacing = 12 };
         form.Children.Add(SwissLabel(Loc.F("Signaler « %@ »", DisplayText.Safe(share.Title, 40)), 11, Text));
         form.Children.Add(Rule(Text));
-        var reasons = new StackPanel { Spacing = 2 };
+        var send = Primary(Loc.T("Envoyer"), () => SendReport(share));
+        void Refresh() => send.IsEnabled = !_busy && ReportReady;
+        var reasons = new StackPanel { Spacing = 4 };
+        CheckBox Box(string text, bool on, Action<bool> changed)
+        {
+            var box = new CheckBox { Content = Label(text, 13, Text), IsChecked = on, MinHeight = 30, FontFamily = SwissFont };
+            box.Checked += (_, _) => changed(true);
+            box.Unchecked += (_, _) => changed(false);
+            return box;
+        }
         for (var i = 0; i < Reasons.Length; i++)
         {
             var index = i;
-            var option = Option(Label(Loc.T(Reasons[i]), 12.5), () =>
+            reasons.Children.Add(Box(Loc.T(Reasons[i]), _reasons.Contains(index), on =>
             {
-                _reason = index;
-                RenderAbove();
-            }, _reason == index, minHeight: 30, padding: new Thickness(10, 0, 10, 0));
-            option.HorizontalAlignment = HorizontalAlignment.Stretch;
-            reasons.Children.Add(option);
+                if (on) _reasons.Add(index); else _reasons.Remove(index);
+                Refresh();
+            }));
         }
-        form.Children.Add(reasons);
-        var details = new TextBox
+        var why = new TextBox
         {
             Text = _details,
-            PlaceholderText = Loc.T("Précisions facultatives"),
+            PlaceholderText = Loc.T("Pourquoi ?"),
             FontFamily = SwissFont,
             Background = Brush(MacLook.WindowColor),
             BorderBrush = Brush(LineColor),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(0),
             MaxLength = 400,
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            MinHeight = 36,
+            Visibility = _otherReason ? Visibility.Visible : Visibility.Collapsed,
+            Margin = new Thickness(28, 0, 0, 0),
         };
-        details.TextChanged += (_, _) => _details = details.Text;
-        AutomationProperties.SetName(details, Loc.T("Précisions facultatives"));
-        form.Children.Add(details);
+        why.TextChanged += (_, _) =>
+        {
+            _details = why.Text;
+            Refresh();
+        };
+        AutomationProperties.SetName(why, Loc.T("Pourquoi ?"));
+        reasons.Children.Add(Box(Loc.T("Autre"), _otherReason, on =>
+        {
+            _otherReason = on;
+            why.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+            if (on) why.Focus(FocusState.Programmatic);
+            Refresh();
+        }));
+        reasons.Children.Add(why);
+        form.Children.Add(reasons);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right };
         buttons.Children.Add(Soft(Loc.T("Annuler"), () =>
         {
             _reporting = false;
             RenderAbove();
         }));
-        var send = Primary(Loc.T("Signaler"), () => SendReport(share));
-        send.IsEnabled = !_busy;
+        Refresh();
         buttons.Children.Add(send);
         form.Children.Add(buttons);
-        return new Border
-        {
-            Child = form,
-            Padding = new Thickness(16),
-            BorderBrush = Brush(Orange),
-            BorderThickness = new Thickness(2, 0, 0, 0),
-        };
+        return form;
     }
+
+    /// Au moins une case, ou « Autre » avec quelques mots.
+    private bool ReportReady => _reasons.Count > 0 || (_otherReason && _details.Trim().Length > 0);
 
     private async void SendReport(Share share)
     {
         if (_busy) return;
+        if (!ReportReady) return;
         var extra = _details.Trim();
-        var reason = Reasons[_reason] + (extra.Length == 0 ? "" : " : " + extra);
+        var parts = _reasons.OrderBy(i => i).Select(i => Reasons[i]).ToList();
+        if (_otherReason) parts.Add(extra.Length == 0 ? "Autre" : "Autre : " + extra);
+        var reason = string.Join(" ; ", parts);
         if (reason.Length > 500) reason = reason[..500];
         _busy = true;
         RenderAbove();

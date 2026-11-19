@@ -41,6 +41,11 @@ public sealed class CommunitySocialTests
         Assert.Equal("1,284", CommunityStats.Number(1284, en));
         Assert.Equal(1435.0 / 312, Share(sum: 1435, count: 312).Rating!.Value, 3);
         Assert.Null(Share(sum: 0, count: 0).Rating);
+        // Cases du 19/11 (maquette « Minimal », comme le Mac) : le chiffre et son mot à part ; demi-étoiles d'abord.
+        Assert.Equal("1,284", CommunityStats.Adds(Share(adds: 1284), en)!.Value.Number);
+        Assert.NotEqual(CommunityStats.Adds(Share(adds: 1))!.Value.Word, CommunityStats.Adds(Share(adds: 2))!.Value.Word);
+        Assert.Null(CommunityStats.Adds(Share(adds: 0)));
+        Assert.Equal(4.5, (Share(sum: 4, count: 1) with { RatingHalfSum = 9 }).Rating!.Value, 3);
     }
 
     /// Les nombres sont lus avec le partage ; un serveur d'avant n'en donne pas.

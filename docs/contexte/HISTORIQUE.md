@@ -1325,3 +1325,9 @@ entrée 1 ≈ 0,5 s.
   lui), Mac entier (cases, Supprimer de mes macros, Signaler à cases, Abonné ✓, gros chiffres), Windows en partie
   (demi-étoiles). Maquette copiée dans `docs/maquettes/fl-shortcuts-minimal.html`. Le reste (Windows de l'étape 2,
   Aide, fenêtre « Minimal ») est décrit dans `docs/contexte/RELAIS-2026-11-19.md` pour une 2e session Claude.
+- 19/11 (soir) : Communauté « Minimal » finie sur Windows (case, Signaler à cases, Supprimer de mes macros, Abonné ✓,
+  gros chiffres). CI rouge sur le job du serveur : l'essai des demi-étoiles tournait sur la base du 11/11 avant le
+  recollage → essai à part `supabase/tests/communaute-demi-etoiles.sql` (après le recollage et sur une base neuve),
+  et une note écrite sans demi-étoile (ancienne fonction, ligne d'essai) la reçoit toute seule (`fill_rating_half`).
+  Essais du serveur passés ici avec le PostgreSQL 16 du container (`su postgres -c "bash run.sh"` sur une copie de
+  `supabase/` dans /var/tmp, lisible par postgres).

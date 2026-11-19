@@ -377,12 +377,13 @@ internal sealed partial class CommunityPage
         return tabs;
     }
 
-    /// Suivre / Abonné (un clic sur « Abonné » arrête de suivre). Jamais pour soi-même.
+    /// Suivre / Abonné ✓ (un clic sur « Abonné » arrête de suivre). Jamais pour soi-même. 19/11 : « Abonné ✓ » a la
+    /// même couleur que « Suivre », au repos comme au survol (comme le Mac).
     private Button? FollowButton(Guid id)
     {
         if (id == _account.Session?.UserId || (_demo && id == DemoMe)) return null;
         var on = _following.Contains(id);
-        var button = on ? Soft(Loc.T("Abonné"), () => Follow(id, false)) : Primary(Loc.T("Suivre"), () => Follow(id, true));
+        var button = on ? Primary(Loc.T("Abonné ✓"), () => Follow(id, false)) : Primary(Loc.T("Suivre"), () => Follow(id, true));
         ToolTipService.SetToolTip(button, on ? Loc.T("Ne plus suivre") : Loc.T("Voir ses nouveaux partages dans Abonnements"));
         return button;
     }
@@ -594,17 +595,23 @@ internal sealed partial class CommunityPage
         who.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         who.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         who.Children.Add(AccountPage.Avatar(_photos.GetValueOrDefault(id), name, 96));
-        if (_social && _personFollowers is { } followers)
+        // 19/11 (« mieux valoriser les abonnés et les partages ») : les deux en gros chiffres, comme le Mac.
+        var counts = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 32, VerticalAlignment = VerticalAlignment.Center };
+        void Big(int value, string word)
         {
-            var count = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
-            var number = Label(CommunityStats.Number(followers), 34, Text, bold: true);
-            number.FontFamily = SwissFont;
+            var count = new StackPanel { Spacing = 4 };
+            var number = Label(CommunityStats.Number(value), 34, Text, bold: true);
+            number.FontFamily = TitleFont;
             number.CharacterSpacing = -40;
             count.Children.Add(number);
-            count.Children.Add(SwissLabel(Loc.T("Abonnés"), 11));
-            Grid.SetColumn(count, 1);
-            who.Children.Add(count);
+            count.Children.Add(SwissLabel(word, 11));
+            counts.Children.Add(count);
         }
+        if (_social && _personFollowers is { } followers) Big(followers, followers == 1 ? Loc.T("Abonné") : Loc.T("Abonnés"));
+        var shared = _shares?.Count ?? 0;
+        Big(shared, shared == 1 ? Loc.T("Partage") : Loc.T("Partages"));
+        Grid.SetColumn(counts, 1);
+        who.Children.Add(counts);
         if (_social && FollowButton(id) is { } follow)
         {
             follow.VerticalAlignment = VerticalAlignment.Center;
@@ -697,6 +704,34 @@ internal sealed partial class CommunityPage
         row.Children.Add(stars);
         row.Children.Add(value);
         return row;
+    }
+
+    /// Note et ajouts en grand (19/11, maquette « Minimal », comme `CommunityBigStats` du Mac) : « ★ 4,5 sur 5 »,
+    /// « 312 ajouts » ; null : rien à montrer.
+    private static FrameworkElement? BigStats(Share share)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 20, VerticalAlignment = VerticalAlignment.Center };
+        StackPanel Part(params TextBlock[] pieces)
+        {
+            var part = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 };
+            foreach (var piece in pieces)
+            {
+                piece.VerticalAlignment = VerticalAlignment.Bottom;
+                part.Children.Add(piece);
+            }
+            return part;
+        }
+        TextBlock Big(string text)
+        {
+            var big = Label(text, 22, Text, bold: true);
+            big.FontFamily = TitleFont;
+            return big;
+        }
+        if (share.Rating is { } value)
+            row.Children.Add(Part(Label("★", 19, MacLook.Red), Big(CommunityStats.Rating(value)), Label(Loc.T("sur 5"), 13, Secondary)));
+        if (CommunityStats.Adds(share) is { } adds)
+            row.Children.Add(Part(Big(adds.Number), Label(adds.Word, 13, Secondary)));
+        return row.Children.Count == 0 ? null : row;
     }
 
     /// Bas d'une carte : « ★ 4,6 · Ajoutée 312 fois » sur sa ligne, puis « Voir » et l'action (à côté des boutons, il
