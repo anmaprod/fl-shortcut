@@ -990,7 +990,8 @@ final class MacroEffectsMac: MacroEffects {
         func key(_ w: WinInfo) -> (Int, Int, Double) {
             let b = w.bounds
             return (MacroSpots.sameSize(b.size, size) ? 0 : 1, b.contains(ctx.track) ? 0 : 1,
-                    abs(log(Double(b.width / max(b.height, 1)) / aspect)))
+                    // log10 et pas log : ce type a sa propre méthode log (journal), Swift prenait celle-ci (CI du 19/11).
+                    abs(log10(Double(b.width / max(b.height, 1)) / aspect)))
         }
         return snap.fl.filter { Self.clickWindowLayers.contains($0.layer) && $0.number > 0 }
             .sorted { key($0) < key($1) }
