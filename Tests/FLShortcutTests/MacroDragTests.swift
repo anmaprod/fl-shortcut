@@ -48,8 +48,10 @@ final class MacroDragTests: XCTestCase {
     func testPositionsRemovedOnExport() {
         let shared = MacroExchange.sharable([Block(learned)], home: "/Users/x")
         XCTAssertEqual(shared.first?.body, .drag(from: .toLearn, to: .toLearn))
+        // 19/11 (ClickTarget.portable, « chaque clic retrouvé dans le FL d'un autre ordinateur ») : un décalage depuis
+        // la souris ou le dernier clic ne se refait pas sûrement ailleurs : à montrer une fois chez l'autre.
         let relative = BlockBody.drag(from: .lastClick(dx: 10, dy: 0), to: .startCursor(dx: 0, dy: 0))
-        XCTAssertEqual(MacroExchange.sharable([Block(relative)], home: "/Users/x").first?.body, relative)
+        XCTAssertEqual(MacroExchange.sharable([Block(relative)], home: "/Users/x").first?.body, .drag(from: .toLearn, to: .toLearn))
     }
 
     func testDragShownInFL() {
