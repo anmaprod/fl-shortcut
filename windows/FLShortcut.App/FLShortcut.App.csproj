@@ -54,6 +54,8 @@
   <ItemGroup>
     <AssemblyMetadata Include="FLSCommunityURL" Value="$(FLSServerURL)" />
     <AssemblyMetadata Include="FLSCommunityAnonKey" Value="$(FLSServerKey)" />
+    <!-- Version publiée (tag v*, CI : -p:FlsUpdates=release) : elle se met à jour toute seule (AutoUpdateWin). -->
+    <AssemblyMetadata Include="FLSUpdates" Value="$(FlsUpdates)" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.241114003" />

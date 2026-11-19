@@ -795,8 +795,21 @@
 - « Tampon » gratuit : signature stable par un certificat à nous gardé dans les secrets GitHub (jamais dans le dépôt),
   pour que macOS garde les autorisations d'une mise à jour à l'autre. Plus tard, avec les tips : compte Apple
   (99 €/an) → notarisation, plus de « Ouvrir quand même » (build.sh est prêt : SIGN_IDENTITY, NOTARY_*).
-- Aussi : « Nouvelle version disponible » dans l'app, page de téléchargement à jour (`site/index.html` dit encore
-  « n'utilise pas le réseau ») avec guide en images pour « Ouvrir quand même ».
+- Aussi : page de téléchargement à jour (`site/index.html` dit encore « n'utilise pas le réseau ») avec guide en images
+  pour « Ouvrir quand même ». « Nouvelle version disponible » : remplacé par les mises à jour toutes seules (19/11, ci-dessous).
+- **Mises à jour toutes seules** (19/11, « que notre logiciel puisse être corrigé sans que les gens soient obligés de
+  réinstaller » ; choix : « toute seule », publiée seulement quand le propriétaire dit « publie ») : mode d'emploi
+  `docs/mises-a-jour.md`. Au lancement puis toutes les 6 h, `releases/latest/download/mise-a-jour.json` + `.sig`
+  (ECDSA P-256 ; clé publique dans `AutoUpdate.swift` et `AutoUpdate.cs`, essai `SameUpdateKeyAsTheMac` ; clé privée =
+  secret `UPDATE_SIGNING_KEY`, JAMAIS dans le dépôt) ; plus récent, fichier des releases du dépôt seulement, SHA-256,
+  Mac : même certificat (`SecStaticCodeCheckValidity` avec l'exigence de l'app) ; posé quand FL est fermé et aucune
+  fenêtre ouverte, puis relance (Mac : app remplacée ou son Contents, `SingleInstance.relaunchAfterQuit` ; Windows :
+  installeur `/VERYSILENT … /UPDATE=1`, `[Run] … Check: IsUpdate` relance `--tray`). Seulement les versions publiées
+  (Info.plist `FLSUpdates` = release posé par build.sh avec `FLS_VERSION` ; Windows `-p:FlsUpdates=release` sur un tag) :
+  une version d'essai ne se remplace jamais. Mac signé par un certificat stable (secrets `MAC_SELF_CERT_P12`/`_PASSWORD`,
+  CN « FL Shortcuts », `FLS_SELF_SIGN_ID`) : autorisations gardées d'une version à l'autre. Release (tag vX.Y.Z) :
+  `FLShortcuts-mac.zip`, `mise-a-jour.json(.sig)` en plus. « Publie » = tag de la version suivante poussé sur la branche.
+  Les 3 secrets donnés au propriétaire le 19/11 (à coller par lui) ; pas encore de release publiée.
 - **Communauté du 11/11** (« suivre des gens par leur travail… les pages des gens… des notes pour chaque macro »,
   spec `docs/superpowers/specs/2026-11-11-communaute-suivre-design.md`, maquette B · Vitrine) : onglets Pour toi /
   Abonnements (point rouge) / Les plus ajoutées / Les miens, vitrine, page d'une personne (Suivre, abonnés, son travail

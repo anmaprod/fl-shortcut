@@ -77,8 +77,11 @@ jobs:
           FLS_SUPABASE_ANON_KEY: ${{ secrets.FLS_SUPABASE_ANON_KEY }}
         run: |
           $targets = @{ 'x64' = 'x64'; 'arm64' = 'ARM64' }
+          # Version publiée (tag vX.Y.Z) : l'appli connaît sa version et se met à jour toute seule (AutoUpdateWin, 19/11).
+          $extra = @()
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -match '^v(\d+\.\d+\.\d+)$') { $extra = @("-p:Version=$($Matches[1])", '-p:FlsUpdates=release') }
           foreach ($arch in $targets.Keys) {
-            dotnet publish windows/FLShortcut.App -c Release -r "win-$arch" "-p:Platform=$($targets[$arch])" -o "dist/win-$arch"
+            dotnet publish windows/FLShortcut.App -c Release -r "win-$arch" "-p:Platform=$($targets[$arch])" -o "dist/win-$arch" @extra
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
           # Plus de .zip (02/11 : « je mettrai juste le .exe ») : l'installeur seul est téléchargé.
@@ -317,6 +320,10 @@ jobs:
           FLS_SUPABASE_ANON_KEY: ${{ secrets.FLS_SUPABASE_ANON_KEY }}
           # Facultatif : adresse de l'équipe pour la page Aide (variable du dépôt, publique : elle est dans l'app).
           FLS_SUPPORT_EMAIL: ${{ vars.FLS_SUPPORT_EMAIL }}
+          # Certificat stable de FL Shortcuts (19/11, docs/mises-a-jour.md) : même signature à chaque version, macOS garde
+          # les autorisations d'une mise à jour à l'autre. Sans lui : signature ad hoc comme avant.
+          MAC_SELF_CERT_P12: ${{ secrets.MAC_SELF_CERT_P12 }}
+          MAC_SELF_CERT_PASSWORD: ${{ secrets.MAC_SELF_CERT_PASSWORD }}
         run: |
           set -euo pipefail
           if [[ -n "${MAC_CERT_P12:-}" ]]; then
@@ -337,6 +344,22 @@ jobs:
             echo "$NOTARY_KEY_P8" > "$RUNNER_TEMP/notary.p8"
             export NOTARY_KEY="$RUNNER_TEMP/notary.p8"
           fi
+          if [[ -z "${SIGN_IDENTITY:-}" && -n "${MAC_SELF_CERT_P12:-}" ]]; then
+            SKC="$RUNNER_TEMP/fls-self.keychain-db"
+            SKC_PW="$(uuidgen)"
+            security create-keychain -p "$SKC_PW" "$SKC"
+            security set-keychain-settings -lut 3600 "$SKC"
+            security unlock-keychain -p "$SKC_PW" "$SKC"
+            printf '%s' "$MAC_SELF_CERT_P12" | base64 --decode > "$RUNNER_TEMP/self.p12"
+            security import "$RUNNER_TEMP/self.p12" -k "$SKC" -P "$MAC_SELF_CERT_PASSWORD" -T /usr/bin/codesign >/dev/null
+            rm -f "$RUNNER_TEMP/self.p12"
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$SKC_PW" "$SKC" >/dev/null
+            security list-keychains -d user -s "$SKC" $(security list-keychains -d user | tr -d '"')
+            export FLS_SELF_SIGN_KC="$SKC"
+            FLS_SELF_SIGN_ID=$(security find-certificate -c "FL Shortcuts" -Z "$SKC" | awk '/SHA-1 hash/{print $3; exit}')
+            export FLS_SELF_SIGN_ID
+            echo "Certificat stable : $FLS_SELF_SIGN_ID"
+          fi
           if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+) ]]; then
             export FLS_VERSION="${BASH_REMATCH[1]}"
           fi
@@ -348,6 +371,13 @@ jobs:
         with:
           name: FLShortcuts-mac-rapide
           path: dist/FLShortcuts.pkg
+          if-no-files-found: error
+      # Version publiée : l'app en .zip, téléchargée par les apps déjà installées (AutoUpdate.swift, 19/11).
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: FLShortcuts-mac-maj
+          path: dist/FLShortcuts-mac.zip
           if-no-files-found: error
       - name: Textes en anglais (textes de l'app comparés à en.lproj)
         id: anglais
@@ -505,11 +535,40 @@ jobs:
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name FLShortcuts-windows --dir dist
           mv dist/LISEZMOI.html dist/LISEZMOI-Windows.html
           mv dist/README.html dist/README-Windows.html
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name FLShortcuts-mac-maj --dir dist
+      - name: Fichier des mises à jour, signé (AutoUpdate, 19/11)
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${UPDATE_SIGNING_KEY:-}" ]]; then
+            echo "::error::Secret UPDATE_SIGNING_KEY manquant : les apps installées ne verraient pas cette version (docs/mises-a-jour.md)."
+            exit 1
+          fi
+          [[ "$TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]] || { echo "::error::Le tag doit être vX.Y.Z (reçu : $TAG)."; exit 1; }
+          version="${BASH_REMATCH[1]}"
+          base="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG"
+          mac=$(sha256sum dist/FLShortcuts-mac.zip | cut -d' ' -f1)
+          win=$(sha256sum dist/FLShortcuts-Windows-Setup.exe | cut -d' ' -f1)
+          printf '{"version":"%s","mac":{"url":"%s/FLShortcuts-mac.zip","sha256":"%s"},"windows":{"url":"%s/FLShortcuts-Windows-Setup.exe","sha256":"%s"}}' \
+            "$version" "$base" "$mac" "$base" "$win" > dist/mise-a-jour.json
+          umask 077
+          printf '%s\n' "$UPDATE_SIGNING_KEY" > "$RUNNER_TEMP/maj.pem"
+          # La clé du secret doit être celle des apps (clé publique dans AutoUpdate.swift et AutoUpdate.cs).
+          app_key=$(sed -n '/BEGIN PUBLIC KEY/,/END PUBLIC KEY/p' Sources/FLShortcut/AutoUpdate.swift | grep -v -- '-----' | tr -d ' \n')
+          secret_key=$(openssl ec -in "$RUNNER_TEMP/maj.pem" -pubout 2>/dev/null | grep -v -- '-----' | tr -d '\n')
+          [[ -n "$app_key" && "$app_key" == "$secret_key" ]] || { rm -f "$RUNNER_TEMP/maj.pem"; echo "::error::UPDATE_SIGNING_KEY n'est pas la clé des apps."; exit 1; }
+          openssl dgst -sha256 -sign "$RUNNER_TEMP/maj.pem" -out "$RUNNER_TEMP/maj.der" dist/mise-a-jour.json
+          base64 -w0 "$RUNNER_TEMP/maj.der" > dist/mise-a-jour.json.sig
+          rm -f "$RUNNER_TEMP/maj.pem" "$RUNNER_TEMP/maj.der"
+          cat dist/mise-a-jour.json; echo
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
             dist/FLShortcuts.pkg
             dist/FLShortcuts-Windows-Setup.exe
+            dist/FLShortcuts-mac.zip
       - name: Créer la release (outil officiel gh, sans action tierce)
         env:
           GH_TOKEN: ${{ github.token }}
@@ -519,6 +578,6 @@ jobs:
           # et du README pointent toujours vers la dernière version.
           gh release create "$TAG" dist/FLShortcuts.pkg dist/FLShortcuts-Windows-Setup.exe \
             dist/LISEZMOI-Mac.html dist/README-Mac.html dist/LISEZMOI-Windows.html \
-            dist/README-Windows.html \
+            dist/README-Windows.html dist/FLShortcuts-mac.zip dist/mise-a-jour.json dist/mise-a-jour.json.sig \
             --repo "$GITHUB_REPOSITORY" --title "FL Shortcuts $TAG" \
             --notes-file .github/release-notes.md --generate-notes --verify-tag

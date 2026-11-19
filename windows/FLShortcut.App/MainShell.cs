@@ -40,6 +40,7 @@ internal sealed partial class MainShell
     private readonly IntPtr _hwnd;
     private readonly bool _photos;
     private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _poll;
+    private Services.AutoUpdateWin? _updates;
     private bool _quitting;
 
     // Page affichée
@@ -222,7 +223,14 @@ internal sealed partial class MainShell
         root.PreviewKeyDown += OnRootKey;
 
         if (photos) _app.PreparePages();
-        else _app.Start();
+        else
+        {
+            _app.Start();
+            // Mises à jour toutes seules (19/11) : seulement une version publiée ; posées quand FL est fermé et la
+            // fenêtre cachée (comme le Mac).
+            _updates = new Services.AutoUpdateWin(window.DispatcherQueue, Services.FlPresence.IsRunning, () => _window.AppWindow.IsVisible, Quit);
+            _updates.Start();
+        }
         ShowScreen();
         _app.MacroFinished += (ok, text) =>
         {

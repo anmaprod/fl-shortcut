@@ -88,6 +88,8 @@ cp Resources/Info.plist "$APP/Contents/Info.plist"
 # Version de la release (tag vX.Y.Z en CI) : affichée par le Finder et « À propos ».
 if [[ -n "${FLS_VERSION:-}" ]]; then
   plutil -replace CFBundleShortVersionString -string "$FLS_VERSION" "$APP/Contents/Info.plist"
+  # Version publiée (19/11) : elle se met à jour toute seule (AutoUpdate.swift). Jamais une version d'essai.
+  plutil -replace FLSUpdates -string release "$APP/Contents/Info.plist"
 fi
 # Communauté (supabase/README.md) : adresse du projet Supabase et sa clé publique « anon ». Sans elles, la page
 # Communauté affiche « bientôt disponible » et l'app ne se connecte jamais à internet.
@@ -169,6 +171,14 @@ if [[ -n "${SIGN_IDENTITY:-}" ]]; then
   codesign --verify --strict --verbose=2 "$APP"
   codesign --display --verbose=2 "$APP" 2>&1 | grep -q "flags=0x10000(runtime)" \
     || { echo "✗ Hardened Runtime absent" >&2; exit 1; }
+elif [[ -n "${FLS_SELF_SIGN_ID:-}" && -n "${FLS_SELF_SIGN_KC:-}" ]]; then
+  # Certificat stable de la CI (secret MAC_SELF_CERT_P12, 19/11) : toutes les versions ont la même signature, macOS
+  # garde les autorisations (Accessibilité, écran) d'une mise à jour à l'autre, et AutoUpdate n'accepte qu'une
+  # version signée du même certificat.
+  echo "▸ Signature par le certificat stable de FL Shortcuts"
+  codesign --force --keychain "$FLS_SELF_SIGN_KC" --sign "$FLS_SELF_SIGN_ID" "$APP/Contents/MacOS/$EXE"
+  codesign --force --keychain "$FLS_SELF_SIGN_KC" --sign "$FLS_SELF_SIGN_ID" "$APP"
+  codesign --verify --strict --verbose=2 "$APP"
 elif [[ "${FLS_NATIVE:-}" == "1" ]] && dev_identity; then
   # Compilation locale : identité de développement stable. macOS garde alors la permission Accessibilité
   # d'une compilation à l'autre (avec une signature ad hoc, chaque compilation est une « nouvelle » app).
@@ -207,6 +217,10 @@ if [[ -n "${SIGN_IDENTITY:-}" ]]; then
     echo "⚠︎ Pas d'identifiants de notarisation : le .dmg est signé mais pas notarisé."
   fi
 fi
+
+echo "▸ App en .zip pour les mises à jour toutes seules (release : FLShortcuts-mac.zip, AutoUpdate.swift)"
+rm -f dist/FLShortcuts-mac.zip
+ditto -c -k --keepParent "$APP" dist/FLShortcuts-mac.zip
 
 echo "▸ Paquet d'installation (.pkg) : FL Shortcuts dans /Applications, en un double-clic"
 PKG="dist/FLShortcuts.pkg"

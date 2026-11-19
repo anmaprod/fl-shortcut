@@ -98,9 +98,18 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 
 [Run]
 Filename: "{app}\FLShortcut.exe"; Description: "{cm:LaunchNow}"; Flags: nowait postinstall skipifsilent
+; Mise à jour toute seule (AutoUpdateWin, /UPDATE=1) : l'appli revient dans la zone de notification, sans fenêtre.
+Filename: "{app}\FLShortcut.exe"; Parameters: "--tray"; Flags: nowait runasoriginaluser; Check: IsUpdate
 
 [UninstallRun]
 ; Fermer l'appli (zone de notification) avant de retirer ses fichiers, puis ses traces hors de son dossier
 ; (dans cet ordre : l'appli fermée ne réécrit plus ses réglages).
 Filename: "{sys}\taskkill.exe"; Parameters: "/f /im FLShortcut.exe"; Flags: runhidden waituntilterminated; RunOnceId: "StopFLShortcut"
 Filename: "{app}\FLShortcut.exe"; Parameters: "--uninstall-cleanup"; Flags: runhidden waituntilterminated; RunOnceId: "CleanFLShortcut"
+
+[Code]
+// Lancé par l'appli pour une mise à jour toute seule (AutoUpdateWin : /VERYSILENT … /UPDATE=1).
+function IsUpdate: Boolean;
+begin
+  Result := ExpandConstant('{param:UPDATE|0}') = '1';
+end;

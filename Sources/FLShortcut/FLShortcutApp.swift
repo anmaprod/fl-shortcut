@@ -286,6 +286,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         // Sauvegarde en ligne : seulement avec un compte connecté (session au Trousseau), sinon aucune requête.
         MainActor.assumeIsolated { AccountBackup.shared.start() }
+        // Mises à jour toutes seules (19/11) : seulement une version publiée ; posées quand FL est fermé.
+        AutoUpdate.shared.start()
 
         // Accueil (autorisations, puis le guide) : au premier lancement, et de nouveau quand le clavier n'est plus
         // autorisé. Une nouvelle version de l'app est une autre app pour macOS, ses autorisations sont à redonner

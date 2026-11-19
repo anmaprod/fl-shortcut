@@ -1284,3 +1284,13 @@ entrée 1 ≈ 0,5 s.
   choisi », lettres soulignées, « Clique dans FL. », liste des plugins), l'Aide (formulaire, envoi) et l'Organiser
   (attentes, fin, détails). Avertissements raccourcis à leur première moitié (« FL Shortcuts n'a pas accès au
   clavier. », « Touche aussi utilisée par « X ». », « Rien n'utilise ⌘K. »). 74 traductions retirées.
+- 19/11 (« que notre logiciel puisse être corrigé sans que les gens soient obligés de réinstaller l'appli ») : mises à
+  jour toutes seules, Mac et Windows (choix : installée toute seule quand FL est fermé ; une version part chez tout le
+  monde seulement quand le propriétaire dit « publie »). Fichier `mise-a-jour.json` signé (ECDSA P-256) dans chaque
+  release, vérifié par les apps (signature, version, adresse des releases du dépôt, SHA-256, et sur Mac le même
+  certificat). Mac signé par un certificat stable de la CI (autorisations gardées d'une version à l'autre). Les versions
+  d'essai ne se mettent jamais à jour. Les versions d'avant n'ont pas ce système : la première version publiée
+  s'installe une fois à la main. Mode d'emploi `docs/mises-a-jour.md`. Avant, même jour : maquette « Minimal » revue
+  (artefact privé `JjirtBbNz7ychPYyVdoiJC`) : Communauté (cases au nom seul, note et ajouts en grand, demi-étoiles,
+  page Signaler à cases + Autre, Supprimer de mes macros, Abonné comme Suivre, abonnés/partages en grand) et Écrire à
+  l'équipe (sujet en 4 cases, capture facultative, onglet Mes messages, compte obligatoire) ; à valider avant l'app.
