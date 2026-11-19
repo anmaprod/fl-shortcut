@@ -701,7 +701,8 @@ private struct CommunityShareDetail: View {
         }
         do {
             switch share.kind {
-            case .macro: content = .macro(try MacroExchange.prepareImport(data, layout: store.layout))
+            case .macro: content = .macro(try MacroExchange.prepareImport(data, layout: store.layout,
+                                                                         installed: MacroExchange.installedPluginNames))
             case .profile: content = .profile(try store.prepareImport(data))
             }
         } catch {

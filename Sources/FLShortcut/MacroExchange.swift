@@ -57,6 +57,63 @@ enum MacroExchange {
         }
     }
 
+    // MARK: Plugins demandés (19/11 : « si le mec a mis Serum, que ça reconnaisse Serum chez l'autre ») — miroir Windows
+
+    /// Plugin qu'une macro ajoute (Cliquer sur… › Ajouter un instrument, un effet) : son nom et sa sorte.
+    struct WantedPlugin: Equatable {
+        let name: String
+        let effect: Bool
+    }
+
+    private static func wanted(_ body: BlockBody) -> WantedPlugin? {
+        guard case .pageOption(let id?, let name) = body else { return nil }
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, id.hasSuffix(".addInstrument") || id.hasSuffix(".addEffect") else { return nil }
+        return WantedPlugin(name: trimmed, effect: id.hasSuffix(".addEffect"))
+    }
+
+    /// Plugins demandés qui ne sont pas installés ici, comparés comme pour les ouvrir (nom identique, sans la marque ni
+    /// le format, ou contenu l'un dans l'autre ; le dernier élément de « Fruity › Fruity Limiter »). Liste illisible : rien.
+    static func missingPlugins(_ blocks: [Block], installed: (Bool) -> [String]) -> [WantedPlugin] {
+        var out: [WantedPlugin] = []
+        func walk(_ list: [Block]) {
+            for b in list {
+                if let w = wanted(b.body), !out.contains(w) {
+                    let names = installed(w.effect)
+                    let stem = (w.name.components(separatedBy: PageOptions.pathSeparator).last ?? w.name)
+                        .trimmingCharacters(in: .whitespaces)
+                    let normal = TextLook.normalized(stem), key = PluginDrop.looseKey(stem)
+                    if !names.isEmpty, !names.contains(where: { PluginDrop.matchLevel($0, wanted: normal, wantedKey: key) != nil }) {
+                        out.append(w)
+                    }
+                }
+                b.body.children.forEach(walk)
+            }
+        }
+        walk(blocks)
+        return out
+    }
+
+    /// Plugin absent : son nom est retiré du bloc (la macro reste bloquée jusqu'au choix d'un plugin de ce Mac dans le
+    /// créateur), et gardé dans la note du bloc.
+    private static func withoutMissing(_ blocks: [Block], _ missing: [WantedPlugin]) -> [Block] {
+        blocks.map { b in
+            var copy = b
+            if let w = wanted(b.body), missing.contains(w), case .pageOption(let id, _) = b.body {
+                copy.body = .pageOption(id: id, name: "")
+                copy.note = String(localized: "Demandé : \(w.name.displaySafe(max: 60))")
+            } else {
+                copy.body = b.body.replacingChildren(b.body.children.map { withoutMissing($0, missing) })
+            }
+            return copy
+        }
+    }
+
+    /// Noms des plugins installés sur ce Mac (instruments ou effets), lus dans la Plugin database de FL.
+    static func installedPluginNames(effect: Bool) -> [String] {
+        FLPluginDatabase.installed(effect ? .effects : .generators, root: FLPluginDatabase.root()).map(\.name)
+    }
+
     // MARK: Presets joints (19/11 : « le preset part avec la macro ») — miroir de MacroExchange.cs (Windows)
 
     /// Un preset joint : 150 Ko au plus chacun, 180 Ko en tout (le fichier partagé fait 256 Ko au plus).
@@ -239,12 +296,15 @@ enum MacroExchange {
         var sensitiveCount: Int
         /// Presets joints à écrire quand on ajoute la macro (writeAttached).
         var files: [AttachedFile] = []
+        /// Plugins demandés qui ne sont pas installés ici (à choisir dans le créateur).
+        var missing: [WantedPlugin] = []
     }
 
     /// `presets` : dossier des presets joints (Documents › FL Shortcuts › Presets) ; `existing` : contenu d'un fichier déjà
     /// sur ce Mac (nil : absent).
     static func prepareImport(_ data: Data, home: String = NSHomeDirectory(), layout: KeyboardLayout,
-                              presets: String? = nil, existing: (String) -> Data? = readPreset) throws -> Preview {
+                              presets: String? = nil, existing: (String) -> Data? = readPreset,
+                              installed: ((Bool) -> [String])? = nil) throws -> Preview {
         guard data.count <= maxBytes else { throw Failure.tooLarge }
         guard let json = try? JSONDecoder().decode(JSONValue.self, from: data),
               json["format"]?.string == format, let macro = json["macro"], case .object = macro else {
@@ -273,7 +333,9 @@ enum MacroExchange {
         let trimmed = String(cleaned.prefix(MacroValidation.maxNameLength)).trimmingCharacters(in: .whitespaces)
         let name = trimmed.isEmpty ? String(localized: "Macro importée") : trimmed
         // Positions jamais reprises d'un fichier, même fabriqué à la main : chaque clic est à montrer sur ce Mac.
-        let blocks = localized(sharable(MacroTemplates.freshIDs(parsed), home: home), home: home)
+        var blocks = localized(sharable(MacroTemplates.freshIDs(parsed), home: home), home: home)
+        let missing = installed.map { missingPlugins(blocks, installed: $0) } ?? []
+        if !missing.isEmpty { blocks = withoutMissing(blocks, missing) }
         let doc = MacroDoc(name: name, blocks: blocks, variables: Array(variables.prefix(MacroValidation.maxVariables)),
                            origin: .imported)
         var lines: [String] = []
@@ -282,8 +344,14 @@ enum MacroExchange {
         let joined = Set(filePaths(blocks).filter { $0.hasPrefix(presetFolder) })
         describe(blocks, prefix: "", offset: 0, depth: 0, layout: layout, lines: &lines, warnings: &warnings,
                  sensitive: &sensitive, joined: joined)
+        for m in missing {
+            let name = m.name.displaySafe(max: 40)
+            warnings.append(m.effect
+                ? String(localized: "« \(name) » n'est pas installé ici : choisis un autre effet dans la macro.")
+                : String(localized: "« \(name) » n'est pas installé ici : choisis un autre instrument dans la macro."))
+        }
         return Preview(doc: doc, lines: lines, warnings: Array(Set(warnings)).sorted(), sensitiveCount: sensitive,
-                       files: files)
+                       files: files, missing: missing)
     }
 
     /// Chemins « ~/… » rendus absolus dans le dossier personnel de cette machine ; chaque clic reste retrouvable ici

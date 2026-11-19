@@ -735,6 +735,7 @@
 "Demande le lien avec FL (Organiser › Installer le lien)." = "Demande le lien avec FL (Organiser › Installer le lien).";
 "Demande le lien avec FL." = "Demande le lien avec FL.";
 "Demande le script MIDI dans FL (désactivé en mode léger)" = "Demande le script MIDI dans FL (désactivé en mode léger)";
+"Demandé : %@" = "Demandé : %@";
 "Dernier essai" = "Dernier essai";
 "Derniers partages" = "Derniers partages";
 "Dernière sauvegarde : %@." = "Dernière sauvegarde : %@.";
@@ -1214,6 +1215,7 @@
 "Le lien est sur la mauvaise entrée" = "Le lien est sur la mauvaise entrée";
 "Le mail de confirmation n'a pas pu partir. Réessaie plus tard, ou écris à l'équipe depuis la page Aide." = "Le mail de confirmation n'a pas pu partir. Réessaie plus tard, ou écris à l'équipe depuis la page Aide.";
 "Le menu s'ouvre un instant dans FL, le temps de le lire, puis se referme" = "Le menu s'ouvre un instant dans FL, le temps de le lire, puis se referme";
+"Le menu « FL Studio » n'existe que sur Mac : choisis le même élément dans un autre menu de FL." = "Le menu « FL Studio » n'existe que sur Mac : choisis le même élément dans un autre menu de FL.";
 "Le menu ⋯ charge un profil tout prêt, ou importe et exporte tes raccourcis." = "Le menu ⋯ charge un profil tout prêt, ou importe et exporte tes raccourcis.";
 "Le message de la macro dit à quel bloc elle s'est arrêtée. Si FL a changé de taille ou d'écran, remontre l'endroit de ce bloc. Si une fenêtre de FL met du temps à s'ouvrir, ajoute un bloc « Attendre » juste avant." = "Le message de la macro dit à quel bloc elle s'est arrêtée. Si FL a changé de taille ou d'écran, remontre l'endroit de ce bloc. Si une fenêtre de FL met du temps à s'ouvrir, ajoute un bloc « Attendre » juste avant.";
 "Le même compte sert à la Communauté : ajoute des macros toutes faites, partage les tiennes." = "Le même compte sert à la Communauté : ajoute des macros toutes faites, partage les tiennes.";
@@ -2203,6 +2205,7 @@
 "Type" = "Type";
 "Tête de lecture au début" = "Tête de lecture au début";
 "Un bloc caché de l'ancien format est inclus : relis-le dans le créateur avant de t'en servir." = "Un bloc caché de l'ancien format est inclus : relis-le dans le créateur avant de t'en servir.";
+"Un bloc de cette macro n'existe pas encore sur Windows : elle restera bloquée." = "Un bloc de cette macro n'existe pas encore sur Windows : elle restera bloquée.";
 "Un bloc vient d'une version plus récente de FL Shortcuts : la macro ne tournera pas." = "Un bloc vient d'une version plus récente de FL Shortcuts : la macro ne tournera pas.";
 "Un bus par famille" = "Un bus par famille";
 "Un bus par famille dans le Mixer (les 808 avec les drums), chaque son envoyé seulement à son bus" = "Un bus par famille dans le Mixer (les 808 avec les drums), chaque son envoyé seulement à son bus";
@@ -2514,6 +2517,7 @@
 "majuscule" = "majuscule";
 "marqueur posé sans son nom (%@)" = "marqueur posé sans son nom (%@)";
 "menu de piste mal décrit" = "menu de piste mal décrit";
+"menu du Mac" = "menu du Mac";
 "menu introuvable : apprends les positions du menu dans la fiche du raccourci" = "menu introuvable : apprends les positions du menu dans la fiche du raccourci";
 "menu ouvert" = "menu ouvert";
 "message trop long." = "message trop long.";
@@ -2552,6 +2556,7 @@
 "partout" = "partout";
 "pas content" = "pas content";
 "pas de serveur." = "pas de serveur.";
+"pas encore sur Windows" = "pas encore sur Windows";
 "pause hors limites." = "pause hors limites.";
 "piste" = "piste";
 "piste visée" = "piste visée";
@@ -2649,6 +2654,8 @@
 "« %@ » est ton projet « %@ » rangé par l'Organiser." = "« %@ » est ton projet « %@ » rangé par l'Organiser.";
 "« %@ » importée" = "« %@ » importée";
 "« %@ » n'a pas répondu" = "« %@ » n'a pas répondu";
+"« %@ » n'est pas installé ici : choisis un autre effet dans la macro." = "« %@ » n'est pas installé ici : choisis un autre effet dans la macro.";
+"« %@ » n'est pas installé ici : choisis un autre instrument dans la macro." = "« %@ » n'est pas installé ici : choisis un autre instrument dans la macro.";
 "« %@ » réinitialisé" = "« %@ » réinitialisé";
 "« %@ » supprimée" = "« %@ » supprimée";
 "« %@ » — %@%@." = "« %@ » — %@%@.";

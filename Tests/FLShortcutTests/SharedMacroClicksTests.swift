@@ -127,6 +127,25 @@ final class SharedMacroClicksTests: XCTestCase {
         XCTAssertNil(MacroExchange.safePresetName(nil))
     }
 
+    // MARK: Plugin demandé (« si le mec a mis Serum, que ça reconnaisse Serum chez l'autre »)
+
+    func testAMissingPluginIsSaidAndMustBeChosenAgain() throws {
+        let doc = MacroDoc(name: "VST", blocks: [
+            Block(.pageOption(id: "channelRack.addInstrument", name: "Serum")),
+            Block(.pageOption(id: "mixer.addEffect", name: "FabFilter Pro-Q 3")),
+        ])
+        let file = try MacroExchange.export(doc, appVersion: "1.2", home: "/Users/flshortcuts")
+        let preview = try MacroExchange.prepareImport(file, home: "/Users/autre", layout: FakeLayout.qwerty,
+                                                      installed: { $0 ? ["Pro-Q 3 (VST3)"] : ["Vital", "Sytrus"] })
+        XCTAssertEqual(preview.missing, [MacroExchange.WantedPlugin(name: "Serum", effect: false)])
+        XCTAssertTrue(preview.warnings.contains { $0.contains("« Serum » n'est pas installé ici") })
+        guard case .pageOption(_, let serum) = preview.doc.blocks[0].body,
+              case .pageOption(_, let proQ) = preview.doc.blocks[1].body else { return XCTFail("options attendues") }
+        XCTAssertEqual(serum, "")                                               // à choisir : macro bloquée
+        XCTAssertEqual(preview.doc.blocks[0].note, "Demandé : Serum")
+        XCTAssertEqual(proQ, "FabFilter Pro-Q 3")                               // reconnu sous un autre nom
+    }
+
     func testAnImageCanBeResizedBothWays() {
         let image = window(40, 40, buttonAt: 8, 8, scale: 1)
         XCTAssertEqual(image.resized(1.5).width, 60)

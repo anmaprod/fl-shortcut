@@ -44,6 +44,50 @@ public static class MacroExchange
         return new Block(body, b.Enabled, b.OnFailure, b.Note, b.Id);
     }).ToList();
 
+    // ---------- Plugins demandés (19/11 : « si le mec a mis Serum, que ça reconnaisse Serum chez l'autre ») ----------
+
+    /// Plugin qu'une macro ajoute (Cliquer sur… › Ajouter un instrument, un effet) : son nom et sa sorte.
+    public sealed record WantedPlugin(string Name, bool Effect);
+
+    private static WantedPlugin? Wanted(BlockBody body) => body is BlockBody.PageOption { Option: { } id, Name: var name }
+        && name.Trim().Length > 0 && (id.EndsWith(".addInstrument", StringComparison.Ordinal) || id.EndsWith(".addEffect", StringComparison.Ordinal))
+        ? new WantedPlugin(name.Trim(), id.EndsWith(".addEffect", StringComparison.Ordinal)) : null;
+
+    /// Plugins demandés qui ne sont pas installés ici, comparés comme pour les ouvrir (nom identique, sans la marque ni le
+    /// format, ou contenu l'un dans l'autre ; le dernier élément de « Fruity › Fruity Limiter »). Liste illisible : rien.
+    public static List<WantedPlugin> MissingPlugins(IEnumerable<Block> blocks, Func<bool, IReadOnlyList<string>> installed)
+    {
+        var output = new List<WantedPlugin>();
+        void Walk(IEnumerable<Block> list)
+        {
+            foreach (var b in list)
+            {
+                if (Wanted(b.Body) is { } w && output.All(o => o != w))
+                {
+                    var names = installed(w.Effect);
+                    var stem = w.Name.Split(PageOptions.PathSeparator).Last().Trim();
+                    var wanted = MenuText.Normalized(stem);
+                    var key = PluginDrop.LooseKey(stem);
+                    if (names.Count > 0 && !names.Any(n => PluginDrop.MatchLevel(n, wanted, key) is not null)) output.Add(w);
+                }
+                foreach (var child in b.Body.Children) Walk(child);
+            }
+        }
+        Walk(blocks);
+        return output;
+    }
+
+    /// Plugin absent : son nom est retiré du bloc (la macro reste bloquée jusqu'au choix d'un plugin de ce PC dans le
+    /// créateur), et gardé dans la note du bloc.
+    private static List<Block> WithoutMissing(IEnumerable<Block> blocks, IReadOnlyCollection<WantedPlugin> missing) => blocks.Select(b =>
+    {
+        if (Wanted(b.Body) is { } w && missing.Contains(w))
+            return new Block(((BlockBody.PageOption)b.Body) with { Name = "" }, b.Enabled, b.OnFailure,
+                Loc.F("Demandé : %@", DisplayText.Safe(w.Name, 60)), b.Id);
+        var body = b.Body.ReplacingChildren(b.Body.Children.Select(list => WithoutMissing(list, missing)).ToList());
+        return new Block(body, b.Enabled, b.OnFailure, b.Note, b.Id);
+    }).ToList();
+
     // ---------- Presets joints (19/11 : « le preset part avec la macro ») ----------
 
     /// Un preset joint : 150 Ko au plus chacun, 180 Ko en tout (le fichier partagé fait 256 Ko au plus).
@@ -210,11 +254,13 @@ public static class MacroExchange
     /// qu'il faudra faire avant de s'en servir, et le nombre de blocs à relire.
     /// Files : presets joints à écrire quand on ajoute la macro (WriteAttached).
     public sealed record Preview(MacroDoc Doc, List<string> Lines, List<string> Warnings, int SensitiveCount,
-        IReadOnlyList<AttachedFile>? Files = null);
+        IReadOnlyList<AttachedFile>? Files = null, IReadOnlyList<WantedPlugin>? Missing = null);
 
     /// `presets` : dossier des presets joints (Documents › FL Shortcuts › Presets) ; `existing` : contenu d'un fichier
     /// déjà sur ce PC (null : absent).
-    public static Preview PrepareImport(byte[] data, string home, string? presets = null, Func<string, byte[]?>? existing = null)
+    /// `installed` : noms des plugins installés ici (instruments, effets) ; null : pas vérifié.
+    public static Preview PrepareImport(byte[] data, string home, string? presets = null, Func<string, byte[]?>? existing = null,
+        Func<bool, IReadOnlyList<string>>? installed = null)
     {
         if (data.Length > MaxBytes) throw ImportFailure.TooLarge;
         JsonObject root;
@@ -239,6 +285,8 @@ public static class MacroExchange
         if (name.Length == 0) name = Loc.T("Macro importée");
         // Positions jamais reprises d'un fichier, même fabriqué à la main : chaque clic est à montrer sur ce PC.
         var blocks = Localized(Sharable(MacroTemplates.FreshIds(parsed), home), home);
+        var missing = installed is null ? new List<WantedPlugin>() : MissingPlugins(blocks, installed);
+        if (missing.Count > 0) blocks = WithoutMissing(blocks, missing);
         var doc = new MacroDoc { Name = name, Blocks = blocks, Variables = variables, Origin = MacroOrigin.Imported };
         var lines = new List<string>();
         var warnings = new SortedSet<string>(StringComparer.Ordinal);
@@ -246,7 +294,10 @@ public static class MacroExchange
         var joined = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         CollectFilePaths(blocks, joined, presetFolder);
         Describe(blocks, "", 0, 0, lines, warnings, ref sensitive, joined);
-        return new Preview(doc, lines, warnings.ToList(), sensitive, files);
+        foreach (var m in missing)
+            warnings.Add(Loc.F(m.Effect ? "« %@ » n'est pas installé ici : choisis un autre effet dans la macro."
+                                        : "« %@ » n'est pas installé ici : choisis un autre instrument dans la macro.", DisplayText.Safe(m.Name, 40)));
+        return new Preview(doc, lines, warnings.ToList(), sensitive, files, missing);
     }
 
     /// Chemins « ~/… » rendus à ce PC ; chaque clic et chaque glisser reste retrouvable ici (ClickTarget.Portable, même pour
@@ -325,6 +376,17 @@ public static class MacroExchange
                         break;
                 }
                 if (BlockRegistry.Needs(b.Body).HasFlag(BlockNeeds.MidiLink)) marks.Add(Loc.T("lien avec FL"));
+                // Macro faite sur un Mac (19/11) : ce qui n'existe pas ici est dit avant l'ajout, jamais découvert au rejeu.
+                if (MacroEffectsWindows.Unsupported(b.Body) is not null)
+                {
+                    marks.Add(Loc.T("pas encore sur Windows"));
+                    warnings.Add(Loc.T("Un bloc de cette macro n'existe pas encore sur Windows : elle restera bloquée."));
+                }
+                if (b.Body is BlockBody.MenuBar { Titles.Count: > 0 } menu && menu.Titles[0].Trim().Equals("FL Studio", StringComparison.OrdinalIgnoreCase))
+                {
+                    marks.Add(Loc.T("menu du Mac"));
+                    warnings.Add(Loc.T("Le menu « FL Studio » n'existe que sur Mac : choisis le même élément dans un autre menu de FL."));
+                }
                 if (!spec.InPalette && type != BlockType.MenuBar)        // « Menu de FL » : créé par l'enregistreur
                 {
                     marks.Add(Loc.T("ancien bloc caché"));

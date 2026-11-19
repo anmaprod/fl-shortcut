@@ -453,7 +453,8 @@ internal sealed partial class CommunityPage
             }
             if (share.IsMacro)
             {
-                var preview = MacroExchange.PrepareImport(payload, Home, MacrosPage.PresetsFolder);
+                var preview = MacroExchange.PrepareImport(payload, Home, MacrosPage.PresetsFolder,
+                    installed: effect => PluginDatabase.Installed(_app.PluginRoots, effect).Select(p => p.Name).ToList());
                 if (_opened?.Id == share.Id) _preview = preview;
             }
             else

@@ -735,6 +735,7 @@
 "Demande le lien avec FL (Organiser › Installer le lien)." = "Needs the FL link (Organize › Install the link).";
 "Demande le lien avec FL." = "Needs the FL link.";
 "Demande le script MIDI dans FL (désactivé en mode léger)" = "Needs the MIDI script in FL (off in light mode)";
+"Demandé : %@" = "Requested: %@";
 "Dernier essai" = "Last test";
 "Derniers partages" = "Latest posts";
 "Dernière sauvegarde : %@." = "Last backup: %@.";
@@ -1214,6 +1215,7 @@
 "Le lien est sur la mauvaise entrée" = "The link is on the wrong input";
 "Le mail de confirmation n'a pas pu partir. Réessaie plus tard, ou écris à l'équipe depuis la page Aide." = "The confirmation email couldn't be sent. Try again later, or write to the team from the Help page.";
 "Le menu s'ouvre un instant dans FL, le temps de le lire, puis se referme" = "The menu opens briefly in FL to be read, then closes";
+"Le menu « FL Studio » n'existe que sur Mac : choisis le même élément dans un autre menu de FL." = "The “FL Studio” menu only exists on Mac: choose the same item in another FL menu.";
 "Le menu ⋯ charge un profil tout prêt, ou importe et exporte tes raccourcis." = "The ⋯ menu loads a ready-made profile, or imports and exports your shortcuts.";
 "Le message de la macro dit à quel bloc elle s'est arrêtée. Si FL a changé de taille ou d'écran, remontre l'endroit de ce bloc. Si une fenêtre de FL met du temps à s'ouvrir, ajoute un bloc « Attendre » juste avant." = "The macro's message says which block it stopped at. If FL changed size or screen, show that block's spot again. If an FL window takes a while to open, add a “Wait” block just before.";
 "Le même compte sert à la Communauté : ajoute des macros toutes faites, partage les tiennes." = "The same account works for the Community: add ready-made macros, share your own.";
@@ -2203,6 +2205,7 @@
 "Type" = "Type";
 "Tête de lecture au début" = "Playhead to start";
 "Un bloc caché de l'ancien format est inclus : relis-le dans le créateur avant de t'en servir." = "A hidden block in the old format is included: review it in the creator before using it.";
+"Un bloc de cette macro n'existe pas encore sur Windows : elle restera bloquée." = "A block of this macro doesn't exist on Windows yet: it will stay blocked.";
 "Un bloc vient d'une version plus récente de FL Shortcuts : la macro ne tournera pas." = "A block comes from a newer version of FL Shortcuts: the macro won't run.";
 "Un bus par famille" = "One bus per family";
 "Un bus par famille dans le Mixer (les 808 avec les drums), chaque son envoyé seulement à son bus" = "One bus per family in the Mixer (808s with the drums), each sound sent only to its bus";
@@ -2514,6 +2517,7 @@
 "majuscule" = "shift";
 "marqueur posé sans son nom (%@)" = "marker added without its name (%@)";
 "menu de piste mal décrit" = "track menu not described correctly";
+"menu du Mac" = "Mac menu";
 "menu introuvable : apprends les positions du menu dans la fiche du raccourci" = "menu not found: learn the menu positions in the shortcut's details";
 "menu ouvert" = "open menu";
 "message trop long." = "message too long.";
@@ -2552,6 +2556,7 @@
 "partout" = "everywhere";
 "pas content" = "not happy";
 "pas de serveur." = "no server.";
+"pas encore sur Windows" = "not on Windows yet";
 "pause hors limites." = "pause out of range.";
 "piste" = "track";
 "piste visée" = "target track";
@@ -2649,6 +2654,8 @@
 "« %@ » est ton projet « %@ » rangé par l'Organiser." = "“%@” is your project “%@” tidied up by Organize.";
 "« %@ » importée" = "“%@” imported";
 "« %@ » n'a pas répondu" = "“%@” didn't respond";
+"« %@ » n'est pas installé ici : choisis un autre effet dans la macro." = "“%@” isn't installed here: choose another effect in the macro.";
+"« %@ » n'est pas installé ici : choisis un autre instrument dans la macro." = "“%@” isn't installed here: choose another instrument in the macro.";
 "« %@ » réinitialisé" = "“%@” reset";
 "« %@ » supprimée" = "“%@” deleted";
 "« %@ » — %@%@." = "“%@” — %@%@.";

@@ -514,7 +514,8 @@ internal sealed class MacrosPage
         try
         {
             if (new FileInfo(path).Length > MacroExchange.MaxBytes) throw MacroExchange.ImportFailure.TooLarge;
-            preview = MacroExchange.PrepareImport(File.ReadAllBytes(path), Home, PresetsFolder);
+            preview = MacroExchange.PrepareImport(File.ReadAllBytes(path), Home, PresetsFolder,
+                installed: effect => PluginDatabase.Installed(_app.PluginRoots, effect).Select(p => p.Name).ToList());
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or MacroExchange.ImportFailure or FormatException)
         {

@@ -428,7 +428,8 @@ enum MacroFileActions {
             do {
                 let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
                 guard size <= MacroExchange.maxBytes else { throw MacroExchange.Failure.tooLarge }
-                let preview = try MacroExchange.prepareImport(try Data(contentsOf: url), layout: layout)
+                let preview = try MacroExchange.prepareImport(try Data(contentsOf: url), layout: layout,
+                                                              installed: MacroExchange.installedPluginNames)
                 guard confirmImport(preview) else { continue }
                 // Presets joints : rangés dans Documents › FL Shortcuts › Presets (jamais par-dessus un autre fichier).
                 if let why = MacroExchange.writeAttached(preview.files) { Dialogs.inform(String(localized: "Preset"), why) }

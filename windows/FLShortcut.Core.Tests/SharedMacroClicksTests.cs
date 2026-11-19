@@ -215,6 +215,49 @@ public sealed class SharedMacroClicksTests
         finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
     }
 
+    // ---------- Plugin demandé, blocs propres au Mac ----------
+
+    [Fact]
+    public void AMissingPluginIsSaidAndMustBeChosenAgain()
+    {
+        var doc = new MacroDoc
+        {
+            Name = "VST",
+            Blocks = new List<Block>
+            {
+                new(new BlockBody.PageOption("channelRack.addInstrument", "Serum")),
+                new(new BlockBody.PageOption("mixer.addEffect", "FabFilter Pro-Q 3")),
+            },
+        };
+        var file = MacroExchange.Export(doc, "0.2.0", Home);
+        IReadOnlyList<string> Here(bool effect) => effect ? new[] { "Pro-Q 3 (VST3)" } : new[] { "Vital", "Sytrus" };
+        var preview = MacroExchange.PrepareImport(file, @"C:\Users\autre", installed: Here);
+        var missing = Assert.Single(preview.Missing!);
+        Assert.Equal(new MacroExchange.WantedPlugin("Serum", false), missing);          // Pro-Q 3 reconnu sous un autre nom
+        Assert.Contains(preview.Warnings, w => w.Contains("« Serum » n'est pas installé ici"));
+        var serum = Assert.IsType<BlockBody.PageOption>(preview.Doc.Blocks[0].Body);
+        Assert.Equal("", serum.Name);                                                   // à choisir : macro bloquée
+        Assert.Equal("Demandé : Serum", preview.Doc.Blocks[0].Note);
+        Assert.Equal("FabFilter Pro-Q 3", ((BlockBody.PageOption)preview.Doc.Blocks[1].Body).Name);
+        // Liste des plugins illisible ici : rien n'est dit ni retiré.
+        Assert.Empty(MacroExchange.PrepareImport(file, @"C:\Users\autre", installed: _ => Array.Empty<string>()).Missing!);
+    }
+
+    [Fact]
+    public void WhatTheMacDoesButWindowsDoesNotIsSaidBeforeAdding()
+    {
+        var doc = new MacroDoc
+        {
+            Name = "Mac",
+            Blocks = new List<Block> { new(new BlockBody.SoundCard()), new(new BlockBody.MenuBar(new[] { "FL Studio", "Settings…" })) },
+        };
+        var preview = MacroExchange.PrepareImport(MacroExchange.Export(doc, "0.2.0", Home), @"C:\Users\autre");
+        Assert.Contains("pas encore sur Windows", preview.Lines[0]);
+        Assert.Contains("menu du Mac", preview.Lines[1]);
+        Assert.Contains(preview.Warnings, w => w.Contains("n'existe pas encore sur Windows"));
+        Assert.Contains(preview.Warnings, w => w.Contains("« FL Studio » n'existe que sur Mac"));
+    }
+
     [Fact]
     public void AnImageCanBeResizedBothWays()
     {
