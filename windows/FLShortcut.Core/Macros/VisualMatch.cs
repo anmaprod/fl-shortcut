@@ -61,6 +61,31 @@ public sealed class GrayImage
         return new GrayImage(w, h, output);
     }
 
+    /// Agrandie ou réduite (interpolation bilinéaire) : `scale` 1,5 → 1,5 fois plus grande. Au moins 1 × 1.
+    public GrayImage Resized(double scale)
+    {
+        var w = Math.Max(1, (int)Math.Round(Width * scale));
+        var h = Math.Max(1, (int)Math.Round(Height * scale));
+        if (w == Width && h == Height) return this;
+        var output = new byte[w * h];
+        for (var y = 0; y < h; y++)
+        {
+            var fy = Math.Clamp((y + 0.5) * Height / h - 0.5, 0, Height - 1);
+            int y0 = (int)fy, y1 = Math.Min(y0 + 1, Height - 1);
+            var ty = fy - y0;
+            for (var x = 0; x < w; x++)
+            {
+                var fx = Math.Clamp((x + 0.5) * Width / w - 0.5, 0, Width - 1);
+                int x0 = (int)fx, x1 = Math.Min(x0 + 1, Width - 1);
+                var tx = fx - x0;
+                var top = this[x0, y0] * (1 - tx) + this[x1, y0] * tx;
+                var bottom = this[x0, y1] * (1 - tx) + this[x1, y1] * tx;
+                output[y * w + x] = (byte)Math.Round(top * (1 - ty) + bottom * ty);
+            }
+        }
+        return new GrayImage(w, h, output);
+    }
+
     /// Écart type des niveaux : une image presque unie (fond vide) ne se reconnaît pas.
     public double Contrast
     {
@@ -129,6 +154,29 @@ public static class VisualMatch
         return best.Where(h => h.Score >= max - 0.03)
             .OrderBy(h => (long)(h.X - hintX) * (h.X - hintX) + (long)(h.Y - hintY) * (h.Y - hintY))
             .First();
+    }
+
+    /// Échelles essayées pour un bouton venu d'un autre ordinateur : écran Retina (2), Windows à 125, 150, 175 %, et
+    /// l'inverse ; `likely` (rapport des tailles de fenêtre) d'abord.
+    public static readonly double[] CommonScales = { 1, 1.25, 1.5, 1.75, 2, 0.8, 2.0 / 3, 0.5 };
+
+    /// Comme Find, mais le bouton peut être dessiné plus grand ou plus petit (autre écran, autre réglage d'échelle) : le
+    /// meilleur score de toutes les échelles (au moins Threshold), et l'échelle trouvée.
+    public static (Hit Hit, double Scale)? FindAnyScale(GrayImage patch, GrayImage image, int hintX, int hintY, params double[] likely)
+    {
+        (Hit Hit, double Scale)? best = null;
+        var tried = new List<double>();
+        foreach (var scale in likely.Concat(CommonScales))
+        {
+            if (!double.IsFinite(scale) || scale < 0.3 || scale > 3.5 || tried.Any(t => Math.Abs(t - scale) < 0.04)) continue;
+            tried.Add(scale);
+            var sized = patch.Resized(scale);
+            if (sized.Width < 8 || sized.Width > image.Width || sized.Height > image.Height) continue;
+            if (Find(sized, image, hintX, hintY) is not { } hit) continue;
+            if (best is null || hit.Score > best.Value.Hit.Score + 0.005) best = (hit, scale);
+            if (hit.Score >= 0.95) break;
+        }
+        return best;
     }
 
     /// Corrélation normalisée du motif à chaque place (coin haut gauche) de [xa, xb] × [ya, yb].

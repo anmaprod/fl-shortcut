@@ -909,7 +909,10 @@ public readonly record struct Size2(double Width, double Height)
 }
 
 /// Bouton retrouvé à son nom (« FILE », « Insert 1 ») : le texte lu, où tombait le clic par rapport à lui, et sa place.
-public sealed record NamedSpot(string Label, double Dx, double Dy, Corner Corner, double Px, double Py, Size2 Size, string? Title = null)
+/// Loose : venu d'une macro partagée (autre ordinateur) : cherché par son nom dans n'importe quelle fenêtre de FL, sa place
+/// seulement dans une fenêtre de la même taille.
+public sealed record NamedSpot(string Label, double Dx, double Dy, Corner Corner, double Px, double Py, Size2 Size, string? Title = null,
+    bool Loose = false)
 {
     public ClickTarget Place => new ClickTarget.FlWindowPoint(Corner, Px, Py, Size, Title);
 
@@ -925,7 +928,9 @@ public sealed record NamedSpot(string Label, double Dx, double Dy, Corner Corner
 }
 
 /// Bouton retrouvé à son image : sa place et son image (niveaux de gris, carré de `Side` points).
-public sealed record VisualSpot(Corner Corner, double Dx, double Dy, Size2 Size, string? Title, int Side, byte[] Pixels)
+/// Loose : venu d'une macro partagée : cherché à son image dans toutes les fenêtres de FL, à toutes les échelles (écran
+/// Retina, Windows à 125 ou 150 %), jamais à sa place à l'aveugle.
+public sealed record VisualSpot(Corner Corner, double Dx, double Dy, Size2 Size, string? Title, int Side, byte[] Pixels, bool Loose = false)
 {
     public const int MinSide = 12, MaxSide = 64, DefaultSide = 26;
 
@@ -941,9 +946,33 @@ public sealed record VisualSpot(Corner Corner, double Dx, double Dy, Size2 Size,
 
     public bool Equals(VisualSpot? other) =>
         other is not null && Corner == other.Corner && Dx == other.Dx && Dy == other.Dy && Size == other.Size && Title == other.Title
-        && Side == other.Side && Pixels.AsSpan().SequenceEqual(other.Pixels);
+        && Side == other.Side && Pixels.AsSpan().SequenceEqual(other.Pixels) && Loose == other.Loose;
 
-    public override int GetHashCode() => HashCode.Combine(Corner, Dx, Dy, Size, Title, Side, Pixels.Length);
+    public override int GetHashCode() => HashCode.Combine(Corner, Dx, Dy, Size, Title, Side, Pixels.Length, Loose);
+}
+
+/// Image du bouton sous un clic montré (retenue avec sa place, sans rien changer au clic sur cet ordinateur) : c'est elle
+/// qui permet de retrouver ce bouton dans le FL d'un autre ordinateur quand la macro est partagée.
+public sealed record ButtonLook(int Side, byte[] Pixels)
+{
+    public bool IsValid => Side >= VisualSpot.MinSide && Side <= VisualSpot.MaxSide && Pixels.Length == Side * Side;
+
+    public bool Equals(ButtonLook? other) => other is not null && Side == other.Side && Pixels.AsSpan().SequenceEqual(other.Pixels);
+
+    public override int GetHashCode() => HashCode.Combine(Side, Pixels.Length);
+
+    public static ButtonLook? FromJson(JsonNode? json)
+    {
+        if (J.Obj(json) is not { } o || J.Int(o["side"]) is not { } side || J.Str(o["pixels"]) is not { } encoded) return null;
+        try
+        {
+            var look = new ButtonLook(side, Convert.FromBase64String(encoded));
+            return look.IsValid ? look : null;
+        }
+        catch (FormatException) { return null; }
+    }
+
+    public JsonObject ToJson() => new() { ["side"] = Side, ["pixels"] = Convert.ToBase64String(Pixels) };
 }
 
 /// Un clic dans un menu que FL a ouvert, relatif au coin haut-gauche de ce menu (indépendant de l'endroit où FL l'a placé).
@@ -961,7 +990,10 @@ public abstract record ClickTarget
 {
     /// Coin d'une fenêtre de FL. Taille retenue : la fenêtre de cette taille ; sans taille : celle sous le curseur au
     /// démarrage. Titre : fenêtre d'un plugin, reconnue à son nom parmi plusieurs de la même taille.
-    public sealed record FlWindowPoint(Corner Corner, double Dx, double Dy, Size2? Size, string? Title = null) : ClickTarget;
+    /// Look : image du bouton sous le clic (pour le partage). Loose : venu d'une macro partagée, fenêtre d'un plugin (titre)
+    /// de taille différente : point à la même proportion de la fenêtre.
+    public sealed record FlWindowPoint(Corner Corner, double Dx, double Dy, Size2? Size, string? Title = null, ButtonLook? Look = null,
+        bool Loose = false) : ClickTarget;
     /// Relatif au dernier menu de FL ouvert.
     public sealed record OpenMenu(PopupHop Hop) : ClickTarget;
     /// Bouton de FL qui peut bouger, cherché à son image au moment du clic.
@@ -989,7 +1021,8 @@ public abstract record ClickTarget
             return this switch
             {
                 FlWindowPoint w => Ok(w.Dx) && Ok(w.Dy) && (w.Size is not { } s || s.IsPlausible)
-                                   && (w.Title is null || (w.Title.Length > 0 && w.Title.Length <= MaxTitle && w.Size is not null)),
+                                   && (w.Title is null || (w.Title.Length > 0 && w.Title.Length <= MaxTitle && w.Size is not null))
+                                   && (w.Look is null || w.Look.IsValid) && (!w.Loose || (w.Size is not null && w.Title is not null)),
                 OpenMenu m => Ok(m.Hop.OffsetX) && Ok(m.Hop.OffsetY) && m.Hop.Size.Width >= 16 && m.Hop.Size.Width <= 2000
                               && m.Hop.Size.Height >= 16 && m.Hop.Size.Height <= 4000,
                 Button b => b.Spot.IsValid,
@@ -1008,6 +1041,22 @@ public abstract record ClickTarget
 
     /// Relatif à la piste visée (la macro demande une piste cliquée avant le raccourci).
     public bool IsTrack => this is Track;
+
+    /// Venu d'une macro partagée, retrouvé par son nom, son image ou sa fenêtre de plugin (pas à montrer de nouveau).
+    public bool IsLoose => this is Named { Spot.Loose: true } or Button { Spot.Loose: true } or FlWindowPoint { Loose: true };
+
+    /// Ce qu'une macro partagée garde d'un clic pour le refaire dans le FL d'un autre ordinateur (Mac ou PC) : un bouton par
+    /// son nom, un bouton par son image (montrée ou retenue avec sa place), un point d'une fenêtre de plugin (titre) en
+    /// proportion. Le reste (endroit d'une fenêtre de FL, décalage depuis la souris ou la piste, menu) : à montrer une fois.
+    public ClickTarget Portable() => this switch
+    {
+        Named n => new Named(n.Spot with { Loose = true }),
+        Button b => new Button(b.Spot with { Loose = true }),
+        FlWindowPoint { Look: { } look, Size: { } size } w
+            when new VisualSpot(w.Corner, w.Dx, w.Dy, size, w.Title, look.Side, look.Pixels, true) is { IsValid: true } spot => new Button(spot),
+        FlWindowPoint { Title: not null, Size: not null } w => w with { Look = null, Loose = true },
+        _ => new ToLearn(),
+    };
 
     public static ClickTarget? FromJson(JsonNode? json)
     {
@@ -1028,7 +1077,9 @@ public abstract record ClickTarget
                 var size = Size2.FromJson(o["size"]);
                 if (o["size"] is not null && size is null) return null;
                 if (!OptionalTitle(out var title)) return null;
-                return new FlWindowPoint(corner, dx, dy, size, title);
+                var look = o["look"] is null ? null : ButtonLook.FromJson(o["look"]);
+                if (o["look"] is not null && look is null) return null;
+                return new FlWindowPoint(corner, dx, dy, size, title, look, J.Bool(o["loose"]) == true);
             }
             case "openMenu":
                 return Size2.FromJson(o["offset"]) is { } offset && Size2.FromJson(o["size"]) is { } menuSize
@@ -1041,7 +1092,7 @@ public abstract record ClickTarget
                 byte[] pixels;
                 try { pixels = Convert.FromBase64String(encoded); }
                 catch (FormatException) { return null; }
-                var spot = new VisualSpot(corner, dx, dy, s, title, side, pixels);
+                var spot = new VisualSpot(corner, dx, dy, s, title, side, pixels, J.Bool(o["loose"]) == true);
                 return spot.IsValid ? new Button(spot) : null;
             }
             case "named":
@@ -1049,7 +1100,7 @@ public abstract record ClickTarget
                 if (J.Str(o["label"]) is not { } label || Corners.FromRaw(J.Str(o["corner"])) is not { } corner
                     || Size2.FromJson(o["size"]) is not { } s || J.Num(o["px"]) is not { } px || J.Num(o["py"]) is not { } py
                     || !OptionalTitle(out var title)) return null;
-                var spot = new NamedSpot(label, dx, dy, corner, px, py, s, title);
+                var spot = new NamedSpot(label, dx, dy, corner, px, py, s, title, J.Bool(o["loose"]) == true);
                 return spot.IsValid ? new Named(spot) : null;
             }
             case "track": return new Track(dx, dy);
@@ -1071,6 +1122,8 @@ public abstract record ClickTarget
                 var o = new JsonObject { ["anchor"] = "flWindow", ["corner"] = w.Corner.Raw(), ["dx"] = J.Number(w.Dx), ["dy"] = J.Number(w.Dy) };
                 if (w.Size is { } size) o["size"] = size.ToJson();
                 if (w.Title is not null) o["title"] = w.Title;
+                if (w.Look is { } look) o["look"] = look.ToJson();
+                if (w.Loose) o["loose"] = true;
                 return o;
             }
             case OpenMenu m:
@@ -1087,6 +1140,7 @@ public abstract record ClickTarget
                     ["size"] = b.Spot.Size.ToJson(), ["side"] = b.Spot.Side, ["pixels"] = Convert.ToBase64String(b.Spot.Pixels),
                 };
                 if (b.Spot.Title is not null) o["title"] = b.Spot.Title;
+                if (b.Spot.Loose) o["loose"] = true;
                 return o;
             }
             case Named n:
@@ -1097,6 +1151,7 @@ public abstract record ClickTarget
                     ["corner"] = n.Spot.Corner.Raw(), ["px"] = J.Number(n.Spot.Px), ["py"] = J.Number(n.Spot.Py), ["size"] = n.Spot.Size.ToJson(),
                 };
                 if (n.Spot.Title is not null) o["title"] = n.Spot.Title;
+                if (n.Spot.Loose) o["loose"] = true;
                 return o;
             }
             case Track t: return Offset("track", t.Dx, t.Dy);

@@ -27,14 +27,15 @@ public static class MacroExchange
 
     // ---------- Export ----------
 
-    /// Copie à partager : positions apprises retirées, chemins relatifs au dossier personnel.
+    /// Copie à partager : chaque clic gardé sous une forme qui se retrouve dans le FL d'un autre ordinateur (bouton par son
+    /// nom ou son image, point d'une fenêtre de plugin en proportion : ClickTarget.Portable), le reste à montrer une fois ;
+    /// chemins relatifs au dossier personnel.
     public static List<Block> Sharable(IEnumerable<Block> blocks, string home) => blocks.Select(b =>
     {
         BlockBody body = b.Body switch
         {
-            BlockBody.Click c when c.Target.IsLearnedPosition => c with { Target = new ClickTarget.ToLearn() },
-            BlockBody.Drag d when d.From.IsLearnedPosition || d.To.IsLearnedPosition =>
-                new BlockBody.Drag(new ClickTarget.ToLearn(), new ClickTarget.ToLearn()),
+            BlockBody.Click c => c with { Target = c.Target.Portable() },
+            BlockBody.Drag d => new BlockBody.Drag(d.From.Portable(), d.To.Portable()),
             BlockBody.MenuAX m => m with { Fallback = Array.Empty<ClickTarget>() },
             BlockBody.ChooseFile f => new BlockBody.ChooseFile(Relative(f.Path, home)),
             BlockBody.DropFile f => new BlockBody.DropFile(Relative(f.Path, home)),
@@ -116,15 +117,16 @@ public static class MacroExchange
         return new Preview(doc, lines, warnings.ToList(), sensitive);
     }
 
-    /// Chemins « ~/… » rendus à ce PC ; chaque clic et chaque glisser, quel que soit son repère, est à montrer de nouveau.
+    /// Chemins « ~/… » rendus à ce PC ; chaque clic et chaque glisser reste retrouvable ici (ClickTarget.Portable, même pour
+    /// un fichier fait à la main), sinon à montrer de nouveau.
     private static List<Block> Localized(IEnumerable<Block> blocks, string home) => blocks.Select(b =>
     {
         BlockBody body = b.Body switch
         {
             BlockBody.ChooseFile f => new BlockBody.ChooseFile(Absolute(f.Path, home)),
             BlockBody.DropFile f => new BlockBody.DropFile(Absolute(f.Path, home)),
-            BlockBody.Click c => c with { Target = new ClickTarget.ToLearn() },
-            BlockBody.Drag => new BlockBody.Drag(new ClickTarget.ToLearn(), new ClickTarget.ToLearn()),
+            BlockBody.Click c => c with { Target = c.Target.Portable() },
+            BlockBody.Drag d => new BlockBody.Drag(d.From.Portable(), d.To.Portable()),
             var other => other.ReplacingChildren(other.Children.Select(list => Localized(list, home)).ToList()),
         };
         return new Block(body, b.Enabled, b.OnFailure, b.Note, b.Id);
@@ -150,6 +152,15 @@ public static class MacroExchange
                     case BlockBody.Click { Target: ClickTarget.ToLearn }:
                         marks.Add(Loc.T("clic : position à montrer dans FL"));
                         warnings.Add(Loc.T("Remontre chaque clic dans FL."));
+                        break;
+                    case BlockBody.Click { Target: ClickTarget.Named }:
+                        marks.Add(Loc.T("clic : bouton retrouvé par son nom"));
+                        break;
+                    case BlockBody.Click { Target: ClickTarget.Button }:
+                        marks.Add(Loc.T("clic : bouton retrouvé à son image"));
+                        break;
+                    case BlockBody.Click { Target: ClickTarget.FlWindowPoint }:
+                        marks.Add(Loc.T("clic : même endroit de la fenêtre du plugin"));
                         break;
                     case BlockBody.Click:
                         marks.Add(Loc.T("clic dans FL"));

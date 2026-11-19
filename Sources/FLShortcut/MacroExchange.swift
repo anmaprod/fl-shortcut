@@ -1,7 +1,8 @@
 // Échange d'une macro seule : fichier `.flsmacro` (JSON lisible), exactement une entrée de la bibliothèque.
 //   { "format": "flsmacro", "version": 1, "exportedBy": "FL Shortcuts 1.2 (macOS)",
 //     "macro": { "name": "…", "blocks": [ … ] } }
-// Export : les positions apprises (clics montrés dans FL) sont retirées, à montrer de nouveau sur l'autre machine ;
+// Export : chaque clic est gardé sous une forme qui se retrouve dans le FL d'un autre ordinateur (bouton par son nom
+// ou son image, point d'une fenêtre de plugin en proportion : ClickTarget.portable), le reste est à montrer une fois ;
 // le chemin d'un preset est écrit relatif au dossier personnel (« ~/… »), jamais le nom du compte.
 // Import (relu avant d'être accepté) : 256 Ko au plus, nombre de blocs et imbrication bornés, ids régénérés, la
 // macro arrive SANS raccourci (donc inactive) ; chaque bloc est décrit en français, les blocs sensibles marqués.
@@ -33,15 +34,16 @@ enum MacroExchange {
 
     // MARK: Export
 
-    /// Copie à partager : positions apprises retirées, chemins relatifs au dossier personnel.
+    /// Copie à partager : chaque clic gardé sous une forme retrouvable dans le FL d'un autre ordinateur
+    /// (ClickTarget.portable), le reste à montrer une fois ; chemins relatifs au dossier personnel.
     static func sharable(_ blocks: [Block], home: String) -> [Block] {
         blocks.map { b in
             var copy = b
             switch b.body {
-            case .click(let target, let button) where target.isLearnedPosition:
-                copy.body = .click(.toLearn, button: button)
-            case .drag(let from, let to) where from.isLearnedPosition || to.isLearnedPosition:
-                copy.body = .drag(from: .toLearn, to: .toLearn)
+            case .click(let target, let button):
+                copy.body = .click(target.portable, button: button)
+            case .drag(let from, let to):
+                copy.body = .drag(from: from.portable, to: to.portable)
             case .menuAX(let titles, _):
                 copy.body = .menuAX(titles: titles, fallback: [])
             case .chooseFile(let path):
@@ -143,8 +145,9 @@ enum MacroExchange {
         return Preview(doc: doc, lines: lines, warnings: Array(Set(warnings)).sorted(), sensitiveCount: sensitive)
     }
 
-    /// Chemins « ~/… » rendus absolus dans le dossier personnel de cette machine ; chaque clic, quel que soit son
-    /// repère (piste, dernier clic, curseur…), est à montrer de nouveau : aucun décalage n'est repris d'un fichier.
+    /// Chemins « ~/… » rendus absolus dans le dossier personnel de cette machine ; chaque clic reste retrouvable ici
+    /// (ClickTarget.portable, même pour un fichier fait à la main), sinon à montrer de nouveau : aucun décalage depuis la
+    /// piste, le dernier clic ou le curseur n'est repris d'un fichier.
     private static func localized(_ blocks: [Block], home: String) -> [Block] {
         blocks.map { b in
             var copy = b
@@ -153,10 +156,10 @@ enum MacroExchange {
                 copy.body = .chooseFile(path: absolute(path, home: home))
             case .dropFile(let path):
                 copy.body = .dropFile(path: absolute(path, home: home))
-            case .click(_, let button):
-                copy.body = .click(.toLearn, button: button)
-            case .drag:
-                copy.body = .drag(from: .toLearn, to: .toLearn)
+            case .click(let target, let button):
+                copy.body = .click(target.portable, button: button)
+            case .drag(let from, let to):
+                copy.body = .drag(from: from.portable, to: to.portable)
             default:
                 copy.body = b.body.replacingChildren(b.body.children.map { localized($0, home: home) })
             }
@@ -179,6 +182,12 @@ enum MacroExchange {
                 if case .click(.toLearn, _) = b.body {
                     marks.append(String(localized: "clic : position à montrer dans FL"))
                     warnings.append(String(localized: "Montre de nouveau chaque clic dans FL (positions propres à chaque Mac)."))
+                } else if case .click(.named, _) = b.body {
+                    marks.append(String(localized: "clic : bouton retrouvé par son nom"))
+                } else if case .click(.button, _) = b.body {
+                    marks.append(String(localized: "clic : bouton retrouvé à son image"))
+                } else if case .click(.flWindow, _) = b.body {
+                    marks.append(String(localized: "clic : même endroit de la fenêtre du plugin"))
                 } else if case .click = b.body {
                     marks.append(String(localized: "clic dans FL"))
                 }

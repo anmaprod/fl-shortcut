@@ -347,7 +347,7 @@ enum MacroOutline {
         switch t {
         case .track(let dx, let dy):
             return dx == 0 && dy == 0 ? String(localized: "sur la piste visée") : String(localized: "près de la piste visée")
-        case .flWindow(_, _, _, _, let title?): return String(localized: "à l'endroit appris (« \(title.displaySafe(max: 30)) »)")
+        case .flWindow(_, _, _, _, let title?, _, _): return String(localized: "à l'endroit appris (« \(title.displaySafe(max: 30)) »)")
         case .flWindow: return String(localized: "à l'endroit appris (fenêtre de FL)")
         case .openMenu: return String(localized: "à l'endroit appris (menu ouvert)")
         case .button: return String(localized: "sur le bouton retrouvé à son image")

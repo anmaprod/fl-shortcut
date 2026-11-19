@@ -856,7 +856,11 @@ enum ClickTarget: Equatable {
     /// Coin d'une fenêtre de FL. Taille retenue : la fenêtre de cette taille (refus si aucune) ; sans taille : celle
     /// qui est sous le curseur au démarrage (ancien repère `window`). Titre : fenêtre d'un plugin (Serum, Vital…),
     /// reconnue à son nom (Accessibilité) parmi plusieurs fenêtres de la même taille, où qu'elle soit.
-    case flWindow(corner: Corner, dx: Double, dy: Double, size: CGSize?, title: String? = nil)
+    /// `look` : image du bouton sous le clic, retenue avec sa place, qui ne sert qu'à le retrouver dans le FL d'un autre
+    /// ordinateur quand la macro est partagée. `loose` : venu d'une macro partagée, fenêtre d'un plugin (titre) d'une autre
+    /// taille : point à la même proportion de la fenêtre.
+    case flWindow(corner: Corner, dx: Double, dy: Double, size: CGSize?, title: String? = nil, look: ButtonLook? = nil,
+                  loose: Bool = false)
     /// Relatif au dernier menu de FL ouvert (résiste au décalage du menu).
     case openMenu(MacroSpots.PopupHop)
     /// Bouton de FL qui peut bouger (« + » du Channel rack) : cherché à son image dans sa fenêtre au moment du clic,
@@ -891,11 +895,11 @@ enum ClickTarget: Equatable {
     var isFinite: Bool {
         func ok(_ v: Double) -> Bool { v.isFinite && abs(v) <= 5000 }
         switch self {
-        case .flWindow(_, let dx, let dy, let size, let title):
+        case .flWindow(_, let dx, let dy, let size, let title, let look, let loose):
             let sizeOK = size.map { $0.width.isFinite && $0.height.isFinite && $0.width > 0 && $0.height > 0
                 && $0.width <= 10_000 && $0.height <= 10_000 } ?? true
             let titleOK = title.map { !$0.isEmpty && $0.count <= ClickTarget.maxTitle && size != nil } ?? true
-            return ok(dx) && ok(dy) && sizeOK && titleOK
+            return ok(dx) && ok(dy) && sizeOK && titleOK && (look?.isValid ?? true) && (!loose || (size != nil && title != nil))
         case .openMenu(let hop):
             return ok(Double(hop.offset.dx)) && ok(Double(hop.offset.dy)) && hop.size.width.isFinite && hop.size.height.isFinite
                 && (16...2000).contains(hop.size.width) && (16...4000).contains(hop.size.height)
@@ -924,6 +928,41 @@ enum ClickTarget: Equatable {
         return false
     }
 
+    /// Venu d'une macro partagée, retrouvé par son nom, son image ou sa fenêtre de plugin (pas à montrer de nouveau).
+    var isLoose: Bool {
+        switch self {
+        case .named(let spot): return spot.loose
+        case .button(let spot): return spot.loose
+        case .flWindow(_, _, _, _, _, _, let loose): return loose
+        default: return false
+        }
+    }
+
+    /// Ce qu'une macro partagée garde d'un clic pour le refaire dans le FL d'un autre ordinateur (Mac ou PC) : un bouton
+    /// par son nom, un bouton par son image (montrée ou retenue avec sa place), un point d'une fenêtre de plugin (titre) en
+    /// proportion. Le reste (endroit d'une fenêtre de FL, décalage depuis la souris ou la piste, menu) : à montrer une fois.
+    /// Miroir de ClickTarget.Portable (Windows), même format de fichier.
+    var portable: ClickTarget {
+        switch self {
+        case .named(var spot):
+            spot.loose = true
+            return .named(spot)
+        case .button(var spot):
+            spot.loose = true
+            return .button(spot)
+        case .flWindow(let corner, let dx, let dy, let size?, let title, let look?, _):
+            var spot = VisualSpot(corner: corner, dx: dx, dy: dy, size: size, title: title, side: look.side, pixels: look.pixels)
+            spot.loose = true
+            if spot.isValid { return .button(spot) }
+            if let title { return .flWindow(corner: corner, dx: dx, dy: dy, size: size, title: title, look: nil, loose: true) }
+            return .toLearn
+        case .flWindow(let corner, let dx, let dy, let size?, let title?, .none, _):
+            return .flWindow(corner: corner, dx: dx, dy: dy, size: size, title: title, look: nil, loose: true)
+        default:
+            return .toLearn
+        }
+    }
+
     init?(json: JSONValue?) {
         guard let json else { return nil }
         let dx = json["dx"]?.double ?? 0, dy = json["dy"]?.double ?? 0
@@ -938,7 +977,10 @@ enum ClickTarget: Equatable {
             if let s = json["size"], s != .null, parsed == nil { return nil }
             let title = json["title"]?.string
             if let t = json["title"], t != .null, title == nil { return nil }
-            self = .flWindow(corner: corner, dx: dx, dy: dy, size: parsed, title: title)
+            let look = ButtonLook(json: json["look"])
+            if let l = json["look"], l != .null, look == nil { return nil }
+            self = .flWindow(corner: corner, dx: dx, dy: dy, size: parsed, title: title, look: look,
+                             loose: json["loose"]?.bool == true)
         case "openMenu":
             guard let offset = size(json["offset"]), let s = size(json["size"]) else { return nil }
             self = .openMenu(MacroSpots.PopupHop(offset: CGVector(dx: offset.width, dy: offset.height), size: s))
@@ -948,7 +990,8 @@ enum ClickTarget: Equatable {
                   let encoded = json["pixels"]?.string, let data = Data(base64Encoded: encoded) else { return nil }
             let title = json["title"]?.string
             if let t = json["title"], t != .null, title == nil { return nil }
-            let spot = VisualSpot(corner: corner, dx: dx, dy: dy, size: s, title: title, side: side, pixels: [UInt8](data))
+            var spot = VisualSpot(corner: corner, dx: dx, dy: dy, size: s, title: title, side: side, pixels: [UInt8](data))
+            spot.loose = json["loose"]?.bool == true
             guard spot.isValid else { return nil }
             self = .button(spot)
         case "named":
@@ -956,7 +999,8 @@ enum ClickTarget: Equatable {
                   let s = size(json["size"]), let px = json["px"]?.double, let py = json["py"]?.double else { return nil }
             let title = json["title"]?.string
             if let t = json["title"], t != .null, title == nil { return nil }
-            let spot = NamedSpot(label: label, dx: dx, dy: dy, corner: corner, px: px, py: py, size: s, title: title)
+            var spot = NamedSpot(label: label, dx: dx, dy: dy, corner: corner, px: px, py: py, size: s, title: title)
+            spot.loose = json["loose"]?.bool == true
             guard spot.isValid else { return nil }
             self = .named(spot)
         case "track": self = .track(dx: dx, dy: dy)
@@ -974,11 +1018,13 @@ enum ClickTarget: Equatable {
             .object(["anchor": .string(anchor), "dx": .number(dx), "dy": .number(dy)])
         }
         switch self {
-        case .flWindow(let corner, let dx, let dy, let size, let title):
+        case .flWindow(let corner, let dx, let dy, let size, let title, let look, let loose):
             var o: [String: JSONValue] = ["anchor": .string("flWindow"), "corner": .string(corner.rawValue),
                                           "dx": .number(dx), "dy": .number(dy)]
             if let size { o["size"] = pair(size.width, size.height) }
             if let title { o["title"] = .string(title) }
+            if let look { o["look"] = look.json }
+            if loose { o["loose"] = .bool(true) }
             return .object(o)
         case .openMenu(let hop):
             return .object(["anchor": .string("openMenu"), "offset": pair(hop.offset.dx, hop.offset.dy),
@@ -990,6 +1036,7 @@ enum ClickTarget: Equatable {
                                           "side": .number(Double(spot.side)),
                                           "pixels": .string(Data(spot.pixels).base64EncodedString())]
             if let title = spot.title { o["title"] = .string(title) }
+            if spot.loose { o["loose"] = .bool(true) }
             return .object(o)
         case .named(let spot):
             var o: [String: JSONValue] = ["anchor": .string("named"), "label": .string(spot.label),
@@ -997,6 +1044,7 @@ enum ClickTarget: Equatable {
                                           "corner": .string(spot.corner.rawValue), "px": .number(spot.px),
                                           "py": .number(spot.py), "size": pair(spot.size.width, spot.size.height)]
             if let title = spot.title { o["title"] = .string(title) }
+            if spot.loose { o["loose"] = .bool(true) }
             return .object(o)
         case .track(let dx, let dy): return offset("track", dx, dy)
         case .lastClick(let dx, let dy): return offset("lastClick", dx, dy)

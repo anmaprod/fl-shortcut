@@ -2323,6 +2323,7 @@
 "bloc inconnu." = "bloc inconnu.";
 "bougé. L'écran n'est lu qu'à ce moment-là, dans cette fenêtre ; sans l'autorisation, à sa place." = "bougé. L'écran n'est lu qu'à ce moment-là, dans cette fenêtre ; sans l'autorisation, à sa place.";
 "bouton d'armement" = "bouton d'armement";
+"bouton de la macro partagée introuvable dans FL" = "bouton de la macro partagée introuvable dans FL";
 "bouton introuvable dans la fenêtre de FL (caché, ou d'une autre apparence : montre-le de nouveau)" = "bouton introuvable dans la fenêtre de FL (caché, ou d'une autre apparence : montre-le de nouveau)";
 "bouton mute hors de la fenêtre de FL : montre-le de nouveau" = "bouton mute hors de la fenêtre de FL : montre-le de nouveau";
 "bouton mute introuvable : clique sur ta piste (Mixer, Channel rack ou Playlist), puis relance" = "bouton mute introuvable : clique sur ta piste (Mixer, Channel rack ou Playlist), puis relance";
@@ -2350,6 +2351,9 @@
 "choisis la page de FL à ouvrir." = "choisis la page de FL à ouvrir.";
 "choisis le plugin à ajouter (comme dans le menu Add de FL)." = "choisis le plugin à ajouter (comme dans le menu Add de FL).";
 "choisisse sans souris. Si FL est ouvert, quitte-le et rouvre-le une fois pour qu'il le voie." = "choisisse sans souris. Si FL est ouvert, quitte-le et rouvre-le une fois pour qu'il le voie.";
+"clic : bouton retrouvé par son nom" = "clic : bouton retrouvé par son nom";
+"clic : bouton retrouvé à son image" = "clic : bouton retrouvé à son image";
+"clic : même endroit de la fenêtre du plugin" = "clic : même endroit de la fenêtre du plugin";
 "clic : position à montrer dans FL" = "clic : position à montrer dans FL";
 "clic dans FL" = "clic dans FL";
 "clic droit impossible dans un menu ouvert." = "clic droit impossible dans un menu ouvert.";
@@ -2397,6 +2401,7 @@
 "fenêtre de FL de %lld × %lld introuvable (pas ouverte, ou changée de taille : montre de nouveau le clic)" = "fenêtre de FL de %lld × %lld introuvable (pas ouverte, ou changée de taille : montre de nouveau le clic)";
 "fenêtre de FL illisible" = "fenêtre de FL illisible";
 "fenêtre de FL introuvable" = "fenêtre de FL introuvable";
+"fenêtre du plugin de la macro partagée introuvable dans FL" = "fenêtre du plugin de la macro partagée introuvable dans FL";
 "fenêtre du plugin introuvable (ouvre ce plugin, ou montre de nouveau le clic)" = "fenêtre du plugin introuvable (ouvre ce plugin, ou montre de nouveau le clic)";
 "fenêtres. Si l'une change de taille ou de place dans FL, montre-le de nouveau." = "fenêtres. Si l'une change de taille ou de place dans FL, montre-le de nouveau.";
 "fermé" = "fermé";
@@ -2458,6 +2463,7 @@
 "le point visé est hors de FL" = "le point visé est hors de FL";
 "le serveur n'a pas répondu." = "le serveur n'a pas répondu.";
 "le sous-menu « %@ » ne s'est pas ouvert" = "le sous-menu « %@ » ne s'est pas ouvert";
+"lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le bouton de la macro partagée ne peut pas être cherché" = "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le bouton de la macro partagée ne peut pas être cherché";
 "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le bouton ne peut pas être cherché" = "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le bouton ne peut pas être cherché";
 "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le plugin ne peut pas être cherché dans « More plugins… » de FL" = "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le plugin ne peut pas être cherché dans « More plugins… » de FL";
 "lecture de l'état de FL : demande l'extension du lien avec FL" = "lecture de l'état de FL : demande l'extension du lien avec FL";

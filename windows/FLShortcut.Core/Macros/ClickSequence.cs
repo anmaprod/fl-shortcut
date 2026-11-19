@@ -21,7 +21,7 @@ public abstract record RecordedInput
     /// encore), de l'avant vers l'arrière. `Named` : nom du bouton cliqué, lu au moment du clic (null : pas de nom).
     /// `MenuPath` : clic dans un menu de FL, les éléments choisis dans les menus ouverts (SmartClicks.MenuPath).
     public sealed record Click(int X, int Y, bool Right, IReadOnlyList<FlWin> Windows, RecordedRelease? Release = null,
-                               NamedHit? Named = null, IReadOnlyList<string>? MenuPath = null) : RecordedInput;
+                               NamedHit? Named = null, IReadOnlyList<string>? MenuPath = null, GrayImage? Look = null) : RecordedInput;
 
     /// Touche tapée dans FL (jamais journalisée) ; `MenuOpen` : un menu de FL était ouvert à ce moment.
     public sealed record Key(KeyCombo Combo, bool MenuOpen) : RecordedInput;
@@ -96,7 +96,8 @@ public static class ClickSequenceCompiler
                         ignored++;
                         break;
                     }
-                    var target = MacroDrafts.Named(place, c.Named);
+                    // Nom du bouton, sinon sa place avec son image (pour le retrouver chez un autre si la macro est partagée).
+                    var target = MacroDrafts.WithLook(MacroDrafts.Named(place, c.Named), c.Look);
                     if (!c.Right && c.Release is { } r
                         && Math.Abs(r.X - c.X) + Math.Abs(r.Y - c.Y) > DragDistance
                         // Lâcher : jamais dans la petite fenêtre que FL montre sous la souris pendant le glisser (nom du

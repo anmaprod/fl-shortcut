@@ -64,7 +64,7 @@ final class MacroVisualTests: XCTestCase {
         let target = ClickTarget.button(spot)
         XCTAssertTrue(target.isFinite)
         XCTAssertEqual(ClickTarget(json: target.json), target)
-        XCTAssertTrue(target.isLearnedPosition, "image et place retirées à l'export")
+        XCTAssertTrue(target.isLearnedPosition, "place apprise ; partagée, le bouton est cherché à son image")
         XCTAssertEqual(spot.place, .flWindow(corner: .topLeft, dx: 100, dy: 60, size: CGSize(width: 400, height: 300)))
         let broken = VisualSpot(corner: .topLeft, dx: 1, dy: 1, size: CGSize(width: 400, height: 300), side: 26,
                                 pixels: [1, 2, 3])
