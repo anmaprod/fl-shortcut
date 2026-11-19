@@ -478,6 +478,8 @@
 "Change les raccourcis de FL Studio, ou ajoute les tiens." = "Change les raccourcis de FL Studio, ou ajoute les tiens.";
 "Change une famille, un nom ou une piste si tu veux." = "Change une famille, un nom ou une piste si tu veux.";
 "Changements à envoyer" = "Changements à envoyer";
+"Changer aussi" = "Changer aussi";
+"Changer aussi dans %@ ?" = "Changer aussi dans %@ ?";
 "Changer ce qu'est ce son (Kick, 808, Lead…) ou sa famille" = "Changer ce qu'est ce son (Kick, 808, Lead…) ou sa famille";
 "Changer ce qu'est ce son (Kick, 808, Lead…), ou écrire son nom" = "Changer ce qu'est ce son (Kick, 808, Lead…), ou écrire son nom";
 "Changer d'adresse" = "Changer d'adresse";
@@ -1815,6 +1817,7 @@
 "Remplace certaines touches de FL (F9, B, O, Z…)." = "Remplace certaines touches de FL (F9, B, O, Z…).";
 "Remplace un raccourci natif — %@." = "Remplace un raccourci natif — %@.";
 "Remplacer" = "Remplacer";
+"Remplacer la touche ?" = "Remplacer la touche ?";
 "Remplacer le canal par l'élément choisi" = "Remplacer le canal par l'élément choisi";
 "Rend la piste cliquée de la Playlist en un seul clip audio" = "Rend la piste cliquée de la Playlist en un seul clip audio";
 "Rendu des pistes armées en .wav" = "Rendu des pistes armées en .wav";
@@ -1962,6 +1965,7 @@
 "Serum, FLEX, Sytrus…" = "Serum, FLEX, Sytrus…";
 "Session expirée : reconnecte-toi." = "Session expirée : reconnecte-toi.";
 "Seulement dans une macro : le lien avec FL s'y ouvre le temps du bloc." = "Seulement dans une macro : le lien avec FL s'y ouvre le temps du bloc.";
+"Seulement ici" = "Seulement ici";
 "Seulement si rien ne se passe : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts », même numéro de Port en entrée et en sortie." = "Seulement si rien ne se passe : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts », même numéro de Port en entrée et en sortie.";
 "Shaker" = "Shaker";
 "Si" = "Si";
@@ -2470,6 +2474,7 @@
 "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le bouton ne peut pas être cherché" = "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le bouton ne peut pas être cherché";
 "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le plugin ne peut pas être cherché dans « More plugins… » de FL" = "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le plugin ne peut pas être cherché dans « More plugins… » de FL";
 "lecture de l'état de FL : demande l'extension du lien avec FL" = "lecture de l'état de FL : demande l'extension du lien avec FL";
+"les autres pages" = "les autres pages";
 "les couleurs" = "les couleurs";
 "les sons" = "les sons";
 "lettre de menu non prise en charge" = "lettre de menu non prise en charge";
@@ -2695,7 +2700,9 @@
 "À toi de choisir" = "À toi de choisir";
 "À vérifier" = "À vérifier";
 "Ça ne marche toujours pas ?" = "Ça ne marche toujours pas ?";
+"Échanger" = "Échanger";
 "Échanger First et Last" = "Échanger First et Last";
+"Échanger les touches ?" = "Échanger les touches ?";
 "Échap" = "Échap";
 "Échec" = "Échec";
 "Échec au bloc %@ (%@) : %@" = "Échec au bloc %@ (%@) : %@";

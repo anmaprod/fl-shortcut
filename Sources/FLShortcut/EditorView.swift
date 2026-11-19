@@ -1813,13 +1813,26 @@ struct CatalogEditSheet: View {
         return store.clashes(for: combo, editing: row)
     }
 
-    private func apply(releasing toRelease: [KeyClash]) {
+    /// Pose la touche ; ce qui l'avait prend l'ancienne (échange), puis la même action des autres pages est proposée.
+    private func apply(swapping toSwap: [KeyClash]) {
         recorder.stop()
-        let followUp = toRelease.isEmpty ? nil : store.release(toRelease)
-        store.setTrigger(combo, for: row)
-        onDone(ToastMessage(text: String(localized: "« \(row.entry.title) » : ")
-                                + (combo?.display ?? String(localized: "aucune touche")), undo: nil), followUp)
+        let old = row.current, new = combo, model = store, edited = row
+        let followUp = toSwap.isEmpty ? nil : model.swap(toSwap, to: old)
+        model.setTrigger(new, for: edited)
+        onDone(ToastMessage(text: String(localized: "« \(edited.entry.title) » : ")
+                                + (new?.display ?? String(localized: "aucune touche")), undo: nil), followUp)
         dismiss()
+        // « Changer aussi dans Piano Roll ? » (19/11) : après la fermeture de la fiche.
+        let twins = model.twins(of: edited, old: old, new: new)
+        guard !twins.isEmpty else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            let place = twins.count == 1 ? twins[0].entry.section.title : String(localized: "les autres pages")
+            let lines = twins.map { KeyChangeLine.text($0.entry.title, $0.entry.section.title, from: old, to: new) }
+            let answer = SwissDialog.run(String(localized: "Changer aussi dans \(place) ?"), "",
+                                         buttons: [String(localized: "Changer aussi"), String(localized: "Seulement ici")],
+                                         list: lines)
+            if answer == 0 { for twin in twins { model.setTrigger(new, for: twin) } }
+        }
     }
 
     private var nativeKey: KeyCombo? {
@@ -1898,7 +1911,7 @@ struct CatalogEditSheet: View {
                     recorder.stop()
                     let found = clashes
                     if found.isEmpty {
-                        apply(releasing: [])
+                        apply(swapping: [])
                     } else {
                         pendingClashes = found
                         // La question au style suisse (02/11), après le clic (le bouton se relâche d'abord).
@@ -1915,13 +1928,17 @@ struct CatalogEditSheet: View {
         .onDisappear { recorder.stop() }
     }
 
-    /// Une touche ne sert qu'une fois : on annonce ce qui l'utilise avant de la reprendre.
+    /// Une touche ne fait qu'une seule chose (19/11) : la petite page montre, avant → après, ce qui va changer ;
+    /// « Échanger » (l'autre prend l'ancienne touche) ou « Remplacer » (l'entrée n'avait pas de touche).
     private func askReplace(_ found: [KeyClash]) {
-        let title = String(localized: "\(combo?.display ?? String(localized: "Cette touche")) est déjà utilisée")
-        let text = found.prefix(4).map(\.line).joined(separator: "\n")
-        let answer = SwissDialog.run(title, text, buttons: [String(localized: "Remplacer"), String(localized: "Annuler")],
-                                     destructive: 0)
-        if answer == 0 { apply(releasing: found) } else { pendingClashes = [] }
+        let old = row.current
+        var lines = [KeyChangeLine.text(row.entry.title, row.entry.section.title, from: old, to: combo)]
+        lines += KeyChangeLine.grouped(found).map { KeyChangeLine.text($0.title, $0.places, from: combo, to: old) }
+        let swapping = old != nil
+        let answer = SwissDialog.run(swapping ? String(localized: "Échanger les touches ?") : String(localized: "Remplacer la touche ?"),
+                                     "", buttons: [swapping ? String(localized: "Échanger") : String(localized: "Remplacer"),
+                                                   String(localized: "Annuler")], list: lines)
+        if answer == 0 { apply(swapping: found) } else { pendingClashes = [] }
     }
 
     /// Liste courte sous le champ : qui utilise déjà cette touche.

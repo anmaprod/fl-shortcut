@@ -135,6 +135,59 @@ public class CatalogRowsTests
         Assert.Null(Row(rows, second.Id).TakenBy);
     }
 
+    /// 19/11 : une touche ne fait qu'une seule chose ; la même action dans deux pages la partage. « Échanger » donne
+    /// l'ancienne touche à ce qui avait la nouvelle (comme le Mac).
+    [Fact]
+    public void SameActionInTwoPagesSharesAKeyButTwoActionsNever()
+    {
+        var shortcuts = new List<Shortcut>();
+        var (rows, others) = CatalogRows.Build(Entries, shortcuts);
+        var zoomPlaylist = Row(rows, "fl.playlist.z");
+        var zoomPiano = Row(rows, "fl.pianoRoll.z");
+        var undoSteps = Row(rows, "fl.general.cmd-s");          // Enregistrer le projet (Ctrl+Alt+Z est refusé sous Windows)
+        var z = zoomPlaylist.Current!.Value;
+        Assert.True(zoomPlaylist.Entry.SameAction(zoomPiano.Entry));
+        Assert.False(zoomPlaylist.Entry.SameAction(undoSteps.Entry));
+        var found = CatalogRows.Clashes(rows, others, z, undoSteps, s => "");
+        Assert.Equal(new[] { zoomPiano.Id, zoomPlaylist.Id }.OrderBy(x => x), found.Select(c => c.Row!.Id).OrderBy(x => x));
+        var groups = KeyChangeLine.Grouped(found);
+        Assert.Single(groups);
+        Assert.Contains("Playlist", groups[0].Places);
+        Assert.Contains("Piano Roll", groups[0].Places);
+        var (upserts, deletes) = CatalogRows.Swap(found, undoSteps.Current);
+        Assert.Empty(deletes);
+        shortcuts.AddRange(upserts);
+        shortcuts.Add(CatalogRows.Change(undoSteps, z).Upsert!);
+        (rows, others) = CatalogRows.Build(Entries, shortcuts);
+        Assert.Equal(z, Row(rows, undoSteps.Id).Current);
+        Assert.Equal(undoSteps.Current, Row(rows, zoomPlaylist.Id).Current);
+        Assert.Equal(undoSteps.Current, Row(rows, zoomPiano.Id).Current);
+        Assert.Null(Row(rows, zoomPlaylist.Id).TakenBy);
+        Assert.Null(Row(rows, zoomPiano.Id).TakenBy);
+    }
+
+    /// 19/11 : changer l'outil zoom de la Playlist propose celui du Piano Roll ; changé aussi, aucun conflit entre eux.
+    [Fact]
+    public void TheSameActionInOtherPagesIsOffered()
+    {
+        var shortcuts = new List<Shortcut>();
+        var (rows, others) = CatalogRows.Build(Entries, shortcuts);
+        var zoomPlaylist = Row(rows, "fl.playlist.z");
+        var old = zoomPlaylist.Current;
+        var free = new KeyCombo(Vk.Letter('X'), Ctrl: true, Alt: true, Shift: true);
+        Assert.Empty(CatalogRows.Clashes(rows, others, free, zoomPlaylist, s => ""));
+        shortcuts.Add(CatalogRows.Change(zoomPlaylist, free).Upsert!);
+        (rows, others) = CatalogRows.Build(Entries, shortcuts);
+        var twins = CatalogRows.Twins(rows, others, zoomPlaylist, old, free, s => "");
+        Assert.Equal(new[] { "fl.pianoRoll.z" }, twins.Select(t => t.Id));
+        shortcuts.Add(CatalogRows.Change(twins[0], free).Upsert!);
+        (rows, others) = CatalogRows.Build(Entries, shortcuts);
+        Assert.Equal(free, Row(rows, "fl.pianoRoll.z").Current);
+        Assert.Null(Row(rows, "fl.pianoRoll.z").TakenBy);
+        Assert.Null(Row(rows, "fl.playlist.z").TakenBy);
+        Assert.Empty(CatalogRows.Twins(rows, others, zoomPlaylist, old, free, s => ""));
+    }
+
     /// Choisir une touche déjà prise : la touche de FL d'une autre entrée est dite, ton raccourci qui l'avait la perd.
     [Fact]
     public void Clashes_ThenRelease()

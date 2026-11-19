@@ -83,6 +83,17 @@ struct CatalogEntry: Identifiable, Hashable {
         if case .native = kind { return true }
         return false
     }
+
+    /// La même action dans une autre page (outil zoom de la Playlist et du Piano Roll : même nom, même touche de FL ;
+    /// ou la même action du script) : elle peut partager une touche. Deux actions différentes, jamais (19/11, « si
+    /// c'est zoom dans deux pages c'est ok mais si c'est deux raccourcis distincts ça ne fonctionne pas »).
+    func sameAction(as other: CatalogEntry) -> Bool {
+        switch (kind, other.kind) {
+        case (.native(let a), .native(let b)): return a == b && title == other.title
+        case (.action(let a), .action(let b)): return a == b
+        default: return false
+        }
+    }
 }
 
 enum Catalog {
@@ -476,6 +487,35 @@ struct KeyClash: Identifiable {
     }
 }
 
+/// Une ligne des petites pages « Échanger les touches ? » et « Changer aussi dans … ? » (19/11) :
+/// « Outil zoom · Playlist, Piano Roll    Z  →  ⌥⌘Z ».
+enum KeyChangeLine {
+    struct Group: Equatable {
+        let title: String
+        let places: String?
+    }
+
+    static func text(_ title: String, _ places: String?, from: KeyCombo?, to: KeyCombo?) -> String {
+        let place = places.map { " · \($0)" } ?? ""
+        let before = from?.display ?? "—"
+        let after = to?.display ?? String(localized: "aucune touche")
+        return "\(title)\(place)    \(before)  →  \(after)"
+    }
+
+    /// La même action dans plusieurs pages : une seule ligne, ses pages à la suite (dans l'ordre reçu).
+    static func grouped(_ clashes: [KeyClash]) -> [Group] {
+        var keys: [String] = []
+        var titles: [String: String] = [:]
+        var places: [String: [String]] = [:]
+        for c in clashes {
+            let key = c.row.map { "\($0.entry.title)|\(String(describing: $0.entry.kind))" } ?? c.id
+            if titles[key] == nil { keys.append(key); titles[key] = c.title }
+            if let s = c.section, !(places[key] ?? []).contains(s) { places[key, default: []].append(s) }
+        }
+        return keys.map { Group(title: titles[$0] ?? "", places: places[$0].map { $0.joined(separator: ", ") }) }
+    }
+}
+
 extension Store {
     var catalog: [CatalogEntry] {
         if let cached = catalogCache { return cached }
@@ -529,9 +569,13 @@ extension Store {
             if let t = r.trigger { owners[t, default: []].append(r.id.uuidString) }
         }
         let titles = Dictionary(rows.map { ($0.id, $0.entry.title) }, uniquingKeysWith: { a, _ in a })
+        let entries = Dictionary(rows.map { ($0.id, $0.entry) }, uniquingKeysWith: { a, _ in a })
         // Seule sa touche de maintenant compte : une entrée déplacée sur une autre touche a laissé celle de FL (13/11).
+        // La même action dans une autre page ne compte pas (19/11 : elle partage sa touche).
         for i in rows.indices {
-            if let k = rows[i].current, let other = owners[k]?.first(where: { $0 != rows[i].id }) {
+            if let k = rows[i].current, let other = owners[k]?.first(where: {
+                $0 != rows[i].id && entries[$0].map { $0.sameAction(as: rows[i].entry) } != true
+            }) {
                 rows[i].takenBy = titles[other] ?? String(localized: "un raccourci personnalisé")
             }
         }
@@ -551,13 +595,14 @@ extension Store {
         return FLActions.all.first { $0.id == r.actionID }?.label ?? String(localized: "Raccourci personnalisé")
     }
 
-    /// Tout ce qui utilise déjà `trigger`, hors l'entrée qu'on modifie. Une même touche ne sert qu'une fois ;
-    /// seule exception : revenir à la touche d'origine de FL de l'entrée elle-même.
+    /// Tout ce qui utilise déjà `trigger`, hors l'entrée qu'on modifie. Une touche ne fait qu'une seule chose ; seules
+    /// exceptions : revenir à la touche d'origine de FL de l'entrée elle-même, et la même action dans une autre page
+    /// (19/11 : outil zoom de la Playlist et du Piano Roll sur la même touche).
     func clashes(for trigger: KeyCombo, editing row: CatalogRow) -> [KeyClash] {
         if case .native(let own) = row.entry.kind, own == trigger { return [] }
         let (rows, others) = catalogRows()
         var out: [KeyClash] = []
-        for other in rows where other.id != row.id {
+        for other in rows where other.id != row.id && !other.entry.sameAction(as: row.entry) {
             if let r = other.remap, r.enabled, r.trigger == trigger {
                 out.append(KeyClash(row: other, remap: r, title: other.entry.title, section: other.entry.section.title))
             } else if case .native(let k) = other.entry.kind, k == trigger, other.current == k {
@@ -571,6 +616,32 @@ extension Store {
             out.append(KeyClash(row: nil, remap: r, title: remapTitle(r), section: nil))
         }
         return out
+    }
+
+    /// Échange (19/11, page « Échanger les touches ? ») : chaque raccourci qui avait la touche prend l'ancienne touche
+    /// de l'entrée (`old`). Sans ancienne touche : comme `release`.
+    @discardableResult
+    func swap(_ clashes: [KeyClash], to old: KeyCombo?) -> String? {
+        guard let old else { return release(clashes) }
+        for c in clashes {
+            if let other = c.row {
+                setTrigger(old, for: other)
+            } else if var r = c.remap {
+                r.trigger = old
+                upsert(r)
+            }
+        }
+        return nil
+    }
+
+    /// La même action dans d'autres pages, encore sur l'ancienne touche (`old`), là où la nouvelle est libre : on
+    /// propose de la changer aussi (19/11, « Changer aussi dans Piano Roll ? »).
+    func twins(of row: CatalogRow, old: KeyCombo?, new: KeyCombo?) -> [CatalogRow] {
+        guard old != new else { return [] }
+        return catalogRows().rows.filter { other in
+            other.id != row.id && other.entry.section != row.entry.section && other.entry.sameAction(as: row.entry)
+                && other.current == old && (new.map { clashes(for: $0, editing: other).isEmpty } ?? true)
+        }
     }
 
     /// Libère la touche : tes raccourcis qui l'utilisaient la perdent (un raccourci d'origine revient à sa seule

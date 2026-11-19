@@ -147,6 +147,54 @@ final class CatalogTests: XCTestCase {
         XCTAssertNil(rows.first { $0.id == second.id }?.takenBy)
     }
 
+    /// 19/11 : une touche ne fait qu'une seule chose ; la même action dans deux pages la partage. « Échanger » donne
+    /// l'ancienne touche à ce qui avait la nouvelle.
+    func testSameActionInTwoPagesSharesAKeyButTwoActionsNever() throws {
+        let store = makeStore()
+        let rows = store.catalogRows().rows
+        let zoomPlaylist = try XCTUnwrap(rows.first { $0.entry.id == "fl.playlist.z" })
+        let zoomPiano = try XCTUnwrap(rows.first { $0.entry.id == "fl.pianoRoll.z" })
+        let undoSteps = try XCTUnwrap(rows.first { $0.entry.id == "fl.general.cmd-opt-z" })
+        let z = try XCTUnwrap(zoomPlaylist.current)
+        XCTAssertTrue(zoomPlaylist.entry.sameAction(as: zoomPiano.entry))
+        XCTAssertFalse(zoomPlaylist.entry.sameAction(as: undoSteps.entry))
+        let found = store.clashes(for: z, editing: undoSteps)
+        XCTAssertEqual(Set(found.compactMap { $0.row?.id }), [zoomPlaylist.id, zoomPiano.id], "deux actions différentes")
+        XCTAssertEqual(KeyChangeLine.grouped(found).count, 1, "la même action : une seule ligne")
+        XCTAssertEqual(KeyChangeLine.grouped(found).first?.places, "Playlist, Piano Roll")
+        let old = undoSteps.current
+        store.swap(found, to: old)
+        store.setTrigger(z, for: undoSteps)
+        let after = store.catalogRows().rows
+        XCTAssertEqual(after.first { $0.id == undoSteps.id }?.current, z)
+        XCTAssertEqual(after.first { $0.id == zoomPlaylist.id }?.current, old)
+        XCTAssertEqual(after.first { $0.id == zoomPiano.id }?.current, old)
+        XCTAssertNil(after.first { $0.id == zoomPlaylist.id }?.takenBy, "la même action partage sa touche")
+        XCTAssertNil(after.first { $0.id == zoomPiano.id }?.takenBy)
+    }
+
+    /// 19/11 : changer l'outil zoom de la Playlist propose celui du Piano Roll (même action, même touche, nouvelle
+    /// touche libre là-bas) ; changé aussi, aucun conflit entre eux.
+    func testTheSameActionInOtherPagesIsOffered() throws {
+        let store = makeStore()
+        let rows = store.catalogRows().rows
+        let zoomPlaylist = try XCTUnwrap(rows.first { $0.entry.id == "fl.playlist.z" })
+        let zoomPiano = try XCTUnwrap(rows.first { $0.entry.id == "fl.pianoRoll.z" })
+        let z = zoomPlaylist.current
+        let free = KeyCombo(keyCode: 7, option: true, control: true, shift: true)            // ⌃⌥⇧X
+        XCTAssertTrue(store.clashes(for: free, editing: zoomPlaylist).isEmpty)
+        store.setTrigger(free, for: zoomPlaylist)
+        let twins = store.twins(of: zoomPlaylist, old: z, new: free)
+        XCTAssertEqual(twins.map(\.id), [zoomPiano.id])
+        XCTAssertTrue(store.clashes(for: free, editing: twins[0]).isEmpty, "même action : pas un conflit")
+        store.setTrigger(free, for: twins[0])
+        let after = store.catalogRows().rows
+        XCTAssertEqual(after.first { $0.id == zoomPiano.id }?.current, free)
+        XCTAssertNil(after.first { $0.id == zoomPiano.id }?.takenBy)
+        XCTAssertNil(after.first { $0.id == zoomPlaylist.id }?.takenBy)
+        XCTAssertTrue(store.twins(of: zoomPlaylist, old: z, new: free).isEmpty, "déjà changé : plus rien à proposer")
+    }
+
     func testTakingAnFLKeyIsAnnouncedAndFlagged() throws {
         let store = makeStore()
         let rows = store.catalogRows().rows

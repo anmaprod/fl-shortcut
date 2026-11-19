@@ -610,15 +610,20 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     public List<KeyClash> Clashes(KeyCombo trigger, CatalogRow editing) =>
         CatalogRows.Clashes(Catalog.Rows, Catalog.Others, trigger, editing, TitleOf);
 
-    /// Nouvelle touche d'une entrée (nil : aucune, actions seulement) ; `release` : les raccourcis qui la perdent.
-    public void SetKey(CatalogRow row, KeyCombo? trigger, IReadOnlyList<KeyClash> release)
+    /// La même action dans les autres pages, à proposer après un changement (19/11).
+    public List<CatalogRow> Twins(CatalogRow row, KeyCombo? old, KeyCombo? @new) =>
+        CatalogRows.Twins(Catalog.Rows, Catalog.Others, row, old, @new, TitleOf);
+
+    /// Nouvelle touche d'une entrée (nil : aucune, actions seulement) ; `clashes` : ce qui l'avait, qui prend l'ancienne
+    /// touche de l'entrée (échange, 19/11), ou la perd si l'entrée n'en avait pas.
+    public void SetKey(CatalogRow row, KeyCombo? trigger, IReadOnlyList<KeyClash> clashes)
     {
-        var (upserts, deletes) = CatalogRows.Release(release);
+        var (upserts, deletes) = CatalogRows.Swap(clashes, row.Current);
         foreach (var id in deletes) _shortcuts.RemoveAll(x => x.Id == id);
         foreach (var s in upserts)
         {
             var i = _shortcuts.FindIndex(x => x.Id == s.Id);
-            if (i >= 0) _shortcuts[i] = s;
+            if (i >= 0) _shortcuts[i] = s; else _shortcuts.Add(s);
         }
         var (upsert, delete) = CatalogRows.Change(row, trigger);
         if (delete is { } d) _shortcuts.RemoveAll(x => x.Id == d);

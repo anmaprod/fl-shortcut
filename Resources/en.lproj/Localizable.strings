@@ -478,6 +478,8 @@
 "Change les raccourcis de FL Studio, ou ajoute les tiens." = "Change FL Studio's shortcuts, or add your own.";
 "Change une famille, un nom ou une piste si tu veux." = "Change a family, a name or a track if you like.";
 "Changements à envoyer" = "Changes to upload";
+"Changer aussi" = "Change it too";
+"Changer aussi dans %@ ?" = "Change it in %@ too?";
 "Changer ce qu'est ce son (Kick, 808, Lead…) ou sa famille" = "Change what this sound is (Kick, 808, Lead…) or its family";
 "Changer ce qu'est ce son (Kick, 808, Lead…), ou écrire son nom" = "Change what this sound is (Kick, 808, Lead…), or type its name";
 "Changer d'adresse" = "Change address";
@@ -1815,6 +1817,7 @@
 "Remplace certaines touches de FL (F9, B, O, Z…)." = "Replaces some FL keys (F9, B, O, Z…).";
 "Remplace un raccourci natif — %@." = "Replaces a built-in shortcut — %@.";
 "Remplacer" = "Replace";
+"Remplacer la touche ?" = "Replace the key?";
 "Remplacer le canal par l'élément choisi" = "Replace channel with selected item";
 "Rend la piste cliquée de la Playlist en un seul clip audio" = "Renders the clicked Playlist track into a single audio clip";
 "Rendu des pistes armées en .wav" = "Render armed tracks to .wav";
@@ -1962,6 +1965,7 @@
 "Serum, FLEX, Sytrus…" = "Serum, FLEX, Sytrus…";
 "Session expirée : reconnecte-toi." = "Session expired: sign in again.";
 "Seulement dans une macro : le lien avec FL s'y ouvre le temps du bloc." = "Only in a macro: the FL link opens there for the block.";
+"Seulement ici" = "Only here";
 "Seulement si rien ne se passe : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts », même numéro de Port en entrée et en sortie." = "Only if nothing happens: Options › MIDI Settings, input “FL Shortcuts Link”, Controller type “FL Shortcuts”, same Port number for input and output.";
 "Shaker" = "Shaker";
 "Si" = "If";
@@ -2470,6 +2474,7 @@
 "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le bouton ne peut pas être cherché" = "screen reading not allowed (System Settings › Privacy & Security › Screen & System Audio Recording): the button can't be looked for";
 "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le plugin ne peut pas être cherché dans « More plugins… » de FL" = "screen reading not allowed (System Settings › Privacy & Security › Screen Recording): the plugin can't be looked up in FL's “More plugins…”";
 "lecture de l'état de FL : demande l'extension du lien avec FL" = "reading FL's state: needs the FL link extension";
+"les autres pages" = "the other pages";
 "les couleurs" = "the colors";
 "les sons" = "the sounds";
 "lettre de menu non prise en charge" = "menu letter not supported";
@@ -2695,7 +2700,9 @@
 "À toi de choisir" = "Your call";
 "À vérifier" = "To check";
 "Ça ne marche toujours pas ?" = "Still not working?";
+"Échanger" = "Swap";
 "Échanger First et Last" = "Swap First and Last";
+"Échanger les touches ?" = "Swap the keys?";
 "Échap" = "Esc";
 "Échec" = "Failed";
 "Échec au bloc %@ (%@) : %@" = "Failed at block %@ (%@): %@";

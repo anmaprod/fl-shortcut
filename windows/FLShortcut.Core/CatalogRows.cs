@@ -19,6 +19,16 @@ public sealed record CatalogEntry(string Id, FlSection Section, string Title, st
                                   KeyCombo? DefaultTrigger)
 {
     public bool IsNative => Kind is CatalogEntryKind.Native;
+
+    /// La même action dans une autre page (outil zoom de la Playlist et du Piano Roll : même nom, même touche de FL ;
+    /// ou la même action du script) : elle peut partager une touche ; deux actions différentes, jamais (19/11, comme
+    /// CatalogEntry.sameAction du Mac).
+    public bool SameAction(CatalogEntry other) => (Kind, other.Kind) switch
+    {
+        (CatalogEntryKind.Native(var a), CatalogEntryKind.Native(var b)) => a == b && Title == other.Title,
+        (CatalogEntryKind.Action(var a), CatalogEntryKind.Action(var b)) => a == b,
+        _ => false,
+    };
 }
 
 /// État d'une entrée dans le profil : le raccourci qui la porte (s'il y en a un) et la touche actuelle.
@@ -128,12 +138,15 @@ public static class CatalogRows
         foreach (var s in others)
             if (s is { Enabled: true, Trigger: { } t }) Own(t, s.Id.ToString());
         var titles = new Dictionary<string, string>();
-        foreach (var r in rows) titles.TryAdd(r.Id, r.Entry.Title);
+        var byId = new Dictionary<string, CatalogEntry>();
+        foreach (var r in rows) { titles.TryAdd(r.Id, r.Entry.Title); byId.TryAdd(r.Id, r.Entry); }
         // Seule sa touche de maintenant compte : une entrée déplacée sur une autre touche a laissé celle de FL (13/11).
+        // La même action dans une autre page ne compte pas (19/11 : elle partage sa touche).
         for (var i = 0; i < rows.Count; i++)
         {
+            var entry = rows[i].Entry;
             if (rows[i].Current is not { } key || !owners.TryGetValue(key, out var ids)
-                || ids.FirstOrDefault(id => id != rows[i].Id) is not { } other) continue;
+                || ids.FirstOrDefault(id => id != rows[i].Id && !(byId.TryGetValue(id, out var e) && e.SameAction(entry))) is not { } other) continue;
             rows[i] = rows[i] with { TakenBy = titles.TryGetValue(other, out var title) ? title : Loc.T("un raccourci personnalisé") };
         }
         return (rows, others);
@@ -172,7 +185,7 @@ public static class CatalogRows
         if (editing.Entry.Kind is CatalogEntryKind.Native(var own) && own == trigger) return out_;
         foreach (var other in rows)
         {
-            if (other.Id == editing.Id) continue;
+            if (other.Id == editing.Id || other.Entry.SameAction(editing.Entry)) continue;   // 19/11 : même action, autre page
             if (other.Shortcut is { Enabled: true } s && s.Trigger == trigger)
                 out_.Add(new KeyClash(other, s, other.Entry.Title, other.Entry.Section.Title()));
             // Sa touche d'origine, seulement si elle l'utilise encore (essai 2.1 du 13/11, comme le Mac : deux touches
@@ -183,6 +196,36 @@ public static class CatalogRows
         foreach (var s in others)
             if (s.Enabled && s.Trigger == trigger && s.Id != editing.Shortcut?.Id) out_.Add(new KeyClash(null, s, title(s), null));
         return out_;
+    }
+
+    /// Échange (19/11, page « Échanger les touches ? ») : chaque raccourci qui avait la touche prend l'ancienne touche
+    /// de l'entrée (`old`). Sans ancienne touche : comme `Release`.
+    public static (List<Shortcut> Upserts, List<Guid> Deletes) Swap(IEnumerable<KeyClash> clashes, KeyCombo? old)
+    {
+        if (old is null) return Release(clashes);
+        var upserts = new List<Shortcut>();
+        var deletes = new List<Guid>();
+        foreach (var c in clashes)
+        {
+            if (c.Row is { } row)
+            {
+                var (u, d) = Change(row, old);
+                if (u is not null) upserts.Add(u);
+                if (d is { } id) deletes.Add(id);
+            }
+            else if (c.Shortcut is { } s) upserts.Add(s with { Trigger = old });
+        }
+        return (upserts, deletes);
+    }
+
+    /// La même action dans d'autres pages, encore sur l'ancienne touche (`old`), là où la nouvelle est libre : on
+    /// propose de la changer aussi (19/11, « Changer aussi dans Piano Roll ? »). `rows` : après le changement.
+    public static List<CatalogRow> Twins(IReadOnlyList<CatalogRow> rows, IReadOnlyList<Shortcut> others, CatalogRow row,
+                                         KeyCombo? old, KeyCombo? @new, Func<Shortcut, string> title)
+    {
+        if (old == @new) return new List<CatalogRow>();
+        return rows.Where(o => o.Id != row.Id && o.Entry.Section != row.Entry.Section && o.Entry.SameAction(row.Entry)
+                               && o.Current == old && (@new is not { } n || Clashes(rows, others, n, o, title).Count == 0)).ToList();
     }
 
     /// Libère la touche : tes raccourcis qui l'utilisaient la perdent (un raccourci de FL revient à sa seule touche
@@ -205,6 +248,31 @@ public static class CatalogRows
 public sealed record KeyClash(CatalogRow? Row, Shortcut? Shortcut, string Title, string? Section)
 {
     public bool IsFlKey => Shortcut is null;
+}
+
+/// Une ligne des petites pages « Échanger les touches ? » et « Changer aussi dans … ? » (19/11, comme le Mac) :
+/// « Outil zoom · Playlist, Piano Roll    Z  →  Ctrl+Alt+Z ».
+public static class KeyChangeLine
+{
+    public sealed record Group(string Title, string? Places);
+
+    public static string Text(string title, string? places, KeyCombo? from, KeyCombo? to) =>
+        title + (places is { } p ? " · " + p : "") + "    " + (from?.ToString() ?? "—") + "  →  " + (to?.ToString() ?? Loc.T("aucune touche"));
+
+    /// La même action dans plusieurs pages : une seule ligne, ses pages à la suite (dans l'ordre reçu).
+    public static List<Group> Grouped(IEnumerable<KeyClash> clashes)
+    {
+        var keys = new List<string>();
+        var titles = new Dictionary<string, string>();
+        var places = new Dictionary<string, List<string>>();
+        foreach (var c in clashes)
+        {
+            var key = c.Row is { } r ? r.Entry.Title + "|" + r.Entry.Kind : "custom|" + (c.Shortcut?.Id.ToString() ?? c.Title);
+            if (!titles.ContainsKey(key)) { keys.Add(key); titles[key] = c.Title; places[key] = new List<string>(); }
+            if (c.Section is { } s && !places[key].Contains(s)) places[key].Add(s);
+        }
+        return keys.Select(k => new Group(titles[k], places[k].Count > 0 ? string.Join(", ", places[k]) : null)).ToList();
+    }
 }
 
 /// « Mes raccourcis » : les raccourcis de FL que tu as changés, puis ceux que tu as créés. Jamais les macros (elles

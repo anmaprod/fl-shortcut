@@ -318,18 +318,30 @@ internal sealed partial class MainShell
         _app.SetRecording(false);
         if (!saved) return;
 
-        // Une touche ne sert qu'une fois (comme le Mac) : ce qui l'utilise est dit d'abord, puis repris.
+        // Une touche ne fait qu'une seule chose (19/11, comme le Mac) : la petite page montre l'échange avant de le faire.
         var found = Clashes();
-        if (found.Count > 0 && !await ConfirmReplace(combo, found)) return;
+        var old = row.Current;
+        if (found.Count > 0 && !await ConfirmReplace(row, combo, found)) return;
         _app.SetKey(row, combo, found);
         ShowToast(Loc.F("« %@ » : ", row.Entry.Title) + (combo?.ToString() ?? Loc.T("aucune touche")));
-        // L'entrée qui a perdu sa touche en reçoit une nouvelle tout de suite (la fiche d'avant s'est refermée).
-        if (found.FirstOrDefault(c => c.Row is not null)?.Row?.Id is { } next
+        // Sans ancienne touche à donner, l'entrée qui a perdu la sienne en reçoit une nouvelle tout de suite.
+        if (old is null && found.FirstOrDefault(c => c.Row is not null)?.Row?.Id is { } next
             && _app.Catalog.Rows.FirstOrDefault(r => r.Id == next) is { } nextRow)
         {
             await Task.Delay(400);
             EditKey(nextRow, Loc.F("Choisis une nouvelle touche pour « %@ ».", nextRow.Entry.Title));
+            return;
         }
+        // « Changer aussi dans Piano Roll ? » : la même action dans les autres pages (19/11).
+        var twins = _app.Twins(row, old, combo);
+        if (twins.Count == 0 || _root.XamlRoot is not { } xamlRoot) return;
+        await Task.Delay(300);
+        var place = twins.Count == 1 ? twins[0].Entry.Section.Title() : Loc.T("les autres pages");
+        var lines = string.Join("\n", twins.Select(t => KeyChangeLine.Text(t.Entry.Title, t.Entry.Section.Title(), old, combo)));
+        if (await SwissQuestion.AskAsync(xamlRoot, Loc.F("Changer aussi dans %@ ?", place), lines,
+                                         new[] { Loc.T("Changer aussi"), Loc.T("Seulement ici") }) != 0) return;
+        foreach (var twin in twins)
+            if (_app.Catalog.Rows.FirstOrDefault(r => r.Id == twin.Id) is { } now) _app.SetKey(now, combo, Array.Empty<KeyClash>());
     }
 
     /// Ce qui utilise déjà une touche, en une ligne (comme le Mac).
@@ -356,13 +368,18 @@ internal sealed partial class MainShell
         return await SwissQuestion.AskAsync(root, title, text, new[] { first, second, Loc.T("Annuler") });
     }
 
-    /// Une touche ne sert qu'une fois : ce qui l'utilise est dit avant de la reprendre (comme le Mac : les lignes seules).
-    private async Task<bool> ConfirmReplace(KeyCombo? combo, List<KeyClash> clashes)
+    /// Une touche ne fait qu'une seule chose (19/11, comme le Mac) : la petite page montre, avant → après, ce qui va
+    /// changer ; « Échanger » (l'autre prend l'ancienne touche) ou « Remplacer » (l'entrée n'avait pas de touche).
+    private async Task<bool> ConfirmReplace(CatalogRow row, KeyCombo? combo, List<KeyClash> clashes)
     {
         if (_root.XamlRoot is not { } root) return false;
-        return await SwissQuestion.AskAsync(root, Loc.F("%@ est déjà utilisée", combo?.ToString() ?? Loc.T("Cette touche")),
-                                            string.Join("\n", clashes.Take(4).Select(Line)),
-                                            new[] { Loc.T("Remplacer"), Loc.T("Annuler") }, destructive: 0) == 0;
+        var old = row.Current;
+        var lines = new List<string> { KeyChangeLine.Text(row.Entry.Title, row.Entry.Section.Title(), old, combo) };
+        lines.AddRange(KeyChangeLine.Grouped(clashes).Select(g => KeyChangeLine.Text(g.Title, g.Places, combo, old)));
+        var swapping = old is not null;
+        return await SwissQuestion.AskAsync(root, swapping ? Loc.T("Échanger les touches ?") : Loc.T("Remplacer la touche ?"),
+                                            string.Join("\n", lines),
+                                            new[] { swapping ? Loc.T("Échanger") : Loc.T("Remplacer"), Loc.T("Annuler") }) == 0;
     }
 
     /// Fiche d'un raccourci que tu as créé : sa touche, ce qu'il fait (action dans FL, touche de FL, macro), où.
