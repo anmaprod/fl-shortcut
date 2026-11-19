@@ -18,6 +18,8 @@
 - **Chaque changement demandé : sur Mac ET sur Windows** (demande du 04/11 : « a chaque fois que je fais des modifs fais
   les pour win aussi »), même s'il ne parle que d'un des deux.
 - Historique, décisions et échecs : `docs/contexte/HISTORIQUE.md` ; lien avec FL (script v16) : `PROTOCOL.md`.
+- **En cours (19/11)** : maquette « Minimal » (`docs/maquettes/fl-shortcuts-minimal.html`) mise dans l'app en 4 étapes ;
+  état exact et reste à faire : `docs/contexte/RELAIS-2026-11-19.md` (à lire avant d'y toucher).
 - **Graphify, toujours** (demande du 29/10, pour moins de jetons) : chercher dans le graphe du code AVANT de lire des
   fichiers (`graphify query "…"`, `graphify explain "Nom"`, `graphify path "A" "B"`), puis lire seulement les lignes
   utiles. Session neuve : `uv tool install graphifyy && graphify update .` (30 s, sans IA ; dossier `graphify-out/`

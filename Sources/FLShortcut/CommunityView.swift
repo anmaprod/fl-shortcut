@@ -220,6 +220,7 @@ private struct CommunityStatus: View {
 
 private struct CommunityBrowse: View {
     @ObservedObject var community: CommunityStore
+    @EnvironmentObject var store: Store
     let open: (Share) -> Void
     let report: (Share) -> Void
     let delete: (Share) -> Void
@@ -273,6 +274,7 @@ private struct CommunityBrowse: View {
                         ForEach(community.shares) { share in
                             CommunityShareCard(share: share, photo: community.photos[share.authorID],
                                                mine: community.isMine(share),
+                                               added: store.library.macros.contains { $0.origin == .community(share.id) },
                                                canDelete: community.canDelete(share),
                                                showAuthor: community.author?.id == share.authorID ? nil : {
                                                    Task { await community.openPerson(of: share) }
@@ -435,6 +437,8 @@ private struct CommunityShareCard: View {
     /// Photo de l'auteur (nil : son initiale de couleur).
     let photo: NSImage?
     let mine: Bool
+    /// Déjà dans mes macros (ajoutée depuis la Communauté, 19/11) : « Ajoutée ✓ » à la place d'« Ajouter ».
+    var added = false
     let canDelete: Bool
     /// Voir tous les partages de l'auteur (nil : on les regarde déjà).
     let showAuthor: (() -> Void)?
@@ -444,32 +448,37 @@ private struct CommunityShareCard: View {
     @State private var hovering = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(share.title.displaySafe(max: 80))
-                .font(Swiss.title(24)).tracking(-0.8)
-                .foregroundStyle(Swiss.text)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 14)
-            HStack(spacing: 8) {
-                AvatarView(photo: photo, username: share.authorName, size: 18)
+        // 19/11 (maquette « Minimal ») : qui, le nom, puis la note et les ajouts en grand ; plus de détail ni de date.
+        VStack(alignment: .leading, spacing: 12) {
+            if showAuthor != nil || !mine {
                 Button {
                     showAuthor?()
                 } label: {
-                    Text(verbatim: "@" + share.authorName.displaySafe(max: 24))
-                        .font(.system(size: 13))
-                        .foregroundStyle(Swiss.gray)
-                        .lineLimit(1)
+                    HStack(spacing: 8) {
+                        AvatarView(photo: photo, username: share.authorName, size: 20)
+                        Text(verbatim: share.authorName.displaySafe(max: 24))
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Swiss.text)
+                            .lineLimit(1)
+                    }
                 }
                 .buttonStyle(.plain)
                 .disabled(showAuthor == nil)
                 .help("Voir tout ce que @\(share.authorName.displaySafe(max: 24)) a publié")
-                if let stats = CommunityStats.compact(share) {
-                    Text(verbatim: "· " + stats).font(.system(size: 13)).foregroundStyle(Swiss.gray).lineLimit(1)
-                }
+            }
+            Text(share.title.displaySafe(max: 80))
+                .font(Swiss.title(20)).tracking(-0.4)
+                .foregroundStyle(Swiss.text)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 4)
+            HStack(alignment: .center, spacing: 12) {
+                CommunityBigStats(share: share)
                 Spacer(minLength: 8)
-                if !mine {
-                    Button("Ajouter", action: open)
+                if added {
+                    Text("Ajoutée ✓").font(.system(size: 14, weight: .semibold)).foregroundStyle(Swiss.text).fixedSize()
+                } else if !mine {
+                    Button(share.kind == .macro ? String(localized: "Ajouter") : String(localized: "Utiliser"), action: open)
                         .secondaryButton()
                         .controlSize(.small)
                         .fixedSize()
@@ -477,7 +486,8 @@ private struct CommunityShareCard: View {
                 }
             }
         }
-        .padding(24)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 18)
         .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
         .background(Rectangle().fill(hovering ? Swiss.faint : Swiss.background))
         .overlay(alignment: .trailing) { Rectangle().fill(Swiss.line).frame(width: 1).allowsHitTesting(false) }
@@ -520,7 +530,17 @@ private struct CommunityShareDetail: View {
     @State private var content = Content.loading
     /// Étoiles (11/11) : seulement si je l'ai ajouté et que ce n'est pas le mien ; ma note (nil : pas notée).
     @State private var canRate = false
-    @State private var stars: Int?
+    /// Ma note en demi-étoiles (1 à 10, 19/11).
+    @State private var half: Int?
+    /// Redessine la fiche après « Supprimer de mes macros ».
+    @State private var libraryChanged = 0
+
+    /// La macro de ce partage déjà dans mes macros (ajoutée depuis la Communauté, 19/11).
+    private var ownedDoc: MacroDoc? {
+        _ = libraryChanged
+        guard share.kind == .macro else { return nil }
+        return store.library.macros.first { $0.origin == .community(share.id) }
+    }
 
     enum Content {
         case loading
@@ -594,12 +614,12 @@ private struct CommunityShareDetail: View {
             Rectangle().fill(Swiss.line).frame(height: 1)
             // 11/11 : « Ta note », seulement après l'avoir ajouté (jamais le sien).
             if canRate {
-                CommunityStarsRow(stars: stars) { n in
-                    let before = stars
-                    stars = n
+                CommunityStarsRow(half: half) { n in
+                    let before = half
+                    half = n
                     Task {
-                        let sent = await community.rate(share, stars: n)
-                        if !sent { stars = before }
+                        let sent = await community.rate(share, half: n)
+                        if !sent { half = before }
                     }
                 }
                 .padding(.horizontal, 20)
@@ -616,10 +636,17 @@ private struct CommunityShareDetail: View {
                 Button("Fermer") { close() }
                     .secondaryButton()
                     .keyboardShortcut(.cancelAction)
-                Button(share.kind.addLabel) { add() }
-                    .primaryButton()
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!ready)
+                if let doc = ownedDoc {
+                    // 19/11 : ajoutée depuis la Communauté, elle se retire d'ici (avec une question, comme toute suppression).
+                    Text("Dans tes macros ✓").font(.system(size: 14, weight: .semibold)).foregroundStyle(Swiss.text)
+                    Button("Supprimer de mes macros") { removeFromMacros(doc) }
+                        .secondaryButton()
+                } else {
+                    Button(share.kind.addLabel) { add() }
+                        .primaryButton()
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(!ready)
+                }
             }
             .padding(16)
         }
@@ -629,7 +656,7 @@ private struct CommunityShareDetail: View {
             await load()
             if let rating = await community.myRating(of: share) {
                 canRate = rating.added
-                stars = rating.stars
+                half = rating.half
             }
         }
     }
@@ -710,6 +737,19 @@ private struct CommunityShareDetail: View {
         }
     }
 
+    /// « Supprimer de mes macros » (19/11) : la macro ajoutée depuis ce partage et ses raccourcis, après une question.
+    private func removeFromMacros(_ doc: MacroDoc) {
+        let shown = doc.name.displaySafe(max: 40)
+        guard Dialogs.choose(String(localized: "Supprimer « \(shown) » de tes macros ?"), "",
+                             [String(localized: "Supprimer"), String(localized: "Annuler")], destructive: 0) == 0
+        else { return }
+        let shortcuts = store.remaps(forMacro: doc.id)
+        guard store.library.remove(doc.id) != nil else { return }
+        for r in shortcuts { store.delete(r.id) }
+        libraryChanged += 1
+        added(ToastMessage(text: String(localized: "« \(shown) » supprimée de tes macros"), undo: nil))
+    }
+
     private func add() {
         guard !community.demo else {                      // mode capture : rien n'est ajouté
             close()
@@ -724,6 +764,7 @@ private struct CommunityShareDetail: View {
             // Presets joints au partage : rangés dans Documents › FL Shortcuts › Presets (jamais par-dessus un autre).
             if let why = MacroExchange.writeAttached(preview.files) { Dialogs.inform(String(localized: "Preset"), why) }
             doc.name = store.library.uniqueName(doc.name)
+            doc.origin = .community(share.id)          // 19/11 : pour « Supprimer de mes macros »
             _ = store.library.add(doc)
             added(ToastMessage(text: String(localized: """
                 « \(doc.name.displaySafe(max: 40)) » ajoutée à tes macros : choisis-lui un raccourci \
@@ -1074,60 +1115,83 @@ private struct CommunityReportSheet: View {
     let share: Share
     /// Ferme la page posée au-dessus (10/11 : plus de feuille de macOS).
     let close: () -> Void
-    @State private var reason = Reason.danger
+    /// 19/11 (maquette « Minimal ») : une case par raison, plusieurs possibles ; « Autre » ouvre « Pourquoi ? ».
+    @State private var picked: Set<Reason> = []
+    @State private var other = false
     @State private var details = ""
 
     enum Reason: String, CaseIterable, Identifiable {
-        case danger = "Dangereux : supprime, écrase ou envoie des choses sans prévenir"
-        case misleading = "Ne fait pas ce que dit son explication"
-        case offensive = "Contenu offensant"
-        case spam = "Publicité ou spam"
-        case other = "Autre"
+        case danger = "Dangereux pour mon projet"
+        case broken = "Ne marche pas"
+        case misleading = "Ne fait pas ce que dit le titre"
+        case offensive = "Titre ou photo choquant"
+        case spam = "Pub ou spam"
+        case copy = "Copie du travail de quelqu'un"
 
         var id: String { rawValue }
 
         /// Raison affichée ; le rawValue, en français, part tel quel au serveur.
         var label: String {
             switch self {
-            case .danger: return String(localized: "Dangereux : supprime, écrase ou envoie des choses sans prévenir")
-            case .misleading: return String(localized: "Ne fait pas ce que dit son explication")
-            case .offensive: return String(localized: "Contenu offensant")
-            case .spam: return String(localized: "Publicité ou spam")
-            case .other: return String(localized: "Autre")
+            case .danger: return String(localized: "Dangereux pour mon projet")
+            case .broken: return String(localized: "Ne marche pas")
+            case .misleading: return String(localized: "Ne fait pas ce que dit le titre")
+            case .offensive: return String(localized: "Titre ou photo choquant")
+            case .spam: return String(localized: "Pub ou spam")
+            case .copy: return String(localized: "Copie du travail de quelqu'un")
             }
         }
     }
 
+    private var ready: Bool {
+        !picked.isEmpty || (other && !details.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Signaler « \(share.title.displaySafe(max: 40)) »").font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Signaler").font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
+                Text(verbatim: share.title.displaySafe(max: 50) + " · " + share.authorName.displaySafe(max: 24))
+                    .font(.system(size: 13)).foregroundStyle(Swiss.gray)
             }
-            SwissRadioGroup(selection: $reason, options: Reason.allCases.map { (value: $0, label: $0.label) })
-            TextField("Détails", text: $details, prompt: Text("Précisions (facultatif)"))
-                .swissField()
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(Reason.allCases) { reason in
+                    Toggle(reason.label, isOn: Binding(get: { picked.contains(reason) },
+                                                       set: { on in if on { picked.insert(reason) } else { picked.remove(reason) } }))
+                        .toggleStyle(SwissCheckboxStyle())
+                }
+                Toggle("Autre", isOn: $other).toggleStyle(SwissCheckboxStyle())
+            }
+            if other {
+                // Grandit avec le texte, jamais tiré à la main (19/11).
+                TextField("Pourquoi ?", text: $details, prompt: Text("Pourquoi ?"), axis: .vertical)
+                    .lineLimit(2...8)
+                    .swissField()
+            }
             HStack {
                 Spacer()
                 Button("Annuler") { close() }
                     .secondaryButton()
                     .keyboardShortcut(.cancelAction)
-                Button("Signaler") {
+                Button("Envoyer") {
                     Task {
                         await community.report(share, reason: text)
                         if community.error == nil { close() }
                     }
                 }
                 .primaryButton()
-                .disabled(community.busy)
+                .disabled(community.busy || !ready)
             }
         }
         .padding(20)
         .frame(width: 440)
     }
 
-    /// Raison envoyée (3 à 500 caractères, comme le veut le serveur).
+    /// Raisons envoyées, en français, à la suite (3 à 500 caractères, comme le veut le serveur).
     private var text: String {
+        var parts = Reason.allCases.filter { picked.contains($0) }.map(\.rawValue)
         let extra = details.trimmingCharacters(in: .whitespacesAndNewlines)
-        return String((extra.isEmpty ? reason.rawValue : reason.rawValue + " : " + extra).prefix(500))
+        if other { parts.append(extra.isEmpty ? "Autre" : "Autre : " + extra) }
+        return String(parts.joined(separator: " ; ").prefix(500))
     }
 }

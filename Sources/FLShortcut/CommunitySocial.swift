@@ -80,6 +80,21 @@ enum CommunityStats {
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
+    /// Nombre d'ajouts des cases (19/11, « le nombre d'utilisation… + gros ») : le chiffre et son mot à part
+    /// (« 312 », « ajouts ») ; nil sous 1. Un jeu de raccourcis : « utilisations ».
+    static func adds(_ share: Share, locale: Locale = .current) -> (number: String, word: String)? {
+        let count = share.addCount ?? 0
+        guard count >= 1 else { return nil }
+        let word: String
+        switch (share.kind, count) {
+        case (.macro, 1): word = String(localized: "ajout")
+        case (.macro, _): word = String(localized: "ajouts")
+        case (_, 1): word = String(localized: "utilisation")
+        default: word = String(localized: "utilisations")
+        }
+        return (number(count, locale: locale), word)
+    }
+
     static func added(_ count: Int) -> String? {
         switch count {
         case ..<1: return nil
@@ -141,11 +156,30 @@ extension CommunityClient {
             && (m.contains("add_count") || m.contains("rating") || m.contains("follow") || m.contains("adds"))
     }
 
-    /// Requête de la Communauté du 11/11 : fonction, table ou colonne absente du serveur → `socialNotReady`.
+    /// Pure (testée) : le serveur n'a pas encore les demi-étoiles (19/11, communaute-suivre.sql pas recollé).
+    static func isMissingHalfStars(status: Int, message: String) -> Bool {
+        let m = message.lowercased()
+        return status == 400 && (m.contains("rating_half_sum") || m.contains("ratings.half") || m.contains("\"half\""))
+    }
+
+    /// Les mêmes colonnes sans celles des demi-étoiles.
+    static func withoutHalfStars(_ query: [URLQueryItem]) -> [URLQueryItem] {
+        query.map { item in
+            guard item.name == "select", let value = item.value else { return item }
+            let kept = value.split(separator: ",").filter { $0 != "rating_half_sum" && $0 != "half" }.joined(separator: ",")
+            return URLQueryItem(name: "select", value: kept)
+        }
+    }
+
+    /// Requête de la Communauté du 11/11 : fonction, table ou colonne absente du serveur → `socialNotReady`. Sans les
+    /// demi-étoiles (19/11), la même requête sans leurs colonnes.
     func socialCall(_ method: String, _ path: String, query: [URLQueryItem] = [], session: CommunitySession,
                     body: [String: Any]? = nil) async throws -> Data {
         do {
             return try await call(method, path, query: query, token: session.accessToken, body: body)
+        } catch CommunityError.server(let status, let message) where Self.isMissingHalfStars(status: status, message: message) {
+            Self.halfStars = false
+            return try await socialCall(method, path, query: Self.withoutHalfStars(query), session: session, body: body)
         } catch CommunityError.server(let status, let message) where Self.isMissingSocial(status: status, message: message) {
             throw CommunityError.socialNotReady
         }
@@ -216,27 +250,42 @@ extension CommunityClient {
         return count
     }
 
-    /// Ce partage a-t-il été ajouté par moi, et ma note (nil : pas noté).
-    func myRating(_ share: UUID, session: CommunitySession) async throws -> (added: Bool, stars: Int?) {
+    /// Ce partage a-t-il été ajouté par moi, et ma note en demi-étoiles, 1 à 10 (nil : pas noté).
+    func myRating(_ share: UUID, session: CommunitySession) async throws -> (added: Bool, half: Int?) {
         struct Added: Decodable { let share_id: UUID }
-        struct Rated: Decodable { let stars: Int }
+        struct Rated: Decodable { let stars: Int; let half: Int? }
         let filter = [URLQueryItem(name: "share_id", value: "eq.\(share.uuidString.lowercased())")]
         let adds = try await socialCall("GET", "rest/v1/adds", query: [URLQueryItem(name: "select", value: "share_id")] + filter,
                                         session: session)
-        let rates = try await socialCall("GET", "rest/v1/ratings", query: [URLQueryItem(name: "select", value: "stars")] + filter,
+        let columns = Self.halfStars ? "stars,half" : "stars"
+        let rates = try await socialCall("GET", "rest/v1/ratings", query: [URLQueryItem(name: "select", value: columns)] + filter,
                                          session: session)
         guard let added = try? JSONDecoder().decode([Added].self, from: adds),
               let rated = try? JSONDecoder().decode([Rated].self, from: rates) else { throw CommunityError.badResponse }
-        return (!added.isEmpty, rated.first?.stars)
+        return (!added.isEmpty, rated.first.map { $0.half ?? $0.stars * 2 })
     }
 
-    /// Ma note (1 à 5) : la somme et le nombre de notes du partage ensuite.
-    func rate(_ share: UUID, stars: Int, session: CommunitySession) async throws -> (sum: Int, count: Int) {
+    /// Ma note en demi-étoiles (1 à 10) : la somme et le nombre de notes du partage ensuite ; `half` vrai si la somme
+    /// est en demi-étoiles. Serveur d'avant : l'étoile entière la plus proche (rate_share).
+    func rate(_ share: UUID, half: Int, session: CommunitySession) async throws -> (sum: Int, count: Int, half: Bool) {
+        let id = share.uuidString.lowercased()
+        if Self.halfStars {
+            struct Row: Decodable { let rating_half_sum: Int; let rating_count: Int }
+            do {
+                let data = try await socialCall("POST", "rest/v1/rpc/rate_share_half", session: session,
+                                                body: ["p_share": id, "p_half": half])
+                guard let row = (try? JSONDecoder().decode([Row].self, from: data))?.first else { throw CommunityError.badResponse }
+                return (row.rating_half_sum, row.rating_count, true)
+            } catch CommunityError.socialNotReady {
+                Self.halfStars = false                     // rate_share_half absente : serveur d'avant
+            }
+        }
         struct Row: Decodable { let rating_sum: Int; let rating_count: Int }
+        let stars = max(1, min(5, Int((Double(half) / 2).rounded())))
         let data = try await socialCall("POST", "rest/v1/rpc/rate_share", session: session,
-                                        body: ["p_share": share.uuidString.lowercased(), "p_stars": stars])
+                                        body: ["p_share": id, "p_stars": stars])
         guard let row = (try? JSONDecoder().decode([Row].self, from: data))?.first else { throw CommunityError.badResponse }
-        return (row.rating_sum, row.rating_count)
+        return (row.rating_sum, row.rating_count, false)
     }
 }
 
@@ -401,8 +450,8 @@ extension CommunityStore {
         } catch {}
     }
 
-    /// Ajouté par moi, et ma note (nil : pas de notes possibles, serveur d'avant ou son propre partage).
-    func myRating(of share: Share) async -> (added: Bool, stars: Int?)? {
+    /// Ajouté par moi, et ma note en demi-étoiles (nil : pas de notes possibles, serveur d'avant ou son propre partage).
+    func myRating(of share: Share) async -> (added: Bool, half: Int?)? {
         guard social, !isMine(share) else { return nil }
         if demo { return (true, nil) }
         guard let client, let session = try? await validSession() else { return nil }
@@ -417,13 +466,13 @@ extension CommunityStore {
     }
 
     /// Ma note : envoyée, puis la moyenne affichée suit ; faux en cas de refus (message dans `error`).
-    func rate(_ share: Share, stars: Int) async -> Bool {
+    func rate(_ share: Share, half: Int) async -> Bool {
         if demo { return true }
         var ok = false
         await authed { client, session in
-            let result = try await client.rate(share.id, stars: stars, session: session)
+            let result = try await client.rate(share.id, half: half, session: session)
             self.update(share.id) {
-                $0.ratingSum = result.sum
+                if result.half { $0.ratingHalfSum = result.sum } else { $0.ratingSum = result.sum; $0.ratingHalfSum = nil }
                 $0.ratingCount = result.count
             }
             ok = true

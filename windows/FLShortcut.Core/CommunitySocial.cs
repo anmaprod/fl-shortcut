@@ -95,6 +95,14 @@ public static class CommunitySocial
                && (m.Contains("add_count") || m.Contains("rating") || m.Contains("follow") || m.Contains("adds"));
     }
 
+    /// Pur (testé) : le serveur n'a pas encore les demi-étoiles (19/11, communaute-suivre.sql pas recollé) : la même
+    /// requête se refait sans leurs colonnes (comme le Mac).
+    public static bool IsMissingHalfStars(int status, string message)
+    {
+        var m = message.ToLowerInvariant();
+        return status == 400 && (m.Contains("rating_half_sum") || m.Contains("ratings.half") || m.Contains("\"half\""));
+    }
+
     private static string Id(Guid id) => id.ToString("D").ToLowerInvariant();
 
     private static string Query(params (string Key, string Value)[] items) =>
@@ -138,17 +146,29 @@ public static class CommunitySocial
     public static HttpRequestMessage MyAdd(ServerConfig c, AccountSession s, Guid share) =>
         ServerRequests.Make(c, HttpMethod.Get, "rest/v1/adds?" + Query(("select", "share_id"), ("share_id", "eq." + Id(share))), s.AccessToken);
 
-    /// Ma note de ce partage (aucune ligne : pas notée).
+    /// Ma note de ce partage (aucune ligne : pas notée) ; avec les demi-étoiles si le serveur les a.
     public static HttpRequestMessage MyRating(ServerConfig c, AccountSession s, Guid share) =>
-        ServerRequests.Make(c, HttpMethod.Get, "rest/v1/ratings?" + Query(("select", "stars"), ("share_id", "eq." + Id(share))), s.AccessToken);
+        ServerRequests.Make(c, HttpMethod.Get, "rest/v1/ratings?" + Query(("select", CommunityRequests.HalfStars ? "stars,half" : "stars"),
+                                                                          ("share_id", "eq." + Id(share))), s.AccessToken);
 
-    /// Ma note (1 à 5).
+    /// Ma note en étoiles entières (1 à 5), pour un serveur d'avant.
     public static HttpRequestMessage Rate(ServerConfig c, AccountSession s, Guid share, int stars)
     {
         if (stars is < 1 or > 5) throw new ArgumentOutOfRangeException(nameof(stars));
         return ServerRequests.Make(c, HttpMethod.Post, "rest/v1/rpc/rate_share", s.AccessToken,
             new Dictionary<string, object?> { ["p_share"] = Id(share), ["p_stars"] = stars });
     }
+
+    /// Ma note en demi-étoiles (1 à 10, 19/11).
+    public static HttpRequestMessage RateHalf(ServerConfig c, AccountSession s, Guid share, int half)
+    {
+        if (half is < 1 or > 10) throw new ArgumentOutOfRangeException(nameof(half));
+        return ServerRequests.Make(c, HttpMethod.Post, "rest/v1/rpc/rate_share_half", s.AccessToken,
+            new Dictionary<string, object?> { ["p_share"] = Id(share), ["p_half"] = half });
+    }
+
+    /// L'étoile entière la plus proche d'une note en demi-étoiles (serveur d'avant).
+    public static int WholeStars(int half) => Math.Clamp((int)Math.Round(half / 2.0, MidpointRounding.AwayFromZero), 1, 5);
 
     // ---------- Lecture des réponses ----------
 
@@ -191,14 +211,28 @@ public static class CommunitySocial
         catch (JsonException) { return false; }
     }
 
-    /// Ma note (null : pas notée).
-    public static int? DecodeStars(string json)
+    /// Ma note en demi-étoiles, 1 à 10 (null : pas notée) ; une note d'avant en étoiles entières vaut le double.
+    public static int? DecodeHalf(string json)
     {
         try
         {
             var rows = JsonDocument.Parse(json).RootElement;
-            return rows.ValueKind == JsonValueKind.Array && rows.GetArrayLength() > 0
-                   && rows[0].TryGetProperty("stars", out var s) && s.TryGetInt32(out var n) ? n : null;
+            if (rows.ValueKind != JsonValueKind.Array || rows.GetArrayLength() == 0) return null;
+            if (rows[0].TryGetProperty("half", out var h) && h.TryGetInt32(out var half)) return half;
+            return rows[0].TryGetProperty("stars", out var s) && s.TryGetInt32(out var n) ? n * 2 : null;
+        }
+        catch (Exception e) when (e is JsonException or InvalidOperationException) { return null; }
+    }
+
+    /// Somme en demi-étoiles et nombre de notes rendus par rate_share_half.
+    public static (int HalfSum, int Count)? DecodeRatedHalf(string json)
+    {
+        try
+        {
+            var rows = JsonDocument.Parse(json).RootElement;
+            if (rows.ValueKind != JsonValueKind.Array || rows.GetArrayLength() == 0) return null;
+            return rows[0].TryGetProperty("rating_half_sum", out var s) && s.TryGetInt32(out var sum)
+                   && rows[0].TryGetProperty("rating_count", out var c) && c.TryGetInt32(out var count) ? (sum, count) : null;
         }
         catch (Exception e) when (e is JsonException or InvalidOperationException) { return null; }
     }

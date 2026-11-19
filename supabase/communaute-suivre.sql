@@ -12,6 +12,9 @@ alter table public.profiles add column if not exists follower_count integer not 
 alter table public.shares add column if not exists add_count integer not null default 0;
 alter table public.shares add column if not exists rating_sum integer not null default 0;
 alter table public.shares add column if not exists rating_count integer not null default 0;
+-- 19/11 : somme des notes en demi-étoiles (moyenne = rating_half_sum / rating_count / 2) ; rating_sum reste en étoiles
+-- entières pour les versions d'avant.
+alter table public.shares add column if not exists rating_half_sum integer not null default 0;
 create index if not exists shares_add_count on public.shares (add_count desc, created_at desc);
 create index if not exists shares_author on public.shares (author_id, created_at desc);
 
@@ -161,6 +164,17 @@ begin
     end if;
   end loop;
 end $$;
+-- 19/11 (« des demi-étoiles comme dans Letterboxd ») : la note en demi-étoiles, `half` de 1 à 10 (0,5 à 5 étoiles) ;
+-- `stars` garde l'étoile entière la plus proche pour les versions d'avant. Une note d'avant vaut 2, 4… demi-étoiles.
+alter table public.ratings add column if not exists half smallint;
+update public.ratings set half = stars * 2 where half is null;
+alter table public.ratings alter column half set not null;
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conrelid = 'public.ratings'::regclass and conname = 'ratings_half_1_10') then
+    alter table public.ratings add constraint ratings_half_1_10 check (half between 1 and 10);
+  end if;
+end $$;
 create index if not exists ratings_user on public.ratings (user_id, updated_at desc);
 alter table public.ratings enable row level security;
 drop policy if exists "chacun lit ses notes" on public.ratings;
@@ -171,19 +185,22 @@ create or replace function public.count_ratings() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
   if tg_op = 'INSERT' then
-    update public.shares set rating_sum = rating_sum + new.stars, rating_count = rating_count + 1 where id = new.share_id;
+    update public.shares set rating_sum = rating_sum + new.stars, rating_half_sum = rating_half_sum + new.half,
+           rating_count = rating_count + 1 where id = new.share_id;
     return new;
   elsif tg_op = 'UPDATE' then
-    update public.shares set rating_sum = rating_sum - old.stars + new.stars where id = new.share_id;
+    update public.shares set rating_sum = rating_sum - old.stars + new.stars,
+           rating_half_sum = rating_half_sum - old.half + new.half where id = new.share_id;
     return new;
   end if;
-  update public.shares set rating_sum = greatest(rating_sum - old.stars, 0), rating_count = greatest(rating_count - 1, 0)
+  update public.shares set rating_sum = greatest(rating_sum - old.stars, 0),
+         rating_half_sum = greatest(rating_half_sum - old.half, 0), rating_count = greatest(rating_count - 1, 0)
    where id = old.share_id;
   return old;
 end;
 $$;
 drop trigger if exists ratings_count on public.ratings;
-create trigger ratings_count after insert or update of stars or delete on public.ratings
+create trigger ratings_count after insert or update of stars, half or delete on public.ratings
   for each row execute function public.count_ratings();
 
 -- Noter un partage : seulement après l'avoir ajouté, jamais le sien ; une nouvelle note remplace l'ancienne ; 200 notes
@@ -208,11 +225,42 @@ begin
   if (select count(*) from public.ratings r where r.user_id = me and r.updated_at > now() - interval '1 hour') >= 200 then
     raise exception 'Trop de notes en une heure : réessaie plus tard.';
   end if;
-  insert into public.ratings as r (share_id, user_id, stars) values (p_share, me, p_stars)
-    on conflict (share_id, user_id) do update set stars = excluded.stars, updated_at = now();
+  insert into public.ratings as r (share_id, user_id, stars, half) values (p_share, me, p_stars, p_stars * 2)
+    on conflict (share_id, user_id) do update set stars = excluded.stars, half = excluded.half, updated_at = now();
   return query select s.rating_sum, s.rating_count from public.shares s where s.id = p_share;
 end;
 $$;
+
+-- Noter en demi-étoiles (19/11) : `p_half` de 1 à 10 ; mêmes règles que rate_share. Rend la somme en demi-étoiles et
+-- le nombre de notes (moyenne = somme / nombre / 2).
+create or replace function public.rate_share_half(p_share uuid, p_half integer)
+returns table (rating_half_sum integer, rating_count integer)
+language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+begin
+  if me is null then raise exception 'Connexion requise.'; end if;
+  if p_half is null or p_half < 1 or p_half > 10 then
+    raise exception 'Une note de 0,5 à 5 étoiles.' using errcode = 'check_violation';
+  end if;
+  if not exists (select 1 from public.shares s where s.id = p_share) then raise exception 'Partage introuvable.'; end if;
+  if exists (select 1 from public.shares s where s.id = p_share and s.author_id = me) then
+    raise exception 'Tu ne peux pas noter ton propre partage.';
+  end if;
+  if not exists (select 1 from public.adds a where a.share_id = p_share and a.user_id = me) then
+    raise exception 'Ajoute-le d''abord, puis note-le.';
+  end if;
+  if (select count(*) from public.ratings r where r.user_id = me and r.updated_at > now() - interval '1 hour') >= 200 then
+    raise exception 'Trop de notes en une heure : réessaie plus tard.';
+  end if;
+  insert into public.ratings as r (share_id, user_id, stars, half)
+    values (p_share, me, greatest(1, least(5, round(p_half / 2.0)::integer)), p_half)
+    on conflict (share_id, user_id) do update set stars = excluded.stars, half = excluded.half, updated_at = now();
+  return query select s.rating_half_sum, s.rating_count from public.shares s where s.id = p_share;
+end;
+$$;
+revoke all on function public.rate_share_half(uuid, integer) from public, anon;
+grant execute on function public.rate_share_half(uuid, integer) to authenticated;
 revoke all on function public.rate_share(uuid, integer) from public, anon;
 grant execute on function public.rate_share(uuid, integer) to authenticated;
 
@@ -274,4 +322,5 @@ update public.profiles p set follower_count = (select count(*) from public.follo
  where follower_count <> (select count(*) from public.follows f where f.followee_id = p.id);
 update public.shares s set add_count = (select count(*) from public.adds a where a.share_id = s.id),
        rating_sum = coalesce((select sum(stars) from public.ratings r where r.share_id = s.id), 0),
+       rating_half_sum = coalesce((select sum(half) from public.ratings r where r.share_id = s.id), 0),
        rating_count = (select count(*) from public.ratings r where r.share_id = s.id);

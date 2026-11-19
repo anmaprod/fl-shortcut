@@ -48,7 +48,8 @@ struct CommunityTabs: View {
     }
 }
 
-/// Suivre / Abonné (un clic sur « Abonné » arrête de suivre). Jamais pour soi-même.
+/// Suivre / Abonné ✓ (un clic sur « Abonné » arrête de suivre). Jamais pour soi-même. 19/11 : « Abonné » a la même
+/// couleur que « Suivre », et le même survol.
 struct CommunityFollowButton: View {
     @ObservedObject var community: CommunityStore
     let id: UUID
@@ -57,8 +58,8 @@ struct CommunityFollowButton: View {
     var body: some View {
         if id != community.session?.userID {
             if community.following.contains(id) {
-                Button(String(localized: "Abonné")) { Task { await community.unfollow(id) } }
-                    .secondaryButton()
+                Button(String(localized: "Abonné ✓")) { Task { await community.unfollow(id) } }
+                    .primaryButton()
                     .controlSize(small ? .small : .regular)
                     .help(String(localized: "Ne plus suivre"))
             } else {
@@ -251,12 +252,13 @@ struct CommunityPersonHeader: View {
                         }
                         return items
                     }
-                if community.social, let followers = community.personFollowers {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(verbatim: CommunityStats.number(followers))
-                            .font(Swiss.title(34)).tracking(Swiss.titleTracking(34))
-                        Text("Abonnés").swissLabel()
+                // 19/11 (« mieux valoriser les abonnés et les partages ») : les deux en grand, côte à côte.
+                HStack(alignment: .top, spacing: 36) {
+                    if community.social, let followers = community.personFollowers {
+                        bigNumber(followers, followers == 1 ? String(localized: "Abonné") : String(localized: "Abonnés"))
                     }
+                    bigNumber(community.shares.count,
+                              community.shares.count == 1 ? String(localized: "Partage") : String(localized: "Partages"))
                 }
                 Spacer(minLength: 8)
                 if community.social {
@@ -265,7 +267,6 @@ struct CommunityPersonHeader: View {
             }
             HStack(spacing: 12) {
                 Text("Son travail").swissLabel(Swiss.text)
-                Text(verbatim: String(community.shares.count)).swissLabel()
                 Spacer(minLength: 8)
                 if community.social {
                     HStack(spacing: -2) {
@@ -276,6 +277,15 @@ struct CommunityPersonHeader: View {
             }
             .padding(.bottom, 8)
             .swissRule(Swiss.line)
+        }
+    }
+
+    private func bigNumber(_ value: Int, _ label: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(verbatim: CommunityStats.number(value))
+                .font(Swiss.title(34)).tracking(Swiss.titleTracking(34))
+                .monospacedDigit()
+            Text(label).swissLabel()
         }
     }
 
@@ -312,34 +322,80 @@ struct CommunityPersonHeader: View {
     }
 }
 
-/// « Ta note » : 5 étoiles à cliquer (pleines à l'encre, vides en gris) ; un nouveau clic change la note.
+/// « Ta note » en demi-étoiles, comme Letterboxd (19/11) : chaque moitié d'étoile se clique ; la note s'affiche dès le
+/// survol, en rouge, avec son chiffre (« 3,5 ») ; un nouveau clic la change. `half` : 1 à 10 (0,5 à 5 étoiles).
 struct CommunityStarsRow: View {
-    let stars: Int?
+    let half: Int?
     let rate: (Int) -> Void
     @State private var hover: Int?
 
     var body: some View {
-        HStack(spacing: 12) {
+        let shown = hover ?? half ?? 0
+        HStack(spacing: 14) {
             Text("Ta note").swissLabel(Swiss.text)
             HStack(spacing: 2) {
-                ForEach(1...5, id: \.self) { n in
-                    let full = n <= (hover ?? stars ?? 0)
-                    Button {
-                        rate(n)
-                    } label: {
-                        Image(systemName: full ? "star.fill" : "star")
-                            .font(.system(size: 17))
-                            .foregroundStyle(full ? Swiss.text : Swiss.gray)
-                            .frame(width: 24, height: 24)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .onHover { inside in hover = inside ? n : (hover == n ? nil : hover) }
-                    .help(n == 1 ? String(localized: "1 étoile") : String(localized: "\(n) étoiles"))
-                    .accessibilityLabel(n == 1 ? String(localized: "1 étoile") : String(localized: "\(n) étoiles"))
+                ForEach(1...5, id: \.self) { i in
+                    Image(systemName: shown >= i * 2 ? "star.fill" : shown == i * 2 - 1 ? "star.leadinghalf.filled" : "star")
+                        .font(.system(size: 24))
+                        .foregroundStyle(shown >= i * 2 - 1 ? Swiss.red : Swiss.gray)
+                        .frame(width: 30, height: 30)
+                        .overlay {
+                            HStack(spacing: 0) {
+                                halfTarget(i * 2 - 1)
+                                halfTarget(i * 2)
+                            }
+                        }
                 }
             }
+            .onHover { inside in if !inside { hover = nil } }
+            Text(verbatim: shown > 0 ? CommunityStats.rating(Double(shown) / 2, locale: .current) : "")
+                .font(Swiss.font(20))
+                .monospacedDigit()
+                .frame(minWidth: 36, alignment: .leading)
             Spacer(minLength: 0)
         }
+    }
+
+    /// Une moitié d'étoile : survolée, la note s'affiche ; cliquée, elle est envoyée.
+    private func halfTarget(_ n: Int) -> some View {
+        let label = CommunityStats.rating(Double(n) / 2, locale: .current)
+        return Rectangle()
+            .fill(Color.clear)
+            .contentShape(Rectangle())
+            .onHover { inside in if inside { hover = n } }
+            .onTapGesture { rate(n) }
+            .help(String(localized: "\(label) sur 5"))
+            .accessibilityElement()
+            .accessibilityLabel(String(localized: "\(label) sur 5"))
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { rate(n) }
+    }
+}
+
+/// La note et le nombre d'ajouts d'un partage, en grand (19/11, « les étoiles et le nombre d'utilisation… + gros ») :
+/// « ★ 4,6 sur 5   312 ajouts », l'étoile en rouge, le mot en gris.
+struct CommunityBigStats: View {
+    let share: Share
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 20) {
+            if let value = share.rating {
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Text(verbatim: "★").font(.system(size: 19)).foregroundStyle(Swiss.red)
+                    Text(verbatim: CommunityStats.rating(value)).font(Swiss.font(22)).monospacedDigit()
+                        .foregroundStyle(Swiss.text)
+                    Text("sur 5").font(.system(size: 13)).foregroundStyle(Swiss.gray)
+                }
+            }
+            if let adds = CommunityStats.adds(share) {
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Text(verbatim: adds.number).font(Swiss.font(22)).monospacedDigit().foregroundStyle(Swiss.text)
+                    Text(verbatim: adds.word).font(.system(size: 13)).foregroundStyle(Swiss.gray)
+                }
+            }
+        }
+        .lineLimit(1)
+        .fixedSize()
+        .accessibilityElement(children: .combine)
     }
 }

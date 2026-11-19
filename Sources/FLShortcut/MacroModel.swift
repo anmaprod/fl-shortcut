@@ -119,14 +119,16 @@ struct VariableDecl: Codable, Equatable {
     var initial = 0
 }
 
-/// D'où vient une macro : modèle développé, import, enregistrement, ancienne macro reprise.
+/// D'où vient une macro : modèle développé, import, enregistrement, ancienne macro reprise, ou ajoutée depuis la
+/// Communauté (19/11 : son partage, pour « Supprimer de mes macros » ; une version d'avant lit l'origine comme absente).
 enum Origin: Codable, Equatable {
     case template(String)
     case imported
     case recorded
     case legacy
+    case community(UUID)
 
-    private enum CodingKeys: String, CodingKey { case kind, name }
+    private enum CodingKeys: String, CodingKey { case kind, name, share }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -135,6 +137,7 @@ enum Origin: Codable, Equatable {
         case "imported": self = .imported
         case "recorded": self = .recorded
         case "legacy": self = .legacy
+        case "community": self = .community(try c.decode(UUID.self, forKey: .share))
         default: throw DecodingError.dataCorruptedError(forKey: .kind, in: c, debugDescription: "origine inconnue")
         }
     }
@@ -148,6 +151,9 @@ enum Origin: Codable, Equatable {
         case .imported: try c.encode("imported", forKey: .kind)
         case .recorded: try c.encode("recorded", forKey: .kind)
         case .legacy: try c.encode("legacy", forKey: .kind)
+        case .community(let share):
+            try c.encode("community", forKey: .kind)
+            try c.encode(share.uuidString.lowercased(), forKey: .share)
         }
     }
 }

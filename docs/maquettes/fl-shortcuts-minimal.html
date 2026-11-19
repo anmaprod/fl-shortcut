@@ -1,0 +1,1032 @@
+<title>Communauté FL Shortcuts</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap">
+<style>
+/* Menus en haut. Chaque page : une chose à faire, avec des formes connues (bouton, liste, case, interrupteur, menu ▾). */
+:root{
+  --grid:#E2DFD8; --desk:#B9B7B1; --deskink:#3A3936; --bg:#F3F2EE; --ink:#111111; --gray:#67655F; --faint:#A8A59E; --red:#FF3B1F; --hover:#E7E5DF; --redOn:#FF3B1F;
+  --font:'Inter','Helvetica Neue',Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --grid:transparent; --desk:#262523; --deskink:#B5B2AB; --bg:#121212; --ink:#F3F2EE; --gray:#9A978F; --faint:#5C5A55; --red:#FF3B1F; --hover:#1D1D1C; --redOn:#C62D17; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --grid:transparent; --desk:#262523; --deskink:#B5B2AB; --bg:#121212; --ink:#F3F2EE; --gray:#9A978F; --faint:#5C5A55; --red:#FF3B1F; --hover:#1D1D1C; --redOn:#C62D17; color-scheme:dark }
+.win[data-t="papier"]{ --grid:#E2DFD8; --bg:#F3F2EE; --ink:#111111; --gray:#67655F; --faint:#A8A59E; --red:#FF3B1F; --hover:#E7E5DF; --redOn:#FF3B1F; color-scheme:light }
+.win[data-t="noir"]{ --grid:transparent; --bg:#121212; --ink:#F3F2EE; --gray:#9A978F; --faint:#5C5A55; --red:#FF3B1F; --hover:#1D1D1C; --redOn:#C62D17; color-scheme:dark }
+.win[data-t="orange"]{ --grid:transparent; --bg:#FF3B1F; --ink:#111111; --gray:#4D1206; --faint:#A3240E; --red:#FFFFFF; --hover:#F2361A; --redOn:#FF3B1F; color-scheme:light }
+
+*,*::before,*::after{ box-sizing:border-box; }
+body{ background:var(--desk); font-family:var(--font); padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); padding-block:32px; }
+.win{ position:relative; max-width:1184px; height:744px; margin:0 auto; background:var(--bg); color:var(--ink); display:flex; flex-direction:column;
+  font-size:13px; line-height:16px; -webkit-font-smoothing:antialiased; box-shadow:0 24px 64px rgba(0,0,0,.25), 0 0 0 1px rgba(0,0,0,.15); }
+.note{ max-width:1184px; margin:16px auto 0; color:var(--deskink); font-size:13px; line-height:16px; }
+button{ font:inherit; color:inherit; background:none; border:0; padding:0; margin:0; cursor:pointer; text-align:left; }
+input,textarea{ font:inherit; color:var(--ink); background:transparent; border:0; outline:none; padding:0; margin:0; width:100%; min-width:0; }
+input::placeholder,textarea::placeholder{ color:var(--faint); opacity:1; }
+:focus-visible{ outline:2px solid var(--red); outline-offset:3px; }
+/* Champs : jamais de contour rouge ; le cadre ou le trait passe en plus épais, à l'encre. */
+input:focus-visible,textarea:focus-visible{ outline:none; }
+ol,ul{ list-style:none; margin:0; padding:0; } p{ margin:0; }
+
+.bar{ height:48px; flex-shrink:0; display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); column-gap:24px; padding:0 48px 0 24px; align-items:center; }
+.dots{ grid-column:1 / span 2; display:flex; gap:8px; } .dots span{ width:12px; height:12px; border-radius:6px; background:var(--faint); opacity:.55; }
+.nav{ grid-column:3 / span 10; display:flex; gap:24px; flex-wrap:wrap; }
+.nav button{ color:var(--gray); } .nav button:hover{ color:var(--ink); } .nav button[aria-current]{ color:var(--ink); font-weight:600; }
+
+.page{ flex:1; min-height:0; overflow:auto; display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); grid-auto-rows:max-content; column-gap:24px; padding:0 48px 48px; align-content:start; }
+.line{ grid-column:1 / -1; padding-top:72px; display:flex; gap:24px; flex-wrap:wrap; align-items:center; }
+.line .end{ margin-left:auto; }
+.colL{ grid-column:1 / span 7; padding-top:48px; min-width:0; } .colR{ grid-column:8 / span 5; padding-top:48px; min-width:0; }
+.main{ grid-column:1 / span 9; padding-top:40px; min-width:0; }
+.full{ grid-column:1 / -1; min-width:0; }
+
+.t16{ font-size:16px; line-height:24px; } .t24{ font-size:24px; line-height:32px; } .t48{ font-size:48px; line-height:52px; letter-spacing:-.02em; }
+.b{ font-weight:600; } .g{ color:var(--gray); } .f{ color:var(--faint); } .r{ color:var(--red); }
+.u{ text-decoration:underline; text-underline-offset:3px; text-decoration-thickness:1px; } .u:hover{ color:var(--red); }
+.act:hover{ color:var(--red); }
+.mt8{ margin-top:8px; } .mt16{ margin-top:16px; } .mt24{ margin-top:24px; } .mt32{ margin-top:32px; } .mt48{ margin-top:48px; }
+.links{ display:flex; gap:24px; flex-wrap:wrap; align-items:baseline; }
+.btns{ display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
+
+/* Formes connues */
+.btn{ display:inline-flex; align-items:center; gap:10px; height:44px; padding:0 20px; background:var(--ink); color:var(--bg); font-size:14px; font-weight:600; white-space:nowrap; }
+.btn:hover{ background:var(--red); color:var(--bg); }
+.btn.out{ background:transparent; color:var(--ink); box-shadow:inset 0 0 0 2px var(--ink); } .btn.out:hover{ background:var(--ink); color:var(--bg); }
+.btn.small{ height:36px; padding:0 14px; font-size:13px; }
+.btn .dot{ width:12px; height:12px; border-radius:50%; background:var(--red); }
+.kc{ display:inline-flex; align-items:center; justify-content:center; gap:8px; min-width:52px; height:44px; padding:0 14px; box-shadow:inset 0 0 0 2px var(--ink); font-size:20px; font-weight:600; white-space:nowrap; }
+.kc:hover{ box-shadow:inset 0 0 0 2px var(--red); color:var(--red); }
+.kc.chg{ background:var(--red); color:var(--bg); box-shadow:none; } .kc.chg:hover{ color:var(--bg); }
+.kc.none{ box-shadow:inset 0 0 0 2px var(--faint); color:var(--gray); font-size:14px; font-weight:400; }
+.kc.wait{ box-shadow:inset 0 0 0 2px var(--red); color:var(--red); font-size:14px; font-weight:400; }
+.kc.big{ height:56px; font-size:28px; padding:0 18px; } .kc.big.none,.kc.big.wait{ font-size:16px; }
+.dd{ display:inline-flex; align-items:center; gap:12px; height:40px; padding:0 12px; box-shadow:inset 0 0 0 2px var(--ink); font-size:16px; font-weight:600; max-width:100%; }
+.dd::after{ content:"▾"; font-weight:400; } .dd:hover{ box-shadow:inset 0 0 0 2px var(--red); }
+.dd.todo{ color:var(--red); box-shadow:inset 0 0 0 2px var(--red); font-weight:400; }
+.menu{ position:absolute; z-index:4; min-width:240px; width:max-content; max-width:min(480px, 90vw); background:var(--bg); border:2px solid var(--ink); box-shadow:0 12px 32px rgba(0,0,0,.18); padding:0; }
+.menu button:focus-visible{ outline:none; background:var(--ink); color:var(--bg); }
+.menu button{ display:block; width:100%; padding:10px 16px; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .menu button:hover,.menu button.on{ background:var(--ink); color:var(--bg); }
+.switch{ display:inline-flex; align-items:center; gap:10px; font-size:14px; }
+.switch i{ position:relative; width:40px; height:22px; box-shadow:inset 0 0 0 2px var(--ink); flex-shrink:0; }
+.switch i::after{ content:""; position:absolute; top:4px; left:4px; width:14px; height:14px; background:var(--ink); transition:left .15s; }
+.switch[aria-pressed="true"] i{ background:var(--ink); } .switch[aria-pressed="true"] i::after{ left:22px; background:var(--bg); }
+@media (prefers-reduced-motion: reduce){ .switch i::after,.kr{ transition:none; } .caret,.icaret{ display:inline-block; width:2px; height:18px; vertical-align:-3px; background:var(--red); animation:blink 1.1s steps(1) infinite; }
+.kwait::before{ animation:none; } }
+.box{ display:block; height:48px; padding:0 14px; box-shadow:inset 0 0 0 2px var(--ink); font-size:16px; }
+.box:focus-within{ box-shadow:inset 0 0 0 3px var(--ink); } .box input,.box textarea{ height:100%; }
+/* Zones de texte : jamais tirées à la main ; elles grandissent avec le texte (19/11) */
+.box.area{ height:auto; padding:12px 14px; } .box.area textarea{ display:block; height:auto; resize:none; overflow:hidden; }
+label.lbl{ display:block; margin:24px 0 8px; color:var(--gray); }
+.tabs{ display:flex; gap:24px; flex-wrap:wrap; } .tab{ color:var(--gray); padding-bottom:6px; font-size:14px; } .tab:hover{ color:var(--ink); }
+.tab[aria-current]{ color:var(--ink); font-weight:600; box-shadow:inset 0 -2px 0 var(--ink); }
+
+/* Liste */
+.list{ border-top:1px solid var(--faint); }
+.row{ display:flex; align-items:center; gap:24px; padding:12px 0; border-bottom:1px solid var(--faint); min-height:72px; }
+.row .tx{ flex:1; min-width:0; } .row .tx .t24{ overflow-wrap:anywhere; }
+.row .end{ display:flex; gap:12px; align-items:center; flex-shrink:0; }
+.inline{ padding:0 0 16px; border-bottom:1px solid var(--faint); }
+.codes{ position:relative; display:flex; gap:10px; width:max-content; }
+.cbox{ display:flex; align-items:center; justify-content:center; width:52px; height:64px; box-shadow:inset 0 0 0 2px var(--faint); font-size:28px; font-weight:600; font-variant-numeric:tabular-nums; }
+.cbox.full{ box-shadow:inset 0 0 0 2px var(--ink); }
+.codes:focus-within .cbox.cur{ box-shadow:inset 0 0 0 3px var(--ink); }
+.codes:focus-within .cbox.cur:empty::after{ content:""; width:2px; height:30px; background:var(--red); animation:blink 1.1s steps(1) infinite; }
+.codein{ position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:text; caret-color:transparent; }
+/* Point carré après un nom (comme les titres de l'app) */
+.tdot{ display:inline-block; width:.15em; height:.15em; margin-left:.05em; background:var(--red); }
+/* Communauté : onglets soulignés, cases sur deux colonnes entre filets, page d'un partage et d'une personne */
+.ctop{ display:flex; align-items:baseline; gap:24px; margin-top:24px; }
+.csearch{ margin-left:auto; width:240px; border-bottom:2px solid var(--faint); } .csearch:hover{ border-bottom-color:var(--gray); } .csearch:focus-within{ border-bottom-color:var(--ink); }
+.csearch input{ height:32px; font-size:15px; }
+.tab .rdot{ display:inline-block; width:6px; height:6px; margin-left:6px; vertical-align:2px; background:var(--red); }
+.cgrid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); column-gap:32px; margin-top:12px; border-top:2px solid var(--ink); }
+.card{ display:flex; flex-direction:column; gap:12px; height:100%; padding:16px 12px 16px; border-bottom:1px solid var(--faint); cursor:pointer; }
+.card:hover,.card:focus-visible{ background:var(--hover); outline:none; }
+.cby{ display:flex; gap:8px; align-items:center; font-size:13px; line-height:22px; }
+.cav{ display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; width:22px; height:22px; border-radius:50%; background:var(--ink); color:var(--bg); font-size:11px; font-weight:600; text-transform:uppercase; }
+.cav.big{ width:56px; height:56px; font-size:24px; } .cav.huge{ width:96px; height:96px; font-size:40px; cursor:pointer; }
+.cav.has{ background:none; overflow:hidden; } .cav img{ width:100%; height:100%; border-radius:50%; object-fit:cover; display:block; }
+.cav.huge:hover{ box-shadow:0 0 0 3px var(--bg), 0 0 0 5px var(--ink); }
+.cwho{ font-weight:600; } .cwho:hover{ color:var(--red); text-decoration:underline; text-underline-offset:3px; }
+.ctit{ font-size:20px; line-height:26px; font-weight:600; letter-spacing:-.01em; text-wrap:balance; }
+.cfoot{ display:flex; justify-content:space-between; align-items:center; gap:16px; margin-top:auto; padding-top:16px; color:var(--gray); }
+.cfoot .on{ color:var(--ink); font-size:14px; font-weight:600; }
+/* Note et nombre d'ajouts : en grand, la note avec son étoile rouge */
+.cstats{ display:flex; gap:24px; align-items:baseline; flex-wrap:wrap; }
+.cnum{ font-size:22px; line-height:28px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.cnum .cst{ color:var(--red); } .cnum small{ margin-left:6px; font-size:14px; font-weight:400; color:var(--gray); }
+.cmeta{ display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center; margin-top:10px; font-size:14px; color:var(--gray); }
+/* Ta note : 5 étoiles, chaque moitié se clique (demi-étoiles) ; un 2e clic sur la même note l'efface */
+.rate{ display:flex; align-items:center; gap:16px; margin-top:10px; }
+.stars{ display:flex; gap:2px; }
+.star{ position:relative; width:34px; height:36px; font-size:34px; line-height:36px; }
+.star i{ position:absolute; inset:0; font-style:normal; text-align:center; pointer-events:none;
+  background:linear-gradient(90deg, var(--red) var(--f, 0%), var(--faint) var(--f, 0%)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.star button{ position:absolute; top:0; bottom:0; width:50%; } .star .hl{ left:0; } .star .hr{ right:0; }
+.star button:focus-visible{ outline:2px solid var(--ink); outline-offset:-2px; }
+.rval{ min-width:3ch; font-size:24px; line-height:28px; font-weight:600; font-variant-numeric:tabular-nums; }
+.phead{ display:flex; align-items:center; gap:20px; margin-top:24px; }
+/* Une personne : abonnés et partages en grand */
+.pstats{ display:flex; gap:48px; margin-top:24px; }
+.pstat b{ display:block; font-size:40px; line-height:44px; font-weight:600; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+.pstat span{ font-size:14px; color:var(--gray); }
+/* Signaler : une case par raison, « Autre » ouvre un champ */
+.chks{ margin-top:24px; border-top:2px solid var(--ink); }
+.chk{ display:flex; align-items:center; gap:14px; width:100%; min-height:52px; padding:8px 12px; border-bottom:1px solid var(--faint); font-size:17px; line-height:24px; }
+.chk:hover{ background:var(--hover); }
+.chk i{ display:flex; align-items:center; justify-content:center; width:22px; height:22px; flex-shrink:0; box-shadow:inset 0 0 0 2px var(--ink); font-style:normal; font-size:14px; font-weight:600; }
+.chk[aria-checked="true"] i{ background:var(--ink); color:var(--bg); } .chk[aria-checked="true"] i::after{ content:"✓"; }
+.btn:disabled{ background:var(--faint); color:var(--bg); cursor:default; } .btn:disabled:hover{ background:var(--faint); }
+/* Touche déjà prise dans la page : petite page qui montre l'échange avant de le faire (19/11) */
+.scrim{ position:absolute; inset:0; z-index:10; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.55); }
+.swap{ width:min(560px, 90%); padding:28px; background:var(--bg); color:var(--ink); border:2px solid var(--ink); box-shadow:0 24px 64px rgba(0,0,0,.35); }
+.swap ul{ border-top:2px solid var(--ink); }
+.swr{ display:grid; grid-template-columns:minmax(0,1fr) auto; column-gap:24px; align-items:center; padding:12px 0; border-bottom:1px solid var(--faint); font-size:16px; line-height:22px; }
+.swk{ display:flex; gap:10px; align-items:baseline; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.swk .kk{ font-size:20px; } .swk .none{ font-size:15px; font-weight:400; color:var(--gray); }
+/* Écrire à l'équipe : de quoi ça parle (un seul choix), le message, une capture si on veut */
+.kinds{ display:flex; gap:8px; flex-wrap:wrap; }
+.kind{ height:40px; padding:0 16px; box-shadow:inset 0 0 0 2px var(--faint); font-size:15px; }
+.kind:hover{ box-shadow:inset 0 0 0 2px var(--ink); }
+.kind[aria-pressed="true"]{ background:var(--ink); color:var(--bg); box-shadow:none; font-weight:600; }
+.shotzone{ display:flex; align-items:center; gap:16px; min-height:64px; padding:12px 14px; outline:2px dashed var(--faint); outline-offset:-2px; cursor:pointer; color:var(--gray); font-size:15px; }
+.shotzone:hover,.shotzone.over{ outline-color:var(--ink); color:var(--ink); }
+.shotzone img{ max-height:96px; max-width:60%; display:block; box-shadow:0 0 0 1px var(--faint); }
+.labrow{ display:flex; gap:8px; align-items:baseline; } .labrow .g{ font-size:12px; }
+/* Mes messages : un fil par message, ta réponse en rouge */
+.msgs{ margin-top:24px; border-top:2px solid var(--ink); }
+.msg{ padding:16px 12px; border-bottom:1px solid var(--faint); }
+.msg .who{ font-size:13px; color:var(--gray); } .msg.team .who{ color:var(--red); font-weight:600; }
+.msg .tx{ margin-top:6px; font-size:16px; line-height:24px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.msg img{ margin-top:12px; max-height:220px; display:block; box-shadow:0 0 0 1px var(--faint); }
+.mr2{ grid-template-columns:minmax(0,1fr) 120px 140px; }
+.st-new{ color:var(--red); font-weight:600; } .rdot{ display:inline-block; width:6px; height:6px; margin-left:6px; vertical-align:2px; background:var(--red); }
+/* Aide : tout tient dans la fenêtre ; une réponse ouverte à la fois, sous sa question. */
+.fq{ border-bottom:1px solid var(--faint); }
+.fqb{ display:flex; gap:12px; width:100%; padding:12px 12px; font-size:17px; line-height:24px; } .fqb:hover{ color:var(--red); }
+.fqa{ padding:0 12px 14px 36px; } .fqa li{ display:flex; gap:10px; font-size:15px; line-height:22px; margin-top:4px; }
+
+/* Trouver (page d'accueil, inchangée) */
+.field{ display:flex; align-items:flex-end; gap:24px; padding-bottom:16px; border-bottom:2px solid var(--ink); min-width:0; }
+.field.big{ height:200px; } .field:focus,.field.big:focus-visible{ outline:none; }
+.caret{ flex-shrink:0; width:20px; height:168px; background:var(--red); animation:blink 1.1s steps(1) infinite; }
+.caret.thin{ width:4px; height:48px; } .caret.line{ width:2px; height:20px; display:inline-block; }
+@keyframes blink{ 50%{ opacity:0; } }
+.keyimg{ font-size:var(--k); line-height:.84; font-weight:600; letter-spacing:-.05em; margin-left:-.11em; white-space:nowrap; }
+.typed{ font-size:48px; line-height:48px; letter-spacing:-.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.steps li{ color:var(--faint); } .steps li.done{ color:var(--gray); } .steps li.now{ color:var(--ink); font-weight:600; }
+.steps li span{ margin-right:8px; } .steps li.now span{ color:var(--red); } .steps button:hover{ color:var(--ink); }
+.rows > li{ padding-bottom:32px; }
+.meta{ display:flex; justify-content:space-between; gap:16px; align-items:baseline; color:var(--gray); } .meta .links{ gap:16px; }
+.name{ display:block; margin-top:8px; font-size:24px; line-height:32px; }
+
+/* Raccourcis et Macros : codes suisses. Filets, colonnes alignées, touche en gras, ligne en noir au survol. */
+.subnav{ grid-column:1 / span 3; padding-top:40px; } .subnav ul{ position:sticky; top:24px; }
+.subnav button{ display:flex; align-items:center; gap:10px; width:100%; padding:7px 0; font-size:15px; color:var(--gray); }
+.subnav button::before{ content:""; width:8px; height:8px; flex-shrink:0; }
+.subnav button:hover{ color:var(--ink); }
+.subnav button.cur{ color:var(--ink); font-weight:600; } .subnav button.cur::before{ background:var(--red); }
+.kmain{ grid-column:4 / span 9; padding-top:40px; min-width:0; }
+.ktitle{ margin:0; font-size:32px; line-height:36px; font-weight:600; letter-spacing:-.02em; }
+.gl{ margin:32px 0 0; padding:0 12px 8px; border-bottom:2px solid var(--ink); font-size:12px; line-height:16px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--ink); }
+.gl0{ margin-top:24px; padding:0; }
+.kr{ display:grid; grid-template-columns:minmax(0,1fr) 160px 96px; column-gap:24px; align-items:center; min-height:44px; padding:6px 12px; border-bottom:1px solid var(--faint); cursor:pointer; width:100%; font-size:16px; line-height:22px; transition:background-color .08s, color .08s; }
+.kr:hover,.kr:focus-visible,.kr.on{ background:var(--ink); color:var(--bg); outline:none; border-bottom-color:var(--ink); }
+.kr:hover .g,.kr.on .g,.kr:hover .kp,.kr.on .kp{ color:var(--faint); }
+.ka{ min-width:0; display:flex; flex-direction:column; gap:2px; } .kp{ font-size:13px; color:var(--gray); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.kk{ font-weight:600; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.kr:hover .kk.r,.kr.on .kk.r{ color:var(--redOn); }
+.ks{ display:flex; justify-content:flex-end; }
+.kx{ font-size:13px; color:var(--gray); text-decoration:underline; text-underline-offset:3px; } .kr:hover .kx,.kr.on .kx{ color:var(--bg); }
+.kwait{ display:inline-flex; align-items:center; gap:8px; color:var(--red); font-size:14px; line-height:20px; white-space:nowrap; }
+.kwait::before{ content:""; display:block; width:2px; height:18px; flex-shrink:0; background:currentColor; animation:blink 1.1s steps(1) infinite; } .kr.on .kwait{ color:var(--redOn); } 
+.kband{ display:flex; flex-wrap:wrap; gap:8px 24px; align-items:center; padding:12px 12px 14px; border-bottom:1px solid var(--faint); font-size:15px; }
+.mr{ grid-template-columns:minmax(0,1fr) 120px 220px; } .mr .ks{ gap:24px; } .kx:hover{ color:var(--red); } .kr:hover .kx:hover{ color:var(--redOn); }
+.kr:hover .switch i,.kr.on .switch i{ box-shadow:inset 0 0 0 2px var(--bg); } .kr:hover .switch i::after{ background:var(--bg); }
+.kr:hover .switch[aria-pressed="true"] i{ background:var(--bg); } .kr:hover .switch[aria-pressed="true"] i::after{ background:var(--ink); }
+/* Créateur : une seule colonne qui se lit de haut en bas ; tout se change là où c'est écrit. */
+.mk{ grid-column:1 / span 8; min-width:0; }
+.mhead{ display:grid; grid-template-columns:minmax(0,1fr) 280px; column-gap:32px; align-items:end; margin-top:16px; }
+.mtitle{ border-bottom:2px solid var(--faint); } .mtitle:hover{ border-bottom-color:var(--gray); } .mtitle:focus-within{ border-bottom-color:var(--ink); }
+.mtitle input:focus-visible{ outline:none; }
+.mkey{ display:flex; align-items:baseline; gap:12px; padding-bottom:6px; white-space:nowrap; min-width:0; }
+/* Attente d'une touche : même ligne, même taille que « Choisir » ; seul le mot change. */
+.val.wait{ color:var(--red); font-weight:400; border-bottom:2px solid var(--red); }
+.val.wait::before{ content:""; display:inline-block; width:2px; height:1em; margin-right:6px; vertical-align:-.15em; background:currentColor; animation:blink 1.1s steps(1) infinite; }
+.mkey .val.wait{ font-size:17px; line-height:24px; }
+.mkey .val{ font-size:24px; line-height:30px; } .mkey .val.todo{ font-size:17px; line-height:24px; }
+.mkey .tools{ visibility:visible; } .klab{ font-size:15px; color:var(--gray); } .mk > p.r{ padding:0; }
+.steps2{ margin-top:32px; border-top:2px solid var(--ink); }
+.vedit{ display:inline-flex; align-items:baseline; gap:4px; } .vedit input{ width:auto; font-weight:600; line-height:22px; border-bottom:2px solid var(--red); }
+.mtitle input{ font-size:32px; line-height:44px; font-weight:600; letter-spacing:-.02em; }
+.lab{ font-size:12px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--gray); }
+.sr{ display:grid; grid-template-columns:32px minmax(0,1fr) auto; column-gap:16px; align-items:center; min-height:52px; padding:8px 12px; border-bottom:1px solid var(--faint); font-size:17px; line-height:24px; }
+.sr:hover,.sr:has(:focus-visible){ background:var(--hover); }
+.sr.over{ box-shadow:inset 0 3px 0 var(--red); }
+.sr .sn{ color:var(--gray); font-size:13px; font-variant-numeric:tabular-nums; }
+.say{ min-width:0; display:flex; flex-wrap:wrap; align-items:baseline; column-gap:8px; row-gap:4px; }
+.val{ font-weight:600; line-height:22px; border-bottom:2px solid currentColor; white-space:nowrap; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
+.val.pick::after{ content:" ▾"; font-weight:400; }
+.val:hover{ color:var(--red); } .val.todo{ color:var(--red); font-weight:400; border-bottom-style:dotted; }
+.tools{ display:flex; gap:16px; visibility:hidden; } .sr:hover .tools,.sr:has(:focus-visible) .tools,.tools.on{ visibility:visible; }
+.tools button{ font-size:13px; color:var(--gray); } .tools button:hover{ color:var(--ink); text-decoration:underline; text-underline-offset:3px; }
+@media (hover:none){ .tools{ visibility:visible; } }
+.tools button:disabled{ visibility:hidden; } .tools .del:hover{ color:var(--red); }
+.trig{ grid-template-columns:minmax(0,1fr) auto; min-height:56px; }
+.trig .val{ font-size:28px; line-height:34px; } .trig .val.todo{ font-size:17px; line-height:24px; }
+.vwrap{ position:relative; display:inline-flex; max-width:100%; } .vwrap .menu{ top:calc(100% + 8px); left:0; }
+.addp{ grid-column:9 / span 4; align-self:start; position:sticky; top:0; padding-top:60px; min-width:0; }
+.page:has(.addp){ padding-bottom:24px; }
+.addl{ margin-top:32px; border:2px solid var(--ink); padding:0; }
+/* Créateur : jamais de cadre orange au clavier ; le mot choisi passe en rouge, souligné */
+.mk :focus-visible,.addp :focus-visible{ outline:none; } .val:focus-visible{ color:var(--red); } .tools button:focus-visible{ color:var(--ink); text-decoration:underline; text-underline-offset:3px; }
+.vwrap .menu.up{ top:auto; bottom:calc(100% + 8px); }
+.addh{ display:flex; justify-content:space-between; align-items:baseline; gap:16px; padding:10px 16px 4px; }
+.addl .cat{ padding:10px 16px 2px; font-size:12px; line-height:16px; color:var(--gray); }
+.menu .other{ border-top:1px solid var(--faint); margin-top:6px; color:var(--gray); }
+.addl .it{ display:block; width:100%; padding:6px 16px; font-size:16px; line-height:24px; }
+.addl .it:hover,.addl .it:focus-visible{ background:var(--ink); color:var(--bg); outline:none; }
+
+/* Papier : grille suisse visible, un trait fin au bord de chaque colonne */
+.win{ background-image:repeating-linear-gradient(to right, var(--grid) 0 1px, transparent 1px 68.667px, var(--grid) 68.667px 69.667px, transparent 69.667px 92.667px);
+  background-position:48px 0; background-size:1112px 100%; background-repeat:no-repeat; }
+/* Rétrécie, la maquette garde exactement sa forme de base (1184 de large) et se réduit. */
+.win{ width:1184px; max-width:none; zoom:var(--z, 1); } .note{ width:1184px; max-width:none; zoom:var(--z, 1); }
+</style>
+
+<div class="win" id="win">
+  <div class="bar"><div class="dots" aria-hidden="true"><span></span><span></span><span></span></div><nav class="nav" id="nav" aria-label="Parties"></nav></div>
+  <main class="page" id="page"></main>
+  <div id="ovl"></div>
+</div>
+<p class="note">Maquette. Les 270 raccourcis sont ceux de FL Shortcuts. Le compte, la Communauté et l'envoi à l'équipe sont des exemples. Tes changements restent dans ce navigateur.</p>
+
+<script>
+
+const CAT = [{"s":"general","t":"Annuler / rétablir la dernière modification","k":"⌘Z","g":"Projet"},{"s":"general","t":"Annuler pas à pas","k":"⌥⌘Z","g":"Projet"},{"s":"general","t":"Enregistrer le projet","k":"⌘S","g":"Projet"},{"s":"general","t":"Enregistrer sous","k":"⇧⌘S","g":"Projet"},{"s":"general","t":"Enregistrer une nouvelle version","k":"⌘N","g":"Projet"},{"s":"general","t":"Ouvrir un projet","k":"⌘O","g":"Projet"},{"s":"general","t":"Exporter en WAV","k":"⌘R","g":"Export"},{"s":"general","t":"Exporter en MP3","k":"⇧⌘R","g":"Export"},{"s":"general","t":"Exporter en MIDI","k":"⇧⌘M","g":"Export"},{"s":"general","t":"Réorganiser les fenêtres","k":"⇧⌘H","g":"Fenêtres"},{"s":"general","t":"Afficher / masquer la Playlist","k":"F5","g":"Fenêtres"},{"s":"general","t":"Afficher / masquer le Channel Rack","k":"F6","g":"Fenêtres"},{"s":"general","t":"Afficher / masquer le Piano Roll","k":"F7","g":"Fenêtres"},{"s":"general","t":"Ouvrir le Plugin Picker","k":"F8","g":"Fenêtres"},{"s":"general","t":"Afficher / masquer le Mixer","k":"F9","g":"Fenêtres"},{"s":"general","t":"Afficher / masquer le Browser","k":"⌥F8","g":"Fenêtres"},{"s":"general","t":"Réglages MIDI","k":"F10","g":"Fenêtres"},{"s":"general","t":"Infos du morceau","k":"F11","g":"Fenêtres"},{"s":"general","t":"Fermer toutes les fenêtres","k":"F12","g":"Fenêtres"},{"s":"general","t":"Aide","k":"F1","g":"Fenêtres"},{"s":"general","t":"Choisir un outil de la fenêtre active","k":"F3","g":"Fenêtres"},{"s":"general","t":"Passer d'une fenêtre à l'autre","k":"Tab","g":"Fenêtres"},{"s":"general","t":"Fermer la fenêtre","k":"Échap","g":"Fenêtres"},{"s":"general","t":"Agrandir / réduire la Playlist","k":"Entrée","g":"Fenêtres"},{"s":"general","t":"Ouvrir le projet récent 0","k":"⌥0","g":"Projets récents"},{"s":"general","t":"Ouvrir le projet récent 1","k":"⌥1","g":"Projets récents"},{"s":"general","t":"Ouvrir le projet récent 2","k":"⌥2","g":"Projets récents"},{"s":"general","t":"Ouvrir le projet récent 3","k":"⌥3","g":"Projets récents"},{"s":"general","t":"Ouvrir le projet récent 4","k":"⌥4","g":"Projets récents"},{"s":"general","t":"Ouvrir le projet récent 5","k":"⌥5","g":"Projets récents"},{"s":"general","t":"Ouvrir le projet récent 6","k":"⌥6","g":"Projets récents"},{"s":"general","t":"Ouvrir le projet récent 7","k":"⌥7","g":"Projets récents"},{"s":"general","t":"Ouvrir le projet récent 8","k":"⌥8","g":"Projets récents"},{"s":"general","t":"Ouvrir le projet récent 9","k":"⌥9","g":"Projets récents"},{"s":"transport","t":"Lecture / Stop","k":"Espace","g":"Lecture"},{"s":"transport","t":"Lecture / Pause","k":"⌘Espace","g":"Lecture"},{"s":"transport","t":"Activer / couper l'enregistrement","k":"R","g":"Enregistrement"},{"s":"transport","t":"Bascule Pattern / Song","k":"L","g":"Lecture"},{"s":"transport","t":"Métronome","k":"⌘M","g":"Enregistrement"},{"s":"transport","t":"Décompte avant l'enregistrement","k":"⌘P","g":"Enregistrement"},{"s":"transport","t":"Attendre une note pour lancer l'enregistrement","k":"⌘I","g":"Enregistrement"},{"s":"transport","t":"Mélanger les notes enregistrées (blend)","k":"⌘B","g":"Enregistrement"},{"s":"transport","t":"Mode Step Edit","k":"⌘E","g":"Enregistrement"},{"s":"transport","t":"Couper tous les sons (panique)","k":"⌘H","g":"Lecture"},{"s":"transport","t":"Clavier d'ordinateur → clavier-piano","k":"⌘T","g":"Clavier-piano"},{"s":"transport","t":"Magnétisme : Ligne / Aucun","k":"⌫","g":"Lecture"},{"s":"transport","t":"Avance rapide","k":"Pavé 0","g":"Lecture"},{"s":"transport","t":"Mesure suivante (mode Song)","k":"Pavé *","g":"Lecture"},{"s":"transport","t":"Mesure précédente (mode Song)","k":"Pavé /","g":"Lecture"},{"s":"transport","t":"Clavier-piano : octave 2","k":"⌥Pavé 2","g":"Clavier-piano"},{"s":"transport","t":"Clavier-piano : octave 3","k":"⌥Pavé 3","g":"Clavier-piano"},{"s":"transport","t":"Clavier-piano : octave 4","k":"⌥Pavé 4","g":"Clavier-piano"},{"s":"transport","t":"Clavier-piano : octave 5","k":"⌥Pavé 5","g":"Clavier-piano"},{"s":"transport","t":"Clavier-piano : octave 6","k":"⌥Pavé 6","g":"Clavier-piano"},{"s":"patterns","t":"Choisir le pattern 1","k":"Pavé 1","g":"Choisir"},{"s":"patterns","t":"Choisir le pattern 2","k":"Pavé 2","g":"Choisir"},{"s":"patterns","t":"Choisir le pattern 3","k":"Pavé 3","g":"Choisir"},{"s":"patterns","t":"Choisir le pattern 4","k":"Pavé 4","g":"Choisir"},{"s":"patterns","t":"Choisir le pattern 5","k":"Pavé 5","g":"Choisir"},{"s":"patterns","t":"Choisir le pattern 6","k":"Pavé 6","g":"Choisir"},{"s":"patterns","t":"Choisir le pattern 7","k":"Pavé 7","g":"Choisir"},{"s":"patterns","t":"Choisir le pattern 8","k":"Pavé 8","g":"Choisir"},{"s":"patterns","t":"Choisir le pattern 9","k":"Pavé 9","g":"Choisir"},{"s":"patterns","t":"Pattern suivant","k":"Pavé +","g":"Choisir"},{"s":"patterns","t":"Pattern précédent","k":"Pavé -","g":"Choisir"},{"s":"patterns","t":"Pattern vide suivant","k":"⌘F4","g":"Créer et renommer"},{"s":"patterns","t":"Pattern vide suivant, avec son nom","k":"F4","g":"Créer et renommer"},{"s":"patterns","t":"Renommer le pattern (et changer sa couleur)","k":"F2","g":"Créer et renommer"},{"s":"playlist","t":"Outil crayon","k":"P","g":"Outils"},{"s":"playlist","t":"Outil pinceau","k":"B","g":"Outils"},{"s":"playlist","t":"Outil suppression","k":"D","g":"Outils"},{"s":"playlist","t":"Outil mute","k":"T","g":"Outils"},{"s":"playlist","t":"Outil slip","k":"S","g":"Outils"},{"s":"playlist","t":"Outil découpe","k":"C","g":"Outils"},{"s":"playlist","t":"Outil sélection","k":"E","g":"Outils"},{"s":"playlist","t":"Outil lecture","k":"Y","g":"Outils"},{"s":"playlist","t":"Outil zoom","k":"Z","g":"Outils"},{"s":"playlist","t":"Zoomer sur la sélection","k":"5","g":"Zoom"},{"s":"playlist","t":"Zoomer sur les Performance Clips","k":"6","g":"Zoom"},{"s":"playlist","t":"Transposer vers le bas","k":"7","g":"Édition"},{"s":"playlist","t":"Transposer vers le haut","k":"8","g":"Édition"},{"s":"playlist","t":"Inverser (clips audio)","k":"9","g":"Édition"},{"s":"playlist","t":"Magnétisme global","k":"⌫","g":"Affichage"},{"s":"playlist","t":"Supprimer la source du clip / pattern","k":"⌦","g":"Édition"},{"s":"playlist","t":"Tête de lecture au début","k":"Début","g":"Zoom"},{"s":"playlist","t":"Mettre la sélection en mute","k":"⌥M","g":"Édition"},{"s":"playlist","t":"Enlever le mute de la sélection","k":"⌥⇧M","g":"Édition"},{"s":"playlist","t":"Dégrouper la sélection","k":"⌥G","g":"Sélection"},{"s":"playlist","t":"Ouvrir le Picker Panel","k":"⌥P","g":"Affichage"},{"s":"playlist","t":"Ajouter un marqueur","k":"⌥T","g":"Marqueurs"},{"s":"playlist","t":"Marqueur suivant","k":"⌥Pavé *","g":"Marqueurs"},{"s":"playlist","t":"Marqueur précédent","k":"⌥Pavé /","g":"Marqueurs"},{"s":"playlist","t":"Tout sélectionner","k":"⌘A","g":"Sélection"},{"s":"playlist","t":"Consolider les clips (depuis le premier)","k":"⌥⌘C","g":"Édition"},{"s":"playlist","t":"Consolider les clips (depuis le début)","k":"⌥⇧⌘C","g":"Édition"},{"s":"playlist","t":"Couleur de la grille","k":"⌥⌘G","g":"Affichage"},{"s":"playlist","t":"Redimensionner par la gauche","k":"⌥⌘Début","g":"Édition"},{"s":"playlist","t":"Dupliquer la sélection à droite","k":"⌘B","g":"Édition"},{"s":"playlist","t":"Copier","k":"⌘C","g":"Édition"},{"s":"playlist","t":"Désélectionner","k":"⌘D","g":"Sélection"},{"s":"playlist","t":"Ouvrir le Project Picker","k":"⌘F8","g":"Affichage"},{"s":"playlist","t":"Sélectionner le temps avant","k":"⌘←","g":"Sélection"},{"s":"playlist","t":"Sélectionner le temps après","k":"⌘→","g":"Sélection"},{"s":"playlist","t":"Mode Performance","k":"⌘P","g":"Affichage"},{"s":"playlist","t":"Ajouter un marqueur de temps","k":"⌘T","g":"Marqueurs"},{"s":"playlist","t":"Coller","k":"⌘V","g":"Édition"},{"s":"playlist","t":"Couper","k":"⌘X","g":"Édition"},{"s":"playlist","t":"Sélectionner le temps autour de la sélection","k":"⌘Entrée","g":"Sélection"},{"s":"playlist","t":"Zoom avant","k":"Page ↑","g":"Zoom"},{"s":"playlist","t":"Zoom arrière","k":"Page ↓","g":"Zoom"},{"s":"playlist","t":"Centrer sur la tête de lecture","k":"⇧0","g":"Zoom"},{"s":"playlist","t":"Zoom horizontal niveau 1","k":"⇧1","g":"Zoom"},{"s":"playlist","t":"Zoom horizontal niveau 2","k":"⇧2","g":"Zoom"},{"s":"playlist","t":"Zoom horizontal niveau 3","k":"⇧3","g":"Zoom"},{"s":"playlist","t":"Tout afficher","k":"⇧4","g":"Zoom"},{"s":"playlist","t":"Zoomer sur la sélection","k":"⇧5","g":"Zoom"},{"s":"playlist","t":"Ajuster à la zone Performance","k":"⇧6","g":"Zoom"},{"s":"playlist","t":"Choisir une signature rythmique","k":"⌥⇧T","g":"Marqueurs"},{"s":"playlist","t":"Sélectionner les clips de même source","k":"⇧C","g":"Sélection"},{"s":"playlist","t":"Grouper les clips","k":"⇧G","g":"Sélection"},{"s":"playlist","t":"Inverser la sélection","k":"⇧I","g":"Sélection"},{"s":"playlist","t":"Déplacer la sélection à gauche","k":"⇧←","g":"Édition"},{"s":"playlist","t":"Déplacer la sélection à droite","k":"⇧→","g":"Édition"},{"s":"playlist","t":"Déplacer la sélection vers le haut","k":"⇧↑","g":"Édition"},{"s":"playlist","t":"Déplacer la sélection vers le bas","k":"⇧↓","g":"Édition"},{"s":"playlist","t":"Changer le mode de stretch","k":"⇧M","g":"Édition"},{"s":"playlist","t":"Quantize rapide du début des clips","k":"⇧Q","g":"Édition"},{"s":"pianoRoll","t":"Outil crayon","k":"P","g":"Outils"},{"s":"pianoRoll","t":"Outil pinceau","k":"B","g":"Outils"},{"s":"pianoRoll","t":"Outil suppression","k":"D","g":"Outils"},{"s":"pianoRoll","t":"Outil mute","k":"T","g":"Outils"},{"s":"pianoRoll","t":"Outil découpe","k":"C","g":"Outils"},{"s":"pianoRoll","t":"Outil sélection","k":"E","g":"Outils"},{"s":"pianoRoll","t":"Outil lecture","k":"Y","g":"Outils"},{"s":"pianoRoll","t":"Outil zoom","k":"Z","g":"Outils"},{"s":"pianoRoll","t":"Notes glissées (slide)","k":"S","g":"Édition"},{"s":"pianoRoll","t":"Portamento","k":"O","g":"Édition"},{"s":"pianoRoll","t":"Propriété suivante dans la zone d'événements","k":"F","g":"Affichage"},{"s":"pianoRoll","t":"Instrument au-dessus","k":"G","g":"Instruments"},{"s":"pianoRoll","t":"Instrument au-dessus avec des notes","k":"H","g":"Instruments"},{"s":"pianoRoll","t":"Instrument en dessous avec des notes","k":"J","g":"Instruments"},{"s":"pianoRoll","t":"Instrument en dessous","k":"K","g":"Instruments"},{"s":"pianoRoll","t":"Mode d'affichage du clavier","k":"M","g":"Affichage"},{"s":"pianoRoll","t":"Magnétisme global","k":"⌫","g":"Affichage"},{"s":"pianoRoll","t":"Supprimer la sélection","k":"⌦","g":"Édition"},{"s":"pianoRoll","t":"Zoom avant","k":"Page ↑","g":"Zoom"},{"s":"pianoRoll","t":"Zoom arrière","k":"Page ↓","g":"Zoom"},{"s":"pianoRoll","t":"Arpégiateur","k":"⌥A","g":"Outils de notes"},{"s":"pianoRoll","t":"Décaler à gauche","k":"⌥←","g":"Édition"},{"s":"pianoRoll","t":"Décaler à droite","k":"⌥→","g":"Édition"},{"s":"pianoRoll","t":"Décaler vers le haut","k":"⌥↑","g":"Édition"},{"s":"pianoRoll","t":"Décaler vers le bas","k":"⌥↓","g":"Édition"},{"s":"pianoRoll","t":"Aides de notes","k":"⌥B","g":"Affichage"},{"s":"pianoRoll","t":"Couleur des notes","k":"⌥C","g":"Édition"},{"s":"pianoRoll","t":"Riff Machine","k":"⌥E","g":"Outils de notes"},{"s":"pianoRoll","t":"Flam","k":"⌥F","g":"Outils de notes"},{"s":"pianoRoll","t":"Dégrouper les notes","k":"⌥G","g":"Sélection"},{"s":"pianoRoll","t":"Outil Limit","k":"⌥K","g":"Outils de notes"},{"s":"pianoRoll","t":"Outil Articulate","k":"⌥L","g":"Outils de notes"},{"s":"pianoRoll","t":"Mettre la sélection en mute","k":"⌥M","g":"Édition"},{"s":"pianoRoll","t":"Enlever le mute de la sélection","k":"⌥⇧M","g":"Édition"},{"s":"pianoRoll","t":"Vue forme d'onde","k":"⌥N","g":"Affichage"},{"s":"pianoRoll","t":"Outil LFO","k":"⌥O","g":"Outils de notes"},{"s":"pianoRoll","t":"Quantize","k":"⌥Q","g":"Outils de notes"},{"s":"pianoRoll","t":"Outil Randomize","k":"⌥R","g":"Outils de notes"},{"s":"pianoRoll","t":"Outil Strum","k":"⌥S","g":"Outils de notes"},{"s":"pianoRoll","t":"Outil Chop","k":"⌥U","g":"Outils de notes"},{"s":"pianoRoll","t":"Ghost channels","k":"⌥V","g":"Instruments"},{"s":"pianoRoll","t":"Claw Machine","k":"⌥W","g":"Outils de notes"},{"s":"pianoRoll","t":"Scale Levels","k":"⌥X","g":"Outils de notes"},{"s":"pianoRoll","t":"Score Flipper","k":"⌥Y","g":"Outils de notes"},{"s":"pianoRoll","t":"Tout sélectionner","k":"⌘A","g":"Sélection"},{"s":"pianoRoll","t":"Couleur de la grille","k":"⌥⌘G","g":"Affichage"},{"s":"pianoRoll","t":"Redimensionner par la gauche","k":"⌥⌘Début","g":"Édition"},{"s":"pianoRoll","t":"Dupliquer la sélection à droite","k":"⌘B","g":"Édition"},{"s":"pianoRoll","t":"Copier","k":"⌘C","g":"Édition"},{"s":"pianoRoll","t":"Désélectionner","k":"⌘D","g":"Sélection"},{"s":"pianoRoll","t":"Coller les notes entre elles (glue)","k":"⌘G","g":"Outils de notes"},{"s":"pianoRoll","t":"Insérer la valeur du contrôleur","k":"⌘I","g":"Édition"},{"s":"pianoRoll","t":"Legato rapide","k":"⌘L","g":"Outils de notes"},{"s":"pianoRoll","t":"Sélectionner le temps avant","k":"⌘←","g":"Sélection"},{"s":"pianoRoll","t":"Sélectionner le temps après","k":"⌘→","g":"Sélection"},{"s":"pianoRoll","t":"Importer un fichier MIDI","k":"⌘M","g":"Édition"},{"s":"pianoRoll","t":"Quantize rapide","k":"⌥⌘Q","g":"Outils de notes"},{"s":"pianoRoll","t":"Sélectionner le temps autour de la sélection","k":"⌘Entrée","g":"Sélection"},{"s":"pianoRoll","t":"Chop rapide","k":"⌘U","g":"Outils de notes"},{"s":"pianoRoll","t":"Transposer d'une octave vers le haut","k":"⌘↑","g":"Édition"},{"s":"pianoRoll","t":"Transposer d'une octave vers le bas","k":"⌘↓","g":"Édition"},{"s":"pianoRoll","t":"Coller","k":"⌘V","g":"Édition"},{"s":"pianoRoll","t":"Couper","k":"⌘X","g":"Édition"},{"s":"pianoRoll","t":"Centrer sur la tête de lecture","k":"⇧0","g":"Zoom"},{"s":"pianoRoll","t":"Zoom horizontal niveau 1","k":"⇧1","g":"Zoom"},{"s":"pianoRoll","t":"Zoom horizontal niveau 2","k":"⇧2","g":"Zoom"},{"s":"pianoRoll","t":"Zoom horizontal niveau 3","k":"⇧3","g":"Zoom"},{"s":"pianoRoll","t":"Tout afficher","k":"⇧4","g":"Zoom"},{"s":"pianoRoll","t":"Zoomer sur la sélection","k":"⇧5","g":"Zoom"},{"s":"pianoRoll","t":"Choisir une signature rythmique","k":"⌥⇧T","g":"Affichage"},{"s":"pianoRoll","t":"Sélectionner par couleur","k":"⇧C","g":"Sélection"},{"s":"pianoRoll","t":"Coller depuis le presse-papiers MIDI","k":"⇧⌘V","g":"Édition"},{"s":"pianoRoll","t":"Effacer la longueur des notes","k":"⇧D","g":"Édition"},{"s":"pianoRoll","t":"Parcourir les propriétés de note","k":"⇧F","g":"Affichage"},{"s":"pianoRoll","t":"Grouper la sélection","k":"⇧G","g":"Sélection"},{"s":"pianoRoll","t":"Instrument suivant avec des notes","k":"⇧H","g":"Instruments"},{"s":"pianoRoll","t":"Inverser la sélection","k":"⇧I","g":"Sélection"},{"s":"pianoRoll","t":"Instrument suivant","k":"⇧K","g":"Instruments"},{"s":"pianoRoll","t":"Déplacer la sélection à gauche","k":"⇧←","g":"Édition"},{"s":"pianoRoll","t":"Déplacer la sélection à droite","k":"⇧→","g":"Édition"},{"s":"pianoRoll","t":"Déplacer la sélection vers le haut","k":"⇧↑","g":"Édition"},{"s":"pianoRoll","t":"Déplacer la sélection vers le bas","k":"⇧↓","g":"Édition"},{"s":"pianoRoll","t":"Sélectionner des groupes de notes au hasard","k":"⇧M","g":"Sélection"},{"s":"pianoRoll","t":"Désactiver l'accord choisi","k":"⇧N","g":"Édition"},{"s":"pianoRoll","t":"Sélection au hasard","k":"⇧R","g":"Sélection"},{"s":"channelRack","t":"Mute du canal 1","k":"1","g":"Mute"},{"s":"channelRack","t":"Mute du canal 2","k":"2","g":"Mute"},{"s":"channelRack","t":"Mute du canal 3","k":"3","g":"Mute"},{"s":"channelRack","t":"Mute du canal 4","k":"4","g":"Mute"},{"s":"channelRack","t":"Mute du canal 5","k":"5","g":"Mute"},{"s":"channelRack","t":"Mute du canal 6","k":"6","g":"Mute"},{"s":"channelRack","t":"Mute du canal 7","k":"7","g":"Mute"},{"s":"channelRack","t":"Mute du canal 8","k":"8","g":"Mute"},{"s":"channelRack","t":"Mute du canal 9","k":"9","g":"Mute"},{"s":"channelRack","t":"Mute du canal 10","k":"0","g":"Mute"},{"s":"channelRack","t":"Solo du canal 1","k":"⌘1","g":"Solo"},{"s":"channelRack","t":"Solo du canal 2","k":"⌘2","g":"Solo"},{"s":"channelRack","t":"Solo du canal 3","k":"⌘3","g":"Solo"},{"s":"channelRack","t":"Solo du canal 4","k":"⌘4","g":"Solo"},{"s":"channelRack","t":"Solo du canal 5","k":"⌘5","g":"Solo"},{"s":"channelRack","t":"Solo du canal 6","k":"⌘6","g":"Solo"},{"s":"channelRack","t":"Solo du canal 7","k":"⌘7","g":"Solo"},{"s":"channelRack","t":"Solo du canal 8","k":"⌘8","g":"Solo"},{"s":"channelRack","t":"Solo du canal 9","k":"⌘9","g":"Solo"},{"s":"channelRack","t":"Solo du canal 10","k":"⌘0","g":"Solo"},{"s":"channelRack","t":"Canal en dessous","k":"↓","g":"Canaux"},{"s":"channelRack","t":"Canal au-dessus","k":"↑","g":"Canaux"},{"s":"channelRack","t":"Groupe de canaux suivant","k":"Page ↑","g":"Canaux"},{"s":"channelRack","t":"Groupe de canaux précédent","k":"Page ↓","g":"Canaux"},{"s":"channelRack","t":"Cloner les canaux","k":"⌥C","g":"Canaux"},{"s":"channelRack","t":"Supprimer les canaux","k":"⌥⌦","g":"Canaux"},{"s":"channelRack","t":"Descendre les canaux","k":"⌥↓","g":"Canaux"},{"s":"channelRack","t":"Monter les canaux","k":"⌥↑","g":"Canaux"},{"s":"channelRack","t":"Grouper les canaux","k":"⌥G","g":"Canaux"},{"s":"channelRack","t":"Afficher les sélecteurs de piste Mixer","k":"⌥M","g":"Canaux"},{"s":"channelRack","t":"Dézipper les canaux","k":"⌥U","g":"Canaux"},{"s":"channelRack","t":"Zipper les canaux","k":"⌥Z","g":"Canaux"},{"s":"channelRack","t":"Re-stretch de tous les clips audio","k":"⌥⌘R","g":"Canaux"},{"s":"channelRack","t":"Copier les pas / la partition","k":"⌘C","g":"Pas"},{"s":"channelRack","t":"Envoyer vers des pistes Mixer libres","k":"⌘L","g":"Canaux"},{"s":"channelRack","t":"Coller les pas / la partition","k":"⌘V","g":"Pas"},{"s":"channelRack","t":"Couper les pas / la partition","k":"⌘X","g":"Pas"},{"s":"channelRack","t":"Aller à la Playlist","k":"⌘Entrée","g":"Canaux"},{"s":"channelRack","t":"Décaler les pas à gauche","k":"⇧⌘←","g":"Pas"},{"s":"channelRack","t":"Décaler les pas à droite","k":"⇧⌘→","g":"Pas"},{"s":"channelRack","t":"Étendre la sélection vers le bas","k":"⇧↓","g":"Canaux"},{"s":"channelRack","t":"Étendre la sélection vers le haut","k":"⇧↑","g":"Canaux"},{"s":"mixer","t":"Solo de la piste","k":"S","g":"Pistes"},{"s":"mixer","t":"Sélectionner les canaux liés à la piste","k":"⌥L","g":"Liens"},{"s":"mixer","t":"Déplacer la piste à gauche","k":"⌥←","g":"Pistes"},{"s":"mixer","t":"Déplacer la piste à droite","k":"⌥→","g":"Pistes"},{"s":"mixer","t":"Rendu des pistes armées en .wav","k":"⌥R","g":"Pistes"},{"s":"mixer","t":"Solo avec les pistes reliées","k":"⌥S","g":"Pistes"},{"s":"mixer","t":"Vue « Wave » des vumètres","k":"⌥W","g":"Pistes"},{"s":"mixer","t":"Sélectionner toutes les pistes","k":"⌘A","g":"Pistes"},{"s":"mixer","t":"Lier les canaux à la piste","k":"⌘L","g":"Liens"},{"s":"mixer","t":"Enregistrer l'état de la piste","k":"⇧⌘S","g":"Pistes"},{"s":"mixer","t":"Propriétés de la piste","k":"⌃Entrée","g":"Pistes"},{"s":"mixer","t":"Renommer la piste","k":"F2","g":"Pistes"},{"s":"mixer","t":"Lier les canaux à partir de cette piste","k":"⇧⌘L","g":"Liens"},{"s":"browser","t":"Remplacer le canal par l'élément choisi","k":"Entrée","g":"Autres"},{"s":"browser","t":"Élément précédent, avec préécoute","k":"⇧↑","g":"Autres"},{"s":"browser","t":"Élément suivant, avec préécoute","k":"⇧↓","g":"Autres"}];
+const SEC = {general:'Général',transport:'Lecture et enregistrement',patterns:'Patterns',playlist:'Playlist',pianoRoll:'Piano Roll',channelRack:'Channel Rack',mixer:'Mixer',browser:'Browser'};
+const ORDER = Object.keys(SEC);
+const GLOBAL = new Set(['general','transport']);
+CAT.forEach((e, i) => { e.i = i; });
+
+const store = {
+  get(k, d){ try { const v = localStorage.getItem('fls.' + k); return v == null ? d : JSON.parse(v); } catch (_) { return d; } },
+  set(k, v){ try { localStorage.setItem('fls.' + k, JSON.stringify(v)); } catch (_) {} }
+};
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+/* ---------- Touches ---------- */
+let custom = store.get('keys', {});
+const keyOf = e => (e.i in custom) ? custom[e.i] : e.k;
+const changed = e => (e.i in custom) && custom[e.i] !== e.k;
+function setKey(e, k){ if (k === e.k) delete custom[e.i]; else custom[e.i] = k; store.set('keys', custom); }
+function clashes(e, k){
+  if (!k) return [];
+  // 19/11 : une touche ne fait qu'une seule chose. Partagée seulement par la même action dans plusieurs pages (outil
+  // zoom de la Playlist et du Piano Roll : même nom, même touche de FL) ; deux actions différentes, jamais.
+  return CAT.filter(x => x !== e && keyOf(x) === k && !(x.t === e.t && x.k === e.k));
+}
+function splitKey(k){ const m = k.match(/^([⌃⌥⇧⌘]*)(.*)$/); return {mods: m[1], base: m[2]}; }
+function forbidden(k){
+  const {mods, base} = splitKey(k);
+  if (!mods.includes('⌘')) return '';
+  if (base === 'Q') return mods === '⌥⌘' ? '' : '⌘Q quitte l’application.';
+  if (base === 'W') return '⌘W ferme la fenêtre.';
+  if (base === '⌫' || base === '⌦') return '⌘⌫ supprime des fichiers.';
+  if (base === 'Échap' && mods.includes('⌥')) return '⌥⌘Échap force à quitter.';
+  if (base === 'Tab') return '⌘Tab change d’application.';
+  if (base === 'Espace') return '⌘Espace ouvre Spotlight.';
+  return '';
+}
+const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const CODES = {Space:'Espace',Enter:'Entrée',Tab:'Tab',Backspace:'⌫',Delete:'⌦',Escape:'Échap',Home:'Début',End:'Fin',PageUp:'Page ↑',PageDown:'Page ↓',
+  ArrowLeft:'←',ArrowRight:'→',ArrowUp:'↑',ArrowDown:'↓',Minus:'-',Equal:'=',BracketLeft:'[',BracketRight:']',Semicolon:';',Quote:"'",Comma:',',Period:'.',
+  Slash:'/',Backslash:'\\',Backquote:'`',NumpadAdd:'Pavé +',NumpadSubtract:'Pavé -',NumpadMultiply:'Pavé *',NumpadDivide:'Pavé /',NumpadDecimal:'Pavé .',
+  NumpadEnter:'Pavé Entrée',NumpadEqual:'Pavé ='};
+function baseKey(ev){
+  const c = ev.code || '';
+  if (['Shift','Control','Alt','Meta','CapsLock','Fn','OS','AltGraph'].includes(ev.key) || /^(Shift|Control|Alt|Meta|OS|CapsLock)/.test(c)) return null;
+  if (ev.key && ev.key.length === 1 && /[a-z]/i.test(ev.key) && !ev.altKey) return ev.key.toUpperCase();
+  let m;
+  if ((m = c.match(/^Key([A-Z])$/))) return m[1];
+  if ((m = c.match(/^Digit(\d)$/))) return m[1];
+  if ((m = c.match(/^Numpad(\d)$/))) return 'Pavé ' + m[1];
+  if ((m = c.match(/^F(\d{1,2})$/))) return 'F' + m[1];
+  if (CODES[c]) return CODES[c];
+  return ev.key && ev.key.length === 1 ? ev.key.toUpperCase() : null;
+}
+function comboOf(ev){
+  const base = baseKey(ev); if (!base) return null;
+  const ctrl = isMac ? ev.ctrlKey : false, cmd = isMac ? ev.metaKey : ev.ctrlKey;
+  return (ctrl ? '⌃' : '') + (ev.altKey ? '⌥' : '') + (ev.shiftKey ? '⇧' : '') + (cmd ? '⌘' : '') + base;
+}
+function search(q){
+  const words = norm(q).split(/\s+/).filter(Boolean); if (!words.length) return [];
+  const f = norm(q.trim());
+  return CAT.filter(e => { const h = norm(e.t + ' ' + SEC[e.s]); return words.every(w => h.includes(w)); })
+    .sort((a, b) => (norm(b.t).startsWith(f) - norm(a.t).startsWith(f)) || ORDER.indexOf(a.s) - ORDER.indexOf(b.s));
+}
+const bySection = list => list.slice().sort((a, b) => ORDER.indexOf(a.s) - ORDER.indexOf(b.s) || a.i - b.i);
+
+/* ---------- Étapes de macro : des phrases, une valeur à choisir dans un menu ▾ ---------- */
+const VERB = {
+  touche:{ph:'une touche', add:'Appuyer sur une touche', pre:'Appuyer sur', post:''},
+  menu:{ph:'un élément', add:'Choisir dans un menu de FL', pre:'Choisir', post:'dans le menu', opts:['File › Save', 'File › Export › Wave file', 'File › Export › All playlist tracks', 'Edit › Undo', 'Add › Channel › More plugins', 'Options › Project general settings']},
+  page:{ph:'une fenêtre', add:'Ouvrir une fenêtre de FL', pre:'Ouvrir', post:'', opts:['la Playlist', 'le Mixer', 'le Piano Roll', 'le Channel Rack', 'le Browser']},
+  clic:{ph:'un bouton', add:'Cliquer sur un bouton de FL', pre:'Cliquer sur', post:'', opts:['Ajouter un instrument', 'Ajouter un effet', 'Arrangement', 'FILE', 'Insert 1']},
+  attendre:{other:'s', ph:'une durée', add:'Attendre', pre:'Attendre', post:'', opts:['0,5 s', '1 s', '2 s', '5 s']},
+  action:{ph:'une action de FL', add:'Faire une action de FL', pre:'', post:'', opts:['Allumer le REC', 'Métronome', 'Bascule Pattern / Song', 'Dupliquer la sélection à droite']},
+  preset:{ph:'un fichier', add:'Ouvrir un preset', pre:'Ouvrir le preset', post:'', opts:['Basse.fst', 'Lead.fst', 'Pad.fst']},
+  nom:{other:'text', ph:'un nom', add:'Renommer la piste', pre:'Renommer la piste en', post:'', opts:['Drums', 'Basse', 'Mélodies', 'Voix', 'FX']},
+  souris:{ph:'gauche ou droit', add:'Faire un clic de souris', pre:'Faire un clic', post:'', opts:['gauche', 'droit', 'double']}
+};
+const stepText = st => [VERB[st.t].pre, st.v || '…', VERB[st.t].post].filter(Boolean).join(' ');
+
+/* ---------- État ---------- */
+let page = 'communaute';
+const T = {mode:'idle', key:'', text:'', assign:''};
+let CAP = null, CONF = null, RC = null, TW = null, ERR = '';
+const R = {sec:'general'};
+let macros = store.get('macros', [
+  {id:1, name:'Export Stems', key:'⌃E', on:true, steps:[{t:'menu', v:'File › Export › All playlist tracks'}, {t:'attendre', v:'1 s'}, {t:'touche', v:'Entrée'}]},
+  {id:2, name:'Ouvre un VST', key:'⌃V', on:true, steps:[{t:'page', v:'le Channel Rack'}, {t:'clic', v:'Ajouter un instrument'}]},
+  {id:3, name:'Enregistrement rapide', key:'⌃R', on:true, steps:[{t:'action', v:'Allumer le REC'}, {t:'touche', v:'Espace'}]},
+  {id:4, name:'3/4', key:'', on:false, steps:[{t:'menu', v:'Options › Project general settings'}]}
+]);
+macros.forEach(m => m.steps.forEach(st => { if (st.t === 'attendre' && typeof st.v === 'number') st.v = String(st.v).replace('.', ',') + ' s'; if (!VERB[st.t]) st.t = 'action'; }));
+const saveMacros = () => store.set('macros', macros);
+const MM = {open:null, menu:null, edit:-1, undo:[], toast:'', del:false, drag:-1, focus:'', scroll:''};
+const LM = {del:null};
+let acct = store.get('acct', {on:true, mail:'flshortcuts@exemple.fr', pseudo:'flshortcuts', theme:''});
+const saveAcct = () => store.set('acct', acct);
+const AU = {mode:'in', step:1, err:'', note:'', del:false, vals:{}};
+const SHARES = [
+  {id:'s1', title:'Export des stems en un geste', who:'studio.nord', kind:'Macro', adds:312, rating:4.6, date:'il y a 2 j', steps:[{t:'menu', v:'File › Export › All playlist tracks'}, {t:'attendre', v:'1 s'}, {t:'touche', v:'Entrée'}]},
+  {id:'s2', title:'Piano Roll au clavier gauche', who:'beatmaker.lyon', kind:'Raccourcis', adds:188, rating:4.3, date:'il y a 5 j', keys:[{s:'pianoRoll', t:'Outil crayon', k:'Q'}, {s:'pianoRoll', t:'Outil suppression', k:'A'}, {s:'pianoRoll', t:'Outil découpe', k:'W'}]},
+  {id:'s3', title:'Ouvrir Serum dans le Channel Rack', who:'flshortcuts', kind:'Macro', adds:97, rating:4.8, date:'hier', steps:[{t:'page', v:'le Channel Rack'}, {t:'clic', v:'Ajouter un instrument'}]},
+  {id:'s4', title:'Mixer : solo et mute à une main', who:'nuit.blanche', kind:'Raccourcis', adds:254, rating:4.1, date:'il y a 1 sem.', keys:[{s:'mixer', t:'Couper la piste', k:'⌥M'}, {s:'mixer', t:'Piste en solo', k:'⌥S'}]},
+  {id:'s5', title:'Préparer un projet vide', who:'studio.nord', kind:'Macro', adds:61, rating:3.9, date:'il y a 3 sem.', steps:[{t:'menu', v:'File › Save'}, {t:'nom', v:'Drums'}]},
+  {id:'s6', title:'Une prise, puis retour au début', who:'kit.808', kind:'Macro', adds:143, rating:4.5, date:'il y a 4 j', steps:[{t:'action', v:'Allumer le REC'}, {t:'attendre', v:'2 s'}, {t:'touche', v:'Espace'}]}
+];
+const avatar = who => who === acct.pseudo && acct.photo ? `<img src="${acct.photo}" alt="">` : esc(who[0]);
+const hasPhoto = who => who === acct.pseudo && acct.photo ? ' has' : '';
+const PEOPLE = {'studio.nord':1204, 'beatmaker.lyon':388, 'flshortcuts':96, 'nuit.blanche':512, 'kit.808':743};
+let commu = Object.assign({added:{}, mine:[], follows:{}, notes:{}, seenSubs:false, reported:{}, before:{}}, store.get('commu', {}));
+const saveCommu = () => store.set('commu', commu);
+const CS = {q:'', share:false, pick:'', title:'', err:'', menu:false, tab:'top', view:null, report:null, rep:{picks:{}, other:false, text:''}};
+const fr = x => String(x).replace('.', ',');
+const big = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
+/* Ajouté depuis la Communauté : une macro garde le numéro de la macro créée (supprimée dans Macros = plus ajoutée) */
+function isAdded(sh){ const v = commu.added[sh.id]; if (!v) return false;
+  return sh.kind === 'Macro' && typeof v === 'number' ? macros.some(m => m.id === v) : true; }
+/* Ta note, en demi-étoiles comme Letterboxd */
+const starFill = (n, i) => n >= i ? 100 : n >= i - .5 ? 50 : 0;
+function rate(sh){ const n = commu.notes[sh.id] || 0;
+  return `<div class="rate"><div class="stars" role="group" aria-label="Ta note" data-note="${n}">${[1, 2, 3, 4, 5].map(i => `<span class="star" style="--f:${starFill(n, i)}%"><i aria-hidden="true">★</i><button class="hl" data-a="note" data-id="${sh.id}" data-n="${i - .5}" aria-label="${fr(i - .5)} sur 5"></button><button class="hr" data-a="note" data-id="${sh.id}" data-n="${i}" aria-label="${i} sur 5"></button></span>`).join('')}</div><span class="rval">${n ? fr(n) : ''}</span></div>`; }
+function showNote(group, n){ group.querySelectorAll('.star').forEach((st, k) => st.style.setProperty('--f', starFill(n, k + 1) + '%'));
+  const v = group.parentElement.querySelector('.rval'); if (v) v.textContent = n ? fr(n) : ''; }
+const REASONS = ['Dangereux pour mon projet', 'Ne marche pas', 'Ne fait pas ce que dit le titre', 'Titre ou photo choquant', 'Pub ou spam', 'Copie du travail de quelqu’un'];
+const reportOk = () => Object.values(CS.rep.picks).some(Boolean) || (CS.rep.other && CS.rep.text.trim().length > 0);
+const FAQ = [
+  {q:'Mes raccourcis ne font rien dans FL', a:['Mets FL Studio devant.', 'Vérifie que FL Shortcuts n’est pas en pause : ⌃⌥⌘F.', 'Autorise le clavier : Réglages Système › Confidentialité et sécurité › Accessibilité.'], k:'marche pas fonctionne touche rien inactif'},
+  {q:'Un carré rouge apparaît sur l’icône en haut de l’écran', a:['Le clavier n’est plus autorisé.', 'Dans Accessibilité, retire FL Shortcuts avec −, puis ajoute-le avec +.'], k:'alerte autorisation accessibilite icone'},
+  {q:'Comment créer une macro ?', a:['Macros › Nouvelle macro.', 'Clique sa touche, puis appuie sur celle que tu veux.', 'Ajoute ses étapes une par une.'], k:'creer nouvelle enregistrer etapes'},
+  {q:'Comment changer la touche d’un raccourci ?', a:['Raccourcis, puis la page de FL à gauche.', 'Clique la touche, puis appuie sur la nouvelle.'], k:'changer modifier touche raccourci'},
+  {q:'Revenir à la touche d’origine', a:['Clique « Remettre » à côté de la touche changée.'], k:'reinitialiser origine remettre defaut'},
+  {q:'Mettre en pause ou reprendre', a:['⌃⌥⌘F, n’importe où.'], k:'pause reprendre arreter desactiver'},
+  {q:'Je n’ai pas reçu le code par mail', a:['Regarde dans les courriers indésirables.', 'Sinon, « Renvoyer le code ».'], k:'compte code mail spam inscription'}
+];
+const HS = {q:'', open:-1, tab:'faq', view:null, kind:'', msg:'', mail:'', shot:'', over:false};
+const KINDS = ['Un bug', 'Une idée', 'Une question', 'Autre'];
+/* Mes messages (exemple : un fil avec la réponse de l'équipe) */
+let inbox = store.get('inbox', [{id:'m1', kind:'Un bug', text:'Export Stems s’arrête au menu Export.', date:'il y a 3 j', shot:'',
+  replies:[{team:true, text:'Merci ! C’est corrigé dans la prochaine version.', date:'hier'}], seen:false}]);
+const saveInbox = () => store.set('inbox', inbox);
+const unread = () => inbox.some(m => !m.seen && m.replies.length && m.replies[m.replies.length - 1].team);
+/* Capture : réduite à 1280 points de large au plus, gardée en JPEG */
+function loadShot(f){
+  if (!f || !/^image\//.test(f.type) || f.size > 15e6) return;
+  const url = URL.createObjectURL(f), img = new Image();
+  img.onload = () => { try { const k = Math.min(1, 1280 / img.naturalWidth), c = document.createElement('canvas');
+      c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); HS.shot = c.toDataURL('image/jpeg', .8); } catch (_) {}
+    URL.revokeObjectURL(url); render(); };
+  img.onerror = () => URL.revokeObjectURL(url);
+  img.src = url;
+}
+
+/* ---------- Morceaux ---------- */
+const NAV = [['trouver', 'Trouver'], ['liste', 'Raccourcis'], ['macros', 'Macros'], ['communaute', 'Communauté'], ['compte', 'Compte'], ['aide', 'Aide']];
+function keyImg(k, red){
+  const n = [...k].length, size = n <= 3 ? 200 : n <= 5 ? 150 : n <= 8 ? 96 : 64;
+  return `<p class="keyimg${red ? ' r' : ''}" style="--k:${size}px" aria-label="Touche ${esc(k)}">${esc(k)}</p>`;
+}
+const caretBig = () => '<span class="caret" aria-hidden="true"></span>';
+const ph = t => `<span class="t48 f">${esc(t)}</span>`;
+const waitKC = big => `<span class="kc wait${big ? ' big' : ''}"><span class="icaret" aria-hidden="true"></span>Appuie sur une touche</span>`;
+function stepsLine(now){
+  return '<ol class="line steps" aria-label="Étapes">' + ['Touche', 'Action', 'Nouvelle touche'].map((t, i) => {
+    const k = i + 1, cls = k === now ? 'now' : k < now ? 'done' : '', inner = `<span>${k}</span>${t}`;
+    return `<li class="${cls}"${k === now ? ' aria-current="step"' : ''}>${k < now ? `<button data-a="tstep">${inner}</button>` : inner}</li>`;
+  }).join('') + '</ol>';
+}
+
+/* ---------- Trouver (première page, gardée telle quelle) ---------- */
+function entryRow(e, o){
+  const parts = [esc(SEC[e.s])];
+  if (o.showKey) parts.push(keyOf(e) ? `<b style="color:${changed(e) ? 'var(--red)' : 'var(--ink)'}">${esc(keyOf(e))}</b>` : 'Sans touche');
+  if (changed(e)) parts.push('Avant ' + esc(e.k || 'sans touche'));
+  const links = o.assign ? `<button class="u b" data-a="choose" data-i="${e.i}">Choisir</button>`
+    : `<button class="u" data-a="chg" data-i="${e.i}">Changer</button>` + (changed(e) ? `<button class="u" data-a="treset" data-i="${e.i}">Remettre</button>` : '');
+  return `<li><div class="meta"><span>${parts.join(' · ')}</span><span class="links">${links}</span></div>
+    <button class="name act" data-a="${o.assign ? 'choose' : 'chg'}" data-i="${e.i}">${esc(e.t)}</button></li>`;
+}
+function pTrouver(){
+  let L = '', Rr = '', step = T.mode === 'idle' && !T.assign ? 1 : 2;
+  if (CONF){
+    // Touche déjà prise dans la même page : la petite page (swapPage) montre l'échange et demande si c'est sûr.
+    step = 3; const {e, k} = CONF;
+    L = `<div class="field big">${keyImg(k, true)}</div><p class="r mt16">${esc(k)} sert déjà.</p>`;
+    Rr = `<p class="g">${esc(SEC[e.s])}</p><p class="t24 mt8">${esc(e.t)}</p>`;
+  } else if (T.mode === 'done'){
+    step = 4; const {e, old, k} = T.done;
+    L = `<div class="field big" id="fld" tabindex="0">${k ? keyImg(k) : ph('Aucune touche')}</div>`;
+    Rr = `<p class="t24 b">C’est changé.</p><p class="g mt24">${esc(SEC[e.s])}</p><p class="t24 mt8">${esc(e.t)}</p>
+      <p class="g mt8">Avant : ${esc(old || 'aucune')} · Maintenant : ${esc(k || 'aucune')}</p>
+      <div class="btns mt32"><button class="btn" data-a="tnext">Chercher un autre raccourci</button><button class="u" data-a="tundo">Annuler le changement</button></div>`;
+  } else if (CAP && CAP.kind === 'entry'){
+    step = 3; const e = CAP.e;
+    L = `<div class="field big" id="fld" tabindex="0">${caretBig()}${ph('Nouvelle touche')}</div>${ERR ? `<p class="r mt16" role="alert">${esc(ERR)}</p>` : ''}`;
+    Rr = `<p class="g">${esc(SEC[e.s])}</p><p class="t24 mt8">${esc(e.t)}</p><p class="g mt8">Avant : ${esc(keyOf(e) || 'sans touche')}</p>
+      <div class="btns mt32"><button class="btn out" data-a="none">Aucune touche</button><button class="u" data-a="uncap">Annuler</button></div>`;
+  } else if (T.assign){
+    L = `<div class="field big" id="fld" tabindex="0">${T.text ? `<span class="typed">${esc(T.text)}</span>` : ph('Nom de l’action')}<span class="caret thin" aria-hidden="true"></span></div>
+      <div class="links mt16 g"><span>Pour ${esc(T.assign)}</span><button class="u" data-a="unassign">Annuler</button></div>`;
+    const res = search(T.text).slice(0, 40);
+    Rr = T.text ? (res.length ? `<ul class="rows">${res.map(e => entryRow(e, {assign:true, showKey:true})).join('')}</ul>` : '<p class="t24 g">Aucun résultat.</p>') : '';
+  } else if (T.mode === 'key'){
+    L = `<div class="field big" id="fld" tabindex="0">${keyImg(T.key)}</div>` + (T.text ? '<p class="g mt16">ou continue pour chercher un nom</p>' : '');
+    const res = bySection(CAT.filter(e => keyOf(e) === T.key));
+    Rr = res.length ? `<ul class="rows">${res.map(e => entryRow(e, {})).join('')}</ul>`
+      // 19/11 : rien à créer ici ; une nouvelle touche se crée seulement dans Macros.
+      : `<p class="t24">Rien sur ${esc(T.key)}.</p>`;
+  } else if (T.mode === 'name'){
+    L = `<div class="field big" id="fld" tabindex="0"><span class="typed">${esc(T.text)}</span><span class="caret thin" aria-hidden="true"></span></div>`;
+    const res = search(T.text).slice(0, 40);
+    Rr = res.length ? `<ul class="rows">${res.map(e => entryRow(e, {showKey:true})).join('')}</ul>` : '<p class="t24 g">Aucun résultat.</p>';
+  } else {
+    L = `<div class="field big" id="fld" tabindex="0" aria-label="Appuie sur une touche, ou tape un nom">${caretBig()}${ph('Appuie sur une touche')}</div><p class="g mt16">ou tape un nom</p>`;
+  }
+  return stepsLine(step) + `<div class="colL">${L}</div><div class="colR">${Rr}</div>`;
+}
+
+/* ---------- Raccourcis : pages de FL à gauche, tableau à filets à droite (codes suisses) ---------- */
+function keyRow(e, mine){
+  const capThis = CAP && CAP.kind === 'row' && CAP.e === e, k = keyOf(e);
+  const keyCell = capThis ? `<span class="kwait">Appuie sur une touche</span>`
+    : `<span class="kk${!k ? ' g' : changed(e) ? ' r' : ''}">${k ? esc(k) : '—'}</span>`;
+  const side = capThis ? `<button class="kx" data-a="uncap">Annuler</button>` : changed(e) ? `<button class="kx" data-a="rreset" data-i="${e.i}">Remettre</button>` : '';
+  let extra = '';
+  if (capThis && ERR) extra = `<div class="kband r" role="alert">${esc(ERR)}</div>`;
+  // Touche déjà prise dans la page : la petite page (swapPage) s'en charge.
+  return `<li><div class="kr${capThis ? ' on' : ''}" role="button" tabindex="0" data-a="rowkey" data-i="${e.i}" aria-label="Changer la touche de ${esc(e.t)}">
+    <span class="ka">${esc(e.t)}${mine ? `<span class="kp">${esc(SEC[e.s])}</span>` : ''}</span>${keyCell}<span class="ks">${side}</span></div>${extra}</li>`;
+}
+function pListe(){
+  const mine = R.sec === 'mine', list = mine ? bySection(CAT.filter(changed)) : CAT.filter(e => e.s === R.sec);
+  const sub = ORDER.concat(['mine']).map(s => `<li><button class="${R.sec === s ? 'cur' : ''}" data-a="sec" data-s="${s}"${R.sec === s ? ' aria-current="page"' : ''}>${s === 'mine' ? 'Mes raccourcis' : SEC[s]}</button></li>`).join('');
+  let body;
+  if (!list.length) body = '<p class="t16 g mt24">Aucun raccourci changé.</p>';
+  else {
+    const groups = [];
+    list.forEach(e => { const t = mine ? '' : e.g; let g = groups.find(x => x.t === t); if (!g){ g = {t, items:[]}; groups.push(g); } g.items.push(e); });
+    body = groups.map(g => `<section class="grp">${g.t && g.t !== 'Autres' ? `<h2 class="gl">${esc(g.t)}</h2>` : '<div class="gl gl0" style="padding:0"></div>'}<ul>${g.items.map(e => keyRow(e, mine)).join('')}</ul></section>`).join('');
+  }
+  return `<nav class="subnav" aria-label="Pages de FL"><ul>${sub}</ul></nav>
+    <div class="kmain"><h1 class="ktitle">${mine ? 'Mes raccourcis' : SEC[R.sec]}</h1>${body}</div>`;
+}
+
+/* ---------- Macros : même tableau à filets ; créateur en une colonne : la touche, puis les étapes ---------- */
+function macroKeyWarn(m){
+  if (!m.key) return '';
+  const other = macros.filter(x => x !== m && x.key === m.key), fl = CAT.filter(e => keyOf(e) === m.key);
+  if (other.length) return `${m.key} sert déjà à la macro « ${other[0].name || 'sans nom'} ».`;
+  if (fl.length) return `${m.key} sert aussi à « ${fl[0].t} » dans FL.`;
+  return '';
+}
+function pMacros(){
+  const m = macros.find(x => x.id === MM.open);
+  if (!m){
+    const rows = macros.map(x => `<li><div class="kr mr" role="button" tabindex="0" data-a="mopen" data-id="${x.id}" aria-label="Modifier ${esc(x.name || 'Sans nom')}">
+        <span class="ka"><b>${esc(x.name || 'Sans nom')}</b><span class="kp">${esc(x.steps.length ? x.steps.map(stepText).join(' · ') : 'Aucune étape')}</span></span>
+        <span class="kk${x.key ? '' : ' g'}">${x.key ? esc(x.key) : '—'}</span>
+        <span class="ks"><button class="switch" data-a="mtoggle" data-id="${x.id}" aria-pressed="${x.on}"><i></i>${x.on ? 'Active' : 'Éteinte'}</button><button class="kx" data-a="ldel" data-id="${x.id}">Supprimer</button></span></div>
+        ${LM.del === x.id ? `<div class="kband"><span>Supprimer « ${esc(x.name || 'Sans nom')} » ?</span><button class="btn small" data-a="ldelok" data-id="${x.id}">Supprimer</button><button class="u" data-a="ldelno">Annuler</button></div>` : ''}</li>`).join('');
+    return `<div class="line"><h1 class="ktitle">Macros</h1><button class="btn end" data-a="mnew">+ Nouvelle macro</button></div>
+      <div class="full">${macros.length ? `<section class="grp"><div class="gl gl0"></div><ul>${rows}</ul></section>` : '<p class="t16 g mt24">Aucune macro.</p>'}</div>`;
+  }
+  const warn = macroKeyWarn(m), n = m.steps.length, capKey = CAP && CAP.kind === 'macro' && CAP.m === m;
+  const trig = capKey ? `<span class="klab">Touche</span><button class="val wait" data-a="uncap" title="Échap pour annuler">Appuie sur une touche</button>`
+    : `<span class="klab">Touche</span><button class="val${m.key ? '' : ' todo'}" data-a="mkey" data-id="${m.id}">${m.key ? esc(m.key) : 'Choisir'}</button>`;
+  const steps = m.steps.map((st, i) => {
+    const d = VERB[st.t], capThis = CAP && CAP.kind === 'step' && CAP.st === st, open = MM.menu && MM.menu.i === i;
+    const v = MM.edit === i
+      ? `<span class="vedit"><input id="sedit" value="${esc(d.other === 's' ? (st.v || '').replace(/\s*s$/, '') : st.v)}" placeholder="${d.other === 's' ? '3' : 'Nom'}" style="width:${d.other === 's' ? 6 : 14}ch" inputmode="${d.other === 's' ? 'decimal' : 'text'}" aria-label="${d.other === 's' ? 'Secondes' : 'Nom de la piste'}">${d.other === 's' ? '<span>s</span>' : ''}</span>`
+      : st.t === 'touche'
+      ? (capThis ? `<button class="val wait" data-a="uncap" title="Échap pour annuler">Appuie sur une touche</button>${ERR ? `<span class="r">${esc(ERR)}</span>` : ''}` : `<button class="val${st.v ? '' : ' todo'}" data-a="stepkey" data-n="${i}">${esc(st.v || d.ph)}</button>`)
+      : `<span class="vwrap"><button class="val pick${st.v ? '' : ' todo'}" data-a="ddopen" data-n="${i}" aria-haspopup="true" aria-expanded="${!!open}">${esc(st.v || d.ph)}</button>${open ? `<div class="menu" role="menu">${d.opts.map(o => `<button role="menuitem" class="${o === st.v ? 'on' : ''}" data-a="ddset" data-n="${i}" data-v="${esc(o)}">${esc(o)}</button>`).join('')}${d.other ? `<button role="menuitem" class="other" data-a="ddother" data-n="${i}">Autre…</button>` : ''}</div>` : ''}</span>`;
+    const tools = `<span class="tools"><button data-a="stepup" data-n="${i}"${i ? '' : ' disabled'}>Monter</button><button data-a="stepdown" data-n="${i}"${i < n - 1 ? '' : ' disabled'}>Descendre</button><button class="del" data-a="stepdel" data-n="${i}">Retirer</button></span>`;
+    return `<li><div class="sr" draggable="true" data-n="${i}"><span class="sn">${String(i + 1).padStart(2, '0')}</span>
+      <span class="say">${d.pre ? `<span>${esc(d.pre)}</span>` : ''}${v}${d.post ? `<span>${esc(d.post)}</span>` : ''}</span>${tools}</div></li>`; }).join('');
+  const ADD = [['Clavier', ['touche']], ['FL Studio', ['menu', 'page', 'clic', 'action', 'preset', 'nom']], ['Souris', ['souris']], ['Temps', ['attendre']]];
+  const add = `<div class="addl" role="group" aria-label="Ajouter une étape"><div class="addh"><span class="lab">Ajouter une étape</span></div>${ADD.map(([c, ts]) => `<p class="cat">${c}</p>${ts.map(t => `<button class="it" data-a="stepadd" data-t="${t}">${VERB[t].add}</button>`).join('')}`).join('')}</div>`;
+  return `<div class="line" style="padding-top:24px"><button class="u g" data-a="mdone">← Macros</button><button class="btn end" data-a="mdone">Terminé</button></div>
+    <div class="mk">
+      <div class="mhead"><div class="mtitle"><input id="mname" value="${esc(m.name)}" placeholder="Nouvelle macro" aria-label="Nom de la macro" maxlength="40"></div><div class="mkey">${trig}</div></div>
+      ${capKey && ERR ? `<p class="r mt8" role="alert">${esc(ERR)}</p>` : warn ? `<p class="r mt8">${esc(warn)}</p>` : ''}
+      <div class="steps2">${n ? `<ol>${steps}</ol>` : '<p class="g" style="padding:16px 12px">Choisis une étape à droite.</p>'}</div>
+      ${MM.toast ? `<p class="g mt16">${esc(MM.toast)} · <button class="u" data-a="undo">Annuler</button></p>` : ''}
+      <div class="mt48">${MM.del ? `<p>Supprimer cette macro ?</p><div class="btns mt8"><button class="btn" data-a="mdelok">Supprimer</button><button class="u" data-a="mdelno">Annuler</button></div>` : `<button class="u r" data-a="mdel">Supprimer la macro</button>`}</div>
+    </div>
+    <aside class="addp">${add}</aside>`;
+}
+
+/* ---------- Communauté ---------- */
+function pCommu(){
+  if (!acct.on) return `<div class="line"></div><div class="main"><p class="t24">Connecte-toi pour voir la Communauté.</p><div class="btns mt24"><button class="btn" data-a="go" data-p="compte">Se connecter</button></div></div>`;
+  if (CS.share){
+    const choices = macros.map(m => ['m' + m.id, m.name || 'Sans nom']).concat([['keys', 'Tous mes raccourcis']]);
+    const cur = (choices.find(c => c[0] === CS.pick) || choices[0]);
+    return `<div class="line"><button class="u g" data-a="shareno">← Communauté</button></div>
+      <form class="main" id="f-share" style="max-width:560px"><h1 class="ktitle">Partager</h1>
+        <label class="lbl">Quoi</label><span style="position:relative;display:inline-block"><button type="button" class="dd" data-a="pickopen" aria-haspopup="true">${esc(cur[1])}</button>
+          ${CS.menu ? `<div class="menu" role="menu" style="top:46px;left:0">${choices.map(([v, t]) => `<button type="button" role="menuitem" class="${v === cur[0] ? 'on' : ''}" data-a="pick" data-v="${v}">${esc(t)}</button>`).join('')}</div>` : ''}</span>
+        <label class="lbl" for="stitle">Titre</label><div class="box"><input id="stitle" maxlength="60" value="${esc(CS.title)}"></div>
+        ${CS.err ? `<p class="r mt8" role="alert">${esc(CS.err)}</p>` : ''}
+        <div class="btns mt32"><button type="submit" class="btn">Partager</button><button type="button" class="u" data-a="shareno">Annuler</button></div></form>`;
+  }
+  const all = SHARES.concat(commu.mine);
+  const used = sh => sh.adds + (isAdded(sh) ? 1 : 0);
+  const desc = sh => sh.kind === 'Macro' ? (sh.steps || []).map(stepText).join(' · ') : (sh.keys || []).map(k => `${k.t} ${k.k}`).join(' · ');
+  // La note et le nombre d'ajouts, en grand (19/11 : « les étoiles et le nombre d'utilisation… + gros »)
+  const stats = sh => { const u = used(sh), word = sh.kind === 'Macro' ? (u > 1 ? 'ajouts' : 'ajout') : (u > 1 ? 'utilisations' : 'utilisation');
+    return `<span class="cstats">${sh.rating ? `<span class="cnum"><span class="cst" aria-hidden="true">★</span> ${fr(sh.rating)}<small>sur 5</small></span>` : ''}<span class="cnum">${big(u)}<small>${word}</small></span></span>`; };
+  const action = sh => sh.mine ? '' : isAdded(sh) ? `<span class="on">${sh.kind === 'Macro' ? 'Ajoutée ✓' : 'Utilisés ✓'}</span>`
+    : `<button class="btn out small" data-a="add" data-id="${sh.id}">${sh.kind === 'Macro' ? 'Ajouter' : 'Utiliser'}</button>`;
+  // Une case : qui (sauf sur sa propre page), le nom, puis la note et les ajouts. Plus de détail, de date ni de rang.
+  const card = (sh, solo) => `<li><div class="card" role="button" tabindex="0" data-a="cview" data-id="${sh.id}">
+      ${solo ? '' : `<p class="cby"><button class="cav${hasPhoto(sh.who)}" data-a="cperson" data-who="${esc(sh.who)}" aria-label="${esc(sh.who)}">${avatar(sh.who)}</button><button class="cwho" data-a="cperson" data-who="${esc(sh.who)}">${esc(sh.who)}</button></p>`}
+      <p class="ctit">${esc(sh.title)}</p>
+      <div class="cfoot">${stats(sh)}${action(sh)}</div></div></li>`;
+  const grid = (items, solo) => items.length ? `<ul class="cgrid">${items.map(sh => card(sh, solo)).join('')}</ul>` : '';
+  const back = `<div class="line" style="padding-top:40px"><button class="u g" data-a="cback">← Communauté</button></div>`;
+  // Signaler : une page, une case par raison, « Autre » ouvre un champ
+  if (CS.view && CS.view.share && CS.report === CS.view.share){
+    const sh = all.find(x => x.id === CS.view.share), r = CS.rep, ok = reportOk();
+    return `<div class="line" style="padding-top:40px"><button class="u g" data-a="reportno">← ${esc(sh.title)}</button></div>
+      <form class="main" id="f-report" style="max-width:560px"><h1 class="ktitle">Signaler</h1><p class="g mt8">${esc(sh.title)} · ${esc(sh.who)}</p>
+        <div class="chks" role="group" aria-label="Pourquoi">${REASONS.map((t, i) => `<button type="button" class="chk" role="checkbox" aria-checked="${!!r.picks[i]}" data-a="rpick" data-n="${i}"><i aria-hidden="true"></i>${esc(t)}</button>`).join('')}
+          <button type="button" class="chk" role="checkbox" aria-checked="${r.other}" data-a="rpick" data-n="other"><i aria-hidden="true"></i>Autre</button></div>
+        ${r.other ? `<label class="lbl" for="rother">Pourquoi ?</label><div class="box area"><textarea id="rother" rows="3" maxlength="300">${esc(r.text)}</textarea></div>` : ''}
+        <div class="btns mt32"><button type="submit" class="btn"${ok ? '' : ' disabled'}>Envoyer</button><button type="button" class="u" data-a="reportno">Annuler</button></div></form>`;
+  }
+  // Un partage : ce qu'il fait, l'ajouter (ou le retirer), le noter
+  if (CS.view && CS.view.share){
+    const sh = all.find(x => x.id === CS.view.share); if (!sh){ CS.view = null; return pCommu(); }
+    const added = isAdded(sh);
+    const body = sh.kind === 'Macro'
+      ? `<ol>${(sh.steps || []).map((st, i) => { const d = VERB[st.t] || VERB.action; return `<li><div class="sr"><span class="sn">${String(i + 1).padStart(2, '0')}</span><span class="say">${d.pre ? `<span>${esc(d.pre)}</span>` : ''}<b>${esc(st.v)}</b>${d.post ? `<span>${esc(d.post)}</span>` : ''}</span></div></li>`; }).join('')}</ol>`
+      : `<ul>${(sh.keys || []).map(k => `<li><div class="kr" style="cursor:default"><span class="ka">${esc(k.t)}<span class="kp">${esc(SEC[k.s] || '')}</span></span><span class="kk">${esc(k.k)}</span><span></span></div></li>`).join('')}</ul>`;
+    return back + `<div class="mk"><h1 class="ktitle" style="margin-top:24px">${esc(sh.title)}</h1>
+        <p class="cmeta"><button class="cav${hasPhoto(sh.who)}" data-a="cperson" data-who="${esc(sh.who)}" aria-label="${esc(sh.who)}">${avatar(sh.who)}</button><button class="cwho" data-a="cperson" data-who="${esc(sh.who)}">${esc(sh.who)}</button><span>· ${esc(sh.date || 'à l’instant')}</span></p>
+        <div class="mt16">${stats(sh)}</div>
+        <div class="steps2">${body}</div></div>
+      <aside class="addp" style="padding-top:32px">${sh.mine ? '<p class="g">Partagé par toi.</p>'
+        : added ? `<p class="t16 b">${sh.kind === 'Macro' ? 'Dans tes macros ✓' : 'Raccourcis utilisés ✓'}</p>
+          <div class="btns mt16"><button class="btn out" data-a="unadd" data-id="${sh.id}">${sh.kind === 'Macro' ? 'Supprimer de mes macros' : 'Remettre mes raccourcis'}</button></div>
+          <p class="lab mt32">Ta note</p>${rate(sh)}`
+        : `<button class="btn" data-a="add" data-id="${sh.id}">${sh.kind === 'Macro' ? 'Ajouter à mes macros' : 'Utiliser ces raccourcis'}</button>`}
+        ${sh.mine ? '' : commu.reported[sh.id] ? '<p class="mt32 g">Signalé, merci.</p>' : `<p class="mt32"><button class="u g" data-a="report" data-id="${sh.id}">Signaler</button></p>`}</aside>`;
+  }
+  // Une personne : ses abonnés et ses partages en grand, son travail, la suivre
+  if (CS.view && CS.view.person){
+    const who = CS.view.person, theirs = all.filter(x => x.who === who).sort((a, b) => used(b) - used(a)), f = !!commu.follows[who];
+    const n = (PEOPLE[who] || 0) + (f ? 1 : 0);
+    // « Abonné ✓ » : même bouton que « Suivre », même couleur, même survol (19/11)
+    return back + `<div class="full"><div class="phead"><span class="cav big${hasPhoto(who)}" aria-hidden="true">${avatar(who)}</span><h1 class="t48 b" style="margin:0">${esc(who)}<span class="tdot" aria-hidden="true"></span></h1>
+        ${who === acct.pseudo ? '' : `<button class="btn" data-a="follow" data-who="${esc(who)}" aria-pressed="${f}">${f ? 'Abonné ✓' : 'Suivre'}</button>`}</div>
+        <div class="pstats"><p class="pstat"><b>${big(n)}</b><span>abonné${n > 1 ? 's' : ''}</span></p><p class="pstat"><b>${big(theirs.length)}</b><span>partage${theirs.length > 1 ? 's' : ''}</span></p></div>
+        ${grid(theirs, true) || '<p class="g mt24">Rien de partagé.</p>'}</div>`;
+  }
+  // Liste : Pour toi · Abonnements · Les plus ajoutées · Les miens
+  const subsNew = !commu.seenSubs && all.some(x => commu.follows[x.who]);
+  let list = CS.tab === 'subs' ? all.filter(x => commu.follows[x.who]) : CS.tab === 'mine' ? commu.mine : all.slice().sort((a, b) => used(b) - used(a));
+  if (CS.q.trim()){ const w = norm(CS.q).split(/\s+/).filter(Boolean); list = list.filter(x => w.every(y => norm(x.title + ' ' + x.who + ' ' + desc(x)).includes(y))); }
+  const empty = CS.q.trim() ? 'Aucun résultat.' : CS.tab === 'subs' ? 'Tu ne suis personne.' : CS.tab === 'mine' ? 'Rien de partagé.' : 'Rien ici.';
+  const tabs = [['top', 'Les plus ajoutées'], ['subs', 'Abonnements'], ['mine', 'Les miens']]
+    .map(([k, t]) => `<button class="tab" data-a="ctab" data-k="${k}"${CS.tab === k ? ' aria-current="true"' : ''}>${t}${k === 'subs' && subsNew ? '<i class="rdot" aria-label="nouveau"></i>' : ''}</button>`).join('');
+  return `<div class="line" style="padding-top:40px"><h1 class="ktitle">Communauté</h1><button class="btn end" data-a="share">Partager</button></div>
+    <div class="full"><div class="ctop"><div class="tabs">${tabs}</div><div class="csearch"><input id="cq" value="${esc(CS.q)}" placeholder="Chercher" aria-label="Chercher"></div></div>
+      ${grid(list) || `<p class="g mt24">${empty}</p>`}</div>`;
+}
+
+/* ---------- Compte ---------- */
+/* Code reçu par mail : 6 cases ; on clique n'importe où, chaque chiffre va dans la case suivante, ⌫ revient, un code collé remplit tout */
+function codeField(){
+  const v = AU.vals.code || '', cur = Math.min(v.length, 5);
+  const boxes = [0, 1, 2, 3, 4, 5].map(i => `<span class="cbox${i === cur ? ' cur' : ''}${v[i] ? ' full' : ''}" aria-hidden="true">${esc(v[i] || '')}</span>`).join('');
+  return `<label class="lbl" for="code">Code</label><div class="codes">${boxes}<input id="code" class="codein" value="${esc(v)}" inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="Code à 6 chiffres"></div>`;
+}
+function inField(id, label, type){ return `<label class="lbl" for="${id}">${label}</label><div class="box"><input id="${id}" type="${type}" value="${esc(AU.vals[id] || '')}" autocomplete="off"></div>`; }
+function pCompte(){
+  const err = AU.err ? `<p class="r mt16" role="alert">${esc(AU.err)}</p>` : '';
+  if (acct.on){
+    const cur = acct.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'noir' : 'papier');
+    const sw = [['papier', 'Papier'], ['noir', 'Noir'], ['orange', 'Orange']]
+      .map(([k, t]) => `<button class="tab" data-a="theme" data-k="${k}"${cur === k ? ' aria-current="true"' : ''}>${t}</button>`).join('');
+    return `<div class="line"></div><div class="main"><div class="phead" style="margin-top:0"><label class="cav huge${hasPhoto(acct.pseudo)}" for="ppf" title="Changer la photo">${avatar(acct.pseudo)}</label><input type="file" id="ppf" accept="image/*" hidden>
+        <div><p class="t48 b">${esc(acct.pseudo)}<span class="tdot" aria-hidden="true"></span></p><p class="g mt8">${esc(acct.mail)}</p></div></div>
+      <div class="links mt16"><label class="u" for="ppf" style="cursor:pointer">${acct.photo ? 'Changer la photo' : 'Ajouter une photo'}</label>${acct.photo ? '<button class="u g" data-a="ppdel">Retirer la photo</button>' : ''}${AU.ppErr ? `<span class="r">${esc(AU.ppErr)}</span>` : ''}</div>
+      <p class="g mt48">Thème</p><div class="tabs mt16">${sw}</div>
+      <div class="btns mt48"><button class="btn out" data-a="logout">Se déconnecter</button></div>
+      <div class="mt32">${AU.del ? `<p>Supprimer le compte et sa sauvegarde ?</p><div class="btns mt8"><button class="btn" data-a="delok">Supprimer</button><button class="u" data-a="delno">Annuler</button></div>` : `<button class="u r" data-a="delacct">Supprimer mon compte</button>`}</div></div>`;
+  }
+  let body;
+  if (AU.mode === 'in') body = `<form id="f-in"><p class="t48 b">Connexion</p>${inField('mail', 'Adresse mail', 'email')}${inField('pass', 'Mot de passe', 'password')}${err}
+      <div class="btns mt32"><button type="submit" class="btn">Se connecter</button></div>
+      <div class="links mt24"><button type="button" class="u" data-a="amode" data-k="new">Créer un compte</button><button type="button" class="u g" data-a="amode" data-k="forgot">Mot de passe oublié ?</button></div></form>`;
+  else {
+    const isNew = AU.mode === 'new', title = isNew ? 'Créer un compte' : 'Mot de passe oublié';
+    if (AU.step === 1) body = `<form id="f-a1"><p class="t48 b">${title}</p>${inField('mail', 'Adresse mail', 'email')}${isNew ? inField('pseudo', 'Pseudo', 'text') + inField('pass', 'Mot de passe', 'password') : ''}${err}<div class="btns mt32"><button type="submit" class="btn">Recevoir le code</button></div>`;
+    else body = `<form id="f-a2"><p class="t48 b">${title}</p><p class="mt16">Code envoyé à ${esc(AU.vals.mail || '')}.</p>${codeField()}${isNew ? '' : inField('npass', 'Nouveau mot de passe', 'password')}${err}${AU.note ? `<p class="g mt16">${esc(AU.note)}</p>` : ''}
+      <div class="btns mt32"><button type="submit" class="btn">Valider</button><button type="button" class="u" data-a="resend">Renvoyer le code</button></div>`;
+    body += `<div class="links mt24"><button type="button" class="u" data-a="amode" data-k="in">J’ai déjà un compte</button></div></form>`;
+  }
+  return `<div class="line"></div><div class="main" style="max-width:480px">${body}</div>`;
+}
+
+/* ---------- Aide ---------- */
+function pAide(){
+  const back = (to, label) => `<div class="line" style="padding-top:40px"><button class="u g" data-a="hback" data-to="${to}">← ${label}</button></div>`;
+  // Écrire à l'équipe : de quoi ça parle, le message, une capture si on veut ; l'état de l'appli part tout seul
+  if (HS.view === 'write'){
+    // 19/11 : compte obligatoire pour écrire à l'équipe (la réponse arrive dans Mes messages)
+    if (!acct.on) return back('aide', 'Aide') + `<div class="mk"><h1 class="ktitle" style="margin-top:24px">Écrire à l’équipe</h1>
+        <p class="t16 mt24">Connecte-toi pour écrire à l’équipe.</p><div class="btns mt16"><button class="btn" data-a="go" data-p="compte">Se connecter</button></div></div>`;
+    const ok = HS.kind && HS.msg.trim().length >= 3;
+    const ph = {'Un bug':'Ce qui s’est passé', 'Une idée':'Ton idée', 'Une question':'Ta question'}[HS.kind] || 'Ton message';
+    const words = norm(HS.msg).split(/[^a-z0-9]+/).filter(w => w.length >= 4);
+    const tips = HS.kind === 'Une idée' || !words.length ? [] : FAQ.map((f, i) => [f, i])
+      .filter(([f]) => words.some(w => norm(f.q + ' ' + f.k).includes(w))).slice(0, 3);
+    const tipRows = tips.map(([f, i]) => `<li class="fq"><button type="button" class="fqb" data-a="faq" data-n="${i}" aria-expanded="${HS.open === i}"><span class="g">${HS.open === i ? '▾' : '▸'}</span><span>${esc(f.q)}</span></button>
+      ${HS.open === i ? `<ol class="fqa">${f.a.map((st, j) => `<li><span class="g">${j + 1}.</span><span>${esc(st)}</span></li>`).join('')}</ol>` : ''}</li>`).join('');
+    return back('aide', 'Aide') + `<form class="mk" id="f-msg"><h1 class="ktitle" style="margin-top:24px">Écrire à l’équipe</h1>
+        <p class="lab mt32">C’est à propos de</p>
+        <div class="kinds mt8" role="group" aria-label="C’est à propos de">${KINDS.map(k => `<button type="button" class="kind" aria-pressed="${HS.kind === k}" data-a="hkind" data-k="${k}">${k}</button>`).join('')}</div>
+        <label class="lab mt32" for="msg" style="display:block">Message</label>
+        <div class="box area mt8"><textarea id="msg" rows="6" maxlength="4000" placeholder="${ph}">${esc(HS.msg)}</textarea></div>
+        <p class="labrow mt24"><span class="lab">Capture</span><span class="g">facultatif</span></p>
+        <label class="shotzone mt8${HS.over ? ' over' : ''}" for="hshot">${HS.shot ? `<img src="${HS.shot}" alt="Ta capture"><span>Changer</span>` : '<span>Ajouter une capture</span>'}</label>
+        <input type="file" id="hshot" accept="image/*" hidden>
+        ${HS.shot ? '<p class="mt8"><button type="button" class="u g" data-a="hshotdel">Retirer la capture</button></p>' : ''}
+        <div class="btns mt32"><button type="submit" class="btn"${ok ? '' : ' disabled'}>Envoyer</button><button type="button" class="u" data-a="hback" data-to="aide">Annuler</button></div></form>
+      <aside class="addp" style="padding-top:32px">${tips.length ? `<p class="lab">Ça t’aide peut-être</p><ul class="mt8" style="border-top:2px solid var(--ink)">${tipRows}</ul>` : ''}</aside>`;
+  }
+  // Un message : ce que tu as écrit, la réponse de l'équipe, et répondre
+  if (HS.view && HS.view.thread){
+    const m = inbox.find(x => x.id === HS.view.thread); if (!m){ HS.view = null; HS.tab = 'msgs'; return pAide(); }
+    const item = (team, text, date, shot) => `<li class="msg${team ? ' team' : ''}"><p class="who">${team ? 'L’équipe' : 'Toi'} · ${esc(date)}</p><p class="tx">${esc(text)}</p>${shot ? `<img src="${shot}" alt="Ta capture">` : ''}</li>`;
+    return back('list', 'Mes messages') + `<div class="mk"><h1 class="ktitle" style="margin-top:24px">${esc(m.kind)}</h1>
+        <ul class="msgs">${item(false, m.text, m.date, m.shot)}${m.replies.map(r => item(r.team, r.text, r.date, '')).join('')}</ul>
+        ${HS.view.sent ? '<p class="t16 b mt24">Envoyé ✓</p>' : ''}
+        <form id="f-reply" class="mt32"><label class="lab" for="hreply">Répondre</label><div class="box area mt8"><textarea id="hreply" rows="3" maxlength="4000">${esc(HS.reply || '')}</textarea></div>
+          <div class="btns mt16"><button type="submit" class="btn"${(HS.reply || '').trim() ? '' : ' disabled'}>Envoyer</button></div></form></div>`;
+  }
+  // Aide : deux onglets, Questions et Mes messages (19/11 : « une page mes messages pour y accéder »)
+  const tabs = [['faq', 'Questions'], ['msgs', 'Mes messages']].map(([k, t]) => `<button class="tab" data-a="htab" data-k="${k}"${HS.tab === k ? ' aria-current="true"' : ''}>${t}${k === 'msgs' && acct.on && unread() ? '<i class="rdot" aria-label="nouvelle réponse"></i>' : ''}</button>`).join('');
+  const head = `<div class="line" style="padding-top:40px"><h1 class="ktitle">Aide</h1><button class="btn end" data-a="write">Écrire à l’équipe</button></div>
+    <div class="full"><div class="ctop"><div class="tabs">${tabs}</div></div></div>`;
+  if (HS.tab === 'msgs'){
+    const rows = inbox.map(m => { const last = m.replies[m.replies.length - 1], fresh = !m.seen && last && last.team;
+      return `<li><div class="kr mr2" role="button" tabindex="0" data-a="hthread" data-id="${m.id}">
+        <span class="ka"><b>${esc(m.text.split('\n')[0])}</b><span class="kp">${esc(m.kind)}</span></span>
+        <span class="g">${esc(m.date)}</span>
+        <span class="ks">${last && last.team ? `<span class="${fresh ? 'st-new' : ''}">Réponse${fresh ? '<i class="rdot" aria-label="nouveau"></i>' : ' ✓'}</span>` : '<span class="g">Envoyé</span>'}</span></div></li>`; }).join('');
+    const body = !acct.on ? `<p class="t16 mt24">Connecte-toi pour retrouver tes messages.</p><div class="btns mt16"><button class="btn" data-a="go" data-p="compte">Se connecter</button></div>`
+      : inbox.length ? `<section class="grp"><div class="gl gl0"></div><ul>${rows}</ul></section>` : '<p class="t16 g mt24">Aucun message.</p>';
+    return head + `<div class="mk">${body}</div>`;
+  }
+  const w = norm(HS.q).split(/\s+/).filter(Boolean);
+  const list = FAQ.map((f, i) => [f, i]).filter(([f]) => w.every(x => norm(f.q + ' ' + f.k + ' ' + f.a.join(' ')).includes(x)));
+  const rows = list.map(([f, i]) => `<li class="fq"><button class="fqb" data-a="faq" data-n="${i}" aria-expanded="${HS.open === i}"><span class="g">${HS.open === i ? '▾' : '▸'}</span><span>${esc(f.q)}</span></button>
+    ${HS.open === i ? `<ol class="fqa">${f.a.map((st, j) => `<li><span class="g">${j + 1}.</span><span>${esc(st)}</span></li>`).join('')}</ol>` : ''}</li>`).join('');
+  return head + `<div class="mk" style="padding-top:24px"><div class="box" style="max-width:480px"><input id="hq" value="${esc(HS.q)}" placeholder="Rechercher dans l’aide" aria-label="Rechercher dans l’aide"></div>
+    ${list.length ? `<ul class="mt24" style="border-top:2px solid var(--ink)">${rows}</ul>` : '<p class="t16 g mt24">Aucune réponse.</p>'}</div>`;
+}
+
+/* ---------- Rendu ---------- */
+let lastPage = '';
+function render(){
+  const win = document.getElementById('win');
+  if (acct.on && acct.theme) win.dataset.t = acct.theme; else delete win.dataset.t;
+  document.getElementById('nav').innerHTML = NAV.map(([k, t]) => `<button data-a="go" data-p="${k}"${page === k ? ' aria-current="page"' : ''}>${t}${k === 'aide' && acct.on && unread() ? '<i class="rdot" aria-label="nouvelle réponse"></i>' : ''}</button>`).join('');
+  const el = document.getElementById('page'), a = document.activeElement;
+  const fid = a && a.id && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA') ? a.id : '', sel = fid ? a.selectionStart : 0;
+  const top = page === lastPage ? el.scrollTop : 0;
+  el.innerHTML = ({trouver:pTrouver, liste:pListe, macros:pMacros, communaute:pCommu, compte:pCompte, aide:pAide})[page]();
+  el.querySelectorAll('textarea').forEach(grow);
+  const ov = document.getElementById('ovl');
+  ov.innerHTML = TW ? twinPage(TW) : page === 'trouver' && CONF ? swapPage(CONF, 'tswap', 'uncap') : page === 'liste' && RC ? swapPage(RC, 'rswap', 'rcancel') : '';
+  const okb = document.getElementById('swok'); if (okb){ okb.focus({preventScroll:true}); return; }
+  el.scrollTop = top; lastPage = page;
+  const back = fid && document.getElementById(fid);
+  const mn = el.querySelector('.vwrap .menu');
+  if (mn){ const r = mn.getBoundingClientRect(), box = el.getBoundingClientRect(), h = mn.parentElement.getBoundingClientRect();
+    if (r.bottom > box.bottom && h.top - box.top > r.height + 8) mn.classList.add('up'); }
+  if (MM.scroll){ const x = el.querySelector(MM.scroll); MM.scroll = ''; if (x) x.scrollIntoView({block:'nearest'}); }
+  if (MM.focus){ const f = el.querySelector(MM.focus); MM.focus = ''; if (f){ f.focus({preventScroll:true}); (f.closest('.sr') || f).scrollIntoView({block:'nearest'}); return; } }
+  if (back){ back.focus({preventScroll:true}); try { back.setSelectionRange(sel, sel); } catch (_) {} }
+  else if (page === 'trouver'){ const f = document.getElementById('fld'); if (f) f.focus({preventScroll:true}); }
+}
+const toTop = () => { const el = document.getElementById('page'); if (el) el.scrollTop = 0; };
+/* Petite page de confirmation : ce qui change, avant → après, pour chaque raccourci touché ; « Échanger » si l'action
+   avait une touche (l'autre la prend), « Remplacer » sinon (l'autre reste sans touche). */
+/* Même action dans d'autres pages : la changer aussi ? */
+function twinPage(t){
+  const row = x => `<li class="swr"><span class="ka">${esc(x.t)}<span class="kp">${esc(SEC[x.s])}</span></span>
+    <span class="swk"><span class="kk">${t.old ? esc(t.old) : '—'}</span><span class="g" aria-label="devient">→</span>${t.k ? `<span class="kk r">${esc(t.k)}</span>` : '<span class="kk none">aucune touche</span>'}</span></li>`;
+  const where = t.twins.length > 1 ? 'les autres pages' : SEC[t.twins[0].s];
+  return `<div class="scrim" data-scrim="twno"><div class="swap" role="dialog" aria-modal="true" aria-labelledby="twt">
+    <h2 id="twt" class="t24 b" style="margin:0">Changer aussi dans ${esc(where)} ?</h2>
+    <ul class="mt24">${t.twins.map(row).join('')}</ul>
+    <div class="btns mt32"><button class="btn" data-a="twyes" id="swok">Changer aussi</button><button class="u" data-a="twno">Seulement ici</button></div></div></div>`;
+}
+function swapPage(c, ok, no){
+  const old = keyOf(c.e);
+  // La même action dans plusieurs pages : une seule ligne, ses pages à la suite (« Playlist, Piano Roll »).
+  const groups = [];
+  c.others.forEach(x => { const g = groups.find(y => y.t === x.t && y.k === x.k); if (g) g.pages.push(SEC[x.s]); else groups.push({t:x.t, k:x.k, pages:[SEC[x.s]]}); });
+  const row = (e, from, to) => `<li class="swr"><span class="ka">${esc(e.t)}<span class="kp">${esc(e.pages ? e.pages.join(', ') : SEC[e.s])}</span></span>
+    <span class="swk"><span class="kk">${from ? esc(from) : '—'}</span><span class="g" aria-label="devient">→</span>${to ? `<span class="kk r">${esc(to)}</span>` : '<span class="kk none">aucune touche</span>'}</span></li>`;
+  return `<div class="scrim" data-scrim="${no}"><div class="swap" role="dialog" aria-modal="true" aria-labelledby="swt">
+    <h2 id="swt" class="t24 b" style="margin:0">${old ? 'Échanger les touches ?' : 'Remplacer la touche ?'}</h2>
+    <ul class="mt24">${row(c.e, old, c.k)}${groups.map(g => row(g, c.k, old)).join('')}</ul>
+    <div class="btns mt32"><button class="btn" data-a="${ok}" id="swok">${old ? 'Échanger' : 'Remplacer'}</button><button class="u" data-a="${no}">Annuler</button></div></div></div>`;
+}
+/* Une zone de texte prend la hauteur de son texte (jamais moins que ses lignes de départ) */
+function grow(t){ t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }
+
+/* ---------- Actions ---------- */
+function afterSave(e, k){ CAP = null; CONF = null; ERR = ''; T.assign = ''; T.mode = 'done'; T.done = Object.assign(T.done || {}, {e, k}); render(); }
+function beforeChange(e){ T.done = {e, old:keyOf(e), snap:JSON.stringify(custom)}; }
+/* Même action dans d'autres pages, avec la même touche qu'avant (outil zoom de la Playlist et du Piano Roll, Copier…) :
+   proposée tout de suite, seulement là où la nouvelle touche est libre (19/11). */
+function offerTwins(e, old, k){
+  if (old === k) return;
+  const twins = CAT.filter(x => x !== e && x.s !== e.s && x.t === e.t && x.k === e.k && keyOf(x) === old && !clashes(x, k).length);
+  TW = twins.length ? {e, old, k, twins} : null;
+}
+function trouverKey(e, k){
+  if (k === keyOf(e)){ CAP = null; render(); return; }
+  const others = clashes(e, k);
+  if (others.length){ CAP = null; CONF = {e, k, others}; render(); return; }
+  const old = keyOf(e); beforeChange(e); setKey(e, k); offerTwins(e, old, k); afterSave(e, k);
+}
+function rowKey(e, k){
+  CAP = null; ERR = '';
+  if (k === keyOf(e)){ render(); return; }
+  const others = clashes(e, k);
+  if (others.length){ RC = {e, k, others}; render(); return; }
+  const old = keyOf(e); setKey(e, k); offerTwins(e, old, k); render();
+}
+function resolve(conf){ const {e, k, others} = conf, old = keyOf(e); others.forEach(o => setKey(o, old)); setKey(e, k); }
+const curMacro = () => macros.find(x => x.id === MM.open);
+const newId = () => Math.max(0, ...macros.map(m => m.id)) + 1;
+function snap(){ const m = curMacro(); if (m) MM.undo.push(JSON.stringify({steps:m.steps, key:m.key})); }
+function undo(){ const m = curMacro(); if (!m || !MM.undo.length) return; const o = JSON.parse(MM.undo.pop()); m.steps = o.steps; m.key = o.key; saveMacros(); MM.toast = ''; CAP = null; render(); }
+function openMacro(id){ LM.del = null; Object.assign(MM, {open:id, menu:null, edit:-1, undo:[], toast:'', del:false}); CAP = null; ERR = ''; render(); }
+function closeMacro(){ const m = curMacro(); if (m && !m.steps.length && !m.key && !m.name.trim()) macros = macros.filter(x => x !== m); saveMacros(); Object.assign(MM, {open:null, menu:null, edit:-1, undo:[], toast:'', del:false}); CAP = null; ERR = ''; }
+const entry = d => CAT[+d.i];
+const W = document.getElementById('win');
+W.addEventListener('click', ev => {
+  const b = ev.target.closest('[data-a]');
+  const keepMenu = b && ['ddopen', 'ddset', 'ddother', 'stepadd', 'pickopen', 'pick'].includes(b.dataset.a);
+  if (LM.del && !(b && ['ldel', 'ldelok', 'ldelno'].includes(b.dataset.a))){ LM.del = null; if (!b){ render(); return; } }
+  if (!keepMenu && (MM.menu || CS.menu)){ MM.menu = null; CS.menu = false; if (!b){ render(); return; } }
+  if (!b && CAP && CAP.kind !== 'entry'){ CAP = null; ERR = ''; render(); return; }
+  if (!b && ev.target.dataset && ev.target.dataset.scrim){ CONF = null; RC = null; TW = null; render(); return; }
+  if (!b){ if (page === 'trouver' && !CAP){ const f = document.getElementById('fld'); if (f) f.focus(); } return; }
+  const d = b.dataset;
+  if (CAP && !['none', 'uncap'].includes(d.a)){ CAP = null; ERR = ''; }
+  if (RC && !['rswap', 'rcancel'].includes(d.a)) RC = null;
+  if (MM.toast && !['undo'].includes(d.a)) MM.toast = '';
+  switch (d.a){
+    case 'go': if (page === 'macros') closeMacro(); page = d.p; CONF = null; CS.share = false; CS.view = null; CS.report = null; HS.view = null; render(); toTop(); break;
+    case 'tstep': Object.assign(T, {mode:'idle', key:'', text:'', assign:''}); CONF = null; render(); break;
+    case 'chg': CAP = {kind:'entry', e:entry(d)}; CONF = null; ERR = ''; render(); break;
+    case 'treset': { const e = entry(d); trouverKey(e, e.k); break; }
+    case 'none': { const e = CAP.e, old = keyOf(e); beforeChange(e); setKey(e, ''); offerTwins(e, old, ''); afterSave(e, ''); break; }
+    case 'uncap': CAP = null; CONF = null; ERR = ''; render(); break;
+    case 'tswap': { const c = CONF, old = keyOf(c.e); beforeChange(c.e); resolve(c); offerTwins(c.e, old, c.k); afterSave(c.e, c.k); break; }
+    case 'tnext': Object.assign(T, {mode:'idle', key:'', text:'', assign:''}); render(); break;
+    case 'tundo': { try { custom = JSON.parse(T.done.snap); } catch (_) {} store.set('keys', custom); Object.assign(T, {mode:'idle', key:'', text:'', assign:''}); render(); break; }
+    case 'assign': T.assign = T.key; T.mode = 'name'; T.text = ''; render(); break;
+    case 'unassign': T.mode = 'key'; T.key = T.assign; T.assign = ''; T.text = ''; render(); break;
+    case 'choose': trouverKey(entry(d), T.assign); break;
+
+    case 'sec': R.sec = d.s; render(); toTop(); break;
+    case 'rowkey': CAP = {kind:'row', e:entry(d)}; ERR = ''; render(); break;
+    case 'rreset': { const e = entry(d); rowKey(e, e.k); break; }
+    case 'rswap': { const c = RC, old = keyOf(c.e); resolve(c); RC = null; offerTwins(c.e, old, c.k); render(); break; }
+    case 'twyes': if (TW) TW.twins.forEach(x => setKey(x, TW.k)); TW = null; render(); break;
+    case 'twno': TW = null; render(); break;
+    case 'rcancel': RC = null; render(); break;
+
+    case 'mnew': { const id = newId(); macros.push({id, name:'', key:'', on:true, steps:[]}); saveMacros(); openMacro(id); break; }
+    case 'mopen': openMacro(+d.id); toTop(); break;
+    case 'mdone': closeMacro(); render(); toTop(); break;
+    case 'mkey': CAP = {kind:'macro', m:macros.find(x => x.id === +d.id)}; ERR = ''; render(); break;
+    case 'mtoggle': { const m = macros.find(x => x.id === +d.id); m.on = !m.on; saveMacros(); render(); break; }
+    case 'mdel': MM.del = true; render(); break;
+    case 'mdelno': MM.del = false; render(); break;
+    case 'mdelok': macros = macros.filter(x => x.id !== MM.open); saveMacros(); Object.assign(MM, {open:null, del:false}); render(); toTop(); break;
+    case 'ldel': LM.del = LM.del === +d.id ? null : +d.id; render(); break;
+    case 'ldelno': LM.del = null; render(); break;
+    case 'ldelok': macros = macros.filter(x => x.id !== +d.id); saveMacros(); LM.del = null; render(); break;
+    case 'ddother': MM.menu = null; MM.edit = +d.n; MM.focus = '#sedit'; render(); break;
+    case 'stepadd': { snap(); const m = curMacro(), st = {t:d.t, v:''}; m.steps.push(st); saveMacros(); const i = m.steps.length - 1;
+      if (d.t === 'touche'){ CAP = {kind:'step', st}; ERR = ''; MM.scroll = `.sr[data-n="${i}"]`; } else { MM.menu = {i}; MM.focus = `.sr[data-n="${i}"] .menu button`; }
+      render(); break; }
+    case 'ddopen': MM.menu = MM.menu && MM.menu.i === +d.n ? null : {i:+d.n}; render(); break;
+    case 'ddset': snap(); curMacro().steps[+d.n].v = d.v; saveMacros(); MM.menu = null; MM.focus = `.sr[data-n="${d.n}"] .val`; render(); break;
+    case 'stepkey': CAP = {kind:'step', st:curMacro().steps[+d.n]}; ERR = ''; render(); break;
+    case 'stepup': case 'stepdown': { const m = curMacro(), i = +d.n, j = d.a === 'stepup' ? i - 1 : i + 1; if (j < 0 || j >= m.steps.length) break;
+      snap(); [m.steps[i], m.steps[j]] = [m.steps[j], m.steps[i]]; saveMacros(); MM.focus = `.sr[data-n="${j}"] .val`; render(); break; }
+    case 'stepdel': snap(); curMacro().steps.splice(+d.n, 1); saveMacros(); MM.toast = 'Étape retirée'; render(); break;
+    case 'undo': undo(); break;
+
+    case 'add': { const s = SHARES.find(x => x.id === d.id);
+      if (s.kind === 'Macro'){ const id = newId(); macros.push({id, name:s.title, key:'', on:true, steps:JSON.parse(JSON.stringify(s.steps || []))}); saveMacros(); commu.added[s.id] = id; }
+      else { commu.before[s.id] = JSON.stringify(custom); commu.added[s.id] = true;
+        (s.keys || []).forEach(x => { const e = CAT.find(c => c.s === x.s && c.t === x.t); if (e){ clashes(e, x.k).forEach(o => setKey(o, '')); setKey(e, x.k); } }); }
+      saveCommu(); render(); break; }
+    case 'unadd': { const s = SHARES.find(x => x.id === d.id), v = commu.added[s.id];
+      if (s.kind === 'Macro'){ macros = macros.filter(m => typeof v === 'number' ? m.id !== v : m.name !== s.title); saveMacros(); }
+      else if (commu.before[s.id]){ try { custom = JSON.parse(commu.before[s.id]); } catch (_) {} store.set('keys', custom); delete commu.before[s.id]; }
+      delete commu.added[s.id]; saveCommu(); render(); break; }
+    case 'ctab': CS.tab = d.k; if (d.k === 'subs'){ commu.seenSubs = true; saveCommu(); } render(); break;
+    case 'cview': CS.view = {share:d.id}; render(); toTop(); break;
+    case 'cperson': CS.view = {person:d.who}; render(); toTop(); break;
+    case 'cback': CS.view = null; CS.report = null; render(); toTop(); break;
+    case 'follow': if (commu.follows[d.who]) delete commu.follows[d.who]; else { commu.follows[d.who] = true; commu.seenSubs = false; } saveCommu(); render(); break;
+    case 'note': if (commu.notes[d.id] === +d.n) delete commu.notes[d.id]; else commu.notes[d.id] = +d.n; saveCommu(); render(); break;
+    case 'report': CS.report = d.id; CS.rep = {picks:{}, other:false, text:''}; render(); toTop(); break;
+    case 'reportno': CS.report = null; render(); toTop(); break;
+    case 'rpick': if (d.n === 'other'){ CS.rep.other = !CS.rep.other; if (CS.rep.other) MM.focus = '#rother'; } else CS.rep.picks[d.n] = !CS.rep.picks[d.n]; render(); break;
+    case 'share': CS.share = true; CS.pick = macros[0] ? 'm' + macros[0].id : 'keys'; CS.title = ''; CS.err = ''; render(); break;
+    case 'shareno': CS.share = false; CS.menu = false; render(); break;
+    case 'pickopen': CS.menu = !CS.menu; render(); break;
+    case 'pick': CS.pick = d.v; CS.menu = false; render(); break;
+
+    case 'amode': AU.mode = d.k; AU.step = 1; AU.err = ''; AU.note = ''; render(); break;
+    case 'resend': AU.err = ''; AU.note = 'Nouveau code envoyé.'; render(); break;
+    case 'theme': acct.theme = d.k; saveAcct(); render(); break;
+    case 'ppdel': delete acct.photo; saveAcct(); render(); break;
+    case 'logout': acct.on = false; acct.theme = ''; saveAcct(); AU.mode = 'in'; AU.step = 1; AU.vals = {}; AU.del = false; render(); break;
+    case 'delacct': AU.del = true; render(); break;
+    case 'delno': AU.del = false; render(); break;
+    case 'delok': acct = {on:false, mail:'', pseudo:'flshortcuts', theme:''}; delete acct.photo; saveAcct(); commu.mine = []; saveCommu(); AU.del = false; AU.vals = {}; AU.mode = 'in'; AU.step = 1; render(); break;
+
+    case 'faq': HS.open = HS.open === +d.n ? -1 : +d.n; render(); break;
+    case 'write': HS.view = 'write'; HS.open = -1; render(); toTop(); break;
+    case 'hkind': HS.kind = d.k; MM.focus = '#msg'; render(); break;
+    case 'hshotdel': HS.shot = ''; render(); break;
+    case 'htab': HS.tab = d.k; HS.view = null; render(); toTop(); break;
+    case 'hthread': { const m = inbox.find(x => x.id === d.id); if (m){ m.seen = true; saveInbox(); } HS.view = {thread:d.id}; HS.reply = ''; render(); toTop(); break; }
+    case 'hback': if (d.to === 'aide' && HS.view === 'write'){ HS.kind = ''; HS.msg = ''; HS.shot = ''; } if (d.to === 'list') HS.tab = 'msgs'; HS.view = null; render(); toTop(); break;
+  }
+});
+W.addEventListener('input', ev => {
+  const t = ev.target;
+  if (t.tagName === 'TEXTAREA') grow(t);
+  if (t.id === 'cq'){ CS.q = t.value; render(); }
+  else if (t.id === 'hq'){ HS.q = t.value; HS.open = -1; render(); }
+  else if (t.id === 'mname'){ curMacro().name = t.value; saveMacros(); }
+  else if (t.id === 'stitle') CS.title = t.value;
+  else if (t.id === 'rother'){ CS.rep.text = t.value; const b = document.querySelector('#f-report [type="submit"]'); if (b) b.disabled = !reportOk(); }
+  else if (t.id === 'msg'){ HS.msg = t.value; render(); }
+  else if (t.id === 'hmail') HS.mail = t.value;
+  else if (t.id === 'hreply'){ HS.reply = t.value; const b = document.querySelector('#f-reply [type="submit"]'); if (b) b.disabled = !t.value.trim(); }
+  else if (t.id === 'code'){ const d = t.value.replace(/\D/g, '').slice(0, 6); AU.vals.code = d; if (AU.err) AU.err = ''; render(); }
+  else AU.vals[t.id] = t.value;
+});
+function commitEdit(keep, draw = true){
+  const i = MM.edit, m = curMacro(); if (i < 0 || !m || !m.steps[i]) { MM.edit = -1; return; }
+  const st = m.steps[i], d = VERB[st.t], inp = document.getElementById('sedit'), raw = inp ? inp.value.trim() : '';
+  MM.edit = -1;
+  if (keep && raw){
+    let v = raw;
+    if (d.other === 's'){ const x = parseFloat(raw.replace(',', '.')); v = x > 0 && x <= 600 ? String(Math.round(x * 10) / 10).replace('.', ',') + ' s' : ''; }
+    if (v){ snap(); st.v = v.slice(0, 40); saveMacros(); }
+  }
+  if (draw){ MM.focus = `.sr[data-n="${i}"] .val`; render(); }
+}
+/* Clic ailleurs : la valeur est gardée tout de suite, la page se redessine après le clic (sinon le clic serait perdu). */
+W.addEventListener('focusout', ev => { if (ev.target.id === 'sedit' && MM.edit >= 0) commitEdit(true, false); });
+document.addEventListener('click', () => { if (MM.edit < 0 && document.getElementById('sedit')) render(); });
+W.addEventListener('change', ev => {
+  if (ev.target.id === 'hshot'){ loadShot(ev.target.files && ev.target.files[0]); return; }
+  if (ev.target.id !== 'ppf') return;
+  const f = ev.target.files && ev.target.files[0]; AU.ppErr = '';
+  if (!f) return;
+  if (!/^image\//.test(f.type) || f.size > 15e6){ AU.ppErr = 'Image trop lourde ou illisible.'; render(); return; }
+  const url = URL.createObjectURL(f), img = new Image();
+  img.onload = () => { try {
+      const c = document.createElement('canvas'), n = 256, m = Math.min(img.naturalWidth, img.naturalHeight); c.width = c.height = n;
+      c.getContext('2d').drawImage(img, (img.naturalWidth - m) / 2, (img.naturalHeight - m) / 2, m, m, 0, 0, n, n);
+      acct.photo = c.toDataURL('image/jpeg', .85); saveAcct();
+    } catch (_) { AU.ppErr = 'Image illisible.'; } URL.revokeObjectURL(url); render(); };
+  img.onerror = () => { AU.ppErr = 'Image illisible.'; URL.revokeObjectURL(url); render(); };
+  img.src = url;
+});
+const mailOk = v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v || '');
+W.addEventListener('submit', ev => {
+  ev.preventDefault();
+  const id = ev.target.id, v = AU.vals;
+  AU.err = ''; AU.note = '';
+  if (id === 'f-in'){
+    if (!mailOk(v.mail)) AU.err = 'Adresse mail incomplète.';
+    else if ((v.pass || '').length < 8) AU.err = 'Mot de passe : 8 caractères ou plus.';
+    else { acct.on = true; acct.mail = v.mail; saveAcct(); AU.vals = {}; }
+  } else if (id === 'f-a1'){
+    if (!mailOk(v.mail)) AU.err = 'Adresse mail incomplète.';
+    else if (AU.mode === 'new' && !/^[a-z0-9._]{3,20}$/.test(v.pseudo || '')) AU.err = 'Pseudo : 3 à 20 lettres minuscules, chiffres, point ou tiret bas.';
+    else if (AU.mode === 'new' && (v.pass || '').length < 8) AU.err = 'Mot de passe : 8 caractères ou plus.';
+    else AU.step = 2;
+  } else if (id === 'f-a2'){
+    if (!/^\d{6}$/.test(v.code || '')) AU.err = 'Le code a 6 chiffres.';
+    else if (AU.mode === 'forgot' && (v.npass || '').length < 8) AU.err = 'Mot de passe : 8 caractères ou plus.';
+    else { acct.on = true; acct.mail = v.mail; if (AU.mode === 'new') acct.pseudo = v.pseudo; saveAcct(); AU.vals = {}; AU.mode = 'in'; AU.step = 1; }
+  } else if (id === 'f-share'){
+    if (!CS.title.trim()) CS.err = 'Donne un titre.';
+    else { const m = CS.pick === 'keys' ? null : macros.find(x => 'm' + x.id === CS.pick);
+      commu.mine.push({id:'mine' + Date.now(), title:CS.title.trim(), who:acct.pseudo, kind:m ? 'Macro' : 'Raccourcis', adds:0, mine:true, date:'à l’instant', steps:m ? JSON.parse(JSON.stringify(m.steps)) : undefined, keys:m ? undefined : CAT.filter(changed).slice(0, 8).map(e => ({s:e.s, t:e.t, k:keyOf(e)}))}); CS.tab = 'mine'; saveCommu(); CS.share = false; CS.err = ''; }
+  } else if (id === 'f-report'){ if (reportOk()){ commu.reported[CS.report] = true; saveCommu(); CS.report = null; toTop(); } }
+  else if (id === 'f-msg'){ if (acct.on && HS.kind && HS.msg.trim().length >= 3){
+      const m = {id:'m' + Date.now(), kind:HS.kind, text:HS.msg.trim(), date:'à l’instant', shot:HS.shot, replies:[], seen:true};
+      inbox.unshift(m); saveInbox(); HS.kind = ''; HS.msg = ''; HS.shot = ''; HS.view = {thread:m.id, sent:true}; HS.reply = ''; toTop(); } }
+  else if (id === 'f-reply'){ const m = HS.view && inbox.find(x => x.id === HS.view.thread);
+    if (m && (HS.reply || '').trim()){ m.replies.push({team:false, text:HS.reply.trim(), date:'à l’instant'}); saveInbox(); HS.reply = ''; HS.view = {thread:m.id}; } }
+  render();
+});
+/* Capture glissée sur sa zone */
+W.addEventListener('dragover', ev => { const z = ev.target.closest('.shotzone'); if (!z || !ev.dataTransfer || ![...ev.dataTransfer.types].includes('Files')) return; ev.preventDefault(); if (!HS.over){ HS.over = true; z.classList.add('over'); } });
+W.addEventListener('dragleave', ev => { const z = ev.target.closest('.shotzone'); if (z && !z.contains(ev.relatedTarget)){ HS.over = false; z.classList.remove('over'); } });
+W.addEventListener('drop', ev => { const z = ev.target.closest('.shotzone'); if (!z) return; ev.preventDefault(); HS.over = false; loadShot(ev.dataTransfer.files && ev.dataTransfer.files[0]); });
+/* Survol des étoiles : la note s'affiche avant le clic, à la demi-étoile près ; elle revient en sortant */
+W.addEventListener('mouseover', ev => { const b = ev.target.closest('.stars [data-a="note"]'); if (b) showNote(b.closest('.stars'), +b.dataset.n); });
+W.addEventListener('mouseout', ev => { const g = ev.target.closest('.stars'); if (g && !g.contains(ev.relatedTarget)) showNote(g, +g.dataset.note); });
+W.addEventListener('dragstart', ev => { const p = ev.target.closest('.sr[draggable]'); if (!p) return; MM.drag = +p.dataset.n; ev.dataTransfer.effectAllowed = 'move'; try { ev.dataTransfer.setData('text/plain', p.dataset.n); } catch (_) {} });
+W.addEventListener('dragover', ev => { const p = ev.target.closest('.sr[data-n]'); if (MM.drag < 0 || !p) return; ev.preventDefault(); document.querySelectorAll('.sr.over').forEach(x => x.classList.remove('over')); p.classList.add('over'); });
+W.addEventListener('drop', ev => { const p = ev.target.closest('.sr[data-n]'); if (MM.drag < 0 || !p) return; ev.preventDefault();
+  const m = curMacro(), from = MM.drag, to = +p.dataset.n; MM.drag = -1; if (!m || from === to){ render(); return; }
+  snap(); const [st] = m.steps.splice(from, 1); m.steps.splice(to, 0, st); saveMacros(); render(); });
+W.addEventListener('dragend', () => { MM.drag = -1; document.querySelectorAll('.sr.over').forEach(x => x.classList.remove('over')); });
+
+document.addEventListener('keydown', ev => {
+  const a = document.activeElement, typing = a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA');
+  if (CAP){
+    const k = comboOf(ev); if (!k) return; ev.preventDefault();
+    if (k === 'Échap'){ CAP = null; ERR = ''; render(); return; }
+    const why = forbidden(k); if (why){ ERR = why; render(); return; }
+    ERR = ''; const c = CAP;
+    if (c.kind === 'entry') trouverKey(c.e, k);
+    else if (c.kind === 'row') rowKey(c.e, k);
+    else if (c.kind === 'macro'){ if (MM.open) snap(); c.m.key = k; saveMacros(); CAP = null; render(); }
+    else { snap(); c.st.v = k; saveMacros(); CAP = null; render(); }
+    return;
+  }
+  if (ev.key === 'Escape' && (CONF || RC || TW || MM.menu || CS.menu)){ ev.preventDefault(); CONF = null; RC = null; TW = null; MM.menu = null; CS.menu = false; render(); return; }
+  if (typing){ if (ev.key === 'Enter' && a.id === 'mname'){ ev.preventDefault(); a.blur(); }
+    if (a.id === 'sedit' && (ev.key === 'Enter' || ev.key === 'Escape')){ ev.preventDefault(); commitEdit(ev.key === 'Enter'); }
+    return; }
+  if ((ev.key === 'Enter' || ev.key === ' ') && a && a.matches && a.matches('[role="button"][data-a]')){ ev.preventDefault(); a.click(); return; }
+  if (page === 'macros' && MM.open && (ev.metaKey || ev.ctrlKey) && !ev.shiftKey && (ev.key === 'z' || ev.key === 'Z')){ ev.preventDefault(); undo(); return; }
+  if (page !== 'trouver' || CONF) return;
+  if (!(a === document.body || a === null || a.id === 'fld')) return;
+  const k = comboOf(ev); if (!k) return;
+  ev.preventDefault();
+  const plainChar = !ev.metaKey && !ev.ctrlKey && !ev.altKey && ev.key.length === 1;
+  if (T.mode === 'done') T.mode = 'idle';
+  if (k === 'Échap'){ Object.assign(T, {mode:'idle', key:'', text:'', assign:''}); render(); return; }
+  if (T.assign){ if (ev.key === 'Backspace') T.text = T.text.slice(0, -1); else if (plainChar) T.text += ev.key; render(); return; }
+  if (T.mode === 'name' && ev.key === 'Backspace' && !ev.metaKey && !ev.ctrlKey && !ev.altKey){ T.text = T.text.slice(0, -1); if (!T.text) T.mode = 'idle'; render(); return; }
+  if (plainChar && (T.mode === 'name' || (T.mode === 'key' && T.text))){ T.text += ev.key; T.mode = 'name'; render(); return; }
+  if (plainChar && (T.mode === 'idle' || (T.mode === 'key' && !T.text)) && ev.key !== ' '){ T.mode = 'key'; T.key = k; T.text = ev.key; render(); return; }
+  T.mode = 'key'; T.key = k; T.text = ''; render();
+});
+function fit(){ const z = Math.max(.2, Math.min(1, (document.documentElement.clientWidth - 32) / 1184)); document.documentElement.style.setProperty('--z', z); }
+addEventListener('resize', fit); fit();
+render();
+</script>

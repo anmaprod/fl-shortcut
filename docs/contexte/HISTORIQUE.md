@@ -1318,3 +1318,10 @@ entrée 1 ≈ 0,5 s.
   (artefact privé `JjirtBbNz7ychPYyVdoiJC`) : Communauté (cases au nom seul, note et ajouts en grand, demi-étoiles,
   page Signaler à cases + Autre, Supprimer de mes macros, Abonné comme Suivre, abonnés/partages en grand) et Écrire à
   l'équipe (sujet en 4 cases, capture facultative, onglet Mes messages, compte obligatoire) ; à valider avant l'app.
+- 19/11 (suite) : « vasi go met la maquette dans le vrai logiciel ». Étape 1, une touche ne fait qu'une seule chose
+  (même action dans deux pages : même touche permise ; deux actions : jamais ; page avant → après avant d'échanger ou
+  de remplacer ; « Changer aussi dans … ? ») : Mac et Windows, CI verte (06b6667). Étape 2, Communauté : demi-étoiles
+  (serveur `ratings.half`, `rate_share_half`, à recoller par le propriétaire ; repli sur les étoiles entières sans
+  lui), Mac entier (cases, Supprimer de mes macros, Signaler à cases, Abonné ✓, gros chiffres), Windows en partie
+  (demi-étoiles). Maquette copiée dans `docs/maquettes/fl-shortcuts-minimal.html`. Le reste (Windows de l'étape 2,
+  Aide, fenêtre « Minimal ») est décrit dans `docs/contexte/RELAIS-2026-11-19.md` pour une 2e session Claude.

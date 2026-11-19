@@ -56,6 +56,8 @@ struct Share: Codable, Identifiable, Equatable {
     var addCount: Int? = nil
     var ratingSum: Int? = nil
     var ratingCount: Int? = nil
+    /// 19/11 : somme des notes en demi-étoiles (nil : serveur d'avant, communaute-suivre.sql pas recollé).
+    var ratingHalfSum: Int? = nil
 
     enum CodingKeys: String, CodingKey {
         case id, kind, title, notes, author
@@ -65,11 +67,14 @@ struct Share: Codable, Identifiable, Equatable {
         case addCount = "add_count"
         case ratingSum = "rating_sum"
         case ratingCount = "rating_count"
+        case ratingHalfSum = "rating_half_sum"
     }
 
-    /// Moyenne des notes (nil : aucune note).
+    /// Moyenne des notes en étoiles, demi-étoiles comprises (nil : aucune note).
     var rating: Double? {
-        guard let sum = ratingSum, let count = ratingCount, count > 0 else { return nil }
+        guard let count = ratingCount, count > 0 else { return nil }
+        if let half = ratingHalfSum { return Double(half) / Double(count) / 2 }
+        guard let sum = ratingSum else { return nil }
         return Double(sum) / Double(count)
     }
 
@@ -403,8 +408,13 @@ struct CommunityClient {
 
     static let listColumns = "id,author_id,kind,title,notes,app_version,created_at,author:profiles(username)"
 
-    /// Colonnes d'un partage avec ses nombres (communaute-suivre.sql).
-    static let socialColumns = listColumns + ",add_count,rating_sum,rating_count"
+    /// 19/11 : le serveur a-t-il les demi-étoiles (communaute-suivre.sql recollé) ? Faux dès qu'il dit ne pas les avoir.
+    static var halfStars = true
+
+    /// Colonnes d'un partage avec ses nombres (communaute-suivre.sql), demi-étoiles comprises si le serveur les a.
+    static var socialColumns: String {
+        listColumns + ",add_count,rating_sum,rating_count" + (halfStars ? ",rating_half_sum" : "")
+    }
 
     /// Les 50 partages les plus récents, filtrés par sorte, par texte (titre ou notes) et par auteur. `social` : avec
     /// les ajouts et les notes (communaute-suivre.sql ; absent du serveur → `socialNotReady`) ; `order` : ordre du

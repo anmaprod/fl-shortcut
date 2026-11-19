@@ -100,8 +100,9 @@ public sealed class CommunitySocialTests
 
         Assert.Equal(313, CommunitySocial.DecodeCount("313"));
         Assert.Equal((1440, 313), CommunitySocial.DecodeRated("""[{"rating_sum":1440,"rating_count":313}]"""));
-        Assert.Equal(4, CommunitySocial.DecodeStars("""[{"stars":4}]"""));
-        Assert.Null(CommunitySocial.DecodeStars("[]"));
+        Assert.Equal(8, CommunitySocial.DecodeHalf("""[{"stars":4}]"""));
+        Assert.Equal(9, CommunitySocial.DecodeHalf("""[{"stars":5,"half":9}]"""));
+        Assert.Null(CommunitySocial.DecodeHalf("[]"));
         Assert.True(CommunitySocial.DecodeAny($$"""[{"share_id":"{{share}}"}]"""));
         Assert.False(CommunitySocial.DecodeAny("[]"));
         Assert.Equal(new[] { author }, CommunitySocial.DecodeFollowing($$"""[{"followee_id":"{{author}}"}]"""));

@@ -51,6 +51,7 @@
 "%@ interdite (%@)." = "%@ interdite (%@).";
 "%@ ne peut pas être envoyée à FL : %@." = "%@ ne peut pas être envoyée à FL : %@.";
 "%@ non prise en charge." = "%@ non prise en charge.";
+"%@ sur 5" = "%@ sur 5";
 "%@ · %@ au plus" = "%@ · %@ au plus";
 "%@ · par @%@ · %@" = "%@ · par @%@ · %@";
 "%@ → %@ : interdit (%@)" = "%@ → %@ : interdit (%@)";
@@ -152,6 +153,7 @@
 "Ableton dans FL" = "Ableton dans FL";
 "Abonnements" = "Abonnements";
 "Abonné" = "Abonné";
+"Abonné ✓" = "Abonné ✓";
 "Abonnés" = "Abonnés";
 "Accept" = "Accept";
 "Accès refusé à %@" = "Accès refusé à %@";
@@ -222,6 +224,7 @@
 "Ajouté à tes favoris de FL (Add › %@ › %@) pour que la macro le " = "Ajouté à tes favoris de FL (Add › %@ › %@) pour que la macro le ";
 "Ajoutée %lld fois" = "Ajoutée %lld fois";
 "Ajoutée une fois" = "Ajoutée une fois";
+"Ajoutée ✓" = "Ajoutée ✓";
 "Ajuster à la zone Performance" = "Ajuster à la zone Performance";
 "Aligne les notes de l'instrument sélectionné" = "Aligne les notes de l'instrument sélectionné";
 "Aller à la Playlist" = "Aller à la Playlist";
@@ -678,6 +681,7 @@
 "Controller type : FL Shortcuts." = "Controller type : FL Shortcuts.";
 "Contrôle" = "Contrôle";
 "Copie de l'ancien profil : %@." = "Copie de l'ancien profil : %@.";
+"Copie du travail de quelqu'un" = "Copie du travail de quelqu'un";
 "Copie la table et envoie-la à l'équipe : les icônes seront écrites directement, pour tout le monde." = "Copie la table et envoie-la à l'équipe : les icônes seront écrites directement, pour tout le monde.";
 "Copie un court texte technique (versions, autorisations, ce que l'écoute a reçu), sans aucun nom de son ni de piste : colle-le dans ton message pour qu'on trouve ce qui bloque." = "Copie un court texte technique (versions, autorisations, ce que l'écoute a reçu), sans aucun nom de son ni de piste : colle-le dans ton message pour qu'on trouve ce qui bloque.";
 "Copier" = "Copier";
@@ -716,6 +720,7 @@
 "D'origine" = "D'origine";
 "D'origine : " = "D'origine : ";
 "Dangereux : supprime, écrase ou envoie des choses sans prévenir" = "Dangereux : supprime, écrase ou envoie des choses sans prévenir";
+"Dangereux pour mon projet" = "Dangereux pour mon projet";
 "Dans FL : Options › MIDI Settings" = "Dans FL : Options › MIDI Settings";
 "Dans FL : Options › MIDI Settings › Input, clique d'abord la ligne « FL Shortcuts Link » (le Controller type, en bas, change la ligne choisie), puis Controller type « FL Shortcuts », Enable, Port 7. Ta carte son ou ton clavier MIDI restent sur « (generic controller) »." = "Dans FL : Options › MIDI Settings › Input, clique d'abord la ligne « FL Shortcuts Link » (le Controller type, en bas, change la ligne choisie), puis Controller type « FL Shortcuts », Enable, Port 7. Ta carte son ou ton clavier MIDI restent sur « (generic controller) ».";
 "Dans FL : Options › MIDI Settings › Input, ta carte son (ou ton clavier) a le Controller type « FL Shortcuts ». Remets-la sur « (generic controller) », puis clique la ligne « FL Shortcuts Link » et choisis « FL Shortcuts »." = "Dans FL : Options › MIDI Settings › Input, ta carte son (ou ton clavier) a le Controller type « FL Shortcuts ». Remets-la sur « (generic controller) », puis clique la ligne « FL Shortcuts Link » et choisis « FL Shortcuts ».";
@@ -731,6 +736,7 @@
 "Dans la fenêtre de macOS, clique « Autoriser »." = "Dans la fenêtre de macOS, clique « Autoriser ».";
 "Dans la fenêtre de macOS, clique « Ouvrir Réglages Système… » (pas de fenêtre ? « Ouvrir les réglages » ci-dessous)." = "Dans la fenêtre de macOS, clique « Ouvrir Réglages Système… » (pas de fenêtre ? « Ouvrir les réglages » ci-dessous).";
 "Dans le menu" = "Dans le menu";
+"Dans tes macros ✓" = "Dans tes macros ✓";
 "Dans une copie, « %@ », à côté de l'original : l'original n'a pas bougé." = "Dans une copie, « %@ », à côté de l'original : l'original n'a pas bougé.";
 "Dans une copie, « %@ »." = "Dans une copie, « %@ ».";
 "De tes abonnements" = "De tes abonnements";
@@ -1436,7 +1442,9 @@
 "Métronome" = "Métronome";
 "Même place que dans la grille « Change icon… » de FL." = "Même place que dans la grille « Change icon… » de FL.";
 "Navigation" = "Navigation";
+"Ne fait pas ce que dit le titre" = "Ne fait pas ce que dit le titre";
 "Ne fait pas ce que dit son explication" = "Ne fait pas ce que dit son explication";
+"Ne marche pas" = "Ne marche pas";
 "Ne plus envoyer dans cette piste" = "Ne plus envoyer dans cette piste";
 "Ne plus suivre" = "Ne plus suivre";
 "Ne touche pas à FL jusqu'à la fin." = "Ne touche pas à FL jusqu'à la fin.";
@@ -1594,12 +1602,14 @@
 "Parcourir les propriétés de note" = "Parcourir les propriétés de note";
 "Pars d'un modèle, puis modifie-le bloc par bloc dans le créateur." = "Pars d'un modèle, puis modifie-le bloc par bloc dans le créateur.";
 "Pars d'une macro toute prête." = "Pars d'une macro toute prête.";
+"Partage" = "Partage";
 "Partage les tiennes, avec une explication pour les autres." = "Partage les tiennes, avec une explication pour les autres.";
 "Partage publié." = "Partage publié.";
 "Partager" = "Partager";
 "Partager avec la Communauté" = "Partager avec la Communauté";
 "Partager une macro ou tes raccourcis" = "Partager une macro ou tes raccourcis";
 "Partager une macro…" = "Partager une macro…";
+"Partages" = "Partages";
 "Partages de %@" = "Partages de %@";
 "Partir d'un modèle…" = "Partir d'un modèle…";
 "Partout" = "Partout";
@@ -1707,6 +1717,7 @@
 "Pour toi (facultatif)" = "Pour toi (facultatif)";
 "Pour un bouton qui change de place (une piste du Mixer, le « + » du Channel rack…) : il est " = "Pour un bouton qui change de place (une piste du Mixer, le « + » du Channel rack…) : il est ";
 "Pour écouter tes sons." = "Pour écouter tes sons.";
+"Pourquoi ?" = "Pourquoi ?";
 "Première piste du Mixer de la famille (son bus compris ; la 808 avec les drums) : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire" = "Première piste du Mixer de la famille (son bus compris ; la 808 avec les drums) : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire";
 "Prends la famille et glisse-la au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre" = "Prends la famille et glisse-la au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre";
 "Prends la famille par son nom et glisse-la au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre" = "Prends la famille par son nom et glisse-la au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre";
@@ -1741,6 +1752,7 @@
 "Prête · %@%@" = "Prête · %@%@";
 "Pseudo" = "Pseudo";
 "Pseudo : 3 à 24 caractères, lettres sans accent, chiffres, « _ », « . » ou « - »." = "Pseudo : 3 à 24 caractères, lettres sans accent, chiffres, « _ », « . » ou « - ».";
+"Pub ou spam" = "Pub ou spam";
 "Publicité ou spam" = "Publicité ou spam";
 "Publier" = "Publier";
 "Publier pour tous les membres de la Communauté" = "Publier pour tous les membres de la Communauté";
@@ -2031,6 +2043,7 @@
 "Supprimer" = "Supprimer";
 "Supprimer (administrateur)…" = "Supprimer (administrateur)…";
 "Supprimer aussi mes fichiers exportés" = "Supprimer aussi mes fichiers exportés";
+"Supprimer de mes macros" = "Supprimer de mes macros";
 "Supprimer définitivement" = "Supprimer définitivement";
 "Supprimer la source du clip / pattern" = "Supprimer la source du clip / pattern";
 "Supprimer la sélection" = "Supprimer la sélection";
@@ -2046,6 +2059,7 @@
 "Supprimer mon partage…" = "Supprimer mon partage…";
 "Supprimer ton compte ?" = "Supprimer ton compte ?";
 "Supprimer « %@ » ?" = "Supprimer « %@ » ?";
+"Supprimer « %@ » de tes macros ?" = "Supprimer « %@ » de tes macros ?";
 "Supprimer…" = "Supprimer…";
 "Sur ce Mac" = "Sur ce Mac";
 "Sur la piste visée" = "Sur la piste visée";
@@ -2119,6 +2133,7 @@
 "Tire vers le haut ou le bas" = "Tire vers le haut ou le bas";
 "Titre" = "Titre";
 "Titre : %lld à %lld caractères." = "Titre : %lld à %lld caractères.";
+"Titre ou photo choquant" = "Titre ou photo choquant";
 "Titres" = "Titres";
 "Tom" = "Tom";
 "Ton compte" = "Ton compte";
@@ -2304,6 +2319,8 @@
 "action indisponible dans ce FL (mets FL à jour)" = "action indisponible dans ce FL (mets FL à jour)";
 "action « %@ » non faite (touche interdite)" = "action « %@ » non faite (touche interdite)";
 "activé" = "activé";
+"ajout" = "ajout";
+"ajouts" = "ajouts";
 "apparaissent ici." = "apparaissent ici.";
 "appareil audio" = "appareil audio";
 "après le clic précédent" = "après le clic précédent";
@@ -2607,6 +2624,7 @@
 "sons sans note retirés" = "sons sans note retirés";
 "sortie et entrée du Mac" = "sortie et entrée du Mac";
 "sous-menu « Select » non ouvert" = "sous-menu « Select » non ouvert";
+"sur 5" = "sur 5";
 "sur la piste visée" = "sur la piste visée";
 "sur le bouton retrouvé à son image" = "sur le bouton retrouvé à son image";
 "sur « %@ »" = "sur « %@ »";
@@ -2646,6 +2664,8 @@
 "une majuscule" = "une majuscule";
 "une minuscule" = "une minuscule";
 "une touche" = "une touche";
+"utilisation" = "utilisation";
+"utilisations" = "utilisations";
 "variable inconnue." = "variable inconnue.";
 "x" = "x";
 "y" = "y";
@@ -2663,6 +2683,7 @@
 "« %@ » n'est pas installé ici : choisis un autre instrument dans la macro." = "« %@ » n'est pas installé ici : choisis un autre instrument dans la macro.";
 "« %@ » réinitialisé" = "« %@ » réinitialisé";
 "« %@ » supprimée" = "« %@ » supprimée";
+"« %@ » supprimée de tes macros" = "« %@ » supprimée de tes macros";
 "« %@ » — %@%@." = "« %@ » — %@%@.";
 "« %@ »%@, ton raccourci" = "« %@ »%@, ton raccourci";
 "« %@ »%@, touche d'origine de FL" = "« %@ »%@, touche d'origine de FL";

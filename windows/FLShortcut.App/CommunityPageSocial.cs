@@ -28,7 +28,8 @@ internal sealed partial class CommunityPage
     private int _newFromFollowed;
     /// Fiche : « Ta note » seulement si je l'ai ajouté (jamais le mien), et ma note.
     private bool _canRate;
-    private int? _stars;
+    /// Ma note en demi-étoiles (1 à 10).
+    private int? _half;
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _watch;
 
     /// Point rouge de la barre de gauche (MainShell le redessine quand il change).
@@ -58,13 +59,13 @@ internal sealed partial class CommunityPage
             {
                 if (author is null && !Searching && _tab == CommunityTab.Following)
                 {
-                    var list = CommunityRequests.DecodeShares(await AccountPage.Call(CommunitySocial.FollowedShares(HelpPage.Server!, session, 50)));
+                    var list = CommunityRequests.DecodeShares(await SocialCall(() => CommunitySocial.FollowedShares(HelpPage.Server!, session, 50)));
                     MarkFollowedSeen();
                     return list;
                 }
                 if (author is null && !Searching && _tab == CommunityTab.MostAdded)
-                    return CommunityRequests.DecodeShares(await AccountPage.Call(CommunitySocial.MostAdded(HelpPage.Server!, session, null, 50)));
-                return CommunityRequests.DecodeShares(await AccountPage.Call(CommunityRequests.Shares(HelpPage.Server!, session, null, _search,
+                    return CommunityRequests.DecodeShares(await SocialCall(() => CommunitySocial.MostAdded(HelpPage.Server!, session, null, 50)));
+                return CommunityRequests.DecodeShares(await SocialCall(() => CommunityRequests.Shares(HelpPage.Server!, session, null, _search,
                     author, social: true, order: IsPersonPage ? _personSort.Order() : "created_at.desc")));
             }
             catch (AccountPage.ServerError e) when (CommunitySocial.IsMissingSocial(e.Status, e.Message))
@@ -74,7 +75,7 @@ internal sealed partial class CommunityPage
                 AppLog.Write("COMMUNITY", "serveur sans communaute-suivre.sql : Communauté d'avant");
             }
         }
-        return CommunityRequests.DecodeShares(await AccountPage.Call(CommunityRequests.Shares(HelpPage.Server!, session, null, _search, author)));
+        return CommunityRequests.DecodeShares(await SocialCall(() => CommunityRequests.Shares(HelpPage.Server!, session, null, _search, author)));
     }
 
     /// La vitrine (Pour toi) ou la page d'une personne : ce qui va avec la liste. Sans réponse : rien de plus.
@@ -86,8 +87,8 @@ internal sealed partial class CommunityPage
             if (Showcase)
             {
                 _following = CommunitySocial.DecodeFollowing(await AccountPage.Call(CommunitySocial.Following(HelpPage.Server!, session)));
-                _followedPreview = CommunityRequests.DecodeShares(await AccountPage.Call(CommunitySocial.FollowedShares(HelpPage.Server!, session, 3)));
-                _topPreview = CommunityRequests.DecodeShares(await AccountPage.Call(CommunitySocial.MostAdded(HelpPage.Server!, session, null, 3)));
+                _followedPreview = CommunityRequests.DecodeShares(await SocialCall(() => CommunitySocial.FollowedShares(HelpPage.Server!, session, 3)));
+                _topPreview = CommunityRequests.DecodeShares(await SocialCall(() => CommunitySocial.MostAdded(HelpPage.Server!, session, null, 3)));
                 _creators = CommunitySocial.DecodeCreators(await AccountPage.Call(CommunitySocial.CreatorsToFollow(HelpPage.Server!, session, 5)));
             }
             else if (IsPersonPage && _author is { } person)
@@ -221,7 +222,7 @@ internal sealed partial class CommunityPage
     private async Task LoadRating(Share share)
     {
         _canRate = false;
-        _stars = null;
+        _half = null;
         if (!_social || Mine(share)) return;
         if (_demo)
         {
@@ -233,33 +234,57 @@ internal sealed partial class CommunityPage
             var session = await _account.FreshSession();
             if (session is null) return;
             var added = CommunitySocial.DecodeAny(await AccountPage.Call(CommunitySocial.MyAdd(HelpPage.Server!, session, share.Id)));
-            var stars = CommunitySocial.DecodeStars(await AccountPage.Call(CommunitySocial.MyRating(HelpPage.Server!, session, share.Id)));
+            var half = CommunitySocial.DecodeHalf(await SocialCall(() => CommunitySocial.MyRating(HelpPage.Server!, session, share.Id)));
             if (_opened?.Id != share.Id) return;
             _canRate = added;
-            _stars = stars;
+            _half = half;
             RenderAbove();
         }
         catch (AccountPage.ServerError e) when (CommunitySocial.IsMissingSocial(e.Status, e.Message)) { _social = false; }
         catch (AccountPage.ServerError) { }
     }
 
-    private async void Rate(Share share, int stars)
+    /// Ma note en demi-étoiles (1 à 10, 19/11) ; serveur d'avant (rate_share_half absente) : l'étoile entière la plus
+    /// proche, comme le Mac.
+    private async void Rate(Share share, int half)
     {
-        var before = _stars;
-        _stars = stars;
+        var before = _half;
+        _half = half;
         RenderAbove();
         if (_demo) return;
         try
         {
             var session = await _account.FreshSession() ?? throw new AccountPage.ServerError(Loc.T("Session expirée : reconnecte-toi."), 401);
-            if (CommunitySocial.DecodeRated(await AccountPage.Call(CommunitySocial.Rate(HelpPage.Server!, session, share.Id, stars))) is { } rated)
-                UpdateShare(share.Id, s => s with { RatingSum = rated.Sum, RatingCount = rated.Count });
+            if (CommunityRequests.HalfStars)
+            {
+                try
+                {
+                    if (CommunitySocial.DecodeRatedHalf(await AccountPage.Call(CommunitySocial.RateHalf(HelpPage.Server!, session, share.Id, half))) is { } rated)
+                        UpdateShare(share.Id, s => s with { RatingHalfSum = rated.HalfSum, RatingCount = rated.Count });
+                    return;
+                }
+                catch (AccountPage.ServerError e) when (e.Status == 404) { CommunityRequests.HalfStars = false; }
+            }
+            var stars = CommunitySocial.WholeStars(half);
+            if (CommunitySocial.DecodeRated(await AccountPage.Call(CommunitySocial.Rate(HelpPage.Server!, session, share.Id, stars))) is { } whole)
+                UpdateShare(share.Id, s => s with { RatingSum = whole.Sum, RatingHalfSum = null, RatingCount = whole.Count });
         }
         catch (AccountPage.ServerError e)
         {
-            _stars = before;
+            _half = before;
             RenderAbove();
             _toast(e.Message, null);
+        }
+    }
+
+    /// Requête de la Communauté : sans les demi-étoiles sur le serveur (19/11), refaite sans leurs colonnes.
+    private static async Task<string> SocialCall(Func<HttpRequestMessage> make)
+    {
+        try { return await AccountPage.Call(make()); }
+        catch (AccountPage.ServerError e) when (CommunitySocial.IsMissingHalfStars(e.Status, e.Message) && CommunityRequests.HalfStars)
+        {
+            CommunityRequests.HalfStars = false;
+            return await AccountPage.Call(make());
         }
     }
 
@@ -295,7 +320,7 @@ internal sealed partial class CommunityPage
         {
             var session = await _account.FreshSession();
             if (session is null) return;
-            var list = CommunityRequests.DecodeShares(await AccountPage.Call(CommunitySocial.FollowedShares(HelpPage.Server!, session, 20)));
+            var list = CommunityRequests.DecodeShares(await SocialCall(() => CommunitySocial.FollowedShares(HelpPage.Server!, session, 20)));
             if (_app.Settings.CommunityFollowedSeen is not { } seen)
             {
                 MarkFollowedSeen();                            // première fois : seuls les partages d'après comptent
@@ -622,7 +647,8 @@ internal sealed partial class CommunityPage
         return page;
     }
 
-    /// « Ta note » : 5 étoiles à cliquer (pleines à l'encre, vides en gris) ; null : pas de note possible.
+    /// « Ta note » : 5 étoiles en demi-étoiles comme Letterboxd (19/11) : moitié gauche = demi, droite = entière ;
+    /// pleines en rouge, vides en gris ; « 4,5 sur 5 » à côté. Null : pas de note possible.
     private FrameworkElement? StarsRow(Share share)
     {
         if (!_canRate || !_social || Mine(share)) return null;
@@ -630,32 +656,46 @@ internal sealed partial class CommunityPage
         var label = SwissLabel(Loc.T("Ta note"), 11, Text);
         label.VerticalAlignment = VerticalAlignment.Center;
         row.Children.Add(label);
+        const double size = 24;
         var stars = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
-        var glyphs = new List<TextBlock>();
-        void Paint(int upTo)
+        var fills = new List<Microsoft.UI.Xaml.Media.RectangleGeometry>();
+        var value = Label("", 12, Secondary);
+        value.VerticalAlignment = VerticalAlignment.Center;
+        void Paint(int half)
         {
-            for (var i = 0; i < glyphs.Count; i++)
+            for (var i = 0; i < fills.Count; i++)
             {
-                glyphs[i].Text = i < upTo ? "★" : "☆";
-                glyphs[i].Foreground = Brush(i < upTo ? Text : Secondary);
+                var part = Math.Clamp(half - i * 2, 0, 2);
+                fills[i].Rect = new Windows.Foundation.Rect(0, 0, size * part / 2.0, size + 8);
             }
+            value.Text = half > 0 ? Loc.F("%@ sur 5", (half / 2.0).ToString("0.#", System.Globalization.CultureInfo.CurrentCulture)) : "";
         }
         for (var n = 1; n <= 5; n++)
         {
-            var value = n;
-            var glyph = Label("☆", 19, Secondary);
-            glyphs.Add(glyph);
-            var star = new Button { Style = PlainButton, Content = glyph, Padding = new Thickness(3, 0, 3, 0), MinHeight = 26 };
-            star.Click += (_, _) => Rate(share, value);
-            star.PointerEntered += (_, _) => Paint(value);
-            star.PointerExited += (_, _) => Paint(_stars ?? 0);
-            var text = value == 1 ? Loc.T("1 étoile") : Loc.F("%lld étoiles", value);
-            ToolTipService.SetToolTip(star, text);
-            AutomationProperties.SetName(star, text);
-            stars.Children.Add(star);
+            var cell = new Grid { Width = size, Height = size + 8 };
+            cell.Children.Add(new TextBlock { Text = "★", FontSize = 21, Foreground = Brush(LineColor), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
+            var clip = new Microsoft.UI.Xaml.Media.RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, 0, size + 8) };
+            fills.Add(clip);
+            var full = new Grid { Clip = clip };
+            full.Children.Add(new TextBlock { Text = "★", FontSize = 21, Foreground = Brush(MacLook.Red), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
+            cell.Children.Add(full);
+            foreach (var right in new[] { false, true })
+            {
+                var half = n * 2 - (right ? 0 : 1);
+                var hit = new Border { Background = Brush(Colors.Transparent), Width = size / 2, HorizontalAlignment = right ? HorizontalAlignment.Right : HorizontalAlignment.Left };
+                hit.Tapped += (_, _) => Rate(share, half);
+                hit.PointerEntered += (_, _) => Paint(half);
+                hit.PointerExited += (_, _) => Paint(_half ?? 0);
+                var text = Loc.F("%@ sur 5", (half / 2.0).ToString("0.#", System.Globalization.CultureInfo.CurrentCulture));
+                ToolTipService.SetToolTip(hit, text);
+                AutomationProperties.SetName(hit, text);
+                cell.Children.Add(hit);
+            }
+            stars.Children.Add(cell);
         }
-        Paint(_stars ?? 0);
+        Paint(_half ?? 0);
         row.Children.Add(stars);
+        row.Children.Add(value);
         return row;
     }
 

@@ -434,7 +434,7 @@ internal sealed partial class CommunityPage
         _reason = 0;
         _details = "";
         _canRate = false;
-        _stars = null;
+        _half = null;
         RenderAbove();
         _ = LoadRating(share);
         try

@@ -98,12 +98,15 @@ public sealed record VariableDecl(string Name, int Initial = 0)
 }
 
 /// D'où vient une macro : modèle développé, import, enregistrement, ancienne macro reprise.
-public sealed record MacroOrigin(string Kind, string? Template = null)
+/// D'où vient une macro ; « community » (19/11, comme le Mac) : ajoutée depuis la Communauté, avec son partage, pour
+/// « Supprimer de mes macros ».
+public sealed record MacroOrigin(string Kind, string? Template = null, Guid? Share = null)
 {
     public static MacroOrigin Imported => new("imported");
     public static MacroOrigin Recorded => new("recorded");
     public static MacroOrigin Legacy => new("legacy");
     public static MacroOrigin FromTemplate(string name) => new("template", name);
+    public static MacroOrigin FromCommunity(Guid share) => new("community", null, share);
 
     public static MacroOrigin? FromJson(JsonNode? n) => J.Str(J.Obj(n)?["kind"]) switch
     {
@@ -111,6 +114,7 @@ public sealed record MacroOrigin(string Kind, string? Template = null)
         "imported" => Imported,
         "recorded" => Recorded,
         "legacy" => Legacy,
+        "community" => Guid.TryParse(J.Str(n!["share"]), out var share) ? FromCommunity(share) : null,
         _ => null,
     };
 
@@ -118,6 +122,7 @@ public sealed record MacroOrigin(string Kind, string? Template = null)
     {
         var o = new JsonObject { ["kind"] = Kind };
         if (Kind == "template") o["name"] = Template ?? "?";
+        if (Kind == "community" && Share is { } s) o["share"] = s.ToString();
         return o;
     }
 }

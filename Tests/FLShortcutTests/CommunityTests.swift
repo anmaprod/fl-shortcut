@@ -534,7 +534,7 @@ final class CommunityTests: XCTestCase {
           "app_version":"0.1.0","created_at":"2026-11-11T10:00:00+00:00","author":{"username":"leo.beats"},
           "add_count":312,"rating_sum":1435,"rating_count":312}]
         """
-        let server = FakeServer([(200, row), (200, "313"), (200, #"[{"rating_sum":1440,"rating_count":313}]"#),
+        let server = FakeServer([(200, row), (200, "313"), (200, #"[{"rating_half_sum":2879,"rating_count":313}]"#),
                                  (201, ""), (200, #"[{"followee_id":"\#(author.uuidString)"}]"#), (204, ""),
                                  (200, #"[{"id":"\#(author.uuidString)","username":"leo.beats","follower_count":1284}]"#)])
         let c = client(server)
@@ -550,10 +550,13 @@ final class CommunityTests: XCTestCase {
         XCTAssertEqual(server.requests[1].url?.path, "/rest/v1/rpc/record_add")
         XCTAssertEqual(server.body(1)["p_share"] as? String, id.uuidString.lowercased())
 
-        let rated = try await c.rate(id, stars: 5, session: session)
-        XCTAssertEqual(rated.sum, 1440)
+        CommunityClient.halfStars = true
+        let rated = try await c.rate(id, half: 9, session: session)     // 4 étoiles et demie (19/11)
+        XCTAssertEqual(rated.sum, 2879)
         XCTAssertEqual(rated.count, 313)
-        XCTAssertEqual(server.body(2)["p_stars"] as? Int, 5)
+        XCTAssertTrue(rated.half)
+        XCTAssertEqual(server.requests[2].url?.path, "/rest/v1/rpc/rate_share_half")
+        XCTAssertEqual(server.body(2)["p_half"] as? Int, 9)
 
         try await c.follow(author, session: session)
         XCTAssertEqual(server.requests[3].url?.path, "/rest/v1/follows")

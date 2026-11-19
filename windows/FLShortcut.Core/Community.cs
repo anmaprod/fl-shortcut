@@ -11,12 +11,14 @@ namespace FLShortcut.Core;
 /// (communaute-suivre.sql) : nombre d'ajouts, somme et nombre des notes (null : serveur d'avant).
 public sealed record Share(Guid Id, Guid AuthorId, string Kind, string Title, string Notes, string AppVersion,
                            string CreatedAt, string AuthorName, int? AddCount = null, int? RatingSum = null,
-                           int? RatingCount = null)
+                           int? RatingCount = null, int? RatingHalfSum = null)
 {
     public bool IsMacro => Kind == CommunityRules.MacroKind;
 
-    /// Moyenne des notes (null : aucune note).
-    public double? Rating => RatingSum is { } sum && RatingCount is > 0 and var count ? (double)sum / count : null;
+    /// Moyenne des notes en étoiles, demi-étoiles comprises (19/11 : `RatingHalfSum`, sinon les étoiles entières d'avant).
+    public double? Rating => RatingCount is > 0 and var count
+        ? RatingHalfSum is { } half ? half / 2.0 / count : RatingSum is { } sum ? (double)sum / count : null
+        : null;
 
     /// « 2026-10-16T18:02:11… » → « 16/10/2026 ».
     public string Day
@@ -64,8 +66,11 @@ public static class CommunityRequests
 {
     public const string ListColumns = "id,author_id,kind,title,notes,app_version,created_at,author:profiles(username)";
 
-    /// Colonnes d'un partage avec ses nombres (communaute-suivre.sql).
-    public const string SocialColumns = ListColumns + ",add_count,rating_sum,rating_count";
+    /// 19/11 : le serveur a-t-il les demi-étoiles (communaute-suivre.sql recollé) ? Faux dès qu'il dit ne pas les avoir.
+    public static bool HalfStars { get; set; } = true;
+
+    /// Colonnes d'un partage avec ses nombres (communaute-suivre.sql), demi-étoiles comprises si le serveur les a.
+    public static string SocialColumns => ListColumns + ",add_count,rating_sum,rating_count" + (HalfStars ? ",rating_half_sum" : "");
 
     /// Les 50 partages les plus récents : d'une sorte (null : toutes), d'un auteur, ou dont le titre ou l'explication
     /// contient la recherche. `social` : avec les ajouts et les notes ; `order` : ordre du serveur.
@@ -131,7 +136,8 @@ public static class CommunityRequests
                 int? Number(string key) => row.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.Number
                                            && v.TryGetInt32(out var n) ? n : null;
                 shares.Add(new Share(shareId, authorId, kind, Text("title"), Text("notes"), Text("app_version"),
-                                     Text("created_at"), author, Number("add_count"), Number("rating_sum"), Number("rating_count")));
+                                     Text("created_at"), author, Number("add_count"), Number("rating_sum"), Number("rating_count"),
+                                     Number("rating_half_sum")));
             }
         }
         catch (Exception e) when (e is JsonException or InvalidOperationException) { }
