@@ -774,6 +774,75 @@ internal sealed class AccountPage
         return grid;
     }
 
+    /// Code reçu par mail en 6 cases (19/11, comme le Mac, CodeBoxes) : un clic n'importe où, chaque chiffre va dans la
+    /// case suivante, ⌫ revient, un code collé remplit tout. Une seule zone de saisie invisible posée sur les cases.
+    private FrameworkElement CodeBoxes(Action onEnter)
+    {
+        var boxes = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+        var digits = new List<TextBlock>();
+        var frames = new List<Border>();
+        for (var i = 0; i < 6; i++)
+        {
+            var digit = new TextBlock
+            {
+                FontFamily = SwissFont, FontSize = 26, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = Brush(Text),
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+            };
+            var frame = new Border { Width = 48, Height = 60, BorderThickness = new Thickness(2), BorderBrush = Brush(Faint), Child = digit };
+            digits.Add(digit);
+            frames.Add(frame);
+            boxes.Children.Add(frame);
+        }
+        var input = new TextBox
+        {
+            MaxLength = 6, Opacity = 0, HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch,
+            InputScope = new InputScope { Names = { new InputScopeName(InputScopeNameValue.Number) } },
+        };
+        AutomationProperties.SetName(input, Loc.T("Code reçu par mail"));
+        var focused = false;
+        void Paint()
+        {
+            for (var i = 0; i < 6; i++)
+            {
+                digits[i].Text = i < _code.Length ? _code[i].ToString() : "";
+                var current = focused && i == Math.Min(_code.Length, 5);
+                frames[i].BorderBrush = Brush(i < _code.Length || current ? Text : Faint);
+                frames[i].BorderThickness = new Thickness(current ? 3 : 2);
+            }
+        }
+        input.TextChanged += (_, _) =>
+        {
+            var clean = new string(input.Text.Where(char.IsAsciiDigit).Take(6).ToArray());
+            if (clean != input.Text)
+            {
+                input.Text = clean;
+                input.SelectionStart = clean.Length;
+                return;
+            }
+            _code = clean;
+            Paint();
+            UpdateSubmit();
+        };
+        input.GotFocus += (_, _) =>
+        {
+            focused = true;
+            input.SelectionStart = input.Text.Length;
+            Paint();
+        };
+        input.LostFocus += (_, _) =>
+        {
+            focused = false;
+            Paint();
+        };
+        input.KeyDown += (_, e) => { if (e.Key == Windows.System.VirtualKey.Enter) onEnter(); };
+        input.Text = new string(_code.Where(char.IsAsciiDigit).Take(6).ToArray());
+        Paint();
+        var grid = new Grid { HorizontalAlignment = HorizontalAlignment.Left };
+        grid.Children.Add(boxes);
+        grid.Children.Add(input);
+        return grid;
+    }
+
     private FrameworkElement CodeCard(CodeKind kind, string email)
     {
         var recovery = kind == CodeKind.Recovery;
@@ -787,24 +856,7 @@ internal sealed class AccountPage
         head.Children.Add(Paragraph(Loc.F("Code envoyé à %@", email.Length > 60 ? email[..60] + "…" : email), 13));
         card.Children.Add(head);
 
-        var code = Input(_code, "000000");
-        code.MaxLength = 12;
-        code.FontSize = 26;
-        code.FontFamily = new FontFamily("Consolas");
-        code.CharacterSpacing = 300;
-        code.TextAlignment = TextAlignment.Center;
-        code.InputScope = new InputScope { Names = { new InputScopeName(InputScopeNameValue.Number) } };
-        code.TextChanged += (_, _) =>
-        {
-            _code = code.Text;
-            UpdateSubmit();
-        };
-        code.KeyDown += (_, e) =>
-        {
-            if (e.Key == Windows.System.VirtualKey.Enter && _submit?.IsEnabled == true) Validate();
-        };
-        AutomationProperties.SetName(code, Loc.T("Code reçu par mail"));
-        card.Children.Add(Field(Loc.T("Code reçu par mail"), code));
+        card.Children.Add(Field(Loc.T("Code reçu par mail"), CodeBoxes(() => { if (_submit?.IsEnabled == true) Validate(); })));
         if (recovery)
         {
             var pass = Secret(_newPassword, Loc.T("8 caractères au moins"));
