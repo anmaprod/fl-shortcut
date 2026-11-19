@@ -374,7 +374,16 @@ internal sealed partial class CommunityPage
         var bottom = new Grid { ColumnSpacing = 12, Margin = new Thickness(0, 16, 0, 0) };
         bottom.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         bottom.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        if (BigStats(share) is { } stats) bottom.Children.Add(stats);
+        // Case étroite : les chiffres rétrécissent un peu plutôt que d'être coupés par le bouton (photo CI du 19/11).
+        if (BigStats(share) is { } stats)
+            bottom.Children.Add(new Viewbox
+            {
+                Child = stats,
+                Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform,
+                StretchDirection = StretchDirection.DownOnly,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
         FrameworkElement? action = null;
         if (InMyMacros(share) is not null)
         {
