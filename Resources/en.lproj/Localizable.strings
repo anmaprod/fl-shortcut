@@ -166,6 +166,7 @@
 "Action inconnue (« %@ ») : mets à jour FL Shortcuts." = "Unknown action (“%@”): update FL Shortcuts.";
 "Action à choisir" = "Choose an action";
 "Actions en plus" = "Extra actions";
+"Active" = "Active";
 "Active FL Shortcuts" = "Turn on FL Shortcuts";
 "Active FL Shortcuts dans la page qui vient de s'ouvrir, puis autorise le son. C'est détecté tout seul." = "Turn on FL Shortcuts in the page that just opened, then allow the sound. It's detected automatically.";
 "Active l'interrupteur à côté de FL Shortcuts." = "Turn on the switch next to FL Shortcuts.";
@@ -248,6 +249,7 @@
 "Apprendre" = "Learn";
 "Apprendre les icônes de FL" = "Learn FL's icons";
 "Apprise au premier passage" = "Learned on the first run";
+"Appuie sur\nun raccourci." = "Press\na shortcut.";
 "Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait." = "Press a shortcut you know: the search shows what it does.";
 "Appuie sur les touches…" = "Press the keys…";
 "Appuie sur un bouton de ta souris…" = "Press a button on your mouse…";
@@ -733,6 +735,7 @@
 "Demande le lien avec FL (Organiser › Installer le lien)." = "Needs the FL link (Organize › Install the link).";
 "Demande le lien avec FL." = "Needs the FL link.";
 "Demande le script MIDI dans FL (désactivé en mode léger)" = "Needs the MIDI script in FL (off in light mode)";
+"Demandé : %@" = "Requested: %@";
 "Dernier essai" = "Last test";
 "Derniers partages" = "Latest posts";
 "Dernière sauvegarde : %@." = "Last backup: %@.";
@@ -1212,6 +1215,7 @@
 "Le lien est sur la mauvaise entrée" = "The link is on the wrong input";
 "Le mail de confirmation n'a pas pu partir. Réessaie plus tard, ou écris à l'équipe depuis la page Aide." = "The confirmation email couldn't be sent. Try again later, or write to the team from the Help page.";
 "Le menu s'ouvre un instant dans FL, le temps de le lire, puis se referme" = "The menu opens briefly in FL to be read, then closes";
+"Le menu « FL Studio » n'existe que sur Mac : choisis le même élément dans un autre menu de FL." = "The “FL Studio” menu only exists on Mac: choose the same item in another FL menu.";
 "Le menu ⋯ charge un profil tout prêt, ou importe et exporte tes raccourcis." = "The ⋯ menu loads a ready-made profile, or imports and exports your shortcuts.";
 "Le message de la macro dit à quel bloc elle s'est arrêtée. Si FL a changé de taille ou d'écran, remontre l'endroit de ce bloc. Si une fenêtre de FL met du temps à s'ouvrir, ajoute un bloc « Attendre » juste avant." = "The macro's message says which block it stopped at. If FL changed size or screen, show that block's spot again. If an FL window takes a while to open, add a “Wait” block just before.";
 "Le même compte sert à la Communauté : ajoute des macros toutes faites, partage les tiennes." = "The same account works for the Community: add ready-made macros, share your own.";
@@ -2149,6 +2153,7 @@
 "Touche ou raccourci" = "Key or shortcut";
 "Touche seule : laissée à FL quand tu tapes du texte, qu'un menu de FL est ouvert ou que le clavier-piano est actif." = "Single key: left to FL when you type text, when an FL menu is open, or when the typing piano keyboard is on.";
 "Touche utilisée par %@" = "Key used by %@";
+"Touches" = "Keys";
 "Toujours" = "Always";
 "Toujours le même preset" = "Always the same preset";
 "Toujours rien : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même numéro de Port à l'entrée et à la sortie. Dans Output, « FL Shortcuts Link » seul sur ce numéro : « FL Shortcuts » doit s'afficher à côté de lui, pas de ta carte son." = "Still nothing: Options › MIDI Settings, input “FL Shortcuts Link”, Controller type “FL Shortcuts” (not “generic controller”), Enable, and the same Port number for input and output. In Output, “FL Shortcuts Link” alone on that number: “FL Shortcuts” must show next to it, not next to your sound card.";
@@ -2190,6 +2195,7 @@
 "Trop de variables (%lld au plus)." = "Too many variables (%lld max).";
 "Trop profond pour être rejoué par la macro" = "Too deep for the macro to replay";
 "Trousseau indisponible (%d)." = "Keychain unavailable (%d).";
+"Trouver" = "Find";
 "Trouver un raccourci" = "Find a shortcut";
 "Tu as déjà signalé cette photo." = "You've already reported this photo.";
 "Tu ne suis personne." = "You don't follow anyone.";
@@ -2199,6 +2205,7 @@
 "Type" = "Type";
 "Tête de lecture au début" = "Playhead to start";
 "Un bloc caché de l'ancien format est inclus : relis-le dans le créateur avant de t'en servir." = "A hidden block in the old format is included: review it in the creator before using it.";
+"Un bloc de cette macro n'existe pas encore sur Windows : elle restera bloquée." = "A block of this macro doesn't exist on Windows yet: it will stay blocked.";
 "Un bloc vient d'une version plus récente de FL Shortcuts : la macro ne tournera pas." = "A block comes from a newer version of FL Shortcuts: the macro won't run.";
 "Un bus par famille" = "One bus per family";
 "Un bus par famille dans le Mixer (les 808 avec les drums), chaque son envoyé seulement à son bus" = "One bus per family in the Mixer (808s with the drums), each sound sent only to its bus";
@@ -2319,6 +2326,7 @@
 "bloc inconnu." = "unknown block.";
 "bougé. L'écran n'est lu qu'à ce moment-là, dans cette fenêtre ; sans l'autorisation, à sa place." = "moved. The screen is only read at that moment, in that window; without the permission, at its saved spot.";
 "bouton d'armement" = "arm button";
+"bouton de la macro partagée introuvable dans FL" = "button of the shared macro not found in FL";
 "bouton introuvable dans la fenêtre de FL (caché, ou d'une autre apparence : montre-le de nouveau)" = "button not found in the FL window (hidden, or it looks different: show it again)";
 "bouton mute hors de la fenêtre de FL : montre-le de nouveau" = "mute button outside the FL window: show it again";
 "bouton mute introuvable : clique sur ta piste (Mixer, Channel rack ou Playlist), puis relance" = "mute button not found: click your track (Mixer, Channel rack or Playlist), then try again";
@@ -2346,6 +2354,9 @@
 "choisis la page de FL à ouvrir." = "choose the FL page to open.";
 "choisis le plugin à ajouter (comme dans le menu Add de FL)." = "choose the plugin to add (as in FL's Add menu).";
 "choisisse sans souris. Si FL est ouvert, quitte-le et rouvre-le une fois pour qu'il le voie." = "can pick it without the mouse. If FL is open, quit and reopen it once so it sees it.";
+"clic : bouton retrouvé par son nom" = "click: button found by its name";
+"clic : bouton retrouvé à son image" = "click: button found by its image";
+"clic : même endroit de la fenêtre du plugin" = "click: same spot of the plugin window";
 "clic : position à montrer dans FL" = "click: position to show in FL";
 "clic dans FL" = "click in FL";
 "clic droit impossible dans un menu ouvert." = "can't right-click in an open menu.";
@@ -2393,6 +2404,7 @@
 "fenêtre de FL de %lld × %lld introuvable (pas ouverte, ou changée de taille : montre de nouveau le clic)" = "%lld × %lld FL window not found (not open, or resized: show the click again)";
 "fenêtre de FL illisible" = "FL window can't be read";
 "fenêtre de FL introuvable" = "FL window not found";
+"fenêtre du plugin de la macro partagée introuvable dans FL" = "plugin window of the shared macro not found in FL";
 "fenêtre du plugin introuvable (ouvre ce plugin, ou montre de nouveau le clic)" = "plugin window not found (open this plugin, or show the click again)";
 "fenêtres. Si l'une change de taille ou de place dans FL, montre-le de nouveau." = "windows. If one changes size or position in FL, show it again.";
 "fermé" = "closed";
@@ -2454,6 +2466,7 @@
 "le point visé est hors de FL" = "the target point is outside FL";
 "le serveur n'a pas répondu." = "the server didn't answer.";
 "le sous-menu « %@ » ne s'est pas ouvert" = "the “%@” submenu didn't open";
+"lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le bouton de la macro partagée ne peut pas être cherché" = "screen reading not allowed (System Settings › Privacy & Security › Screen Recording): the shared macro's button can't be searched for";
 "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le bouton ne peut pas être cherché" = "screen reading not allowed (System Settings › Privacy & Security › Screen & System Audio Recording): the button can't be looked for";
 "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le plugin ne peut pas être cherché dans « More plugins… » de FL" = "screen reading not allowed (System Settings › Privacy & Security › Screen Recording): the plugin can't be looked up in FL's “More plugins…”";
 "lecture de l'état de FL : demande l'extension du lien avec FL" = "reading FL's state: needs the FL link extension";
@@ -2504,6 +2517,7 @@
 "majuscule" = "shift";
 "marqueur posé sans son nom (%@)" = "marker added without its name (%@)";
 "menu de piste mal décrit" = "track menu not described correctly";
+"menu du Mac" = "Mac menu";
 "menu introuvable : apprends les positions du menu dans la fiche du raccourci" = "menu not found: learn the menu positions in the shortcut's details";
 "menu ouvert" = "open menu";
 "message trop long." = "message too long.";
@@ -2542,6 +2556,7 @@
 "partout" = "everywhere";
 "pas content" = "not happy";
 "pas de serveur." = "no server.";
+"pas encore sur Windows" = "not on Windows yet";
 "pause hors limites." = "pause out of range.";
 "piste" = "track";
 "piste visée" = "target track";
@@ -2565,6 +2580,7 @@
 "preset .fst attendu dans ton dossier personnel." = ".fst preset expected in your home folder.";
 "preset .fst attendu." = ".fst preset expected.";
 "preset introuvable (%@)" = "preset not found (%@)";
+"preset joint" = "preset attached";
 "preset à choisir dans le créateur." = "preset to choose in the creator.";
 "près de la piste visée" = "near the targeted track";
 "près du clic précédent" = "near the previous click";
@@ -2613,6 +2629,7 @@
 "un dégradé ne change pas le nom : retire le nom." = "a gradient doesn't change the name: remove the name.";
 "un dégradé ne pose pas d'icône : retire l'icône." = "a gradient doesn't set an icon: remove the icon.";
 "un menu de FL est ouvert" = "an FL menu is open";
+"un preset joint n'a pas pu être enregistré dans Documents › FL Shortcuts › Presets" = "an attached preset couldn't be saved in Documents › FL Shortcuts › Presets";
 "un raccourci personnalisé" = "a custom shortcut";
 "un symbole" = "a symbol";
 "un temps fixe" = "a fixed time";
@@ -2637,6 +2654,8 @@
 "« %@ » est ton projet « %@ » rangé par l'Organiser." = "“%@” is your project “%@” tidied up by Organize.";
 "« %@ » importée" = "“%@” imported";
 "« %@ » n'a pas répondu" = "“%@” didn't respond";
+"« %@ » n'est pas installé ici : choisis un autre effet dans la macro." = "“%@” isn't installed here: choose another effect in the macro.";
+"« %@ » n'est pas installé ici : choisis un autre instrument dans la macro." = "“%@” isn't installed here: choose another instrument in the macro.";
 "« %@ » réinitialisé" = "“%@” reset";
 "« %@ » supprimée" = "“%@” deleted";
 "« %@ » — %@%@." = "“%@” — %@%@.";
@@ -2656,6 +2675,7 @@
 "« FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du script ci-dessous. Compare-le avec Options › File settings › User data folder dans FL (pas sur iCloud) ; s'il diffère, « Autre dossier de FL… » et choisis celui-là." = "“FL Shortcuts” missing from the Controller types: FL isn't reading the script folder below. Compare it with Options › File settings › User data folder in FL (not on iCloud); if it's different, click “Other FL folder…” and choose that one.";
 "« FL Studio n'est pas reconnu »" = "“FL Studio isn't recognized”";
 "« File › Open mixer track state » s'ouvre tout seul, au clavier (lettres soulignées du menu de FL). La première fois, une bulle te demande seulement de cliquer sur « (none) » puis sur l'entrée « 1 »." = "“File › Open mixer track state” opens on its own, from the keyboard (underlined letters in FL's menu). The first time, a bubble just asks you to click “(none)” then input “1”.";
+"« Nouvelle macro », puis « Enregistrer clics et touches »." = "“New macro”, then “Record clicks and keys”.";
 "« Ouvrir une page de FL » ajouté juste au-dessus : choisis d'abord la page, puis l'option à cliquer dans cette page." = "“Open an FL page” added just above: first choose the page, then the option to click on that page.";
 "« Partir d'un modèle… » propose des macros toutes faites, à adapter." = "“Start from a template…” offers ready-made macros you can adapt.";
 "« Renommer » de FL (F2), le nom tapé, puis Entrée." = "“Rename” window (F2), the typed name, then Return.";

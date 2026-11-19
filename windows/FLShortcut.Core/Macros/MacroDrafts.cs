@@ -117,6 +117,15 @@ public static class MacroDrafts
         return spot.IsValid ? new ClickTarget.Button(spot) : target;
     }
 
+    /// Pur (testé) : clic gardé à sa place, avec l'image du bouton dessous (assez contrastée), qui ne sert qu'à le retrouver
+    /// dans le FL d'un autre ordinateur quand la macro est partagée (ClickTarget.Portable). Sinon inchangé.
+    public static ClickTarget WithLook(ClickTarget target, GrayImage? patch)
+    {
+        if (patch is null || patch.Width != patch.Height || patch.Width is < VisualSpot.MinSide or > VisualSpot.MaxSide
+            || patch.Contrast < VisualMatch.MinContrast || target is not ClickTarget.FlWindowPoint { Size: not null, Look: null } w) return target;
+        return w with { Look = new ButtonLook(patch.Width, patch.Pixels.ToArray()) };
+    }
+
     /// La place d'un bouton retenu par son nom ou son image (« Retrouver ce bouton s'il bouge » décoché).
     public static ClickTarget Place(ClickTarget target) => target switch
     {

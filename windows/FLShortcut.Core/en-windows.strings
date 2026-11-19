@@ -376,7 +376,7 @@
 "Pour relier FL Shortcuts à FL." = "To link FL Shortcuts to FL.";
 "Rien à faire dans loopMIDI : l'app crée les ports." = "Nothing to do in loopMIDI: the app creates the ports.";
 "Installe loopMIDI, puis ferme-le : rien à faire dedans." = "Install loopMIDI, then close it: nothing to do in it.";
-"Installe loopMIDI, puis ferme-le : rien à faire dedans. L'app crée elle-même les ports qui la relient à FL." = "Install loopMIDI, then close it: nothing to do in it. The app creates the ports that link it to FL by itself.";
+"Il relie l'app à FL. L'installation de FL Shortcuts l'ajoute, sinon : accueil › Installer loopMIDI. Rien à faire dedans." = "It links the app to FL. FL Shortcuts setup adds it, otherwise: welcome › Install loopMIDI. Nothing to do in it.";
 "Relance FL Studio : il voit le lien seulement à son ouverture." = "Restart FL Studio: it only sees the link when it opens.";
 "Relance FL Studio : il voit les ports seulement à son ouverture." = "Restart FL Studio: it only sees the ports when it opens.";
 "FL voit le lien seulement à son ouverture." = "FL only sees the link when it opens.";
@@ -399,3 +399,6 @@
 "Ce PC reprend ta sauvegarde." = "This PC takes your backup.";
 "Appuie sur tes touches…" = "Press your keys…";
 "C'est fait." = "Done.";
+"Installation…" = "Installing…";
+"Clique Oui si Windows le demande." = "Click Yes if Windows asks.";
+"Pour le lien avec FL Studio." = "For the link with FL Studio.";

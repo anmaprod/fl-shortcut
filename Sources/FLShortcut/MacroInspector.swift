@@ -650,9 +650,9 @@ private struct BlockInspector: View {
         let learning = teacher.activeBlock == block.id
         let text: String
         switch t {
-        case .flWindow(_, _, _, _, let title?):
+        case .flWindow(_, _, _, _, let title?, _, _):
             text = String(localized: "Retenu dans la fenêtre « \(title.displaySafe(max: 40)) ».")
-        case .flWindow(_, _, _, let size?, _):
+        case .flWindow(_, _, _, let size?, _, _, _):
             text = String(localized: "Retenu dans une fenêtre de FL de \(Int(size.width)) × \(Int(size.height)).")
         case .flWindow:
             text = String(localized: "Retenu par rapport à la fenêtre de FL.")
@@ -704,7 +704,7 @@ private struct BlockInspector: View {
     /// Clic dans une fenêtre de FL (taille retenue) : son bouton peut être retrouvé à son image.
     private func canFollow(_ t: ClickTarget) -> Bool {
         switch t {
-        case .flWindow(_, _, _, .some, _), .button, .named: return true
+        case .flWindow(_, _, _, .some, _, _, _), .button, .named: return true
         default: return false
         }
     }
@@ -1473,7 +1473,7 @@ final class ClickTeacher: ObservableObject {
             // Clic dans une fenêtre de FL, écran lisible : le bouton est retenu par son nom s'il en porte un, sinon
             // (« Retrouver ce bouton s'il bouge ») par son image, sinon par sa place.
             if MacroEffectsMac.canRead || visual, let block, let window = before.hit(sample.point), window.number > 0,
-               case .flWindow(let corner, let dx, let dy, let size?, let title) = target {
+               case .flWindow(let corner, let dx, let dy, let size?, let title, _, _) = target {
                 finish(target)
                 say(String(localized: "Lecture du bouton…"), for: block)
                 let point = sample.point, wantsImage = visual
@@ -1487,7 +1487,11 @@ final class ClickTeacher: ObservableObject {
                     } else if wantsImage {
                         self?.learnImage(at: point, window: window, place: target, done: done, block: block)
                     } else {
-                        done?(target)
+                        // Gardé à sa place, avec l'image du bouton : elle ne sert qu'à le retrouver chez un autre
+                        // ordinateur si la macro est partagée.
+                        ButtonLook.capture(at: point, window: window) { look in
+                            done?(ClickSequenceCompiler.withLook(target, look))
+                        }
                         self?.say(String(localized: "Endroit retenu."), for: block)
                     }
                 }
@@ -1528,7 +1532,7 @@ final class ClickTeacher: ObservableObject {
     /// Image du bouton sous `point` (bouton sans nom, « Retrouver ce bouton s'il bouge ») ; sinon sa place.
     private func learnImage(at point: CGPoint, window: WinInfo, place target: ClickTarget,
                             done: ((ClickTarget) -> Void)?, block: UUID) {
-        guard case .flWindow(let corner, let dx, let dy, let size?, let title) = target else { return }
+        guard case .flWindow(let corner, let dx, let dy, let size?, let title, _, _) = target else { return }
         ScreenLook.capture(windowNumber: window.number, size: window.bounds.size) { [weak self] image in
             let patch = image.flatMap { image -> GrayImage? in
                 let cx = Int((point.x - window.bounds.minX) * CGFloat(image.width) / window.bounds.width)

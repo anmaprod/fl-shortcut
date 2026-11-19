@@ -979,12 +979,115 @@ final class MacroEffectsMac: MacroEffects {
     /// Lecture de l'écran possible ici (macOS 14 et plus, autorisation donnée).
     static var canRead: Bool { ScreenLook.available && ScreenLook.allowed }
 
+    // MARK: Clics d'une macro partagée (venue d'un autre ordinateur, Mac ou PC)
+
+    /// Fenêtres où chercher un clic venu d'un autre ordinateur : celle de la même taille d'abord, puis celle de la piste
+    /// visée, puis les autres de la forme la plus proche (fenêtres ordinaires de FL, jamais un menu). sx, sy : taille
+    /// ici / taille là-bas.
+    func looseWindows(size: CGSize, ctx: Context) -> [(window: WinInfo, sx: Double, sy: Double)] {
+        let snap = WinSnapshot.take(pid: ctx.pid)
+        let aspect = Double(size.width / max(size.height, 1))
+        func key(_ w: WinInfo) -> (Int, Int, Double) {
+            let b = w.bounds
+            return (MacroSpots.sameSize(b.size, size) ? 0 : 1, b.contains(ctx.track) ? 0 : 1,
+                    abs(log(Double(b.width / max(b.height, 1)) / aspect)))
+        }
+        return snap.fl.filter { Self.clickWindowLayers.contains($0.layer) && $0.number > 0 }
+            .sorted { key($0) < key($1) }
+            .map { ($0, Double($0.bounds.width / size.width), Double($0.bounds.height / size.height)) }
+    }
+
+    /// Bouton d'une macro partagée retrouvé à son nom dans n'importe quelle fenêtre de FL (le plus près de la même
+    /// proportion de la fenêtre). Sans lecture de l'écran : rien (jamais à l'aveugle). Le nom n'est jamais journalisé.
+    func looseNamedPoint(_ spot: NamedSpot, ctx: Context) -> (point: CGPoint, window: WinInfo)? {
+        guard Self.canRead else { return nil }
+        for (w, sx, sy) in looseWindows(size: spot.size, ctx: ctx) {
+            if shouldStop(ctx.pid) != nil { return nil }
+            guard let image = ScreenLook.captureImage(windowNumber: w.number, size: w.bounds.size, scale: 2) else { continue }
+            let f = w.bounds
+            let place = Self.point(in: f, corner: spot.corner, dx: spot.px * sx, dy: spot.py * sy)
+            let expected = CGPoint(x: place.x - f.minX - spot.dx * sx, y: place.y - f.minY - spot.dy * sy)
+            guard let item = TextLook.find(spot.label, in: TextLook.read(image, size: f.size), near: expected) else { continue }
+            MacroLog.shared.write("CLICK", "shared macro: button found by its name in a \(Int(f.width))x\(Int(f.height)) window")
+            return (CGPoint(x: f.minX + item.center.x + spot.dx * sx, y: f.minY + item.center.y + spot.dy * sy), w)
+        }
+        MacroLog.shared.write("CLICK", "shared macro: button name not found in any FL window")
+        return nil
+    }
+
+    /// Bouton d'une macro partagée retrouvé à son image dans les fenêtres de FL, à l'échelle de cet écran (Retina, ou
+    /// une macro faite sur un PC à 125, 150 %). Jamais sa place à l'aveugle.
+    func looseVisualPoint(_ spot: VisualSpot, ctx: Context) -> (point: CGPoint, window: WinInfo)? {
+        var best: (point: CGPoint, window: WinInfo, score: Double)?
+        for (w, sx, sy) in looseWindows(size: spot.size, ctx: ctx) {
+            if shouldStop(ctx.pid) != nil { return nil }
+            guard let image = ScreenLook.capture(windowNumber: w.number, size: w.bounds.size),
+                  image.width > 0, image.height > 0 else { continue }
+            let f = w.bounds
+            let ix = Double(f.width) / Double(image.width), iy = Double(f.height) / Double(image.height)
+            let expected = Self.point(in: f, corner: spot.corner, dx: spot.dx * sx, dy: spot.dy * sy)
+            let hint = (x: Int(Double(expected.x - f.minX) / ix), y: Int(Double(expected.y - f.minY) / iy))
+            guard let found = VisualMatch.findAnyScale(spot.image, in: image, hint: hint,
+                                                       likely: [1 / ix, (sx * sy).squareRoot() / ix]) else { continue }
+            let p = CGPoint(x: f.minX + CGFloat(Double(found.hit.x) * ix), y: f.minY + CGFloat(Double(found.hit.y) * iy))
+            if best == nil || found.hit.score > best!.score { best = (p, w, found.hit.score) }
+            if found.hit.score >= 0.95 { break }
+        }
+        guard let best else {
+            MacroLog.shared.write("CLICK", "shared macro: button image not found in any FL window")
+            return nil
+        }
+        MacroLog.shared.write("CLICK", String(format: "shared macro: button found by its image (score %.2f)", best.score))
+        return (best.point, best.window)
+    }
+
+    /// Point d'une fenêtre de plugin d'une macro partagée : la fenêtre de la même taille, sinon celle qui porte ce titre,
+    /// sinon la seule fenêtre (hors fenêtre principale) de la même forme ; au même endroit en proportion.
+    func loosePluginPoint(corner: Corner, dx: Double, dy: Double, size: CGSize, title: String?,
+                          ctx: Context) -> (point: CGPoint, window: WinInfo)? {
+        if let w = targetWindow(size: size, title: title, ctx: ctx) {
+            return (Self.point(in: w.bounds, corner: corner, dx: dx, dy: dy), w)
+        }
+        let snap = WinSnapshot.take(pid: ctx.pid)
+        var frame: CGRect?
+        if let title {
+            let frames = FLWindowAX.frames(titled: title, fl: ctx.pid)
+            frame = frames.first(where: { $0.contains(ctx.track) }) ?? frames.first
+        }
+        if frame == nil {
+            let aspect = Double(size.width / max(size.height, 1))
+            let main = ctx.frame
+            let shaped = snap.fl.filter {
+                Self.clickWindowLayers.contains($0.layer) && $0.number > 0 && $0.bounds != main
+                    && abs(Double($0.bounds.width / max($0.bounds.height, 1)) / aspect - 1) <= 0.03
+            }
+            if shaped.count == 1 { frame = shaped[0].bounds }
+        }
+        guard let f = frame, f.width > 0, f.height > 0 else { return nil }
+        let w = snap.fl.first {
+            MacroSpots.sameSize($0.bounds.size, f.size) && abs($0.bounds.minX - f.minX) <= 2 && abs($0.bounds.minY - f.minY) <= 2
+        } ?? WinInfo(number: -1, layer: 0, bounds: f, pid: ctx.pid, alpha: 1)
+        let sx = Double(f.width / size.width), sy = Double(f.height / size.height)
+        return (Self.point(in: f, corner: corner, dx: dx * sx, dy: dy * sy), w)
+    }
+
+    func loosePoint(_ target: ClickTarget, ctx: Context) -> (point: CGPoint, window: WinInfo)? {
+        switch target {
+        case .named(let spot) where spot.loose: return looseNamedPoint(spot, ctx: ctx)
+        case .button(let spot) where spot.loose: return looseVisualPoint(spot, ctx: ctx)
+        case .flWindow(let corner, let dx, let dy, let size?, let title, _, true):
+            return loosePluginPoint(corner: corner, dx: dx, dy: dy, size: size, title: title, ctx: ctx)
+        default: return nil
+        }
+    }
+
     /// Point visé, et le menu dans lequel il doit tomber (cible « menu ouvert »).
     func resolve(_ target: ClickTarget, ctx: Context) -> (point: CGPoint, popup: WinInfo?)? {
+        if target.isLoose { return loosePoint(target, ctx: ctx).map { ($0.point, nil) } }
         switch target {
         case .startCursor(let dx, let dy):
             return (CGPoint(x: ctx.origin.x + dx, y: ctx.origin.y + dy), nil)
-        case .flWindow(let corner, let dx, let dy, let size, let title):
+        case .flWindow(let corner, let dx, let dy, let size, let title, _, _):
             let frame: CGRect?
             if let size {
                 frame = targetWindow(size: size, title: title, ctx: ctx)?.bounds
@@ -1027,8 +1130,9 @@ final class MacroEffectsMac: MacroEffects {
 
     /// Fenêtre (taille retenue) ou menu de FL : attendu s'il n'est pas encore là. Autres cibles : jamais attendues.
     static func appearTimeout(of target: ClickTarget) -> TimeInterval? {
+        if target.isLoose { return windowAppearTimeout }
         switch target {
-        case .flWindow(_, _, _, .some, _), .button, .named: return windowAppearTimeout
+        case .flWindow(_, _, _, .some, _, _, _), .button, .named: return windowAppearTimeout
         case .openMenu: return menuAppearTimeout
         default: return nil
         }
@@ -1039,8 +1143,12 @@ final class MacroEffectsMac: MacroEffects {
     /// sous-menu et le menu qui l'a ouvert).
     func locate(_ target: ClickTarget, ctx: Context) -> (point: CGPoint, popup: WinInfo?, fresh: Bool)? {
         let baseline = numbersBeforeLastClick ?? ctx.startNumbers
+        if target.isLoose {
+            guard let found = loosePoint(target, ctx: ctx) else { return nil }
+            return (point: found.point, popup: nil, fresh: !baseline.contains(found.window.number))
+        }
         switch target {
-        case .flWindow(let corner, let dx, let dy, let size?, let title):
+        case .flWindow(let corner, let dx, let dy, let size?, let title, _, _):
             guard let w = targetWindow(size: size, title: title, ctx: ctx) else { return nil }
             return (point: Self.point(in: w.bounds, corner: corner, dx: dx, dy: dy), popup: nil,
                     fresh: !baseline.contains(w.number))
@@ -1095,7 +1203,8 @@ final class MacroEffectsMac: MacroEffects {
                 }
                 if elapsed >= timeout { break }
                 if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
-                Thread.sleep(forTimeInterval: 0.015)
+                // Clic d'une macro partagée : cherché dans toutes les fenêtres, donc moins souvent (5 fois au plus).
+                Thread.sleep(forTimeInterval: target.isLoose ? 0.6 : 0.015)
                 found = locate(target, ctx: ctx)
             }
             let ms = Int(Date().timeIntervalSince(t0) * 1000)
@@ -1106,11 +1215,20 @@ final class MacroEffectsMac: MacroEffects {
             if let f = found, f.fresh, f.popup == nil, case .cancel(let why) = pause(80, pid: ctx.pid) { return .cancel(why) }
         }
         guard let r = found else {
+            if target.isLoose {
+                if case .flWindow = target {
+                    return .fail(String(localized: "fenêtre du plugin de la macro partagée introuvable dans FL"))
+                }
+                if !ScreenLook.allowed {
+                    return .fail(String(localized: "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le bouton de la macro partagée ne peut pas être cherché"))
+                }
+                return .fail(String(localized: "bouton de la macro partagée introuvable dans FL"))
+            }
             switch target {
-            case .flWindow(_, _, _, _, .some):
+            case .flWindow(_, _, _, _, .some, _, _):
                 // Sans le titre : c'est le nom d'une piste de l'utilisateur, jamais dans le journal.
                 return .fail(String(localized: "fenêtre du plugin introuvable (ouvre ce plugin, ou montre de nouveau le clic)"))
-            case .flWindow(_, _, _, let size?, _):
+            case .flWindow(_, _, _, let size?, _, _, _):
                 return .fail(String(localized: "fenêtre de FL de \(Int(size.width)) × \(Int(size.height)) introuvable (pas ouverte, ou changée de taille : montre de nouveau le clic)"))
             case .openMenu:
                 return .fail(String(localized: "le menu de FL attendu ne s'est pas ouvert"))

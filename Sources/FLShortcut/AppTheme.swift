@@ -2,7 +2,9 @@
 // d'origine ; Papier, blanc à l'encre noire ; Orange, le rouge de la marque en fond, la barre de gauche et les cartes
 // en noir. D'après les maquettes validées (artefact 1EFC8zLVn5ATRWAnQMBZrB). Choisi dans Mon compte, gardé dans les
 // réglages : rien de sensible n'en dépend (un autre programme qui l'écrirait ne changerait que les couleurs). Depuis le
-// 07/11, seulement avec un compte connecté : sans compte, Noir (le choix est gardé pour la prochaine connexion).
+// 07/11, seulement avec un compte connecté (le choix est gardé pour la prochaine connexion). Direction A du 17/11
+// (« J'aime bien le A », réponse « A pour tous, thèmes gardés ») : Papier = la direction A (papier #F3F2EE, encre
+// #111111, rouge #FF3B1F comme Noir depuis le 19/11), le thème de tout le monde sans compte et par défaut ; Noir et Orange au choix avec un compte.
 //
 // Les couleurs du style suisse (`Swiss`) se lisent au moment du dessin, d'après le thème et l'apparence de macOS
 // (sombre pour Noir, claire pour Papier et Orange) : rien à reconstruire, la fenêtre se redessine quand l'apparence
@@ -20,7 +22,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
     /// Dernier état connu du compte (connecté ou non), pour le lancement : le Trousseau n'est lu qu'ensuite.
     static let accountKey = "themeAccount"
 
-    /// Thème choisi dans Mon compte (enregistré) ; Noir si rien n'est choisi ou si la valeur est inconnue.
+    /// Thème choisi dans Mon compte (enregistré) ; Papier si rien n'est choisi ou si la valeur est inconnue.
     private static let saved = Locked<AppTheme?>(nil)
     /// Thème montré sans rien enregistrer (essais, photos de la CI) : passe avant tout.
     private static let forced = Locked<AppTheme?>(nil)
@@ -28,16 +30,16 @@ enum AppTheme: String, CaseIterable, Identifiable {
     private static let account = Locked<Bool?>(nil)
 
     /// Thème affiché, lu à chaque dessin. Demande du 07/11 (« les thèmes… que si la personne crée un compte ou se
-    /// connecte ») : sans compte connecté, toujours Noir ; le choix est gardé et revient à la connexion.
+    /// connecte ») : sans compte connecté, toujours Papier (direction A, 17/11) ; le choix revient à la connexion.
     static var current: AppTheme {
         if let theme = forced.value { return theme }
-        return unlocked ? chosen : .noir
+        return unlocked ? chosen : .papier
     }
 
     /// Thème choisi dans Mon compte, même sans compte connecté (il n'est alors pas affiché).
     static var chosen: AppTheme {
         if let theme = saved.value { return theme }
-        let theme = AppTheme(rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .noir
+        let theme = AppTheme(rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .papier
         saved.withLock { $0 = theme }
         return theme
     }
@@ -91,7 +93,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
         redraw(from: before)
     }
 
-    /// Connexion ou déconnexion du compte (CommunityStore) : le thème choisi revient, ou Noir sans compte.
+    /// Connexion ou déconnexion du compte (CommunityStore) : le thème choisi revient, ou Papier sans compte.
     @MainActor static func accountChanged(signedIn: Bool) {
         let before = current
         account.withLock { $0 = signedIn }
@@ -137,15 +139,19 @@ struct SwissPalette: Equatable, Sendable {
     let faint: UInt32
     /// Cadre d'une touche.
     let keyLine: UInt32
-    /// Ce qui compte (touche changée, avertissement) : le rouge de la marque ; blanc sur le fond orange.
+    /// Ce qui compte (touche changée, avertissement) : le rouge de la marque ; blanc sur le fond orange ; le rouge plus
+    /// profond de la direction A sur le papier.
     let red: UInt32
 
     static let brandRed: UInt32 = 0xFF3B1F
+    /// Rouge de la direction A (17/11), sur le papier.
+    static let paperRed: UInt32 = 0xFF3B1F
 
     static let noir = SwissPalette(background: 0x000000, text: 0xFFFFFF, gray: 0x8A8A8A, soft: 0xA8A8A8,
                                    line: 0x333333, faint: 0x222222, keyLine: 0x555555, red: brandRed)
-    static let papier = SwissPalette(background: 0xFFFFFF, text: 0x000000, gray: 0x6E6E6E, soft: 0x555555,
-                                     line: 0xCFCFCF, faint: 0xE6E6E6, keyLine: 0xAAAAAA, red: brandRed)
+    /// Direction A (17/11) : papier clair, encre presque noire, traits gris chaud, cadre des touches à l'encre.
+    static let papier = SwissPalette(background: 0xF3F2EE, text: 0x111111, gray: 0x67655F, soft: 0x4A4843,
+                                     line: 0xC9C6BE, faint: 0xD9D6CF, keyLine: 0x111111, red: paperRed)
     static let orange = SwissPalette(background: brandRed, text: 0x000000, gray: 0x3A0B03, soft: 0x2A0702,
                                      line: 0xA62614, faint: 0xD5341B, keyLine: 0x5C1508, red: 0xFFFFFF)
     /// Parties noires sous Orange (barre de gauche, cartes, petites fenêtres).
@@ -193,20 +199,21 @@ struct SwissPalette: Equatable, Sendable {
 extension SwissPalette {
     enum PrimaryPart: Sendable { case fill, ink, shadow, lift }
 
-    /// Bouton principal et carte principale (maquettes du 05/11) : plein blanc sous Noir et Orange, noir sous Papier ;
-    /// ombre nette rouge sous Papier, noire sous Orange, aucune sous Noir (et dans les parties sombres).
+    /// Bouton principal et carte principale (maquettes du 05/11) : plein blanc sous Noir et Orange, encre sous Papier
+    /// (texte papier, direction A) ; ombre nette rouge sous Papier, noire sous Orange, aucune sous Noir (et dans les
+    /// parties sombres).
     static func primary(_ part: PrimaryPart) -> NSColor {
         NSColor(name: nil) { appearance in
             let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
             let papier = AppTheme.current == .papier && !dark
             let orange = AppTheme.current == .orange && !dark
             switch part {
-            case .fill: return nsColor(papier ? 0x000000 : 0xFFFFFF)
-            case .ink: return nsColor(papier ? 0xFFFFFF : 0x000000)
-            case .shadow: return papier ? nsColor(brandRed) : orange ? nsColor(0x000000) : .clear
+            case .fill: return nsColor(papier ? SwissPalette.papier.text : 0xFFFFFF)
+            case .ink: return nsColor(papier ? SwissPalette.papier.background : 0x000000)
+            case .shadow: return papier ? nsColor(paperRed) : orange ? nsColor(0x000000) : .clear
             // Ombre du relief au survol (06/11, « l'effet Gumroad… dans tous les thèmes ») : noire sur le fond orange,
             // rouge partout ailleurs (sous Noir aussi, où le bouton au repos n'a pas d'ombre).
-            case .lift: return orange ? nsColor(0x000000) : nsColor(brandRed)
+            case .lift: return orange ? nsColor(0x000000) : nsColor(papier ? paperRed : brandRed)
             }
         }
     }
@@ -256,34 +263,6 @@ private struct SwissCardSurface: ViewModifier {
                 .environment(\.colorScheme, .dark)
         } else {
             content
-        }
-    }
-}
-
-/// Grille du thème Papier (maquette) : douze colonnes de traits très fins derrière la page ; rien dans les autres.
-struct SwissPaperGrid: View {
-    @Environment(\.colorScheme) private var scheme
-
-    var body: some View {
-        if AppTheme.current == .papier && scheme == .light {
-            GeometryReader { proxy in
-                Path { path in
-                    let inset: CGFloat = 26, gap: CGFloat = 20, columns = 12
-                    let width = max(0, proxy.size.width - 2 * inset)
-                    let column = (width - gap * CGFloat(columns - 1)) / CGFloat(columns)
-                    guard column > 0 else { return }
-                    for i in 0..<columns {
-                        let x = inset + CGFloat(i) * (column + gap)
-                        for edge in [x, x + column] {
-                            path.move(to: CGPoint(x: edge + 0.5, y: 0))
-                            path.addLine(to: CGPoint(x: edge + 0.5, y: proxy.size.height))
-                        }
-                    }
-                }
-                .stroke(Color(nsColor: SwissPalette.nsColor(0xEDEDED)), lineWidth: 1)
-            }
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
         }
     }
 }

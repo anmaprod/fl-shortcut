@@ -768,7 +768,7 @@ private struct MacroHeader: View {
 }
 
 /// Nom de la macro en titre (07/11, vidéo : « le texte se décale… ce n'est pas la même police… le point orange tout le
-/// temps, même quand la personne écrit ») : un seul champ, le même au repos et pendant la frappe (Helvetica Neue gras
+/// temps, même quand la personne écrit ») : un seul champ, le même au repos et pendant la frappe (Inter Display gras
 /// resserré, en minuscules comme les titres des pages), suivi de son point carré à la couleur du thème ; un clic
 /// dedans le renomme, rien ne bouge. Entrée ou Échap rendent la main.
 private struct MacroNameTitle: View {
@@ -844,8 +844,7 @@ final class MacroTitleFieldView: NSView {
     }
 
     static func titleFont(_ size: CGFloat) -> NSFont {
-        NSFontManager.shared.font(withFamily: Swiss.fontName, traits: .boldFontMask, weight: 9, size: size)
-            ?? NSFont(name: "HelveticaNeue-Bold", size: size) ?? .boldSystemFont(ofSize: size)
+        Swiss.nsFont(size, title: true)
     }
 
     private var font: NSFont { Self.titleFont(size) }

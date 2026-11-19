@@ -459,6 +459,10 @@
   Précédent, Découvrir / Suivant / C'est parti ; Entrée, Échap ; points jamais sous les boutons), `MainShellGuide.cs`
   (après l'accueil sur fond plein, sinon à la 1re ouverture de la fenêtre sur la fenêtre assombrie ; réglage
   `GuideSeen`), « Revoir le guide » dans l'Aide ; photos CI `guide-0/1/4.png`. Pas encore vu sur un PC.
+  17/11 (« les anims du guide sur mac n'y sont pas sur win ») : comme le Mac, à l'ouverture et à chaque page le titre
+  puis les lignes arrivent l'un après l'autre (0,15 s + 0,1 s, transparents, 16 plus bas, à peine plus petits ;
+  `Motion.Morph`), l'ancienne page monte en s'effaçant en 0,5 s (`Motion.Leave`), carré de la partie en petit rebond
+  (`Motion.Pop`) ; rien pour les photos de la CI (`GuideView(animate:)`) ni si Windows coupe les animations.
   Revue Mac / Windows du 10/11 (« 1, 2, 3, 4, tu fais ») : Communauté Windows = cartes du Mac (photo ronde, @pseudo
   qui mène à ses partages, date, sorte à droite, titre, 2 lignes gardées, « Voir » + « Ajouter à mes macros » /
   « Utiliser ces raccourcis » / « Partagé par toi », clic droit, même hauteur par rangée ; recherche plus coupée) ;
@@ -920,7 +924,7 @@
   choisie ouvre sa partie), plus de recherche dans la barre ni de cadre du compte en haut ; « appuie sur un
   raccourci » = page d'accueil (`SidebarItem.find`, `FindShortcutField`, « ou tape son nom ») ; pages en une liste
   (`ReadableGroup`/`ReadableRow`/`KeyBox` : nom du groupe à gauche, touche dans sa case, rouge si changée, ↺) ; Macros
-  en liste (`MacroLibraryLine`, `NewMacroButton` : Enregistrer / Macro vide / Modèle ; `MacroLibraryActions`) ;
+  en liste (`MacroLibraryLine`, `NewMacroButton` : ouvre tout de suite le créateur sur une macro vide ; `MacroLibraryActions`) ;
   Communauté : onglets soulignés, « Chercher » à droite, cases numérotées sur 2 colonnes (`CommunityStats.compact`),
   plus de vitrine. Mac : `MainReadable.swift`. Windows (même jour) : `MainShellReadable.cs` (barre, « appuie sur un
   raccourci » construite une fois pour garder la main pendant la frappe, `ReadableRow`, `ShowGroups`), `MacLook.KeyBox`,
@@ -939,6 +943,45 @@
   … / Jamais partagé : … »), Signaler, inscription, accroche de la connexion (mots seuls), sauvegarde (état seul),
   créateur (vide, réglages, « Glisse un bloc ici »), Aide (« Ton mail (facultatif) »…), Organiser (attentes, fin) ;
   avertissements gardés mais courts (« FL Shortcuts n'a pas accès au clavier. »). NE PAS en remettre.
+  16/11 soir (essai sur PC : « j'essaye de changer un raccourci ça crash et c'est pas du tout le même que sur mac ») :
+  le clic sur la case d'une touche remontait à la ligne (`Tapped`), qui ouvrait une 2e fiche ; WinUI refuse 2
+  `ContentDialog` à la fois, l'erreur fermait l'appli. Lignes de raccourcis et de macros : un clic sur un de leurs
+  boutons ne fait plus que le sien (`MacLook.OnButton`) ; TOUTES les boîtes par `ShowSafeAsync` (`DialogGuard.cs` :
+  jamais deux, erreur notée `DIALOG`). Fiche « Touche » Windows = celle du Mac (en-tête, TOUCHE, D'ORIGINE, ↺
+  Réinitialiser / Aucune touche / Tester … Annuler / Valider, ⌫ efface, rouge pendant l'écoute, « Remplacer » même pour
+  une touche de FL, puis nouvelle touche pour l'entrée qui l'a perdue) ; questions Windows au style suisse comme
+  `SwissDialog` (`SwissQuestion.AskAsync`, `MacLook.Danger`), plus de boîte à barre grise. « Nouvelle macro » (Mac et
+  Windows, « j'avais demandé de supprimer enregistrer macro et modèle ») : ouvre le créateur sur une macro vide, plus
+  de menu ; fenêtre des modèles retirée (Mac `MacroTemplatesSheet`, Windows `ShowTemplates`) ; guide : « « Nouvelle
+  macro », puis « Enregistrer clics et touches ». ».
+- **loopMIDI installé avec l'appli** (16/11, « le loopmidi installation de lien a été oublié pour win », choix
+  « Installer avec l'appli ») : case cochée de l'installeur (`FLShortcut.iss`, seulement si `teVirtualMIDI64.dll` manque,
+  x64) : l'archive officielle de Tobias Erichsen téléchargée (jamais dans le dépôt ni l'installeur), vérifiée à son
+  SHA-256, son installeur WiX lancé en `/passive /norestart` (Windows demande l'autorisation) ; pas de réseau, refus
+  ou autre fichier : FL Shortcuts s'installe quand même. « Installer loopMIDI » de l'accueil et de l'Organiser fait
+  pareil (`Services/LoopMidiInstaller.cs`), la page de téléchargement seulement en secours. Valeurs dans
+  `LoopMidiDownload` (cœur), l'installeur doit les garder (`LoopMidiDownloadTests`). Silencieux (CI) : rien. Mac :
+  rien (pas de loopMIDI). Pas encore vu sur un PC.
+- **Direction A « Index »** (17/11, « J'aime bien le A » parmi 4 propositions, artefact privé `S9Fsbeo6fuSChhDWSUfARE` ;
+  réponse « A pour tous, thèmes gardés ») : Papier = la direction A (papier #F3F2EE, encre #111111, gris #67655F/#4A4843,
+  traits #D9D6CF, rouge #FF3B1F `paperRed` (le même que Noir depuis le 19/11)), thème de TOUT LE MONDE sans compte et par défaut (Mac `AppTheme.current`,
+  Windows `ThemePalette.Shown/Parse`) ; Noir et Orange au choix avec un compte ; plus de grille derrière la page.
+  Polices Inter (texte) et Inter Display (titres), OFL, dans `Resources/Fonts/Inter-FLS.ttc` (allégée par
+  `scripts/polices.py`) : Mac `ATSApplicationFontsPath` + `build.sh`, `Swiss.fontName/titleFontName/nsFont` ;
+  Windows Content `Fonts\` + `MacLook.SwissFont/TitleFont` (ms-appx). Fenêtre principale : barre de gauche en index
+  numéroté 01 Trouver, 02 Raccourcis (pages dépliées), 03 Macros, 04 Communauté, 05 Mon compte, 06 Aide (plus de
+  « Plus ▸ » ; numéro rouge = partie ouverte ; Mac `ReadableSidebar`/`IndexTopRow`, Windows `IndexTop/IndexSub`) ;
+  surtitre « 02 — RACCOURCIS » + très grand titre (76, « Appuie sur / un raccourci. » 64), trait d'encre (Mac
+  `IndexTitle`, Windows `_eyebrow` + Viewbox) ; groupes « Outils 09 » ; touche dans un cadre d'encre, rouge plein si
+  changée (`KeyBox`) ; Trouver : « TOUCHES » + grande ligne soulignée de rouge, résultats et Mes raccourcis en
+  tableau N° / Raccourci / Page / Touche (`IndexTableHeader`, `MacLook.IndexHeader`) ; Macros en tableau N° / Macro /
+  Touche / Active, « À apprendre » en rouge, « Choisir » en pointillés. Les autres fenêtres gardent leurs titres en
+  minuscules + carré (`SwissPageTitle`). Photos CI : Papier par défaut, `theme-noir-*`/`theme-orange-*`. Pas encore vu
+  sur son Mac ni sur un PC. Photos relues le 17/11 (Inter bien chargée des deux côtés) puis : Aide, Mon compte et la
+  connexion dans la colonne du titre (Mac `readableColumn()`, Windows marges 56 + largeur 912), flèche ← de la page
+  d'une personne devant le titre seul (`IndexTitle(back:)`), bandeau d'avertissement du Mac dans la colonne, étapes de
+  l'Aide Windows à l'encre (avant : gris clair du fond noir), tous les contrôles WinUI à coins carrés
+  (`ControlCornerRadius`/`OverlayCornerRadius` 0 dans les ressources de l'app).
 
 ## Pas encore vérifié sur le vrai FL
 - Icônes (31/10) : clic droit › « Change icon… » sur le vrai FL (macro « Nom et couleur » après un clic sur le nom ;

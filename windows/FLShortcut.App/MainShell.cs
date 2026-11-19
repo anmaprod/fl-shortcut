@@ -58,7 +58,9 @@ internal sealed partial class MainShell
     /// Case « tape son nom » de « Trouver un raccourci » (maquette « plus lisible » du 16/11).
     private readonly TextBox _search = new();
     /// Gros titre de page (style suisse : 46, gras, serré, souligné d'un trait blanc).
-    private readonly TextBlock _title = SwissTitle();
+    private readonly TextBlock _title = SwissTitle(76);
+    /// Surtitre de la page (direction A du 17/11) : « 02 — RACCOURCIS ».
+    private readonly TextBlock _eyebrow = SwissLabel("", 11);
     /// 11/11 : flèche seule, sans cadre, devant le titre de la page d'une personne de la Communauté (son pseudo).
     private readonly Button _titleBack = new()
     {
@@ -583,30 +585,51 @@ internal sealed partial class MainShell
         // 16/11 (maquette « plus lisible ») : le titre et son point carré, un trait fin ; à droite, les boutons de la
         // page. Plus de « CLIQUE SUR UNE TOUCHE POUR LA CHANGER » dessous (16/11, « toutes fioritures tu les enlèves »)
         // ni de cadre du compte en haut (Mon compte est sous « Plus »).
-        var header = new Grid { MinHeight = 72, Padding = new Thickness(0, 0, 0, 20) };
+        var header = new Grid { MinHeight = 72, Padding = new Thickness(0, 0, 0, 24) };
         ToolTipService.SetToolTip(_titleBack, Loc.T("Revenir à la Communauté"));
         AutomationProperties.SetName(_titleBack, Loc.T("Revenir"));
         _titleBack.Click += (_, _) => _community.LeavePerson();
-        header.Children.Add(new StackPanel
+        // Direction A (17/11) : le surtitre, puis le très grand titre (Inter Display, serré) qui rétrécit plutôt que de
+        // se couper (« Lecture et enregistrement ») ; trait d'encre dessous.
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        _title.TextWrapping = TextWrapping.NoWrap;
+        _title.LineStackingStrategy = LineStackingStrategy.BlockLineHeight;
+        var titleFit = new Viewbox
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 14,
-            VerticalAlignment = VerticalAlignment.Bottom,
-            Children = { _titleBack, PageTitle(_title, 54) },
-        });
+            Stretch = Stretch.Uniform,
+            StretchDirection = StretchDirection.DownOnly,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Child = _title,
+        };
+        // Une grille (pas une pile horizontale) : la largeur du titre est bornée, la Viewbox peut le rétrécir ; la
+        // flèche ← (page d'une personne) seulement devant le titre, le surtitre reste au bord de la page.
+        var titleRow = new Grid { VerticalAlignment = VerticalAlignment.Bottom };
+        titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        _titleBack.VerticalAlignment = VerticalAlignment.Center;
+        // L'écart seulement quand la flèche est là : sinon le titre part du bord de la liste.
+        _titleBack.Margin = new Thickness(0, 0, 14, 0);
+        titleRow.Children.Add(_titleBack);
+        Grid.SetColumn(titleFit, 1);
+        titleRow.Children.Add(titleFit);
+        var titleStack = new StackPanel { Spacing = 14, VerticalAlignment = VerticalAlignment.Bottom, Children = { _eyebrow, titleRow } };
+        header.Children.Add(titleStack);
         var right = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             Spacing = 12,
             HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Top,
-            Margin = new Thickness(0, 6, 0, 0),
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(12, 0, 0, 4),
             Children = { _headerAction },
         };
+        Grid.SetColumn(right, 1);
         header.Children.Add(right);
-        _titleRule = Rule(LineColor);
+        _titleRule = Rule(Text);
         _titleRule.VerticalAlignment = VerticalAlignment.Bottom;
-        _titleRule.Margin = new Thickness(0, 0, 0, -20);       // sous la marge de l'en-tête, comme la maquette
+        _titleRule.Margin = new Thickness(0, 0, 0, -24);       // sous la marge de l'en-tête, comme la maquette
+        Grid.SetColumnSpan(_titleRule, 2);
         header.Children.Add(_titleRule);
         var headerHost = new Grid { Margin = new Thickness(ReadableInset, TitleBarHeight - 8 + 22, ReadableInset, 4) };
         headerHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = ReadableMaxWidth });
@@ -764,8 +787,17 @@ internal sealed partial class MainShell
         };
     }
 
-    /// Titre de la page en minuscules, suivi de son point carré (maquette du 05/11, comme le Mac).
-    private void SetTitle(string text) => _title.Text = text.ToLower(System.Globalization.CultureInfo.CurrentCulture);
+    /// Titre de la page (direction A du 17/11, comme le Mac) : son surtitre numéroté, puis le titre tel quel, très grand
+    /// (« Appuie sur / un raccourci. » sur deux lignes).
+    private void SetTitle(string text)
+    {
+        var find = _kind == PageKind.Find;
+        _eyebrow.Text = Eyebrow(_kind).ToUpper(System.Globalization.CultureInfo.CurrentCulture);
+        _title.FontSize = find ? 64 : 76;
+        _title.LineHeight = _title.FontSize * 0.95;
+        _title.CharacterSpacing = -50;
+        _title.Text = find ? Loc.T("Appuie sur\nun raccourci.") : text;
+    }
 
     /// Le compte en haut à droite (maquette du 05/11, comme le Mac) : cadre de 2 points à l'encre, plein du fond de la
     /// page (la grille de Papier ne passe pas dedans), le rond de la photo ou de l'initiale, puis le pseudo ; sans
@@ -897,9 +929,10 @@ internal sealed partial class MainShell
                     ShowEmpty("star", Loc.T("Aucun raccourci changé"), "");
                     return;
                 }
-                var list = new StackPanel();
-                foreach (var r in changed) list.Children.Add(CatalogLine(r, FindDetail(r), bold: true));
-                foreach (var c in created) list.Children.Add(CustomLine(c, bold: true));
+                var list = new StackPanel { Children = { IndexHeader(Loc.T("Raccourci"), Loc.T("Page")) } };
+                var n = 0;
+                foreach (var r in changed) list.Children.Add(CatalogLine(r, FindDetail(r), bold: true, number: ++n));
+                foreach (var c in created) list.Children.Add(CustomLine(c, bold: true, number: ++n));
                 _scroll.Content = Readable(list);
                 return;
             }

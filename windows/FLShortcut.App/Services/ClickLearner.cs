@@ -142,7 +142,8 @@ internal static class ClickLearner
             AppLog.Write("MACRO", "learn: button kept by its name");
             return (named, Loc.F("Bouton retenu par son nom « %@ ».", n.Spot.Label.Length > 30 ? n.Spot.Label[..30] + "…" : n.Spot.Label));
         }
-        if (!visual) return (place, null);
+        // Gardé à sa place, avec l'image du bouton : elle ne sert qu'à le retrouver chez un autre si la macro est partagée.
+        if (!visual) return (MacroDrafts.WithLook(place, FlScreen.PatchAt(shot, x, y)), null);
         var image = MacroDrafts.Visual(place, FlScreen.PatchAt(shot, x, y));
         AppLog.Write("MACRO", image is ClickTarget.Button ? "learn: button kept by its image" : "learn: nothing to recognize, place kept");
         return image is ClickTarget.Button

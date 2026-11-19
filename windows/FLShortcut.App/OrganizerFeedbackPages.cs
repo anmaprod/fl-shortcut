@@ -76,7 +76,7 @@ internal sealed partial class OrganizerWindow
             Go(FeedbackPage.List);
         };
         Build();
-        await dialog.ShowAsync();
+        await dialog.ShowSafeAsync();
         if (!submitted) _controller.Restore(styles, options);
         Render();
     }

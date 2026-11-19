@@ -32,7 +32,7 @@ enum GuideContent {
                           String(localized: "Clique une touche, puis tape la nouvelle."),
                           String(localized: "↺ remet la touche de FL.")]),
         GuidePage(id: 2, symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint, title: String(localized: "Les macros"),
-                  steps: [String(localized: "« Enregistrer une macro », puis fais ta suite dans FL."),
+                  steps: [String(localized: "« Nouvelle macro », puis « Enregistrer clics et touches »."),
                           String(localized: "Retouche les blocs dans le créateur."),
                           String(localized: "Donne-lui un raccourci.")]),
         GuidePage(id: 3, symbol: SidebarItem.community.symbol, tint: SidebarItem.community.tint, title: String(localized: "La Communauté"),

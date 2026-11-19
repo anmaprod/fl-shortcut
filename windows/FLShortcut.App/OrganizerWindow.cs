@@ -397,15 +397,32 @@ internal sealed partial class OrganizerWindow : Window
     private void PortsCard()
     {
         if (MidiLink.PortsUsable()) return;
+        // 16/11 (« Installer avec l'appli ») : le lien installe loopMIDI lui-même (LoopMidiInstaller), sa page de
+        // téléchargement seulement s'il n'y arrive pas.
         var link = new HyperlinkButton
         {
-            Content = Label(Loc.T("Télécharger loopMIDI"), 12, Text),
-            NavigateUri = new Uri("https://www.tobias-erichsen.de/software/loopmidi.html"),
+            Content = Label(LoopMidiInstaller.Running ? Loc.T("Installation…") : Loc.T("Installer loopMIDI"), 12, Text),
             Padding = new Thickness(0),
+            IsEnabled = !LoopMidiInstaller.Running,
+        };
+        link.Click += async (_, _) =>
+        {
+            try
+            {
+                link.IsEnabled = false;
+                link.Content = Label(Loc.T("Installation…"), 12, Text);
+                if (await LoopMidiInstaller.InstallAsync() || VirtualMidiPorts.DriverInstalled)
+                    _ = Task.Run(() => MidiServicesPorts.EnsureIfNeeded());
+                else
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://www.tobias-erichsen.de/software/loopmidi.html") { UseShellExecute = true });
+                link.IsEnabled = true;
+                link.Content = Label(Loc.T("Installer loopMIDI"), 12, Text);
+            }
+            catch (Exception e) { AppLog.Write("STATUS", "Organiser loopMIDI (" + e.GetType().Name + ")"); }
         };
         _content.Children.Add(Ruled(Row(new Rectangle { Width = 10, Height = 10, Fill = Brush(Red) }, Stack(4,
             Label(Loc.T("Installe d'abord loopMIDI"), 14, Text, bold: true),
-            Paragraph(Loc.T("Installe loopMIDI, puis ferme-le : rien à faire dedans."), 12),
+            Paragraph(Loc.T("Clique Oui si Windows le demande."), 12),
             link), 12)));
     }
 
@@ -1196,8 +1213,10 @@ internal sealed partial class OrganizerWindow : Window
             Height = 22;
             CornerRadius = new CornerRadius(0);
             VerticalAlignment = VerticalAlignment.Center;
-            Background = Brush(Color.FromArgb(0x47, 0, 0, 0));
-            BorderBrush = Brush(chosen ? tint : White(0.12));
+            // Comme le Mac : pleine du fond de la page, trait à l'encre très légère (avant : voile noir, gris foncé sur
+            // le papier de la direction A).
+            Background = Brush(WindowColor);
+            BorderBrush = Brush(chosen ? tint : WithOpacity(Text, 0.12));
             BorderThickness = new Thickness(1);
             ProtectedCursor = InputSystemCursor.Create(InputSystemCursorShape.SizeNorthSouth);
             var label = new TextBlock
@@ -1209,8 +1228,8 @@ internal sealed partial class OrganizerWindow : Window
             Children.Add(label);
             if (!chosen)
             {
-                PointerEntered += (_, _) => BorderBrush = Brush(White(0.35));
-                PointerExited += (_, _) => BorderBrush = Brush(LineColor);
+                PointerEntered += (_, _) => BorderBrush = Brush(WithOpacity(Text, 0.35));
+                PointerExited += (_, _) => BorderBrush = Brush(WithOpacity(Text, 0.12));
             }
             double? start = null;
             var from = value ?? 1;
@@ -1392,7 +1411,7 @@ internal sealed partial class OrganizerWindow : Window
             _controller.ResetBaseColors();
             Fill();
         };
-        await dialog.ShowAsync();
+        await dialog.ShowSafeAsync();
         Render();
     }
 

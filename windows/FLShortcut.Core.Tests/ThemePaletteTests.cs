@@ -10,8 +10,9 @@ public sealed class ThemePaletteTests
     [Fact]
     public void ThemesAndTheirSettingNames()
     {
-        Assert.Equal(AppTheme.Noir, ThemePalette.Parse(null));
-        Assert.Equal(AppTheme.Noir, ThemePalette.Parse("violet"));
+        Assert.Equal(AppTheme.Papier, ThemePalette.Parse(null));
+        Assert.Equal(AppTheme.Papier, ThemePalette.Parse("violet"));
+        Assert.Equal(AppTheme.Noir, ThemePalette.Parse("noir"));
         Assert.Equal(AppTheme.Papier, ThemePalette.Parse("papier"));
         Assert.Equal(AppTheme.Orange, ThemePalette.Parse(" Orange "));
         foreach (var theme in Enum.GetValues<AppTheme>())
@@ -21,15 +22,16 @@ public sealed class ThemePaletteTests
         Assert.True(ThemePalette.IsLight(AppTheme.Orange));
     }
 
-    /// Demande du 07/11 (comme le Mac) : les thèmes seulement avec un compte connecté ; sans compte, Noir.
+    /// Demande du 07/11 (comme le Mac) : les thèmes seulement avec un compte connecté ; sans compte, Papier
+    /// (direction A du 17/11, pour tout le monde).
     [Fact]
     public void ThemesOnlyWithAnAccount()
     {
-        Assert.Equal(AppTheme.Noir, ThemePalette.Shown("papier", signedIn: false));
-        Assert.Equal(AppTheme.Noir, ThemePalette.Shown("orange", signedIn: false));
-        Assert.Equal(AppTheme.Papier, ThemePalette.Shown("papier", signedIn: true));
+        Assert.Equal(AppTheme.Papier, ThemePalette.Shown("noir", signedIn: false));
+        Assert.Equal(AppTheme.Papier, ThemePalette.Shown("orange", signedIn: false));
+        Assert.Equal(AppTheme.Noir, ThemePalette.Shown("noir", signedIn: true));
         Assert.Equal(AppTheme.Orange, ThemePalette.Shown("orange", signedIn: true));
-        Assert.Equal(AppTheme.Noir, ThemePalette.Shown(null, signedIn: true));
+        Assert.Equal(AppTheme.Papier, ThemePalette.Shown(null, signedIn: true));
     }
 
     [Fact]
@@ -37,8 +39,9 @@ public sealed class ThemePaletteTests
     {
         Assert.Equal(0x000000u, ThemePalette.Of(AppTheme.Noir).Background);
         Assert.Equal(0xFFFFFFu, ThemePalette.Of(AppTheme.Noir).Text);
-        Assert.Equal(0xFFFFFFu, ThemePalette.Of(AppTheme.Papier).Background);
-        Assert.Equal(0x000000u, ThemePalette.Of(AppTheme.Papier).Text);
+        Assert.Equal(0xF3F2EEu, ThemePalette.Of(AppTheme.Papier).Background);
+        Assert.Equal(0x111111u, ThemePalette.Of(AppTheme.Papier).Text);
+        Assert.Equal(0xFF3B1Fu, ThemePalette.Of(AppTheme.Papier).Red);
         Assert.Equal(ThemePalette.BrandRed, ThemePalette.Of(AppTheme.Orange).Background);
         Assert.Equal(0xFFFFFFu, ThemePalette.Of(AppTheme.Orange).Red);
         Assert.Equal(0x000000u, ThemePalette.Of(AppTheme.Orange, inverse: true).Background);
@@ -54,7 +57,12 @@ public sealed class ThemePaletteTests
         var root = Path.GetDirectoryName(typeof(ThemePaletteTests).Assembly.Location)!;
         while (!File.Exists(Path.Combine(root, "PROTOCOL.md"))) root = Path.GetDirectoryName(root)!;
         var swift = File.ReadAllText(Path.Combine(root, "Sources", "FLShortcut", "AppTheme.swift"));
-        uint Hex(string s) => s == "brandRed" ? ThemePalette.BrandRed : Convert.ToUInt32(s[2..], 16);
+        uint Hex(string s) => s switch
+        {
+            "brandRed" => ThemePalette.BrandRed,
+            "paperRed" => ThemePalette.PaperRed,
+            _ => Convert.ToUInt32(s[2..], 16),
+        };
         var pairs = new (string Name, ThemePalette Win)[]
         {
             ("noir", ThemePalette.Noir), ("papier", ThemePalette.Papier), ("orange", ThemePalette.Orange),

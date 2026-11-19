@@ -81,6 +81,13 @@
     <CsWinRTInputs Include="..\ThirdParty\WindowsMidiServices\Windows.Devices.Midi2.winmd" />
   </ItemGroup>
 
+  <!-- Polices de la direction A (17/11), les mêmes que le Mac : Inter et Inter Display (licence OFL), dans Fonts\ à
+       côté de l'exécutable (MacLook.SwissFont, ms-appx:///Fonts/Inter-FLS.ttc). -->
+  <ItemGroup>
+    <Content Include="..\..\Resources\Fonts\Inter-FLS.ttc" Link="Fonts\Inter-FLS.ttc" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\Resources\Fonts\LICENCE-Inter.txt" Link="Fonts\LICENCE-Inter.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!-- L'IA intégrée de l'Organiser (YAMNet + têtes apprises), à côté de l'exécutable (ClasseurSons.Partage). -->
   <ItemGroup>
     <None Include="..\..\ia\modele\classeur_sons.onnx" Link="classeur_sons.onnx" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

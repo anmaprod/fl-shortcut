@@ -232,9 +232,96 @@ public sealed partial class MacroEffectsWindows
         return ((w.X + (int)Math.Round(hit.X * sx), w.Y + (int)Math.Round(hit.Y * sy)), w);
     }
 
+    // ---------- Clics d'une macro partagée (venue d'un autre ordinateur) ----------
+
+    /// Fenêtres où chercher un clic venu d'un autre ordinateur : celle de la même taille d'abord, puis celle de la piste
+    /// visée, puis les autres de la forme la plus proche ; jamais un menu. Sx, Sy : taille ici / taille là-bas.
+    private List<(FlWin Window, double Sx, double Sy)> LooseWindows(Size2 size)
+    {
+        var aspect = size.Width / size.Height;
+        return _fl.Windows().Where(w => w.Role != FlWindowRole.Menu)
+            .OrderBy(w => SameSize(w, size) ? 0 : 1)
+            .ThenBy(w => Contains(w, _track) ? 0 : 1)
+            .ThenBy(w => Math.Abs(Math.Log(w.Width / (double)Math.Max(1, w.Height) / aspect)))
+            .Select(w => (w, w.Width / size.Width, w.Height / size.Height)).ToList();
+    }
+
+    /// Bouton d'une macro partagée retrouvé à son nom dans n'importe quelle fenêtre de FL (le plus près de la même
+    /// proportion de la fenêtre) ; sa place seulement dans une fenêtre de la même taille illisible. Jamais le nom au journal.
+    private ((int X, int Y) Point, FlWin Window)? LooseNamed(NamedSpot spot)
+    {
+        foreach (var (w, sx, sy) in LooseWindows(spot.Size))
+        {
+            var place = Point(w, spot.Corner, spot.Px * sx, spot.Py * sy);
+            var (dx, dy) = ((int)Math.Round(spot.Dx * sx), (int)Math.Round(spot.Dy * sy));
+            if (_fl.ReadText(w.Id) is not { } items)
+            {
+                if (SameSize(w, spot.Size)) return (place, w);
+                continue;
+            }
+            if (MenuText.Nearest(spot.Label, items, place.X - dx, place.Y - dy) is not { } item) continue;
+            _fl.Log("CLICK", $"shared macro: button found by its name in a {w.Width}x{w.Height} window");
+            return ((item.CenterX + dx, item.CenterY + dy), w);
+        }
+        _fl.Log("CLICK", "shared macro: button name not found in any FL window");
+        return null;
+    }
+
+    /// Bouton d'une macro partagée retrouvé à son image dans les fenêtres de FL, à l'échelle de cet écran (Retina, 125 %,
+    /// 150 %…). Jamais sa place à l'aveugle.
+    private ((int X, int Y) Point, FlWin Window)? LooseButton(VisualSpot spot)
+    {
+        ((int X, int Y) Point, FlWin Window, double Score)? best = null;
+        foreach (var (w, sx, sy) in LooseWindows(spot.Size))
+        {
+            if (_fl.WindowImage(w.Id) is not { Width: > 0, Height: > 0 } image) continue;
+            var ix = (double)w.Width / image.Width;
+            var iy = (double)w.Height / image.Height;
+            var expected = Point(w, spot.Corner, spot.Dx * sx, spot.Dy * sy);
+            var hintX = (int)Math.Round((expected.X - w.X) / ix);
+            var hintY = (int)Math.Round((expected.Y - w.Y) / iy);
+            if (VisualMatch.FindAnyScale(spot.Image, image, hintX, hintY, 1 / ix, Math.Sqrt(sx * sy) / ix) is not { } found) continue;
+            if (best is null || found.Hit.Score > best.Value.Score)
+                best = ((w.X + (int)Math.Round(found.Hit.X * ix), w.Y + (int)Math.Round(found.Hit.Y * iy)), w, found.Hit.Score);
+            if (found.Hit.Score >= 0.95) break;
+        }
+        if (best is not { } b)
+        {
+            _fl.Log("CLICK", "shared macro: button image not found in any FL window");
+            return null;
+        }
+        _fl.Log("CLICK", $"shared macro: button found by its image (score {b.Score.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)})");
+        return (b.Point, b.Window);
+    }
+
+    /// Point d'une fenêtre de plugin d'une macro partagée : la fenêtre de la même taille, sinon la seule fenêtre (hors
+    /// fenêtre principale) de la même forme, au même endroit en proportion. Sur Windows aucun titre n'est lu : deux
+    /// fenêtres de cette forme, c'est trop incertain.
+    private ((int X, int Y) Point, FlWin Window)? LoosePluginPoint(ClickTarget.FlWindowPoint p)
+    {
+        if (p.Size is not { } size) return null;
+        var windows = _fl.Windows().Where(w => w.Role != FlWindowRole.Menu).ToList();
+        if (windows.FirstOrDefault(w => SameSize(w, size)) is { Width: > 0 } same) return (Point(same, p.Corner, p.Dx, p.Dy), same);
+        var aspect = size.Width / size.Height;
+        var shaped = windows.Where(w => w.Role != FlWindowRole.Main
+                                        && Math.Abs(w.Width / (double)Math.Max(1, w.Height) / aspect - 1) <= 0.03).ToList();
+        if (shaped.Count != 1) return null;
+        var win = shaped[0];
+        return (Point(win, p.Corner, p.Dx * win.Width / size.Width, p.Dy * win.Height / size.Height), win);
+    }
+
+    private ((int X, int Y) Point, FlWin Window)? LooseSpot(ClickTarget target) => target switch
+    {
+        ClickTarget.Named { Spot.Loose: true } n => LooseNamed(n.Spot),
+        ClickTarget.Button { Spot.Loose: true } b => LooseButton(b.Spot),
+        ClickTarget.FlWindowPoint { Loose: true } w => LoosePluginPoint(w),
+        _ => null,
+    };
+
     /// Point visé, et le menu dans lequel il doit tomber (cible « menu ouvert »).
     private ((int X, int Y) Point, FlWin? Popup)? Resolve(ClickTarget target)
     {
+        if (target.IsLoose) return LooseSpot(target) is { } loose ? (loose.Point, null) : null;
         switch (target)
         {
             case ClickTarget.StartCursor s:
@@ -280,6 +367,8 @@ public sealed partial class MacroEffectsWindows
     private Spot? Locate(ClickTarget target)
     {
         var baseline = _beforeLastClick ?? _start;
+        if (target.IsLoose)
+            return LooseSpot(target) is { } loose ? new Spot(loose.Point.X, loose.Point.Y, null, !baseline.Contains(loose.Window.Id)) : null;
         switch (target)
         {
             case ClickTarget.FlWindowPoint { Size: { } size } w:
@@ -315,6 +404,7 @@ public sealed partial class MacroEffectsWindows
     /// Fenêtre (taille retenue) ou menu de FL : attendu s'il n'est pas encore là. Autres cibles : jamais attendues.
     private static int? AppearTimeout(ClickTarget target) => target switch
     {
+        _ when target.IsLoose => WindowAppearMs,
         ClickTarget.FlWindowPoint { Size: not null } or ClickTarget.Named or ClickTarget.Button => WindowAppearMs,
         ClickTarget.OpenMenu => MenuAppearMs,
         _ => null,
@@ -322,6 +412,8 @@ public sealed partial class MacroEffectsWindows
 
     private static string Missing(ClickTarget target) => target switch
     {
+        ClickTarget.FlWindowPoint { Loose: true } => Loc.T("fenêtre du plugin de la macro partagée introuvable dans FL"),
+        _ when target.IsLoose => Loc.T("bouton de la macro partagée introuvable dans FL"),
         ClickTarget.FlWindowPoint { Size: { } size } =>
             Loc.F("fenêtre de FL de %lld × %lld introuvable : remontre le clic",
                 (long)size.Width, (long)size.Height),
@@ -360,7 +452,7 @@ public sealed partial class MacroEffectsWindows
                 else previous = null;
                 if (elapsed >= timeout) break;
                 if (StopReason() is { } stop) return new StepResult.Cancel(stop);
-                _fl.Sleep(15);
+                _fl.Sleep(target.IsLoose ? 600 : 15);             // recherche dans toutes les fenêtres : 5 fois au plus
                 found = Locate(target);
             }
             var ms = (int)(_fl.Now - t0).TotalMilliseconds;

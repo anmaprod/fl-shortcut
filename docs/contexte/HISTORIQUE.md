@@ -1284,6 +1284,30 @@ entrée 1 ≈ 0,5 s.
   choisi », lettres soulignées, « Clique dans FL. », liste des plugins), l'Aide (formulaire, envoi) et l'Organiser
   (attentes, fin, détails). Avertissements raccourcis à leur première moitié (« FL Shortcuts n'a pas accès au
   clavier. », « Touche aussi utilisée par « X ». », « Rien n'utilise ⌘K. »). 74 traductions retirées.
+- 16/11 soir (essai sur PC, « j'essaye de changer un raccourci ça crash et c'est pas du tout le même que sur mac ») :
+  cause trouvée dans le code : le clic sur la case de la touche faisait aussi le `Tapped` de la ligne, donc deux fiches
+  l'une sur l'autre ; WinUI refuse la deuxième (« Only a single ContentDialog… ») et l'erreur, dans une méthode async
+  void, fermait l'appli. Corrigé : un clic sur un bouton d'une ligne ne remonte plus (raccourcis, macros ; les cartes
+  de la Communauté le faisaient déjà) ; toutes les boîtes passent par `ShowSafeAsync` (jamais deux, erreur notée au
+  journal). Fiche « Touche » de Windows refaite comme celle du Mac, questions au style suisse comme `SwissDialog`.
+  « Nouvelle macro » ouvre directement le créateur (Mac et Windows), plus de menu Enregistrer / Macro vide / Modèle ni
+  de fenêtre des modèles ; guide mis à jour. Pas encore vu sur un PC.
+- 16/11 (suite, « le loopmidi installation de lien a été oublié pour win », réponse « Installer avec l'appli ») :
+  l'installeur Windows propose une case cochée « Installer loopMIDI » quand son pilote manque ; loopMIDI est
+  téléchargé sur le site de son auteur pendant l'installation (pas copié dans notre installeur : il faudrait
+  l'accord de son auteur), reconnu à son empreinte SHA-256, puis son installeur tourne avec une barre de progression seule.
+  Les boutons « Installer loopMIDI » de l'accueil et de l'Organiser font la même chose depuis l'appli (avant : ils
+  ouvraient seulement la page). Textes : plus « puis ferme-le », mais « clique Oui si Windows le demande ». Pas encore
+  vu sur un PC.
+- 17/11 : nouvelles directions graphiques (« le logiciel n'est pas du tout assez beau… regarde ce que les pros font »)
+  : 4 propositions sur 3 écrans (A Index, B Studio, C Instrument, D Affiche ; artefact privé
+  `S9Fsbeo6fuSChhDWSUfARE`). Choix : « J'aime bien le A », pour tout le monde, thèmes Noir et Orange gardés avec un
+  compte. Fait sur Mac et Windows : papier clair par défaut, polices Inter / Inter Display intégrées, barre de gauche
+  numérotée, surtitres et très grands titres, touches dans un cadre (rouge plein si changées), Trouver et Macros en
+  tableaux numérotés. Pas encore vu sur son Mac.
+- 17/11 : guide Windows animé comme le Mac (titre puis lignes qui arrivent l'un après l'autre, ancienne page qui
+  monte en s'effaçant). Direction A : bandeau « pas d'accès au clavier » du Mac remis dans la colonne de la page,
+  titre Windows aligné sur la liste (photos de la CI du 17/11 relues : polices Inter bien chargées des deux côtés).
 - 19/11 (« que notre logiciel puisse être corrigé sans que les gens soient obligés de réinstaller l'appli ») : mises à
   jour toutes seules, Mac et Windows (choix : installée toute seule quand FL est fermé ; une version part chez tout le
   monde seulement quand le propriétaire dit « publie »). Fichier `mise-a-jour.json` signé (ECDSA P-256) dans chaque

@@ -172,7 +172,7 @@ internal static class CopyApprovalPrompt
         bottom.Children.Add(later);
         body.Children.Add(bottom);
         dialog.Content = body;
-        await dialog.ShowAsync();
+        await dialog.ShowSafeAsync();
         return answer;
     }
 
@@ -192,7 +192,7 @@ internal static class CopyApprovalPrompt
         var body = Message(Orange, "", message, buttons);
         body.Children.RemoveAt(1);                    // pas de titre : le message suffit
         dialog.Content = body;
-        await dialog.ShowAsync();
+        await dialog.ShowSafeAsync();
         return answer;
     }
 

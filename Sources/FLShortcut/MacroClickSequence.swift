@@ -456,6 +456,9 @@ struct RecordedClick: Equatable {
     /// Nom du bouton cliqué (« FILE », « Insert 1 »), lu dans la fenêtre de FL juste après le clic, et où tombait le
     /// clic par rapport au centre de ce nom.
     var named: NamedHit? = nil
+    /// Image du bouton cliqué quand il n'a pas de nom : sert seulement à le retrouver chez un autre ordinateur si la macro
+    /// est partagée (ClickTarget.portable).
+    var look: ButtonLook? = nil
     /// Bouton gauche relâché loin de l'appui : un glisser-déposer (où il est lâché, et les fenêtres de FL à ce moment).
     var release: RecordedRelease? = nil
 }
@@ -531,9 +534,17 @@ enum ClickSequenceCompiler {
     static let maxTimes = 20
     static let maxMenuLetters = 8
 
+    /// Pure (testée) : clic gardé à sa place, avec l'image du bouton dessous, qui ne sert qu'à le retrouver dans le FL d'un
+    /// autre ordinateur quand la macro est partagée (miroir de MacroDrafts.WithLook, Windows). Sinon inchangé.
+    static func withLook(_ target: ClickTarget, _ look: ButtonLook?) -> ClickTarget {
+        guard let look, look.isValid,
+              case .flWindow(let corner, let dx, let dy, let size?, let title, .none, let loose) = target else { return target }
+        return .flWindow(corner: corner, dx: dx, dy: dy, size: size, title: title, look: look, loose: loose)
+    }
+
     /// Clic dans une fenêtre de FL sur un bouton qui porte un nom : retenu par ce nom (sa place reste le repli).
     static func named(_ target: ClickTarget, _ hit: NamedHit?) -> ClickTarget {
-        guard let hit, case .flWindow(let corner, let dx, let dy, let size?, let title) = target else { return target }
+        guard let hit, case .flWindow(let corner, let dx, let dy, let size?, let title, _, _) = target else { return target }
         let spot = NamedSpot(label: hit.label, dx: hit.dx, dy: hit.dy, corner: corner, px: dx, py: dy, size: size, title: title)
         return spot.isValid ? .named(spot) : target
     }
@@ -641,7 +652,8 @@ enum ClickSequenceCompiler {
                 out.append(.drag(from: Self.named(target, c.named), to: to))
                 continue
             }
-            out.append(.click(Self.named(target, c.named), button: c.right ? .right : .left))
+            // Nom du bouton, sinon sa place avec son image (pour le retrouver chez un autre si la macro est partagée).
+            out.append(.click(Self.withLook(Self.named(target, c.named), c.look), button: c.right ? .right : .left))
         }
         if openBar != nil { ignored += 1 }
         return Result(blocks: out, ignored: ignored)
@@ -932,12 +944,23 @@ final class ClickSequenceRecorder: ObservableObject {
         append(RecordedClick(point: p, right: event.type == .rightMouseDown, windows: before.fl, menu: menu, title: title))
         if readName, let window {
             TextLook.lookup(at: p, window: window) { [weak self] found in
-                defer { group.leave() }
-                guard let self, let found, index < self.inputs.count,
-                      case .click(var click) = self.inputs[index], click.point == p else { return }
-                // Lu sur l'appui (le relâché d'un glisser-déposer a pu s'ajouter depuis : il est gardé).
-                click.named = NamedHit(label: found.label, dx: found.dx, dy: found.dy)
-                self.inputs[index] = .click(click)
+                guard let self, index < self.inputs.count,
+                      case .click(var click) = self.inputs[index], click.point == p else { group.leave(); return }
+                if let found {
+                    // Lu sur l'appui (le relâché d'un glisser-déposer a pu s'ajouter depuis : il est gardé).
+                    click.named = NamedHit(label: found.label, dx: found.dx, dy: found.dy)
+                    self.inputs[index] = .click(click)
+                    group.leave()
+                    return
+                }
+                // Sans nom : l'image du bouton, pour le retrouver chez un autre si la macro est partagée.
+                ButtonLook.capture(at: p, window: window) { [weak self] look in
+                    defer { group.leave() }
+                    guard let self, let look, index < self.inputs.count,
+                          case .click(var click) = self.inputs[index], click.point == p else { return }
+                    click.look = look
+                    self.inputs[index] = .click(click)
+                }
             }
         }
     }

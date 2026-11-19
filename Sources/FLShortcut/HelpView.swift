@@ -81,11 +81,13 @@ struct HelpPage: View {
                         .id("form")
                     }
                 }
-                .padding(.horizontal, 26)
+                // Direction A (17/11) : la colonne du titre (avant : 26 points du bord, plus à gauche que lui).
+                .readableColumn()
                 .padding(.top, 10)
                 .padding(.bottom, 24)
                 .background(WidthReader { width in
-                    let fits = width >= 640
+                    // Largeur de la colonne (avant : la page moins 2 × 26 ; deux colonnes dès 588 de colonne).
+                    let fits = min(width - 2 * ReadableLayout.inset, ReadableLayout.maxWidth) >= 588
                     if fits != wide { wide = fits }
                 })
             }

@@ -110,6 +110,8 @@ cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 # Les icônes de FL (grille « Change icon… »), pour le choix d'icône de l'Organiser et du bloc « Nom et couleur ».
 cp Resources/FLIcons.png "$APP/Contents/Resources/FLIcons.png"
 cp Resources/MIDISettings.png "$APP/Contents/Resources/MIDISettings.png"   # fenêtre MIDI Settings entourée (lien avec FL)
+# Polices de la direction A (17/11) : Inter et Inter Display, licence OFL (Info.plist : ATSApplicationFontsPath).
+cp -R Resources/Fonts "$APP/Contents/Resources/"
 # IA intégrée de l'Organiser (famille et sorte des sons) : le modèle Core ML compilé ici ; sans compilateur (outils
 # sans Xcode), le paquet est copié tel quel et l'app le compile à sa première écoute.
 if [[ -d Resources/ClasseurSons.mlpackage ]]; then

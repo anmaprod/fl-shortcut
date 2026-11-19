@@ -701,7 +701,8 @@ private struct CommunityShareDetail: View {
         }
         do {
             switch share.kind {
-            case .macro: content = .macro(try MacroExchange.prepareImport(data, layout: store.layout))
+            case .macro: content = .macro(try MacroExchange.prepareImport(data, layout: store.layout,
+                                                                         installed: MacroExchange.installedPluginNames))
             case .profile: content = .profile(try store.prepareImport(data))
             }
         } catch {
@@ -720,6 +721,8 @@ private struct CommunityShareDetail: View {
         switch content {
         case .macro(let preview):
             var doc = preview.doc
+            // Presets joints au partage : rangés dans Documents › FL Shortcuts › Presets (jamais par-dessus un autre).
+            if let why = MacroExchange.writeAttached(preview.files) { Dialogs.inform(String(localized: "Preset"), why) }
             doc.name = store.library.uniqueName(doc.name)
             _ = store.library.add(doc)
             added(ToastMessage(text: String(localized: """
@@ -768,8 +771,7 @@ struct CommunitySignIn: View {
                 }
             }
             .softSwitch(community.pendingCode == nil ? 0 : 1, quick: true)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 26)
+            .readableColumn()                     // direction A : la colonne du titre
             .padding(.top, 18)
             .padding(.bottom, 32)
         }

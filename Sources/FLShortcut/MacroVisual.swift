@@ -13,6 +13,7 @@
 //   point près autour des meilleures places ; à score presque égal, la plus proche de l'endroit montré.
 import AppKit
 import CoreGraphics
+import Foundation
 import ScreenCaptureKit
 import Vision
 
@@ -27,6 +28,9 @@ struct NamedSpot: Equatable {
     let py: Double
     let size: CGSize
     var title: String? = nil
+    /// Venu d'une macro partagée (autre ordinateur) : cherché par son nom dans n'importe quelle fenêtre de FL, sa place
+    /// seulement dans une fenêtre de la même taille.
+    var loose = false
 
     /// La même place, sans le nom.
     var place: ClickTarget { .flWindow(corner: corner, dx: px, dy: py, size: size, title: title) }
@@ -190,6 +194,9 @@ struct VisualSpot: Equatable {
     let side: Int
     /// Niveaux de gris, ligne par ligne (side × side).
     let pixels: [UInt8]
+    /// Venu d'une macro partagée : cherché à son image dans toutes les fenêtres de FL, à toutes les échelles (écran
+    /// Retina, Windows à 125 ou 150 %), jamais à sa place à l'aveugle.
+    var loose = false
 
     static let sides = 12...64
     static let defaultSide = 26
@@ -205,6 +212,46 @@ struct VisualSpot: Equatable {
     }
 
     var image: GrayImage { GrayImage(width: side, height: side, pixels: pixels) }
+}
+
+/// Image du bouton sous un clic montré, retenue avec sa place sans rien changer au clic sur ce Mac : elle permet de
+/// retrouver ce bouton dans le FL d'un autre ordinateur quand la macro est partagée (miroir de ButtonLook, Windows).
+struct ButtonLook: Equatable {
+    let side: Int
+    let pixels: [UInt8]
+
+    var isValid: Bool { VisualSpot.sides.contains(side) && pixels.count == side * side }
+
+    init(side: Int, pixels: [UInt8]) {
+        self.side = side
+        self.pixels = pixels
+    }
+
+    init?(json: JSONValue?) {
+        guard let side = json?["side"]?.int, let encoded = json?["pixels"]?.string,
+              let data = Data(base64Encoded: encoded) else { return nil }
+        self.init(side: side, pixels: [UInt8](data))
+        guard isValid else { return nil }
+    }
+
+    var json: JSONValue { .object(["side": .number(Double(side)), "pixels": .string(Data(pixels).base64EncodedString())]) }
+}
+
+extension ButtonLook {
+    /// Image du bouton sous `point` dans la fenêtre de FL `window`, lue une fois (jamais gardée ailleurs), assez contrastée
+    /// pour être reconnue ; nil sinon (lecture de l'écran pas autorisée, fond uni).
+    static func capture(at point: CGPoint, window: WinInfo, completion: @escaping (ButtonLook?) -> Void) {
+        guard window.number > 0, MacroEffectsMac.canRead else { completion(nil); return }
+        ScreenLook.capture(windowNumber: window.number, size: window.bounds.size) { image in
+            let patch = image.flatMap { image -> GrayImage? in
+                let cx = Int((point.x - window.bounds.minX) * CGFloat(image.width) / window.bounds.width)
+                let cy = Int((point.y - window.bounds.minY) * CGFloat(image.height) / window.bounds.height)
+                return image.crop(centerX: cx, centerY: cy, side: VisualSpot.defaultSide)
+            }
+            guard let patch, patch.contrast >= VisualMatch.minContrast else { completion(nil); return }
+            completion(ButtonLook(side: patch.width, pixels: patch.pixels))
+        }
+    }
 }
 
 /// Image en niveaux de gris (8 bits).
@@ -234,6 +281,25 @@ struct GrayImage: Equatable {
         for row in 0..<h {
             let from = (y + row) * width + x
             for col in 0..<w { out[row * w + col] = pixels[from + col] }
+        }
+        return GrayImage(width: w, height: h, pixels: out)
+    }
+
+    /// Agrandie ou réduite (interpolation bilinéaire) : `scale` 1,5 → 1,5 fois plus grande. Au moins 1 × 1.
+    func resized(_ scale: Double) -> GrayImage {
+        let w = max(1, Int((Double(width) * scale).rounded())), h = max(1, Int((Double(height) * scale).rounded()))
+        guard w != width || h != height else { return self }
+        var out = [UInt8](repeating: 0, count: w * h)
+        for y in 0..<h {
+            let fy = min(max((Double(y) + 0.5) * Double(height) / Double(h) - 0.5, 0), Double(height - 1))
+            let y0 = Int(fy), y1 = min(y0 + 1, height - 1), ty = fy - Double(y0)
+            for x in 0..<w {
+                let fx = min(max((Double(x) + 0.5) * Double(width) / Double(w) - 0.5, 0), Double(width - 1))
+                let x0 = Int(fx), x1 = min(x0 + 1, width - 1), tx = fx - Double(x0)
+                let top = Double(self[x0, y0]) * (1 - tx) + Double(self[x1, y0]) * tx
+                let bottom = Double(self[x0, y1]) * (1 - tx) + Double(self[x1, y1]) * tx
+                out[y * w + x] = UInt8((top * (1 - ty) + bottom * ty).rounded())
+            }
         }
         return GrayImage(width: w, height: h, pixels: out)
     }
@@ -278,6 +344,28 @@ enum VisualMatch {
         let x: Int
         let y: Int
         let score: Double
+    }
+
+    /// Échelles essayées pour un bouton venu d'un autre ordinateur : écran Retina (2), Windows à 125, 150, 175 %, et
+    /// l'inverse ; `likely` (rapport des tailles de fenêtre) d'abord. Miroir de VisualMatch.CommonScales (Windows).
+    static let commonScales: [Double] = [1, 1.25, 1.5, 1.75, 2, 0.8, 2.0 / 3, 0.5]
+
+    /// Pure (testée) : comme `find`, mais le bouton peut être dessiné plus grand ou plus petit (autre écran, autre réglage
+    /// d'échelle) ; le meilleur score de toutes les échelles (au moins `threshold`), et l'échelle trouvée.
+    static func findAnyScale(_ patch: GrayImage, in image: GrayImage, hint: (x: Int, y: Int),
+                             likely: [Double] = []) -> (hit: Hit, scale: Double)? {
+        var best: (hit: Hit, scale: Double)?
+        var tried: [Double] = []
+        for scale in likely + commonScales {
+            guard scale.isFinite, scale >= 0.3, scale <= 3.5, !tried.contains(where: { abs($0 - scale) < 0.04 }) else { continue }
+            tried.append(scale)
+            let sized = patch.resized(scale)
+            guard sized.width >= 8, sized.width <= image.width, sized.height <= image.height,
+                  let hit = find(sized, in: image, hint: hint) else { continue }
+            if best == nil || hit.score > best!.hit.score + 0.005 { best = (hit, scale) }
+            if hit.score >= 0.95 { break }
+        }
+        return best
     }
 
     /// Pure (testée) : place du bouton `patch` dans `image`, ou nil s'il n'y est pas. `hint` : centre attendu (endroit

@@ -199,7 +199,13 @@ internal static class MacroRecorder
         var named = 0;
         foreach (var (index, shot, x, y) in shots)
         {
-            if (inputs[index] is not RecordedInput.Click click || FlScreen.NameAt(shot, x, y) is not { } name) continue;
+            if (inputs[index] is not RecordedInput.Click click) continue;
+            // Image du bouton (sert au partage seulement : retrouvé chez un autre ordinateur) ; jamais gardée ailleurs.
+            if (FlScreen.NameAt(shot, x, y) is not { } name)
+            {
+                inputs[index] = click with { Look = FlScreen.PatchAt(shot, x, y) };
+                continue;
+            }
             inputs[index] = click with { Named = name };
             named++;
         }
