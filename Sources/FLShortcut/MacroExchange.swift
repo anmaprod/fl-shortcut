@@ -57,10 +57,140 @@ enum MacroExchange {
         }
     }
 
-    static func export(_ doc: MacroDoc, appVersion: String, home: String = NSHomeDirectory()) throws -> Data {
+    // MARK: Presets joints (19/11 : « le preset part avec la macro ») — miroir de MacroExchange.cs (Windows)
+
+    /// Un preset joint : 150 Ko au plus chacun, 180 Ko en tout (le fichier partagé fait 256 Ko au plus).
+    static let maxAttachedBytes = 150 * 1024
+    static let maxAttachedTotal = 180 * 1024
+
+    /// Preset d'une macro importée à écrire sur ce Mac (Documents › FL Shortcuts › Presets) quand on l'ajoute.
+    struct AttachedFile: Equatable {
+        let path: String
+        let data: Data
+    }
+
+    /// Nom de fichier sûr : le dernier élément du chemin, sans caractère de contrôle ni séparateur, 80 caractères au
+    /// plus, toujours en .fst ; nil sinon (jamais d'autre sorte de fichier).
+    static func safePresetName(_ name: String?) -> String? {
+        guard let name else { return nil }
+        let last = name.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last.map(String.init) ?? ""
+        var scalars = String.UnicodeScalarView()
+        for u in last.unicodeScalars where !CharacterSet.controlCharacters.contains(u) && !":*?\"<>|".unicodeScalars.contains(u) {
+            scalars.append(u)
+        }
+        let clean = String(scalars).trimmingCharacters(in: .whitespaces)
+        guard clean.count >= 5, !clean.hasPrefix("."), clean.lowercased().hasSuffix(".fst") else { return nil }
+        return clean.count <= 80 ? clean : String(clean.prefix(76)) + ".fst"
+    }
+
+    /// Lecture sûre d'un preset à joindre : fichier .fst ordinaire (pas un lien), 150 Ko au plus ; nil sinon.
+    static func readPreset(_ path: String) -> Data? {
+        guard (path as NSString).pathExtension.lowercased() == "fst",
+              let attrs = try? FileManager.default.attributesOfItem(atPath: path),
+              attrs[.type] as? FileAttributeType == .typeRegular,
+              let size = attrs[.size] as? Int, size <= maxAttachedBytes else { return nil }
+        return try? Data(contentsOf: URL(fileURLWithPath: path))
+    }
+
+    private static func isFileBlock(_ o: [String: JSONValue]) -> Bool {
+        o["type"]?.string == "chooseFile" || o["type"]?.string == "dropFile"
+    }
+
+    /// Chaque preset (Ouvrir un preset, preset glissé) part avec la macro, tant qu'il est lisible et que le total tient.
+    private static func attach(_ v: JSONValue, home: String, read: (String) -> Data?, total: inout Int) -> JSONValue {
+        switch v {
+        case .object(var o):
+            if isFileBlock(o), let path = o["path"]?.string, let name = safePresetName(path),
+               let bytes = read(absolute(path, home: home)), bytes.count <= maxAttachedBytes,
+               total + bytes.count <= maxAttachedTotal {
+                o["attached"] = .object(["name": .string(name), "data": .string(bytes.base64EncodedString())])
+                total += bytes.count
+            }
+            for (k, child) in o where k != "attached" { o[k] = attach(child, home: home, read: read, total: &total) }
+            return .object(o)
+        case .array(let a):
+            var out: [JSONValue] = []
+            for child in a { out.append(attach(child, home: home, read: read, total: &total)) }
+            return .array(out)
+        default:
+            return v
+        }
+    }
+
+    /// Presets joints d'un fichier importé : le même fichier déjà là (chemin d'origine ou dossier des presets) est repris
+    /// tel quel ; sinon écrit dans `presets` sous un nom libre (« Bass 2.fst »), jamais par-dessus un autre fichier. Le
+    /// chemin du bloc devient celui de ce Mac ; la clé « attached » est retirée.
+    private static func unpack(_ v: JSONValue, home: String, presets: String, existing: (String) -> Data?,
+                               files: inout [AttachedFile]) -> JSONValue {
+        switch v {
+        case .object(var o):
+            if isFileBlock(o), let att = o["attached"] {
+                o["attached"] = nil
+                if let encoded = att["data"]?.string, encoded.count <= maxAttachedBytes * 4 / 3 + 8,
+                   let bytes = Data(base64Encoded: encoded), !bytes.isEmpty, bytes.count <= maxAttachedBytes,
+                   let name = safePresetName(att["name"]?.string) {
+                    let original = o["path"]?.string.map { absolute($0, home: home) }
+                    if let original, let there = existing(original), there == bytes {
+                        o["path"] = .string(original)
+                    } else {
+                        let folder = presets.hasSuffix("/") ? String(presets.dropLast()) : presets
+                        let stem = String(name.dropLast(4))
+                        for n in 1...50 {
+                            let dest = folder + "/" + (n == 1 ? name : "\(stem) \(n).fst")
+                            let onDisk = files.first(where: { $0.path == dest })?.data ?? existing(dest)
+                            if let onDisk, onDisk != bytes { continue }
+                            o["path"] = .string(dest)
+                            if onDisk == nil { files.append(AttachedFile(path: dest, data: bytes)) }
+                            break
+                        }
+                    }
+                }
+            }
+            for (k, child) in o {
+                o[k] = unpack(child, home: home, presets: presets, existing: existing, files: &files)
+            }
+            return .object(o)
+        case .array(let a):
+            var out: [JSONValue] = []
+            for child in a { out.append(unpack(child, home: home, presets: presets, existing: existing, files: &files)) }
+            return .array(out)
+        default:
+            return v
+        }
+    }
+
+    /// Dossier des presets joints : Documents › FL Shortcuts › Presets.
+    static func presetsFolder(home: String) -> String {
+        (home.hasSuffix("/") ? home : home + "/") + "Documents/FL Shortcuts/Presets"
+    }
+
+    /// Écrit les presets joints d'une macro qu'on ajoute (Documents › FL Shortcuts › Presets, fichiers 0600) ; un
+    /// fichier déjà là n'est jamais remplacé. La raison si l'un n'a pas pu être écrit, sinon nil.
+    static func writeAttached(_ files: [AttachedFile]) -> String? {
+        let fm = FileManager.default
+        for f in files {
+            guard safePresetName(f.path) != nil, f.data.count <= maxAttachedBytes else { continue }
+            let url = URL(fileURLWithPath: f.path)
+            do {
+                try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                if fm.fileExists(atPath: f.path) { continue }
+                try f.data.write(to: url, options: .withoutOverwriting)
+                try? fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: f.path)
+            } catch {
+                if fm.fileExists(atPath: f.path) { continue }
+                return String(localized: "un preset joint n'a pas pu être enregistré dans Documents › FL Shortcuts › Presets")
+            }
+        }
+        return nil
+    }
+
+    static func export(_ doc: MacroDoc, appVersion: String, home: String = NSHomeDirectory(),
+                       read: (String) -> Data? = readPreset) throws -> Data {
+        var total = 0
+        let blocks = attach(.array(sharable(doc.blocks, home: home).map(\.json)), home: home, read: read, total: &total)
         var macro: [String: JSONValue] = [
             "name": .string(doc.name),
-            "blocks": .array(sharable(doc.blocks, home: home).map(\.json)),
+            "blocks": blocks,
         ]
         if !doc.variables.isEmpty {
             macro["variables"] = .array(doc.variables.map {
@@ -107,16 +237,25 @@ enum MacroExchange {
         var warnings: [String]
         /// Blocs à relire, dans tout l'arbre (touches, clics, fichiers, lien avec FL, blocs cachés de l'ancien format).
         var sensitiveCount: Int
+        /// Presets joints à écrire quand on ajoute la macro (writeAttached).
+        var files: [AttachedFile] = []
     }
 
-    static func prepareImport(_ data: Data, home: String = NSHomeDirectory(), layout: KeyboardLayout) throws -> Preview {
+    /// `presets` : dossier des presets joints (Documents › FL Shortcuts › Presets) ; `existing` : contenu d'un fichier déjà
+    /// sur ce Mac (nil : absent).
+    static func prepareImport(_ data: Data, home: String = NSHomeDirectory(), layout: KeyboardLayout,
+                              presets: String? = nil, existing: (String) -> Data? = readPreset) throws -> Preview {
         guard data.count <= maxBytes else { throw Failure.tooLarge }
         guard let json = try? JSONDecoder().decode(JSONValue.self, from: data),
               json["format"]?.string == format, let macro = json["macro"], case .object = macro else {
             throw Failure.notAMacro
         }
         guard (json["version"]?.int ?? 1) <= version else { throw Failure.newerVersion }
-        guard let list = macro["blocks"]?.array else { throw Failure.notAMacro }
+        guard let raw = macro["blocks"]?.array else { throw Failure.notAMacro }
+        var files: [AttachedFile] = []
+        let presetFolder = presets ?? presetsFolder(home: home)
+        var list: [JSONValue] = []
+        for v in raw { list.append(unpack(v, home: home, presets: presetFolder, existing: existing, files: &files)) }
         let parsed = list.map { Block(json: $0) }
         guard MacroValidation.count(parsed) <= MacroValidation.maxBlocks else {
             throw Failure.invalid(String(localized: "Macro trop longue (\(MacroValidation.maxBlocks) blocs au plus)."))
@@ -140,9 +279,11 @@ enum MacroExchange {
         var lines: [String] = []
         var warnings: [String] = []
         var sensitive = 0
+        let joined = Set(filePaths(blocks).filter { $0.hasPrefix(presetFolder) })
         describe(blocks, prefix: "", offset: 0, depth: 0, layout: layout, lines: &lines, warnings: &warnings,
-                 sensitive: &sensitive)
-        return Preview(doc: doc, lines: lines, warnings: Array(Set(warnings)).sorted(), sensitiveCount: sensitive)
+                 sensitive: &sensitive, joined: joined)
+        return Preview(doc: doc, lines: lines, warnings: Array(Set(warnings)).sorted(), sensitiveCount: sensitive,
+                       files: files)
     }
 
     /// Chemins « ~/… » rendus absolus dans le dossier personnel de cette machine ; chaque clic reste retrouvable ici
@@ -167,8 +308,21 @@ enum MacroExchange {
         }
     }
 
+    /// Chemins des presets de toute la macro (Ouvrir un preset, preset glissé).
+    private static func filePaths(_ blocks: [Block]) -> [String] {
+        blocks.flatMap { b -> [String] in
+            var own: [String] = []
+            switch b.body {
+            case .chooseFile(let path), .dropFile(let path): own = [path]
+            default: break
+            }
+            return own + b.body.children.flatMap { filePaths($0) }
+        }
+    }
+
     private static func describe(_ blocks: [Block], prefix: String, offset: Int, depth: Int, layout: KeyboardLayout,
-                                 lines: inout [String], warnings: inout [String], sensitive: inout Int) {
+                                 lines: inout [String], warnings: inout [String], sensitive: inout Int,
+                                 joined: Set<String>) {
         for (i, b) in blocks.enumerated() {
             let path = MacroValidation.path(prefix, offset + i + 1)
             let indent = String(repeating: "    ", count: depth)
@@ -197,7 +351,11 @@ enum MacroExchange {
                 } else if case .drag = b.body {
                     marks.append(String(localized: "glisser dans FL"))
                 }
-                if b.body.type == .chooseFile || b.body.type == .dropFile {
+                if case .chooseFile(let path) = b.body, joined.contains(path) {
+                    marks.append(String(localized: "preset joint"))
+                } else if case .dropFile(let path) = b.body, joined.contains(path) {
+                    marks.append(String(localized: "preset joint"))
+                } else if b.body.type == .chooseFile || b.body.type == .dropFile {
                     marks.append(String(localized: "fichier"))
                     warnings.append(String(localized: "Rechoisis le preset : le fichier doit exister sur ce Mac."))
                 }
@@ -217,7 +375,7 @@ enum MacroExchange {
             lines.append("\(indent)\(path). \(text)")
             for (start, child) in MacroValidation.childLists(b.body) {
                 describe(child, prefix: path, offset: start, depth: depth + 1, layout: layout, lines: &lines,
-                         warnings: &warnings, sensitive: &sensitive)
+                         warnings: &warnings, sensitive: &sensitive, joined: joined)
             }
         }
     }

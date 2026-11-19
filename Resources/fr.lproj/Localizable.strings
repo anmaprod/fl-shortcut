@@ -2575,6 +2575,7 @@
 "preset .fst attendu dans ton dossier personnel." = "preset .fst attendu dans ton dossier personnel.";
 "preset .fst attendu." = "preset .fst attendu.";
 "preset introuvable (%@)" = "preset introuvable (%@)";
+"preset joint" = "preset joint";
 "preset à choisir dans le créateur." = "preset à choisir dans le créateur.";
 "près de la piste visée" = "près de la piste visée";
 "près du clic précédent" = "près du clic précédent";
@@ -2623,6 +2624,7 @@
 "un dégradé ne change pas le nom : retire le nom." = "un dégradé ne change pas le nom : retire le nom.";
 "un dégradé ne pose pas d'icône : retire l'icône." = "un dégradé ne pose pas d'icône : retire l'icône.";
 "un menu de FL est ouvert" = "un menu de FL est ouvert";
+"un preset joint n'a pas pu être enregistré dans Documents › FL Shortcuts › Presets" = "un preset joint n'a pas pu être enregistré dans Documents › FL Shortcuts › Presets";
 "un raccourci personnalisé" = "un raccourci personnalisé";
 "un symbole" = "un symbole";
 "un temps fixe" = "un temps fixe";

@@ -93,6 +93,40 @@ final class SharedMacroClicksTests: XCTestCase {
                                               hint: (168, 138)))
     }
 
+    // MARK: Presets joints (« le preset part avec la macro »)
+
+    func testThePresetTravelsWithTheMacroAndLandsInThePresetsFolder() throws {
+        let bytes = Data((0..<3000).map { UInt8(($0 * 7) & 0xFF) })
+        let source = "/Users/flshortcuts/Documents/Image-Line/FL Studio/Presets/Bass.fst"
+        let doc = MacroDoc(name: "Basse", blocks: [Block(.dropFile(path: source)), Block(.delay(ms: 100))])
+        let file = try MacroExchange.export(doc, appVersion: "1.2", home: "/Users/flshortcuts",
+                                            read: { $0 == source ? bytes : nil })
+        XCTAssertTrue(String(decoding: file, as: UTF8.self).contains("\"attached\""))
+
+        let presets = "/Users/autre/Documents/FL Shortcuts/Presets"
+        let preview = try MacroExchange.prepareImport(file, home: "/Users/autre", layout: FakeLayout.qwerty,
+                                                      presets: presets, existing: { _ in nil })
+        guard case .dropFile(let path) = preview.doc.blocks[0].body else { return XCTFail("preset glissé attendu") }
+        XCTAssertEqual(path, presets + "/Bass.fst")
+        XCTAssertEqual(preview.files, [MacroExchange.AttachedFile(path: presets + "/Bass.fst", data: bytes)])
+        XCTAssertTrue(preview.lines[0].contains("preset joint"), preview.lines[0])
+        XCTAssertFalse(preview.warnings.contains { $0.contains("Rechoisis") })
+
+        // Un autre fichier du même nom est déjà là : jamais remplacé, « Bass 2.fst ».
+        let taken = try MacroExchange.prepareImport(file, home: "/Users/autre", layout: FakeLayout.qwerty, presets: presets,
+                                                    existing: { $0 == presets + "/Bass.fst" ? Data([1]) : nil })
+        guard case .dropFile(let other) = taken.doc.blocks[0].body else { return XCTFail("preset glissé attendu") }
+        XCTAssertEqual(other, presets + "/Bass 2.fst")
+    }
+
+    func testOnlySafeFstNamesAreKept() {
+        XCTAssertEqual(MacroExchange.safePresetName("/a/b/Bass.fst"), "Bass.fst")
+        XCTAssertEqual(MacroExchange.safePresetName("C:\\x\\Lead.FST"), "Lead.FST")
+        XCTAssertNil(MacroExchange.safePresetName("virus.app"))
+        XCTAssertNil(MacroExchange.safePresetName("../.fst"))
+        XCTAssertNil(MacroExchange.safePresetName(nil))
+    }
+
     func testAnImageCanBeResizedBothWays() {
         let image = window(40, 40, buttonAt: 8, 8, scale: 1)
         XCTAssertEqual(image.resized(1.5).width, 60)

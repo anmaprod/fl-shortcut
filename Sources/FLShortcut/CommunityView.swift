@@ -720,6 +720,8 @@ private struct CommunityShareDetail: View {
         switch content {
         case .macro(let preview):
             var doc = preview.doc
+            // Presets joints au partage : rangés dans Documents › FL Shortcuts › Presets (jamais par-dessus un autre).
+            if let why = MacroExchange.writeAttached(preview.files) { Dialogs.inform(String(localized: "Preset"), why) }
             doc.name = store.library.uniqueName(doc.name)
             _ = store.library.add(doc)
             added(ToastMessage(text: String(localized: """

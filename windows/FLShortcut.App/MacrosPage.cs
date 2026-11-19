@@ -437,6 +437,10 @@ internal sealed class MacrosPage
 
     private static string Home => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
+    /// Presets joints aux macros importées ou ajoutées depuis la Communauté (comme le Mac : Documents › FL Shortcuts › Presets).
+    public static string PresetsFolder =>
+        System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "FL Shortcuts", "Presets");
+
     /// Documents › FL Shortcuts › Macros › Importer (où l'on pose les macros reçues) ou › Exporter (où arrivent les
     /// macros exportées) ; les deux créés ensemble, au premier import ou export.
     private static string ExchangeFolder(bool export)
@@ -510,7 +514,7 @@ internal sealed class MacrosPage
         try
         {
             if (new FileInfo(path).Length > MacroExchange.MaxBytes) throw MacroExchange.ImportFailure.TooLarge;
-            preview = MacroExchange.PrepareImport(File.ReadAllBytes(path), Home);
+            preview = MacroExchange.PrepareImport(File.ReadAllBytes(path), Home, PresetsFolder);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or MacroExchange.ImportFailure or FormatException)
         {
@@ -523,6 +527,8 @@ internal sealed class MacrosPage
                    + (notes.Count == 0 ? "" : "\n\n• " + string.Join("\n• ", notes));
         if (!await AskAsync(Loc.T("Importer cette macro ?"), text, Loc.T("Importer"), Loc.T("Annuler"))) return;
         var doc = preview.Doc;
+        // Presets joints : rangés dans Documents › FL Shortcuts › Presets (jamais par-dessus un autre fichier).
+        if (MacroExchange.WriteAttached(preview.Files ?? Array.Empty<MacroExchange.AttachedFile>()) is { } why) _notice = why;
         doc.Name = _store.UniqueName(doc.Name);
         var added = _store.Add(doc);
         _toast(Loc.F("« %@ » importée", DisplayText.Safe(added.Name, 40)), null);

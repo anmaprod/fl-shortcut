@@ -146,6 +146,75 @@ public sealed class SharedMacroClicksTests
         Assert.Equal(before, fl.Clicks.Count);
     }
 
+    // ---------- Presets joints (« le preset part avec la macro ») ----------
+
+    private static MacroDoc WithPreset(string path) => new()
+    {
+        Name = "Basse",
+        Blocks = new List<Block> { new(new BlockBody.DropFile(path)), new(new BlockBody.Delay(100)) },
+    };
+
+    [Fact]
+    public void ThePresetTravelsWithTheMacroAndLandsInThePresetsFolder()
+    {
+        var bytes = Enumerable.Range(0, 3000).Select(i => (byte)(i * 7)).ToArray();
+        var source = Home + @"\Documents\Image-Line\FL Studio\Presets\Bass.fst";
+        var file = MacroExchange.Export(WithPreset(source), "0.2.0", Home, p => p == source ? bytes : null);
+        Assert.Contains("\"attached\"", System.Text.Encoding.UTF8.GetString(file));
+
+        // Chez l'autre : rien de ce nom, le preset est rangé dans Documents › FL Shortcuts › Presets.
+        const string other = @"C:\Users\autre";
+        const string presets = @"C:\Users\autre\Documents\FL Shortcuts\Presets";
+        var preview = MacroExchange.PrepareImport(file, other, presets, _ => null);
+        var drop = Assert.IsType<BlockBody.DropFile>(preview.Doc.Blocks[0].Body);
+        Assert.Equal(presets + @"\Bass.fst", drop.Path);
+        var written = Assert.Single(preview.Files!);
+        Assert.Equal(bytes, written.Data);
+        Assert.Contains("preset joint", preview.Lines[0]);
+        Assert.DoesNotContain(preview.Warnings, w => w.Contains("Rechoisis"));
+
+        // Un autre fichier du même nom est déjà là : jamais remplacé, « Bass 2.fst ».
+        var taken = MacroExchange.PrepareImport(file, other, presets, p => p == presets + @"\Bass.fst" ? new byte[] { 1 } : null);
+        Assert.Equal(presets + @"\Bass 2.fst", ((BlockBody.DropFile)taken.Doc.Blocks[0].Body).Path);
+        // Le même preset est déjà à sa place d'origine (preset d'usine) : repris tel quel, rien à écrire.
+        var same = MacroExchange.PrepareImport(file, other, presets, p => p == other + @"\Documents\Image-Line\FL Studio\Presets\Bass.fst" ? bytes : null);
+        Assert.Equal(other + @"\Documents\Image-Line\FL Studio\Presets\Bass.fst", ((BlockBody.DropFile)same.Doc.Blocks[0].Body).Path);
+        Assert.Empty(same.Files!);
+    }
+
+    [Fact]
+    public void OnlySmallFstPresetsTravel()
+    {
+        var source = Home + @"\Documents\Bass.fst";
+        var big = MacroExchange.Export(WithPreset(source), "0.2.0", Home, _ => new byte[MacroExchange.MaxAttachedBytes + 1]);
+        Assert.DoesNotContain("\"attached\"", System.Text.Encoding.UTF8.GetString(big));
+        var preview = MacroExchange.PrepareImport(big, @"C:\Users\autre", @"C:\P", _ => null);
+        Assert.Contains(preview.Warnings, w => w.Contains("Rechoisis"));               // pas joint : à rechoisir
+
+        Assert.Equal("Bass.fst", MacroExchange.SafePresetName(@"C:\a\b\Bass.fst"));
+        Assert.Equal("Lead.FST", MacroExchange.SafePresetName("~/x/Lead.FST"));
+        Assert.Null(MacroExchange.SafePresetName("virus.exe"));
+        Assert.Null(MacroExchange.SafePresetName("../.fst"));
+        Assert.Null(MacroExchange.SafePresetName(null));
+    }
+
+    [Fact]
+    public void AttachedPresetsAreWrittenNeverOverAnotherFile()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "fls-presets-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var path = Path.Combine(dir, "Bass.fst");
+            Assert.Null(MacroExchange.WriteAttached(new[] { new MacroExchange.AttachedFile(path, new byte[] { 1, 2, 3 }) }));
+            Assert.Equal(new byte[] { 1, 2, 3 }, File.ReadAllBytes(path));
+            Assert.Null(MacroExchange.WriteAttached(new[] { new MacroExchange.AttachedFile(path, new byte[] { 9 }) }));
+            Assert.Equal(new byte[] { 1, 2, 3 }, File.ReadAllBytes(path));                  // jamais remplacé
+            MacroExchange.WriteAttached(new[] { new MacroExchange.AttachedFile(Path.Combine(dir, "x.exe"), new byte[] { 1 }) });
+            Assert.False(File.Exists(Path.Combine(dir, "x.exe")));                         // jamais autre chose qu'un .fst
+        }
+        finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
+    }
+
     [Fact]
     public void AnImageCanBeResizedBothWays()
     {

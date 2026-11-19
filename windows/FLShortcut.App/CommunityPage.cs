@@ -453,7 +453,7 @@ internal sealed partial class CommunityPage
             }
             if (share.IsMacro)
             {
-                var preview = MacroExchange.PrepareImport(payload, Home);
+                var preview = MacroExchange.PrepareImport(payload, Home, MacrosPage.PresetsFolder);
                 if (_opened?.Id == share.Id) _preview = preview;
             }
             else
@@ -618,9 +618,11 @@ internal sealed partial class CommunityPage
         RenderAbove();
         if (_demo) return;
         var doc = preview.Doc;
+        // Presets joints au partage : rangés dans Documents › FL Shortcuts › Presets (jamais par-dessus un autre fichier).
+        if (MacroExchange.WriteAttached(preview.Files ?? Array.Empty<MacroExchange.AttachedFile>()) is { } why) _toast(why, null);
         doc.Name = _app.Macros.UniqueName(doc.Name);
         _app.Macros.Add(doc);
-        AppLog.Write("COMMUNITY", "macro ajoutée depuis un partage");
+        AppLog.Write("COMMUNITY", $"macro ajoutée depuis un partage, {preview.Files?.Count ?? 0} preset(s) joint(s)");
         var text = Loc.F("« %@ » ajoutée à tes macros : choisis-lui un raccourci dans la page Macros", DisplayText.Safe(doc.Name, 40));
         if (share is { } added)
         {
