@@ -2,8 +2,9 @@
 # Mesure de l'interface sur un vrai macOS (CI GitHub, ou ton Mac) : mémoire (empreinte physique) et processeur
 # de FL Shortcuts, barre des menus seule puis fenêtre ouverte, page Macros, créateur de macros ouvert (sur une macro
 # d'exemple jamais enregistrée) puis refermé (3 cycles, avec le nombre de modèles du créateur vivants avant la
-# première ouverture, témoin à 0, puis après chaque fermeture), page Mixer et recherche « e », avec et sans l'effet
-# Liquid Glass. Détail de l'empreinte par catégorie (footprint) avant le créateur, créateur ouvert, refermé, recherche.
+# première ouverture, témoin à 0, puis après chaque fermeture), page Mixer et recherche « e ». Détail de l'empreinte par
+# catégorie (footprint) avant le créateur, créateur ouvert, refermé, recherche. Un seul passage : plus de réglage du
+# verre (Liquid Glass retiré de l'app le 14/11).
 # Usage : scripts/mesure-interface.sh "dist/FL Shortcuts.app" dossier-de-sortie
 # Résultat : tableau Markdown sur la sortie standard, captures d'écran dans le dossier de sortie.
 # Ne touche à rien d'autre que les préférences de FL Shortcuts (restaurées à la fin).
@@ -86,7 +87,6 @@ SWIFT
 swiftc -O "$MOVE.swift" -o "$MOVE" 2>/dev/null || echo "fls_move : compilation impossible" >&2
 
 had_snap=$(defaults read "$DOMAIN" debugSnapshots 2>/dev/null || echo "")
-had_glass=$(defaults read "$DOMAIN" liquidGlass 2>/dev/null || echo "")
 had_onb=$(defaults read "$DOMAIN" didOnboard 2>/dev/null || echo "")
 had_guide=$(defaults read "$DOMAIN" guideSeen 2>/dev/null || echo "")
 defaults write "$DOMAIN" debugSnapshots -bool YES
@@ -232,10 +232,11 @@ header_test() {   # $1 : rapport gardé (position de la fenêtre)
   "$MOVE" 20 400
 }
 
-run() {   # $1 : libellé, $2 : YES/NO effet verre
-  local label=$1 glass=$2 p
+run() {   # $1 : libellé (début du nom des captures)
+  local label=$1 p
   pkill -x FLShortcut 2>/dev/null; sleep 1
-  defaults write "$DOMAIN" liquidGlass -bool "$glass"
+  # Réglage d'avant le 14/11 (verre), qu'une ancienne mesure a pu laisser : plus lu par l'app, effacé.
+  defaults delete "$DOMAIN" liquidGlass 2>/dev/null || true
   open "$APP"; sleep 6
   p=$(pgrep -x FLShortcut | head -1)
   [[ -z "$p" ]] && { echo "| $label | ne démarre pas | | | | | |"; return; }
@@ -248,19 +249,17 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   # État exact de la fenêtre au moment de la photo (cadre, barre de titre, boutons, listes défilées ou non).
   report "$label-fenetre" >/dev/null
   fit="$(fits "$label-fenetre")"
-  if [[ "$label" == verre ]]; then
-    # 16/11 (maquette « plus lisible ») : « Trouver un raccourci » ; la recherche par le nom y est (« ou tape son
-    # nom ») : la case de texte n'existe qu'en ce mode, essayée là. Plus de cadre du compte en haut (header_test).
-    "$POST" app.flshortcut.debug.select trouver; sleep 2
-    screencapture -x "$OUT/trouver.png" 2>/dev/null || true
-    "$POST" app.flshortcut.debug.search ""; sleep 2
-    screencapture -x "$OUT/trouver-nom.png" 2>/dev/null || true
-    report "$label-trouver" >/dev/null
-    search_test "$label-trouver"
-    "$POST" app.flshortcut.debug.search "pinceau"; sleep 2
-    screencapture -x "$OUT/trouver-resultats.png" 2>/dev/null || true
-    "$POST" app.flshortcut.debug.search ""; "$POST" app.flshortcut.debug.select general; sleep 2
-  fi
+  # 16/11 (maquette « plus lisible ») : « Trouver un raccourci » ; la recherche par le nom y est (« ou tape son
+  # nom ») : la case de texte n'existe qu'en ce mode, essayée là. Plus de cadre du compte en haut (header_test).
+  "$POST" app.flshortcut.debug.select trouver; sleep 2
+  screencapture -x "$OUT/trouver.png" 2>/dev/null || true
+  "$POST" app.flshortcut.debug.search ""; sleep 2
+  screencapture -x "$OUT/trouver-nom.png" 2>/dev/null || true
+  report "$label-trouver" >/dev/null
+  search_test "$label-trouver"
+  "$POST" app.flshortcut.debug.search "pinceau"; sleep 2
+  screencapture -x "$OUT/trouver-resultats.png" 2>/dev/null || true
+  "$POST" app.flshortcut.debug.search ""; "$POST" app.flshortcut.debug.select general; sleep 2
   # Rendu interne de la fenêtre (toute sa hauteur, même si l'écran de test est petit).
   rm -f "$HOME/Library/Caches/$DOMAIN/$label-"*
   "$POST" app.flshortcut.debug.snapshot "$label-fenetre"; sleep 2
@@ -284,153 +283,149 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   "$POST" app.flshortcut.debug.snapshot "$label-macros"; sleep 2
   cp "$HOME/Library/Caches/$DOMAIN/$label-macros-"*.png "$OUT/" 2>/dev/null || true
   # Page Macros remplie (maquette du 30/10) : macros d'exemple en mémoire, jamais enregistrées ; puis la vraie remise.
-  if [[ "$label" == verre ]]; then
-    "$POST" app.flshortcut.debug.macros exemples; sleep 2
-    screencapture -x "$OUT/macros-exemples.png" 2>/dev/null || true
-    "$POST" app.flshortcut.debug.macros vide; sleep 2
-  fi
+  "$POST" app.flshortcut.debug.macros exemples; sleep 2
+  screencapture -x "$OUT/macros-exemples.png" 2>/dev/null || true
+  "$POST" app.flshortcut.debug.macros vide; sleep 2
   mb=$(mem_mb "$p")
-  # Page Communauté, avec des exemples et sans réseau : chaque écran photographié (une seule fois, avec le verre).
-  if [[ "$label" == verre ]]; then
-    "$POST" app.flshortcut.debug.select community; sleep 2
-    for screen in connexion inscription liste vide detail partager signaler membres auteur abonnements plus-ajoutees personne note; do
-      "$POST" app.flshortcut.debug.community "$screen"; sleep 3
-      screencapture -x "$OUT/communaute-$screen.png" 2>/dev/null || true
-    done
-    "$POST" app.flshortcut.debug.community liste; sleep 2
-    # Guide de l'appli, page par page.
-    for n in 0 1 2 3 4; do
-      "$POST" app.flshortcut.debug.guide "$n"; sleep 2
-      screencapture -x "$OUT/guide-$n.png" 2>/dev/null || true
-    done
-    # « Bienvenue » → première partie au ralenti (10 fois plus lent) : le morph photographié en cours de route.
-    "$POST" app.flshortcut.debug.guide 0; sleep 2
-    "$POST" app.flshortcut.debug.guide "1 lent"
-    for i in 1 2 3 4 5 6; do
-      sleep 0.7; screencapture -x "$OUT/guide-morph-$i.png" 2>/dev/null || true
-    done
-    sleep 4
-    report guide-morph >/dev/null
-    "$POST" app.flshortcut.debug.guide fin; sleep 2
-    # Menu de l'icône (fond noir plein, 29/10) : ouvert par l'app comme un clic sur son icône, photographié, refermé.
+  # Page Communauté, avec des exemples et sans réseau : chaque écran photographié.
+  "$POST" app.flshortcut.debug.select community; sleep 2
+  for screen in connexion inscription liste vide detail partager signaler membres auteur abonnements plus-ajoutees personne note; do
+    "$POST" app.flshortcut.debug.community "$screen"; sleep 3
+    screencapture -x "$OUT/communaute-$screen.png" 2>/dev/null || true
+  done
+  "$POST" app.flshortcut.debug.community liste; sleep 2
+  # Guide de l'appli, page par page.
+  for n in 0 1 2 3 4; do
+    "$POST" app.flshortcut.debug.guide "$n"; sleep 2
+    screencapture -x "$OUT/guide-$n.png" 2>/dev/null || true
+  done
+  # « Bienvenue » → première partie au ralenti (10 fois plus lent) : le morph photographié en cours de route.
+  "$POST" app.flshortcut.debug.guide 0; sleep 2
+  "$POST" app.flshortcut.debug.guide "1 lent"
+  for i in 1 2 3 4 5 6; do
+    sleep 0.7; screencapture -x "$OUT/guide-morph-$i.png" 2>/dev/null || true
+  done
+  sleep 4
+  report guide-morph >/dev/null
+  "$POST" app.flshortcut.debug.guide fin; sleep 2
+  # Menu de l'icône (fond noir plein, 29/10) : ouvert par l'app comme un clic sur son icône, photographié, refermé.
+  "$POST" app.flshortcut.debug.menu ouvrir; sleep 2
+  screencapture -x "$OUT/menu-icone.png" 2>/dev/null || true
+  "$POST" app.flshortcut.debug.menu fermer; sleep 1
+  # Accueil au ralenti : ouverture (écran du clavier), clavier autorisé, puis passage au guide dans la même fenêtre.
+  "$POST" app.flshortcut.debug.onboarding "clavier lent"
+  for i in 1 2 3 4; do
+    sleep 0.8; screencapture -x "$OUT/accueil-ouverture-$i.png" 2>/dev/null || true
+  done
+  sleep 4
+  "$POST" app.flshortcut.debug.onboarding autorise; sleep 5
+  screencapture -x "$OUT/accueil-clavier-ok.png" 2>/dev/null || true
+  "$POST" app.flshortcut.debug.onboarding "guide lent"
+  for i in 1 2 3 4 5 6; do
+    sleep 0.7; screencapture -x "$OUT/accueil-guide-$i.png" 2>/dev/null || true
+  done
+  sleep 5
+  screencapture -x "$OUT/accueil-guide.png" 2>/dev/null || true
+  "$POST" app.flshortcut.debug.onboarding "partie 2 lent"
+  for i in 1 2 3 4; do
+    sleep 0.9; screencapture -x "$OUT/accueil-partie-$i.png" 2>/dev/null || true
+  done
+  sleep 4
+  "$POST" app.flshortcut.debug.onboarding fin; sleep 2
+  # Page Aide : questions fréquentes, recherche, « Écrire à l'équipe », message envoyé, Mes messages, un fil (20/11).
+  "$POST" app.flshortcut.debug.select aide; sleep 2
+  for screen in aide recherche ecrire envoye messages fil; do
+    "$POST" app.flshortcut.debug.help "$screen"; sleep 3
+    screencapture -x "$OUT/aide-$screen.png" 2>/dev/null || true
+  done
+  # Page Mon compte (sauvegarde en ligne), avec des exemples et sans réseau.
+  "$POST" app.flshortcut.debug.select compte; sleep 2
+  for screen in connexion inscription code oubli connecte profil attente choix; do
+    "$POST" app.flshortcut.debug.account "$screen"; sleep 3
+    screencapture -x "$OUT/compte-$screen.png" 2>/dev/null || true
+  done
+  # Thèmes (04/11) : Noir et Orange montrés sans être enregistrés (Papier, la direction A du 17/11, est celui de toutes
+  # les autres photos), photographiés sur une page de raccourcis, Mon compte (choix du thème) et le menu de l'icône ;
+  # puis Papier de nouveau.
+  for theme in noir orange; do
+    "$POST" app.flshortcut.debug.theme "$theme"; sleep 2
+    "$POST" app.flshortcut.debug.select playlist; sleep 2
+    screencapture -x "$OUT/theme-$theme-raccourcis.png" 2>/dev/null || true
+    "$POST" app.flshortcut.debug.select compte; sleep 1
+    "$POST" app.flshortcut.debug.account connecte; sleep 3
+    screencapture -x "$OUT/theme-$theme-compte.png" 2>/dev/null || true
     "$POST" app.flshortcut.debug.menu ouvrir; sleep 2
-    screencapture -x "$OUT/menu-icone.png" 2>/dev/null || true
+    screencapture -x "$OUT/theme-$theme-menu.png" 2>/dev/null || true
     "$POST" app.flshortcut.debug.menu fermer; sleep 1
-    # Accueil au ralenti : ouverture (écran du clavier), clavier autorisé, puis passage au guide dans la même fenêtre.
-    "$POST" app.flshortcut.debug.onboarding "clavier lent"
-    for i in 1 2 3 4; do
-      sleep 0.8; screencapture -x "$OUT/accueil-ouverture-$i.png" 2>/dev/null || true
-    done
-    sleep 4
-    "$POST" app.flshortcut.debug.onboarding autorise; sleep 5
-    screencapture -x "$OUT/accueil-clavier-ok.png" 2>/dev/null || true
-    "$POST" app.flshortcut.debug.onboarding "guide lent"
-    for i in 1 2 3 4 5 6; do
-      sleep 0.7; screencapture -x "$OUT/accueil-guide-$i.png" 2>/dev/null || true
-    done
-    sleep 5
-    screencapture -x "$OUT/accueil-guide.png" 2>/dev/null || true
-    "$POST" app.flshortcut.debug.onboarding "partie 2 lent"
-    for i in 1 2 3 4; do
-      sleep 0.9; screencapture -x "$OUT/accueil-partie-$i.png" 2>/dev/null || true
-    done
-    sleep 4
-    "$POST" app.flshortcut.debug.onboarding fin; sleep 2
-    # Page Aide : questions fréquentes, recherche, « Écrire à l'équipe », message envoyé, Mes messages, un fil (20/11).
-    "$POST" app.flshortcut.debug.select aide; sleep 2
-    for screen in aide recherche ecrire envoye messages fil; do
-      "$POST" app.flshortcut.debug.help "$screen"; sleep 3
-      screencapture -x "$OUT/aide-$screen.png" 2>/dev/null || true
-    done
-    # Page Mon compte (sauvegarde en ligne), avec des exemples et sans réseau.
-    "$POST" app.flshortcut.debug.select compte; sleep 2
-    for screen in connexion inscription code oubli connecte profil attente choix; do
-      "$POST" app.flshortcut.debug.account "$screen"; sleep 3
-      screencapture -x "$OUT/compte-$screen.png" 2>/dev/null || true
-    done
-    # Thèmes (04/11) : Noir et Orange montrés sans être enregistrés (Papier, la direction A du 17/11, est celui de toutes
-    # les autres photos), photographiés sur une page de raccourcis, Mon compte (choix du thème) et le menu de l'icône ;
-    # puis Papier de nouveau.
-    for theme in noir orange; do
-      "$POST" app.flshortcut.debug.theme "$theme"; sleep 2
-      "$POST" app.flshortcut.debug.select playlist; sleep 2
-      screencapture -x "$OUT/theme-$theme-raccourcis.png" 2>/dev/null || true
-      "$POST" app.flshortcut.debug.select compte; sleep 1
-      "$POST" app.flshortcut.debug.account connecte; sleep 3
-      screencapture -x "$OUT/theme-$theme-compte.png" 2>/dev/null || true
+  done
+  "$POST" app.flshortcut.debug.theme papier; sleep 2
+  # Fenêtre de désinstallation en 3 étapes, avec des exemples : rien n'est demandé ni supprimé.
+  for screen in confirmer compte fini reste; do
+    "$POST" app.flshortcut.debug.uninstall "$screen"; sleep 3
+    screencapture -x "$OUT/desinstaller-$screen.png" 2>/dev/null || true
+  done
+  "$POST" app.flshortcut.debug.uninstall fermer; sleep 1
+  # Organiser, avec des sons d'exemple (sans FL) : chaque écran, puis le passage de l'un à l'autre.
+  for screen in demarrer installer attente midi aide ecoute apercu couleurs fini; do
+    "$POST" app.flshortcut.debug.organizer "$screen"
+    # L'aperçu figeait l'app une quinzaine de secondes (photos restées sur l'écoute) : où l'app passe son temps.
+    if [[ "$screen" == apercu ]]; then
+      (sample FLShortcut 4 -file "$OUT/organiser-apercu-sample.txt" >/dev/null 2>&1 &)
+    fi
+    sleep 3
+    screencapture -x "$OUT/organiser-$screen.png" 2>/dev/null || true
+    if [[ "$screen" == apercu ]]; then
+      sleep 12
+      screencapture -x "$OUT/organiser-apercu-tard.png" 2>/dev/null || true
+    fi
+    # Pendant l'écoute : la carte « Organiser · 3 sons sur 8 » en haut du menu de l'icône (maquette du 28/10).
+    if [[ "$screen" == ecoute ]]; then
       "$POST" app.flshortcut.debug.menu ouvrir; sleep 2
-      screencapture -x "$OUT/theme-$theme-menu.png" 2>/dev/null || true
+      screencapture -x "$OUT/menu-icone-organiser.png" 2>/dev/null || true
       "$POST" app.flshortcut.debug.menu fermer; sleep 1
-    done
-    "$POST" app.flshortcut.debug.theme papier; sleep 2
-    # Fenêtre de désinstallation en 3 étapes, avec des exemples : rien n'est demandé ni supprimé.
-    for screen in confirmer compte fini reste; do
-      "$POST" app.flshortcut.debug.uninstall "$screen"; sleep 3
-      screencapture -x "$OUT/desinstaller-$screen.png" 2>/dev/null || true
-    done
-    "$POST" app.flshortcut.debug.uninstall fermer; sleep 1
-    # Organiser, avec des sons d'exemple (sans FL) : chaque écran, puis le passage de l'un à l'autre.
-    for screen in demarrer installer attente midi aide ecoute apercu couleurs fini; do
-      "$POST" app.flshortcut.debug.organizer "$screen"
-      # L'aperçu figeait l'app une quinzaine de secondes (photos restées sur l'écoute) : où l'app passe son temps.
-      if [[ "$screen" == apercu ]]; then
-        (sample FLShortcut 4 -file "$OUT/organiser-apercu-sample.txt" >/dev/null 2>&1 &)
-      fi
-      sleep 3
-      screencapture -x "$OUT/organiser-$screen.png" 2>/dev/null || true
-      if [[ "$screen" == apercu ]]; then
-        sleep 12
-        screencapture -x "$OUT/organiser-apercu-tard.png" 2>/dev/null || true
-      fi
-      # Pendant l'écoute : la carte « Organiser · 3 sons sur 8 » en haut du menu de l'icône (maquette du 28/10).
-      if [[ "$screen" == ecoute ]]; then
-        "$POST" app.flshortcut.debug.menu ouvrir; sleep 2
-        screencapture -x "$OUT/menu-icone-organiser.png" 2>/dev/null || true
-        "$POST" app.flshortcut.debug.menu fermer; sleep 1
-      fi
-      # L'app a-t-elle redémarré (plantage relancé) pendant cet écran ? (« apercu » et « fini » restaient sur l'écoute)
-      echo "organiser $screen : pid $(pgrep -x FLShortcut | tr '\n' ' ')" >> "$OUT/organiser-pid.txt"
-    done
-    cp ~/Library/Logs/DiagnosticReports/FLShortcut*.ips "$OUT/" 2>/dev/null || true
-    tail -40 ~/Library/Logs/"FL Shortcuts"/macro.log > "$OUT/organiser-journal.txt" 2>/dev/null || true
-    "$POST" app.flshortcut.debug.organizer fermer; sleep 1
-    # Question « Tu gardes la version organisée ? » (après l'Organiser), avec un exemple : aucun fichier touché.
-    for screen in question travail erreur; do
-      "$POST" app.flshortcut.debug.approval "$screen"; sleep 3
-      screencapture -x "$OUT/version-organisee-$screen.png" 2>/dev/null || true
-    done
-    "$POST" app.flshortcut.debug.approval fermer; sleep 1
-    # Fenêtre au plus petit (06/11, « très mal découpé quand je réduis la page au plus petit ») : chaque page
-    # photographiée à la taille minimale (la demande de 400 × 300 est ramenée au minimum de la fenêtre).
-    "$POST" app.flshortcut.debug.resize "400,300"; sleep 2
-    for page in trouver general mixer custom macros community compte aide; do
-      "$POST" app.flshortcut.debug.select "$page"; sleep 2
-      screencapture -x "$OUT/minimum-$page.png" 2>/dev/null || true
-    done
-    "$POST" app.flshortcut.debug.resize "960,640"; sleep 2
-    # Changement de page au ralenti (10 fois) : Général → Mixer, photographié en route (barre au-dessus du titre ?).
-    "$POST" app.flshortcut.debug.select general; sleep 2
-    "$POST" app.flshortcut.debug.select "mixer lent"
-    for i in 1 2 3 4 5 6 7 8; do
-      sleep 0.5; screencapture -x "$OUT/page-change-$i.png" 2>/dev/null || true
-    done
-    sleep 5
-    "$POST" app.flshortcut.debug.select general; sleep 2
-    # Créateur de macros au ralenti (10 fois) : ouverture depuis la page Macros, puis retour, photographiés en route.
-    "$POST" app.flshortcut.debug.select macros; sleep 2
-    "$POST" app.flshortcut.debug.macro "open lent"
-    for i in 1 2 3 4 5 6 7 8; do
-      sleep 0.5; screencapture -x "$OUT/createur-ouverture-$i.png" 2>/dev/null || true
-    done
-    sleep 4
-    "$POST" app.flshortcut.debug.macro "close lent"
-    for i in 1 2 3 4 5 6; do
-      sleep 0.5; screencapture -x "$OUT/createur-retour-$i.png" 2>/dev/null || true
-    done
-    sleep 5
-    "$POST" app.flshortcut.debug.macro close; sleep 1
-    "$POST" app.flshortcut.debug.select macros; sleep 2
-  fi
+    fi
+    # L'app a-t-elle redémarré (plantage relancé) pendant cet écran ? (« apercu » et « fini » restaient sur l'écoute)
+    echo "organiser $screen : pid $(pgrep -x FLShortcut | tr '\n' ' ')" >> "$OUT/organiser-pid.txt"
+  done
+  cp ~/Library/Logs/DiagnosticReports/FLShortcut*.ips "$OUT/" 2>/dev/null || true
+  tail -40 ~/Library/Logs/"FL Shortcuts"/macro.log > "$OUT/organiser-journal.txt" 2>/dev/null || true
+  "$POST" app.flshortcut.debug.organizer fermer; sleep 1
+  # Question « Tu gardes la version organisée ? » (après l'Organiser), avec un exemple : aucun fichier touché.
+  for screen in question travail erreur; do
+    "$POST" app.flshortcut.debug.approval "$screen"; sleep 3
+    screencapture -x "$OUT/version-organisee-$screen.png" 2>/dev/null || true
+  done
+  "$POST" app.flshortcut.debug.approval fermer; sleep 1
+  # Fenêtre au plus petit (06/11, « très mal découpé quand je réduis la page au plus petit ») : chaque page
+  # photographiée à la taille minimale (la demande de 400 × 300 est ramenée au minimum de la fenêtre).
+  "$POST" app.flshortcut.debug.resize "400,300"; sleep 2
+  for page in trouver general mixer custom macros community compte aide; do
+    "$POST" app.flshortcut.debug.select "$page"; sleep 2
+    screencapture -x "$OUT/minimum-$page.png" 2>/dev/null || true
+  done
+  "$POST" app.flshortcut.debug.resize "960,640"; sleep 2
+  # Changement de page au ralenti (10 fois) : Général → Mixer, photographié en route (barre au-dessus du titre ?).
+  "$POST" app.flshortcut.debug.select general; sleep 2
+  "$POST" app.flshortcut.debug.select "mixer lent"
+  for i in 1 2 3 4 5 6 7 8; do
+    sleep 0.5; screencapture -x "$OUT/page-change-$i.png" 2>/dev/null || true
+  done
+  sleep 5
+  "$POST" app.flshortcut.debug.select general; sleep 2
+  # Créateur de macros au ralenti (10 fois) : ouverture depuis la page Macros, puis retour, photographiés en route.
+  "$POST" app.flshortcut.debug.select macros; sleep 2
+  "$POST" app.flshortcut.debug.macro "open lent"
+  for i in 1 2 3 4 5 6 7 8; do
+    sleep 0.5; screencapture -x "$OUT/createur-ouverture-$i.png" 2>/dev/null || true
+  done
+  sleep 4
+  "$POST" app.flshortcut.debug.macro "close lent"
+  for i in 1 2 3 4 5 6; do
+    sleep 0.5; screencapture -x "$OUT/createur-retour-$i.png" 2>/dev/null || true
+  done
+  sleep 5
+  "$POST" app.flshortcut.debug.macro close; sleep 1
+  "$POST" app.flshortcut.debug.select macros; sleep 2
   # Témoin : aucun modèle du créateur avant sa première ouverture (fenêtres : toutes, et visibles seulement).
   local n0
   n0=$(report "$label-avant-createur")
@@ -525,11 +520,11 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   echo "| $label | $m0 | $c0 | $m1 | $c1 | $c1b | $mb | $mc | $cc | $md | $m2 | $m3 | ${co[2]} | ${cf[2]} | ${co[3]} | ${cf[3]} | $n0 ; ${nm[1]} / ${nm[2]} / ${nm[3]} | $fit | $drop | $moved |"
 }
 
-echo "| Effet | Mémoire (barre des menus) | Processeur | Mémoire (fenêtre ouverte) | Processeur (fenêtre ouverte, au repos) | Processeur (fenêtre, 10 s plus tard) | Mémoire (page Macros) | Mémoire (créateur ouvert) | Processeur (créateur ouvert, au repos) | Mémoire (créateur refermé) | Mémoire (page Mixer) | Mémoire (recherche « e », presque tout) | Mémoire (créateur cycle 2 ouvert) | Mémoire (créateur cycle 2 refermé) | Mémoire (créateur cycle 3 ouvert) | Mémoire (créateur cycle 3 refermé) | Modèles du créateur vivants (avant ouverture ; après fermeture, cycles 1 / 2 / 3) | Colonnes dans la fenêtre (Général / Macros / créateur) | Bloc glissé de la palette (lignes avant → après) | Bloc déplacé dans la liste (ordre changé) |"
+echo "| Passage | Mémoire (barre des menus) | Processeur | Mémoire (fenêtre ouverte) | Processeur (fenêtre ouverte, au repos) | Processeur (fenêtre, 10 s plus tard) | Mémoire (page Macros) | Mémoire (créateur ouvert) | Processeur (créateur ouvert, au repos) | Mémoire (créateur refermé) | Mémoire (page Mixer) | Mémoire (recherche « e », presque tout) | Mémoire (créateur cycle 2 ouvert) | Mémoire (créateur cycle 2 refermé) | Mémoire (créateur cycle 3 ouvert) | Mémoire (créateur cycle 3 refermé) | Modèles du créateur vivants (avant ouverture ; après fermeture, cycles 1 / 2 / 3) | Colonnes dans la fenêtre (Général / Macros / créateur) | Bloc glissé de la palette (lignes avant → après) | Bloc déplacé dans la liste (ordre changé) |"
 echo "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"
-run "verre" YES                  # un seul passage : le réglage du verre ne change plus rien (style suisse)
+run "interface"
 pkill -x FLShortcut 2>/dev/null
 
-restore debugSnapshots "$had_snap"; restore liquidGlass "$had_glass"; restore didOnboard "$had_onb"; restore guideSeen "$had_guide"
+restore debugSnapshots "$had_snap"; restore didOnboard "$had_onb"; restore guideSeen "$had_guide"
 echo
 echo "macOS $(sw_vers -productVersion), $(sysctl -n machdep.cpu.brand_string 2>/dev/null)"

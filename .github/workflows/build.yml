@@ -387,7 +387,7 @@ jobs:
         run: |
           set -o pipefail
           scripts/cles-traduction.sh dist/mesure --strict | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Mesure de l'interface (mémoire et processeur, avec et sans verre)
+      - name: Mesure de l'interface (mémoire et processeur)
         continue-on-error: true      # mesure indicative : n'empêche jamais la publication
         run: |
           {

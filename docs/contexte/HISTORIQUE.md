@@ -1346,3 +1346,7 @@ entrée 1 ≈ 0,5 s.
   « Raccourcis », titres en 32 demi-gras, étapes de « Trouver ». Le haut de la fenêtre (52 points sur Mac, 48 sur
   Windows) ne laisse passer aucun clic : les menus sont posés juste dessous (pas dans la barre de titre, où il aurait
   fallu des éléments de barre d'outils de macOS, en verre sur macOS 26).
+- 20/11 (« on avait pas dit qu'il fallait enlever la mesure verre et sans verre ») : la mesure de l'interface de la CI
+  ne faisait déjà qu'un passage mais écrivait encore le réglage `liquidGlass` (plus lu par l'app depuis le 14/11) et
+  s'appelait « avec et sans verre » → réglage retiré (effacé s'il traîne), passage nommé « interface » (captures
+  `interface*.png` au lieu de `verre*.png`), étape renommée « Mesure de l'interface (mémoire et processeur) ».
