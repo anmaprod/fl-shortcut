@@ -265,6 +265,14 @@ struct EditorView: View {
                     .zIndex(0)
             }
         }
+        // Maquette « Minimal » (20/11, vidéo : « beaucoup de choses oubliées ») : les menus DANS la barre de titre, à côté
+        // des boutons de la fenêtre, aussi dans le créateur (« Macros » choisi).
+        .titleBarNav {
+            MinimalNavBar(selected: macroEditor != nil ? .macros : selection, communityDot: community.newFromFollowed > 0,
+                          accountDot: backup.conflict != nil, helpDot: supportInbox.unread > 0) { item in
+                navigate(item)
+            }
+        }
         .onChange(of: creatorLink.request) { request in
             guard request != nil, macroEditor == nil else { return }    // déjà affiché : il passe à cette macro
             enterCreator()
@@ -420,17 +428,7 @@ struct EditorView: View {
         // Maquette « Minimal » (20/11) : les menus en haut (sous la barre de titre, qui ne laisse passer aucun clic) à
         // la place de la barre de gauche ; « Raccourcis » a ses pages de FL à gauche de la page.
         return VStack(alignment: .leading, spacing: 0) {
-            MinimalNavBar(selected: selection, communityDot: community.newFromFollowed > 0,
-                          accountDot: backup.conflict != nil, helpDot: supportInbox.unread > 0) { item in
-                // « Raccourcis » : la dernière page de raccourcis ouverte (déjà dedans : rien ne change).
-                if item == .section(FLSection.allCases[0]) {
-                    if !inShortcutsPart { choose(lastShortcutsPage) }
-                } else {
-                    choose(item)
-                }
-            }
-            .padding(.top, MainWindowChrome.contentTop - 8)
-            .overlay(alignment: .bottom) { Rectangle().fill(Swiss.faint).frame(height: 1) }
+            // Sous la barre de titre, où sont maintenant les menus (titleBarNav).
             HStack(alignment: .top, spacing: 0) {
                 if inShortcutsPart {
                     ShortcutsSubnav(selected: selection) { choose($0) }
@@ -441,6 +439,7 @@ struct EditorView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .padding(.top, MainWindowChrome.contentTop - 8)
         }
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -596,6 +595,20 @@ struct EditorView: View {
     private func isShown(_ item: SidebarItem) -> Bool { selection == item }
 
     /// Clic sur une ligne de la barre de gauche.
+    /// Un menu du haut : le créateur se referme d'abord ; « Raccourcis » rouvre la dernière page de raccourcis (déjà
+    /// dedans : rien ne change).
+    private func navigate(_ item: SidebarItem) {
+        if let editor = macroEditor {
+            if item == .macros { leaveCreator(editor); return }
+            leaveCreator(editor)
+        }
+        if item == .section(FLSection.allCases[0]) {
+            if !inShortcutsPart { choose(lastShortcutsPage) }
+        } else {
+            choose(item)
+        }
+    }
+
     private func choose(_ item: SidebarItem) {
         // Déjà sur la page d'une personne : « Communauté » ramène à la liste.
         if item == .community, personPageShown {

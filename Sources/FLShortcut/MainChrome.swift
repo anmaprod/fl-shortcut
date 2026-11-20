@@ -77,6 +77,27 @@ extension View {
     }
 }
 
+extension View {
+    /// Les menus de la maquette « Minimal » DANS la barre de titre, à côté des boutons de la fenêtre (20/11) : un élément
+    /// de la barre d'outils (la bande de la barre de titre ne laisse passer les clics qu'à ses éléments), sans le fond
+    /// de verre que macOS 26 met derrière les éléments.
+    @ViewBuilder func titleBarNav<Nav: View>(@ViewBuilder _ nav: () -> Nav) -> some View {
+        let content = nav()
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) {
+            toolbar {
+                ToolbarItem(placement: .navigation) { content }
+                    .sharedBackgroundVisibility(.hidden)
+            }
+        } else {
+            toolbar { ToolbarItem(placement: .navigation) { content } }
+        }
+        #else
+        toolbar { ToolbarItem(placement: .navigation) { content } }
+        #endif
+    }
+}
+
 /// Plaque des maquettes, au style suisse (01/11) : plus de plaque, le noir de la fenêtre. Une carte (Mon compte,
 /// Aide, Communauté…) devient un bloc posé entre deux traits fins ; les colonnes (barre de gauche, créateur) n'ont rien.
 struct MockPlate: View {

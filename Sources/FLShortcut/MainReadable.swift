@@ -499,9 +499,13 @@ struct MinimalNavBar: View {
             item(6, String(localized: "Aide"), .help, dot: helpDot)
             Spacer(minLength: 0)
         }
-        .frame(height: 40)
-        .padding(.horizontal, ReadableLayout.inset)
+        // Dans la barre de titre (20/11) : à droite des boutons de la fenêtre, au bord de la colonne des pages (maquette).
+        .frame(height: MainWindowChrome.titleBarHeight - 8)
+        .padding(.leading, MinimalNavBar.leadingGap)
     }
+
+    /// Écart entre les boutons de la fenêtre et « Trouver » (maquette : « Trouver » vers 214 points du bord).
+    static let leadingGap: CGFloat = 120
 
     /// `target` nil : « Raccourcis », qui rouvre la dernière page de raccourcis (EditorView.choose).
     private func item(_ number: Int, _ title: String, _ target: SidebarItem?, dot: Bool = false) -> some View {
@@ -522,7 +526,7 @@ private struct MinimalNavItem: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 Text(title)
-                    .font(Swiss.font(14, selected ? .semibold : .regular))
+                    .font(Swiss.font(13, selected ? .semibold : .regular))
                     .foregroundStyle(selected || hovering ? Swiss.text : Swiss.gray)
                     .lineLimit(1)
                 if dot {

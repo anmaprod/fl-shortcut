@@ -472,8 +472,33 @@ enum ScreenLook {
         defaults.set(true, forKey: askedKey)
         NSApp.activate(ignoringOtherApps: true)          // la fenêtre de macOS au premier plan, devant FL
         SingleInstance.watchForRelaunch()                // « Quitter et rouvrir » : l'app revient
-        requestAccess()
+        promptOnly()
         return true
+    }
+
+    static let settingsBundleID = "com.apple.systempreferences"
+
+    /// La petite fenêtre de macOS SEULE (20/11, capture : « pour ça je veux qu'il y ait que la petite page qui
+    /// apparaisse ») : demandée par ScreenCaptureKit (sa demande ajoute l'app à la liste comme
+    /// CGRequestScreenCaptureAccess, qui sur les derniers macOS ouvrait aussi les Réglages) ; si les Réglages s'ouvrent
+    /// quand même avec elle (ils étaient fermés), ils sont cachés pendant les 2 premières secondes : le bouton « Ouvrir
+    /// Réglages Système » de la petite fenêtre les remet devant, sur la bonne page.
+    static func promptOnly() {
+        let settingsWereOpen = !NSRunningApplication.runningApplications(withBundleIdentifier: settingsBundleID).isEmpty
+        if #available(macOS 14.0, *) {
+            SCShareableContent.getExcludingDesktopWindows(false, onScreenWindowsOnly: true) { _, _ in }
+        } else {
+            requestAccess()
+        }
+        guard !settingsWereOpen else { return }
+        for delay in [0.3, 0.6, 1.0, 1.5, 2.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                for app in NSRunningApplication.runningApplications(withBundleIdentifier: settingsBundleID) where !app.isHidden {
+                    MacroLog.shared.write("AUDIO", "settings opened with the macOS window: hidden after \(Int(delay * 1000)) ms")
+                    app.hide()
+                }
+            }
+        }
     }
 
     /// Une seule fenêtre (13/11, capture de la demande de macOS : « cette page n'a pas besoin de s'ouvrir vu que l'autre

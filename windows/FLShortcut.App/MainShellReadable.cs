@@ -90,21 +90,24 @@ internal sealed partial class MainShell
     private void RenderSidebar()
     {
         var inShortcuts = _kind is PageKind.Section or PageKind.Custom;
+        // Dans le créateur (ses menus restent dans la barre de titre) : « Macros » est la partie ouverte.
+        var creator = _macros.Editing;
+        var kind = creator ? PageKind.Macros : _kind;
         _navBar.Children.Clear();
-        _navBar.Children.Add(NavItem(Loc.T("Trouver"), _kind == PageKind.Find, () => Choose(PageKind.Find, _section)));
-        _navBar.Children.Add(NavItem(Loc.T("Raccourcis"), inShortcuts, () =>
+        _navBar.Children.Add(NavItem(Loc.T("Trouver"), kind == PageKind.Find, () => Choose(PageKind.Find, _section)));
+        _navBar.Children.Add(NavItem(Loc.T("Raccourcis"), !creator && inShortcuts, () =>
         {
-            if (!inShortcuts) Choose(_lastShortcutsCustom ? PageKind.Custom : PageKind.Section, _section);
+            if (creator || !inShortcuts) Choose(_lastShortcutsCustom ? PageKind.Custom : PageKind.Section, _section);
         }));
-        _navBar.Children.Add(NavItem(Loc.T("Macros"), _kind == PageKind.Macros, () => Choose(PageKind.Macros, _section)));
-        _navBar.Children.Add(NavItem(Loc.T("Communauté"), _kind == PageKind.Community, () =>
+        _navBar.Children.Add(NavItem(Loc.T("Macros"), kind == PageKind.Macros, () => Choose(PageKind.Macros, _section)));
+        _navBar.Children.Add(NavItem(Loc.T("Communauté"), kind == PageKind.Community, () =>
         {
             // Déjà sur la page d'une personne : « Communauté » ramène à la liste.
-            if (_kind == PageKind.Community && _community.PersonName is not null) _community.LeavePerson();
+            if (!creator && _kind == PageKind.Community && _community.PersonName is not null) _community.LeavePerson();
             else Choose(PageKind.Community, _section);
         }, dot: _community.NewFromFollowed > 0));
-        _navBar.Children.Add(NavItem(Loc.T("Compte"), _kind == PageKind.Account, () => Choose(PageKind.Account, _section)));
-        _navBar.Children.Add(NavItem(Loc.T("Aide"), _kind == PageKind.Help, () => Choose(PageKind.Help, _section), dot: _help.Unread > 0));
+        _navBar.Children.Add(NavItem(Loc.T("Compte"), kind == PageKind.Account, () => Choose(PageKind.Account, _section)));
+        _navBar.Children.Add(NavItem(Loc.T("Aide"), kind == PageKind.Help, () => Choose(PageKind.Help, _section), dot: _help.Unread > 0));
 
         if (_subnav is not null) _subnav.Visibility = inShortcuts ? Visibility.Visible : Visibility.Collapsed;
         if (_kind == PageKind.Custom) _lastShortcutsCustom = true;
@@ -124,7 +127,7 @@ internal sealed partial class MainShell
 
     private static Button NavItem(string title, bool selected, Action click, bool dot = false)
     {
-        var label = Label(title, 14, selected ? Text : Secondary, semibold: selected);
+        var label = Label(title, 13, selected ? Text : Secondary, semibold: selected);
         label.VerticalAlignment = VerticalAlignment.Center;
         var line = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Height = 40, Background = Brush(Colors.Transparent), Children = { label } };
         if (dot) line.Children.Add(new Rectangle { Width = 6, Height = 6, Fill = Brush(Red), VerticalAlignment = VerticalAlignment.Center });

@@ -56,7 +56,17 @@ internal sealed partial class MainShell
     private readonly Grid _main = new() { Padding = new Thickness(8), ColumnSpacing = 8 };
     private readonly StackPanel _sidebarGroups = new() { Spacing = 14 };
     /// Maquette « Minimal » (20/11, comme le Mac) : les menus en haut, et la colonne des pages de « Raccourcis ».
-    private readonly StackPanel _navBar = new() { Orientation = Orientation.Horizontal, Spacing = 24 };
+    private readonly StackPanel _navBar = new() { Orientation = Orientation.Horizontal, Spacing = 24, VerticalAlignment = VerticalAlignment.Center };
+    /// Les menus dans la barre de titre (maquette « Minimal »), à gauche ; la zone qui déplace la fenêtre est à droite.
+    private Border _navHost = null!;
+
+    /// Menus visibles avec les pages et le créateur (pas sur l'accueil ni le guide) ; la barre de titre suit.
+    private void UpdateTitleBarRegion()
+    {
+        var shown = _main.Visibility == Visibility.Visible || _macros.Creator.Visibility == Visibility.Visible;
+        _navHost.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
+        _titleBar.Margin = new Thickness(shown && _navHost.ActualWidth > 0 ? _navHost.ActualWidth + 8 : 16, 0, 0, 0);
+    }
     private Border? _subnav;
     private readonly StackPanel _findSteps = new() { Orientation = Orientation.Horizontal, Spacing = 24, Visibility = Visibility.Collapsed };
     /// Case « tape son nom » de « Trouver un raccourci » (maquette « plus lisible » du 16/11).
@@ -232,16 +242,26 @@ internal sealed partial class MainShell
         UpdateAccountButton();
         _macros = new MacrosPage(_app, macroStore, photos, window,
             listChanged: () => { if (_kind == PageKind.Macros) RenderPage(); },
-            creatorShown: on => _main.Visibility = on || !_app.Onboarded ? Visibility.Collapsed : Visibility.Visible,
+            creatorShown: on =>
+            {
+                _main.Visibility = on || !_app.Onboarded ? Visibility.Collapsed : Visibility.Visible;
+                RenderSidebar();                         // « Macros » choisi dans les menus du haut pendant le créateur
+            },
             toast: ShowToast);
         // Touche d'une macro (liste du 16/11) : la fiche de son raccourci, comme les autres raccourcis.
         _macros.EditShortcut = EditCustomAsync;
         root.Children.Add(_main);
         root.Children.Add(_macros.Creator);
+        root.Children.Add(_navHost);                     // sous l'accueil et le guide, qui le couvrent
         root.Children.Add(_welcome);
         root.Children.Add(_guideLayer);
         root.Children.Add(_toast);
         root.Children.Add(_titleBar);
+        // La barre de titre (zone qui déplace la fenêtre) commence après les menus : sinon elle prend leurs clics.
+        _navHost.SizeChanged += (_, _) => UpdateTitleBarRegion();
+        _main.RegisterPropertyChangedCallback(UIElement.VisibilityProperty, (_, _) => UpdateTitleBarRegion());
+        _macros.Creator.RegisterPropertyChangedCallback(UIElement.VisibilityProperty, (_, _) => UpdateTitleBarRegion());
+        UpdateTitleBarRegion();
         root.PreviewKeyDown += OnRootKey;
 
         if (photos) _app.PreparePages();
@@ -535,11 +555,20 @@ internal sealed partial class MainShell
         _main.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         _main.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         _main.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var navHost = new Grid { Margin = new Thickness(-8, TitleBarHeight - 8, -8, 0) };
-        navHost.Children.Add(new Border { Child = _navBar, Height = 40, Padding = new Thickness(ReadableInset + 8, 0, ReadableInset, 0) });
-        navHost.Children.Add(new Rectangle { Height = 1, Fill = Brush(Faint), VerticalAlignment = VerticalAlignment.Bottom, IsHitTestVisible = false });
-        Grid.SetColumnSpan(navHost, 2);
-        _main.Children.Add(navHost);
+        // 20/11 (vidéo : « beaucoup de choses oubliées ») : les menus sont DANS la barre de titre (_navHost, posé sur
+        // la fenêtre, aussi au-dessus du créateur) ; ici, seulement la place de la barre de titre.
+        _navHost = new Border
+        {
+            Child = _navBar,
+            Height = TitleBarHeight,
+            VerticalAlignment = VerticalAlignment.Top,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Padding = new Thickness(ReadableInset, 0, 16, 0),
+            Background = Brush(Colors.Transparent),
+        };
+        var titleSpace = new Border { Height = TitleBarHeight - 8 };
+        Grid.SetColumnSpan(titleSpace, 2);
+        _main.Children.Add(titleSpace);
 
         // La barre de gauche est construite dans ses couleurs : noire sous Orange (maquette du 04/11), comme le Mac.
         var inverted = Inverted();
@@ -684,6 +713,8 @@ internal sealed partial class MainShell
 
     private void Choose(PageKind kind, FlSection section)
     {
+        // Un menu du haut cliqué dans le créateur : il se referme d'abord (comme le Mac).
+        if (_macros.Editing) _macros.Back();
         if (kind != PageKind.Community) _community.Leave();
         if (kind != PageKind.Find && _keyListening) StopKeySearch();
         _kind = kind;
