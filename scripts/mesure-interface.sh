@@ -484,12 +484,14 @@ run() {   # $1 : libellé (début du nom des captures)
     echo "$label : bloc du milieu rangé 4 fois : APP TOMBÉE" >> "$OUT/glisser-essai.txt"
   fi
   # Clic sur une ligne posée : elle doit être choisie (le glisser à nous ne doit pas prendre le clic).
-  click_in "$label-createur-ouvert" 300 499; sleep 1
+  # 20/11 : les réglages du bloc choisi s'ouvrent sous sa ligne (et un 2e clic les referme) : on clique les lignes 2
+  # puis 1, au-dessus de tout cadre de réglages ouvert, à des places qui ne bougent pas.
+  click_in "$label-createur-ouvert" 300 287; sleep 1
   report "$label-createur-clic6" >/dev/null
-  click_in "$label-createur-ouvert" 300 343; sleep 1
+  click_in "$label-createur-ouvert" 300 232; sleep 1
   report "$label-createur-clic3" >/dev/null
   screencapture -x "$OUT/$label-createur-clic.png" 2>/dev/null || true
-  echo "$label : clic sur une ligne posée : $(chosen "$label-createur-clic6") puis $(chosen "$label-createur-clic3") (attendu 6 puis 3)" >> "$OUT/glisser-essai.txt"
+  echo "$label : clic sur une ligne posée : $(chosen "$label-createur-clic6") puis $(chosen "$label-createur-clic3") (attendu 2 puis 1)" >> "$OUT/glisser-essai.txt"
   rm -f "$HOME/Library/Caches/$DOMAIN/$label-createur-"*
   "$POST" app.flshortcut.debug.snapshot "$label-createur"; sleep 2
   cp "$HOME/Library/Caches/$DOMAIN/$label-createur-"*.png "$OUT/" 2>/dev/null || true
