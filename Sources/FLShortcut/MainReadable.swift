@@ -473,3 +473,173 @@ struct ReadableLink: View {
         .buttonStyle(.plain)
     }
 }
+
+// MARK: - Fenêtre « Minimal » (20/11)
+
+/// Menus en haut de la fenêtre (maquette « Minimal », validée le 19/11 : « vasi go met la maquette dans le vrai
+/// logiciel ») à la place de la barre de gauche : Trouver, Raccourcis, Macros, Communauté, Compte, Aide. Des mots en
+/// gris ; la partie ouverte à l'encre, en demi-gras ; un point rouge : des nouveautés (Communauté), une réponse de
+/// l'équipe (Aide), un choix à faire (Compte).
+struct MinimalNavBar: View {
+    let selected: SidebarItem?
+    var communityDot = false
+    var accountDot = false
+    var helpDot = false
+    let choose: (SidebarItem) -> Void
+
+    private var part: Int { ReadableSidebar.number(selected ?? .find) }
+
+    var body: some View {
+        HStack(spacing: 24) {
+            item(1, String(localized: "Trouver"), .find)
+            item(2, String(localized: "Raccourcis"), nil)
+            item(3, String(localized: "Macros"), .macros)
+            item(4, String(localized: "Communauté"), .community, dot: communityDot)
+            item(5, String(localized: "Compte"), .account, dot: accountDot)
+            item(6, String(localized: "Aide"), .help, dot: helpDot)
+            Spacer(minLength: 0)
+        }
+        .frame(height: 40)
+        .padding(.horizontal, ReadableLayout.inset)
+    }
+
+    /// `target` nil : « Raccourcis », qui rouvre la dernière page de raccourcis (EditorView.choose).
+    private func item(_ number: Int, _ title: String, _ target: SidebarItem?, dot: Bool = false) -> some View {
+        MinimalNavItem(title: title, selected: part == number, dot: dot) {
+            choose(target ?? .section(FLSection.allCases[0]))
+        }
+    }
+}
+
+private struct MinimalNavItem: View {
+    let title: String
+    let selected: Bool
+    let dot: Bool
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text(title)
+                    .font(Swiss.font(14, selected ? .semibold : .regular))
+                    .foregroundStyle(selected || hovering ? Swiss.text : Swiss.gray)
+                    .lineLimit(1)
+                if dot {
+                    Rectangle().fill(Swiss.red).frame(width: 6, height: 6)
+                        .accessibilityLabel(String(localized: "Nouveautés"))
+                }
+            }
+            .frame(height: 40)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
+/// Pages de FL à gauche de « Raccourcis » (maquette « Minimal ») : les 8 pages puis « Mes raccourcis », en gris ; la
+/// page ouverte à l'encre avec son carré rouge.
+struct ShortcutsSubnav: View {
+    let selected: SidebarItem?
+    let choose: (SidebarItem) -> Void
+
+    var body: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(FLSection.allCases) { section in
+                    row(.section(section), section.title)
+                }
+                row(.custom, String(localized: "Mes raccourcis"))
+            }
+            .padding(.top, 40)
+            .padding(.bottom, 24)
+        }
+        .frame(width: 200, alignment: .leading)
+        .padding(.leading, ReadableLayout.inset)
+    }
+
+    private func row(_ item: SidebarItem, _ title: String) -> some View {
+        SubnavRow(title: title, selected: selected == item) { choose(item) }
+    }
+}
+
+private struct SubnavRow: View {
+    let title: String
+    let selected: Bool
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Rectangle().fill(selected ? Swiss.red : Color.clear).frame(width: 8, height: 8)
+                Text(title)
+                    .font(Swiss.font(15, selected ? .semibold : .regular))
+                    .foregroundStyle(selected || hovering ? Swiss.text : Swiss.gray)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 7)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
+/// Titre d'une page (maquette « Minimal ») : 32 points, demi-gras, serré ; la flèche ← devant sur la page d'une personne.
+struct MinimalTitle: View {
+    let text: String
+    var back: (() -> Void)? = nil
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            if let back {
+                Button(action: back) {
+                    Image(systemName: "arrow.left")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(Swiss.text)
+                        .frame(width: 24, height: 36)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(String(localized: "Revenir à la Communauté"))
+                .accessibilityLabel(String(localized: "Revenir"))
+            }
+            Text(text)
+                .font(Swiss.font(32, .semibold))
+                .tracking(-0.64)
+                .foregroundStyle(Swiss.text)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .accessibilityAddTraits(.isHeader)
+        }
+    }
+}
+
+/// Étapes de « Trouver » (maquette « Minimal ») : 1 Touche, 2 Action, 3 Nouvelle touche ; l'étape en cours à l'encre en
+/// demi-gras, les étapes passées en gris, les suivantes plus pâles.
+struct FindSteps: View {
+    let now: Int
+
+    var body: some View {
+        HStack(spacing: 24) {
+            step(1, String(localized: "Touche"))
+            step(2, String(localized: "Action"))
+            step(3, String(localized: "Nouvelle touche"))
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func step(_ n: Int, _ title: String) -> some View {
+        HStack(spacing: 8) {
+            Text(verbatim: "\(n)")
+            Text(title)
+        }
+        .font(Swiss.font(14, n == now ? .semibold : .regular))
+        .foregroundStyle(n == now ? Swiss.text : n < now ? Swiss.gray : Swiss.faint)
+    }
+}

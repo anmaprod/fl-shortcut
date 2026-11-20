@@ -197,6 +197,9 @@ struct EditorView: View {
     @State private var selection: SidebarItem? = .find
     /// Parties de la barre de gauche ouvertes (Raccourcis, Plus) ; une page choisie ouvre sa partie.
     @State private var shortcutsOpen = true
+    /// Dernière page de raccourcis ouverte : « Raccourcis » des menus du haut y revient (20/11).
+    @State private var lastShortcutsPage: SidebarItem = .section(FLSection.allCases[0])
+    @ObservedObject private var supportInbox = SupportInbox.shared
     /// « ou tape son nom » : la grande case de « Trouver un raccourci » cherche par le nom.
     @State private var findTyping = false
     @State private var query = ""
@@ -407,15 +410,30 @@ struct EditorView: View {
     /// la page choisie (en-tête : titre et capsule du compte ; dessous, ses cartes), sur le fond noir de la fenêtre.
     private var shortcuts: some View {
         let data = store.catalogRows()
-        return HStack(spacing: 0) {
-            sidebar
-            VStack(alignment: .leading, spacing: 6) {
-                pageHeader
-                detail(data)
+        // Maquette « Minimal » (20/11) : les menus en haut (sous la barre de titre, qui ne laisse passer aucun clic) à
+        // la place de la barre de gauche ; « Raccourcis » a ses pages de FL à gauche de la page.
+        return VStack(alignment: .leading, spacing: 0) {
+            MinimalNavBar(selected: selection, communityDot: community.newFromFollowed > 0,
+                          accountDot: backup.conflict != nil, helpDot: supportInbox.unread > 0) { item in
+                // « Raccourcis » : la dernière page de raccourcis ouverte (déjà dedans : rien ne change).
+                if item == .section(FLSection.allCases[0]) {
+                    if !inShortcutsPart { choose(lastShortcutsPage) }
+                } else {
+                    choose(item)
+                }
             }
-            // Sous la barre de titre : elle ne laisse passer aucun clic.
-            .padding(.top, MainWindowChrome.contentTop)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.top, MainWindowChrome.contentTop - 8)
+            .overlay(alignment: .bottom) { Rectangle().fill(Swiss.faint).frame(height: 1) }
+            HStack(alignment: .top, spacing: 0) {
+                if inShortcutsPart {
+                    ShortcutsSubnav(selected: selection) { choose($0) }
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    pageHeader
+                    detail(data)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -441,6 +459,8 @@ struct EditorView: View {
         // Une page est toujours choisie ; elle ouvre sa partie de la barre de gauche.
         .onChange(of: selection) { newValue in
             if newValue == nil { selection = .find }
+            if let newValue, case .section = newValue { lastShortcutsPage = newValue }
+            if newValue == .custom { lastShortcutsPage = .custom }
             // On quitte « Trouver un raccourci » : la case n'attend plus de touches.
             if newValue != .find, recorder.activeID == Self.keySearchID { recorder.stop() }
             openPart(for: newValue)
@@ -475,13 +495,13 @@ struct EditorView: View {
     /// « Nouvelle macro » (Macros). Plus de cadre du compte en haut (il est sous « Plus ›  Mon compte »).
     private var pageHeader: some View {
         let current = selection ?? .find
-        return HStack(alignment: .bottom, spacing: 12) {
-            VStack(alignment: .leading, spacing: 8) {
-                // Direction A (17/11) : surtitre numéroté comme la barre de gauche, puis le très grand titre ; 11/11
-                // (« j'aime pas le carré à côté du nom ») : sur la page d'une personne, une flèche seule pour revenir.
-                IndexTitle(eyebrow: eyebrow, text: current == .find ? String(localized: "Appuie sur\nun raccourci.") : title,
-                           size: current == .find ? 64 : 76, lines: current == .find ? 2 : 1,
-                           back: backToCommunity)
+        return HStack(alignment: .center, spacing: 12) {
+            // Maquette « Minimal » (20/11) : le titre en 32 points (plus de surtitre numéroté ni de très grand titre) ;
+            // « Trouver » : ses trois étapes à la place du titre ; la flèche ← sur la page d'une personne.
+            if current == .find {
+                FindSteps(now: findStep)
+            } else {
+                MinimalTitle(text: title, back: backToCommunity)
             }
             Spacer(minLength: 8)
             if current == .macros {
@@ -504,14 +524,19 @@ struct EditorView: View {
                 .help("Partager une macro ou tes raccourcis")
             }
         }
-        .padding(.top, 30)
-        .padding(.bottom, current == .find ? 4 : 24)
-        .overlay(alignment: .bottom) {
-            if current != .find { Rectangle().fill(Swiss.text).frame(height: 1) }
-        }
+        .padding(.top, current == .find ? 56 : 36)
+        .padding(.bottom, current == .find ? 4 : 12)
         .frame(maxWidth: ReadableLayout.maxWidth, alignment: .leading)
         .padding(.horizontal, ReadableLayout.inset)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Étape de « Trouver » : 1 en attendant une touche ou un nom, 2 quand ce qu'elle fait est affiché, 3 pendant le
+    /// choix de la nouvelle touche (fiche ouverte).
+    private var findStep: Int {
+        if editingRow != nil { return 3 }
+        let searching = findTyping ? !trimmedQuery.isEmpty : keySearch != nil
+        return searching ? 2 : 1
     }
 
     /// Macros (maquette) : « Importer », « Exporter » bordés, « Nouvelle macro » plein ; sans macro, « Importer » seul
@@ -583,6 +608,14 @@ struct EditorView: View {
             return
         }
         selection = item
+    }
+
+    /// Une page de « Raccourcis » (ou « Mes raccourcis ») est ouverte : ses pages de FL sont à gauche.
+    private var inShortcutsPart: Bool {
+        switch selection ?? .find {
+        case .section, .custom: return true
+        default: return false
+        }
     }
 
     /// Une page de Raccourcis choisie ouvre sa partie de la barre de gauche.

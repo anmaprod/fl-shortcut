@@ -891,9 +891,13 @@ internal sealed class HelpPage
     private async Task Load()
     {
         if (Demo || _loading || Server is not { } server) return;
+        _loading = true;                                   // avant d'attendre : jamais deux lectures à la fois
         var session = await Session();
-        if (session is null) return;
-        _loading = true;
+        if (session is null)
+        {
+            _loading = false;
+            return;
+        }
         try
         {
             _threads = SupportInbox.Decode(await AccountPage.Call(ServerRequests.MyMessages(server, session)));

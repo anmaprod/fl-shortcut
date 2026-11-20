@@ -55,6 +55,10 @@ internal sealed partial class MainShell
     // Éléments
     private readonly Grid _main = new() { Padding = new Thickness(8), ColumnSpacing = 8 };
     private readonly StackPanel _sidebarGroups = new() { Spacing = 14 };
+    /// Maquette « Minimal » (20/11, comme le Mac) : les menus en haut, et la colonne des pages de « Raccourcis ».
+    private readonly StackPanel _navBar = new() { Orientation = Orientation.Horizontal, Spacing = 24 };
+    private Border? _subnav;
+    private readonly StackPanel _findSteps = new() { Orientation = Orientation.Horizontal, Spacing = 24, Visibility = Visibility.Collapsed };
     /// Case « tape son nom » de « Trouver un raccourci » (maquette « plus lisible » du 16/11).
     private readonly TextBox _search = new();
     /// Gros titre de page (style suisse : 46, gras, serré, souligné d'un trait blanc).
@@ -103,7 +107,7 @@ internal sealed partial class MainShell
         ReleaseFieldsOnOutsideClick(root);
         window.Title = "FL Shortcuts";
         window.ExtendsContentIntoTitleBar = true;
-        _titleBar.Margin = new Thickness(SidebarWidth + 16, 0, 0, 0);
+        _titleBar.Margin = new Thickness(16, 0, 0, 0);
         window.SetTitleBar(_titleBar);
         if (AppWindowTitleBar.IsCustomizationSupported())
         {
@@ -524,8 +528,17 @@ internal sealed partial class MainShell
 
     private void BuildMain()
     {
-        _main.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(SidebarWidth) });
+        // Maquette « Minimal » (20/11) : les menus en haut (sous la barre de titre), puis la colonne des pages de
+        // « Raccourcis » (seulement dans cette partie) et la page.
+        _main.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        _main.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        _main.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         _main.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var navHost = new Grid { Margin = new Thickness(-8, TitleBarHeight - 8, -8, 0) };
+        navHost.Children.Add(new Border { Child = _navBar, Height = 40, Padding = new Thickness(ReadableInset + 8, 0, ReadableInset, 0) });
+        navHost.Children.Add(new Rectangle { Height = 1, Fill = Brush(Faint), VerticalAlignment = VerticalAlignment.Bottom, IsHitTestVisible = false });
+        Grid.SetColumnSpan(navHost, 2);
+        _main.Children.Add(navHost);
 
         // La barre de gauche est construite dans ses couleurs : noire sous Orange (maquette du 04/11), comme le Mac.
         var inverted = Inverted();
@@ -567,7 +580,6 @@ internal sealed partial class MainShell
         var sidebarStack = new Grid { RowSpacing = 0 };
         sidebarStack.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         sidebarStack.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        sidebarStack.Children.Add(Brand());
         var groupsScroll = new ScrollViewer
         {
             Content = _sidebarGroups,
@@ -576,23 +588,17 @@ internal sealed partial class MainShell
         };
         Grid.SetRow(groupsScroll, 1);
         sidebarStack.Children.Add(groupsScroll);
-        // Style suisse : plus de plaque, un trait fin à droite de la barre.
+        // Les pages de FL à gauche de « Raccourcis » (maquette « Minimal »), du fond de la page.
         var sidebar = new Border
         {
             Child = sidebarStack,
-            Background = Brush(MacLook.WindowColor),
-            BorderBrush = Brush(LineColor),
-            BorderThickness = new Thickness(0, 0, 1, 0),
-            Padding = new Thickness(12, 14, 10, 16),
-            RequestedTheme = SurfaceTheme,
+            Width = 200 + ReadableInset,
+            Padding = new Thickness(ReadableInset, 40, 0, 24),
+            Visibility = Visibility.Collapsed,
         };
-        if (Theme == AppTheme.Orange)
-        {
-            // Noire jusqu'aux bords de la fenêtre.
-            sidebar.Margin = new Thickness(-8, -8, 0, -8);
-            sidebar.Padding = new Thickness(18, 22, 10, 24);
-        }
+        _subnav = sidebar;
         inverted.Dispose();
+        Grid.SetRow(sidebar, 1);
         _main.Children.Add(sidebar);
 
         // Page : en-tête (titre, capsule) sous la barre de titre, bandeaux, puis les cartes qui défilent.
@@ -631,7 +637,8 @@ internal sealed partial class MainShell
         titleRow.Children.Add(_titleBack);
         Grid.SetColumn(titleFit, 1);
         titleRow.Children.Add(titleFit);
-        var titleStack = new StackPanel { Spacing = 14, VerticalAlignment = VerticalAlignment.Bottom, Children = { _eyebrow, titleRow } };
+        _eyebrow.Visibility = Visibility.Collapsed;          // plus de surtitre numéroté (maquette « Minimal »)
+        var titleStack = new StackPanel { Spacing = 14, VerticalAlignment = VerticalAlignment.Bottom, Children = { _eyebrow, _findSteps, titleRow } };
         header.Children.Add(titleStack);
         var right = new StackPanel
         {
@@ -649,7 +656,7 @@ internal sealed partial class MainShell
         _titleRule.Margin = new Thickness(0, 0, 0, -24);       // sous la marge de l'en-tête, comme la maquette
         Grid.SetColumnSpan(_titleRule, 2);
         header.Children.Add(_titleRule);
-        var headerHost = new Grid { Margin = new Thickness(ReadableInset, TitleBarHeight - 8 + 22, ReadableInset, 4) };
+        var headerHost = new Grid { Margin = new Thickness(ReadableInset, 28, ReadableInset, 4) };
         headerHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = ReadableMaxWidth });
         headerHost.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         headerHost.Children.Add(header);
@@ -669,6 +676,7 @@ internal sealed partial class MainShell
             RenderPage();
         };
         Grid.SetColumn(page, 1);
+        Grid.SetRow(page, 1);
         _main.Children.Add(page);
     }
 
@@ -807,14 +815,37 @@ internal sealed partial class MainShell
 
     /// Titre de la page (direction A du 17/11, comme le Mac) : son surtitre numéroté, puis le titre tel quel, très grand
     /// (« Appuie sur / un raccourci. » sur deux lignes).
+    /// 20/11 (maquette « Minimal », comme le Mac) : le titre en 32 demi-gras ; « Trouver » : ses trois étapes à la place.
     private void SetTitle(string text)
     {
         var find = _kind == PageKind.Find;
         _eyebrow.Text = Eyebrow(_kind).ToUpper(System.Globalization.CultureInfo.CurrentCulture);
-        _title.FontSize = find ? 64 : 76;
-        _title.LineHeight = _title.FontSize * 0.95;
-        _title.CharacterSpacing = -50;
-        _title.Text = find ? Loc.T("Appuie sur\nun raccourci.") : text;
+        _title.FontSize = 32;
+        _title.LineHeight = 36;
+        _title.CharacterSpacing = -20;
+        _title.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+        _title.Text = text;
+        _title.Visibility = find ? Visibility.Collapsed : Visibility.Visible;
+        _findSteps.Visibility = find ? Visibility.Visible : Visibility.Collapsed;
+        if (find) UpdateFindSteps();
+    }
+
+    /// Étapes de « Trouver » : 1 Touche, 2 Action (ce qu'elle fait est affiché), 3 Nouvelle touche.
+    private void UpdateFindSteps()
+    {
+        var now = _keySearch is not null || _query.Trim().Length > 0 ? 2 : 1;
+        _findSteps.Children.Clear();
+        var names = new[] { Loc.T("Touche"), Loc.T("Action"), Loc.T("Nouvelle touche") };
+        for (var i = 0; i < names.Length; i++)
+        {
+            var n = i + 1;
+            var color = n == now ? Text : n < now ? Secondary : Faint;
+            var step = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            step.Children.Add(Label(n.ToString(System.Globalization.CultureInfo.InvariantCulture), 14, color, semibold: n == now));
+            step.Children.Add(Label(names[i], 14, color, semibold: n == now));
+            _findSteps.Children.Add(step);
+        }
+        _findSteps.Margin = new Thickness(0, 28, 0, 0);
     }
 
     /// Le compte en haut à droite (maquette du 05/11, comme le Mac) : cadre de 2 points à l'encre, plein du fond de la
@@ -1063,7 +1094,7 @@ internal sealed partial class MainShell
             BorderThickness = new Thickness(1),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Bottom,
-            Margin = new Thickness(SidebarWidth, 0, 0, 24),
+            Margin = new Thickness(0, 0, 0, 24),
             Visibility = Visibility.Collapsed,
         };
     }

@@ -84,41 +84,82 @@ internal sealed partial class MainShell
         return $"{PageNumber(kind):00} — {part}";
     }
 
+    /// Maquette « Minimal » (20/11, comme le Mac) : les menus en haut (Trouver, Raccourcis, Macros, Communauté, Compte,
+    /// Aide ; la partie ouverte à l'encre en demi-gras ; un point rouge de nouveautés), et à gauche de « Raccourcis » ses
+    /// pages de FL et « Mes raccourcis » (la page ouverte à l'encre avec son carré rouge).
     private void RenderSidebar()
     {
-        using var inverted = Inverted();                 // noire sous Orange
-        _sidebarGroups.Children.Clear();
-        _sidebarGroups.Spacing = 4;
-        _sidebarGroups.Children.Add(IndexTop(1, Loc.T("Trouver un raccourci"), _kind == PageKind.Find, () => Choose(PageKind.Find, _section)));
-        var shortcuts = IndexTop(2, Loc.T("Raccourcis"), _kind is PageKind.Section or PageKind.Custom, () =>
+        var inShortcuts = _kind is PageKind.Section or PageKind.Custom;
+        _navBar.Children.Clear();
+        _navBar.Children.Add(NavItem(Loc.T("Trouver"), _kind == PageKind.Find, () => Choose(PageKind.Find, _section)));
+        _navBar.Children.Add(NavItem(Loc.T("Raccourcis"), inShortcuts, () =>
         {
-            _shortcutsOpen = !_shortcutsOpen;
-            RenderSidebar();
-        });
-        AutomationProperties.SetItemStatus(shortcuts, _shortcutsOpen ? Loc.T("ouvert") : Loc.T("fermé"));
-        _sidebarGroups.Children.Add(shortcuts);
-        if (_shortcutsOpen)
-        {
-            var pages = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
-            foreach (var s in Enum.GetValues<FlSection>())
-            {
-                var section = s;
-                pages.Children.Add(IndexSub(s.Title(), _kind == PageKind.Section && _section == s,
-                    () => Choose(PageKind.Section, section)));
-            }
-            pages.Children.Add(new Rectangle { Height = 1, Fill = Brush(Faint), Margin = new Thickness(34, 5, 14, 5), IsHitTestVisible = false });
-            pages.Children.Add(IndexSub(Loc.T("Mes raccourcis"), _kind == PageKind.Custom, () => Choose(PageKind.Custom, _section)));
-            _sidebarGroups.Children.Add(pages);
-        }
-        _sidebarGroups.Children.Add(IndexTop(3, Loc.T("Macros"), _kind == PageKind.Macros, () => Choose(PageKind.Macros, _section)));
-        _sidebarGroups.Children.Add(IndexTop(4, Loc.T("Communauté"), _kind == PageKind.Community, () =>
+            if (!inShortcuts) Choose(_lastShortcutsCustom ? PageKind.Custom : PageKind.Section, _section);
+        }));
+        _navBar.Children.Add(NavItem(Loc.T("Macros"), _kind == PageKind.Macros, () => Choose(PageKind.Macros, _section)));
+        _navBar.Children.Add(NavItem(Loc.T("Communauté"), _kind == PageKind.Community, () =>
         {
             // Déjà sur la page d'une personne : « Communauté » ramène à la liste.
             if (_kind == PageKind.Community && _community.PersonName is not null) _community.LeavePerson();
             else Choose(PageKind.Community, _section);
         }, dot: _community.NewFromFollowed > 0));
-        _sidebarGroups.Children.Add(IndexTop(5, Loc.T("Mon compte"), _kind == PageKind.Account, () => Choose(PageKind.Account, _section)));
-        _sidebarGroups.Children.Add(IndexTop(6, Loc.T("Aide"), _kind == PageKind.Help, () => Choose(PageKind.Help, _section)));
+        _navBar.Children.Add(NavItem(Loc.T("Compte"), _kind == PageKind.Account, () => Choose(PageKind.Account, _section)));
+        _navBar.Children.Add(NavItem(Loc.T("Aide"), _kind == PageKind.Help, () => Choose(PageKind.Help, _section), dot: _help.Unread > 0));
+
+        if (_subnav is not null) _subnav.Visibility = inShortcuts ? Visibility.Visible : Visibility.Collapsed;
+        if (_kind == PageKind.Custom) _lastShortcutsCustom = true;
+        else if (_kind == PageKind.Section) _lastShortcutsCustom = false;
+        _sidebarGroups.Children.Clear();
+        _sidebarGroups.Spacing = 0;
+        foreach (var s in Enum.GetValues<FlSection>())
+        {
+            var section = s;
+            _sidebarGroups.Children.Add(SubnavItem(s.Title(), _kind == PageKind.Section && _section == s, () => Choose(PageKind.Section, section)));
+        }
+        _sidebarGroups.Children.Add(SubnavItem(Loc.T("Mes raccourcis"), _kind == PageKind.Custom, () => Choose(PageKind.Custom, _section)));
+    }
+
+    /// « Raccourcis » des menus du haut : la dernière page de raccourcis ouverte (« Mes raccourcis » ou une page de FL).
+    private bool _lastShortcutsCustom;
+
+    private static Button NavItem(string title, bool selected, Action click, bool dot = false)
+    {
+        var label = Label(title, 14, selected ? Text : Secondary, semibold: selected);
+        label.VerticalAlignment = VerticalAlignment.Center;
+        var line = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Height = 40, Background = Brush(Colors.Transparent), Children = { label } };
+        if (dot) line.Children.Add(new Rectangle { Width = 6, Height = 6, Fill = Brush(Red), VerticalAlignment = VerticalAlignment.Center });
+        var button = new Button { Style = PlainButton, Content = line, Padding = new Thickness(0) };
+        button.PointerEntered += (_, _) => label.Foreground = Brush(Text);
+        button.PointerExited += (_, _) => label.Foreground = Brush(selected ? Text : Secondary);
+        button.Click += (_, _) => click();
+        AutomationProperties.SetName(button, title);
+        return button;
+    }
+
+    private static Button SubnavItem(string title, bool selected, Action click)
+    {
+        var grid = new Grid { ColumnSpacing = 10, Padding = new Thickness(0, 7, 0, 7), Background = Brush(Colors.Transparent) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.Children.Add(new Rectangle { Width = 8, Height = 8, Fill = Brush(selected ? Red : Colors.Transparent), VerticalAlignment = VerticalAlignment.Center });
+        var label = Label(title, 15, selected ? Text : Secondary, semibold: selected);
+        label.VerticalAlignment = VerticalAlignment.Center;
+        label.TextTrimming = TextTrimming.CharacterEllipsis;
+        Grid.SetColumn(label, 1);
+        grid.Children.Add(label);
+        var button = new Button
+        {
+            Style = PlainButton,
+            Content = grid,
+            Padding = new Thickness(0),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+        };
+        button.PointerEntered += (_, _) => label.Foreground = Brush(Text);
+        button.PointerExited += (_, _) => label.Foreground = Brush(selected ? Text : Secondary);
+        button.Click += (_, _) => click();
+        AutomationProperties.SetName(button, title);
+        return button;
     }
 
     /// Une page de raccourcis choisie ouvre sa partie de la barre de gauche.
@@ -194,8 +235,8 @@ internal sealed partial class MainShell
     // ---------- En-tête ----------
 
     /// Un trait sous l'en-tête, sauf sur « appuie sur un raccourci ».
-    private void SetTitleRule(bool rule) =>
-        _titleRule.Visibility = rule ? Visibility.Visible : Visibility.Collapsed;
+    /// Maquette « Minimal » (20/11) : plus de trait sous le titre (les tableaux ont le leur).
+    private void SetTitleRule(bool rule) => _titleRule.Visibility = Visibility.Collapsed;
 
     // ---------- Trouver un raccourci ----------
 
@@ -312,6 +353,7 @@ internal sealed partial class MainShell
     /// CTRL+S » si changée), touche dans sa case.
     private void RenderFindResults()
     {
+        UpdateFindSteps();
         _findResults.Children.Clear();
         var (rows, others) = _app.Catalog;
         var combo = _findTyping ? null : _keySearch;

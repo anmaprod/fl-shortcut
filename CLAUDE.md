@@ -937,6 +937,14 @@
   dans SQL Editor : `select public.repondre('FLS-…', $$…$$);`. Sans le fichier : « Mes messages n'est pas encore
   ouvert. », envoi sans capture (« Autre » → question). Réponses vues gardées sur l'appareil (Mac `supportSeenReplies`,
   Windows `SupportSeenReplies`). Mac `HelpView.swift`/`SupportInbox.swift`, Windows `HelpPage.cs`/cœur `SupportInbox.cs`.
+- **Fenêtre « Minimal »** (20/11, remplace la barre de gauche de la direction A) : menus en haut, sous la barre de titre
+  (Trouver, Raccourcis, Macros, Communauté, Compte, Aide ; gris, la partie ouverte à l'encre en demi-gras ; point rouge
+  Communauté / Compte / Aide) ; « Raccourcis » rouvre la dernière page de raccourcis ; ses pages de FL + « Mes
+  raccourcis » dans une colonne à gauche de la page (carré rouge = page ouverte) ; titre des pages en 32 demi-gras, plus
+  de surtitre numéroté, de très grand titre ni de trait dessous ; « Trouver » : étapes 1 Touche · 2 Action · 3 Nouvelle
+  touche à la place du titre. Mac `MinimalNavBar`/`ShortcutsSubnav`/`MinimalTitle`/`FindSteps` (MainReadable.swift),
+  EditorView `shortcuts`/`pageHeader`/`findStep` ; Windows `RenderSidebar` (NavItem, SubnavItem), `SetTitle`,
+  `UpdateFindSteps`, `_navBar`, `_subnav`. Pas encore vu sur son Mac ni sur un PC.
 
 - **Fenêtre « plus lisible »** (16/11, maquette PDF/HTML « FL Shortcuts — plus lisible », 8 écrans, commencée par une
   autre session sans rien pousser) : barre de gauche en parties (`ReadableSidebar` : Trouver un raccourci, Raccourcis ▸

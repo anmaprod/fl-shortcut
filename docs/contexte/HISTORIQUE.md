@@ -1341,3 +1341,8 @@ entrée 1 ≈ 0,5 s.
   seulement si la table existe) ; délimiteur `$corps$` (un `$$` dans le texte coupait la fonction). Essais
   `supabase/tests/mes-messages.sql` passés ici (PostgreSQL 16 du container). Photos CI : Mac `aide-messages`,
   `aide-fil` ; Windows `aide-ecrire`, `aide-messages`, `aide-fil`.
+- 20/11 : étape 4, fenêtre « Minimal », Mac et Windows : menus en haut à la place de la barre de gauche (direction A
+  du 17/11 : index numéroté, surtitre, très grand titre retirés de la fenêtre principale), colonne des pages de
+  « Raccourcis », titres en 32 demi-gras, étapes de « Trouver ». Le haut de la fenêtre (52 points sur Mac, 48 sur
+  Windows) ne laisse passer aucun clic : les menus sont posés juste dessous (pas dans la barre de titre, où il aurait
+  fallu des éléments de barre d'outils de macOS, en verre sur macOS 26).
