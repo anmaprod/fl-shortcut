@@ -5,7 +5,9 @@
 - Branche la plus récente : **`claude/great-hopper-qihaiy`** (en avance de 138 commits sur `claude/relaxed-mayer-ndguzv`).
   Pas de nouvelle PR sans demande (anmaprod/fl-shortcut#1 existe). Un push lance la CI ; ne pas la relancer à la main
   sans demande. Derniers tests Mac verts : commit 1843b87 (502 tests, lancés par le propriétaire sur son Mac) ; CI
-  entièrement verte sur 20749c1 (20/11 : Communauté, Aide et fenêtre « Minimal », Mac et Windows) ; avant, sur 222b2d6 (16/11 : fenêtre « plus lisible », Mac et Windows ; photos `trouver*.png`) ; avant, sur 109babf (13/11 : 680 essais Mac, 483 Windows ; guide, touches échangées) puis 39eb10a (679 Mac,
+  entièrement verte sur 2d904b7 (20/11 au soir : toute la maquette « Minimal », menus dans la barre de titre, créateur
+  en phrases ; essais du créateur à vrais clics : bloc glissé de la boîte, bloc rangé, clic sur une ligne, tous bons),
+  avant sur 20749c1 (20/11 : Communauté, Aide et fenêtre « Minimal », Mac et Windows) ; avant, sur 222b2d6 (16/11 : fenêtre « plus lisible », Mac et Windows ; photos `trouver*.png`) ; avant, sur 109babf (13/11 : 680 essais Mac, 483 Windows ; guide, touches échangées) puis 39eb10a (679 Mac,
   482 Windows ; Channel rack rangé dans la copie) ; avant, sur 40ce8e1 (12/11 : 671 essais Mac, 475 Windows) puis 8ba1b2c (665 essais Mac) puis a82dee2 (04/11 : 617 essais Mac, 384 Windows, logo A, clic intelligent Windows ; Mac macOS 26
   obtenu après 8 refus de GitHub à 15 min, relancé à sa demande « jusqu'à que ça fonctionne ») ; avant, sur 8861883 (plugins par « More plugins… », preset déposé sur Windows, tous les essais PASS ;
   lancée à la main avec `mac_runner=macos-15-intel` à sa demande : le 28/10 GitHub n'a donné aucun Mac arm64 en 15 min,
@@ -970,9 +972,10 @@
   rouge pointillé), étapes « 01 Choisir [File › Export ▾] dans le menu », un clic ouvre les réglages du bloc (ceux de
   l'inspecteur) SOUS sa ligne dans un cadre d'encre, « Monter / Descendre / Retirer » au survol, glisser gardé ;
   « Ajouter une étape » à droite (Clavier, FL Studio, Souris, Temps, en verbes ; « Enregistrer clics et touches » en
-  tête) ; « Supprimer la macro » demandé dans la page. Plus de palette à gauche ni d'inspecteur à droite. Les essais
-  à vrais clics du créateur dans `scripts/mesure-interface.sh` (coordonnées de l'ancienne palette) sont à refaire
-  d'après les photos. « Enregistrement de l'écran » (Mac) : demandé par ScreenCaptureKit, la petite fenêtre de macOS
+  tête) ; « Supprimer la macro » demandé dans la page. Plus de palette à gauche ni d'inspecteur à droite. « Monter /
+  Descendre / Retirer » par-dessus la fin de la ligne au survol (cachés, ils serraient la phrase). Essais à vrais
+  clics du créateur (`scripts/mesure-interface.sh`) refaits pour la nouvelle page : blocs comptés dans la macro,
+  clics sur les lignes 2 puis 1 (au-dessus des réglages ouverts, qu'un 2e clic referme). « Enregistrement de l'écran » (Mac) : demandé par ScreenCaptureKit, la petite fenêtre de macOS
   seule ; si les Réglages s'ouvrent avec elle, cachés 2 s (`ScreenLook.promptOnly`) ; Windows : rien (pas
   d'autorisation de ce genre).
 
