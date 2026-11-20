@@ -18,7 +18,8 @@
 - **Chaque changement demandé : sur Mac ET sur Windows** (demande du 04/11 : « a chaque fois que je fais des modifs fais
   les pour win aussi »), même s'il ne parle que d'un des deux.
 - Historique, décisions et échecs : `docs/contexte/HISTORIQUE.md` ; lien avec FL (script v16) : `PROTOCOL.md`.
-- **En cours (19/11)** : maquette « Minimal » (`docs/maquettes/fl-shortcuts-minimal.html`) mise dans l'app en 4 étapes ;
+- **En cours (19-20/11)** : maquette « Minimal » (`docs/maquettes/fl-shortcuts-minimal.html`) mise dans l'app, tout
+  fait le 20/11 au soir (voir « Fenêtre « Minimal » ») ; reste à relire les photos de la CI page par page ;
   état exact et reste à faire : `docs/contexte/RELAIS-2026-11-19.md` (à lire avant d'y toucher).
 - **Graphify, toujours** (demande du 29/10, pour moins de jetons) : chercher dans le graphe du code AVANT de lire des
   fichiers (`graphify query "…"`, `graphify explain "Nom"`, `graphify path "A" "B"`), puis lire seulement les lignes
@@ -945,6 +946,35 @@
   touche à la place du titre. Mac `MinimalNavBar`/`ShortcutsSubnav`/`MinimalTitle`/`FindSteps` (MainReadable.swift),
   EditorView `shortcuts`/`pageHeader`/`findStep` ; Windows `RenderSidebar` (NavItem, SubnavItem), `SetTitle`,
   `UpdateFindSteps`, `_navBar`, `_subnav`. Pas encore vu sur son Mac ni sur un PC.
+  20/11 au soir (vidéo : « beaucoup de choses oubliées… fais exactement tout ce qu'on a fait pour la maquette »),
+  Mac et Windows, tout d'après la maquette : menus DANS la barre de titre, à côté des boutons de la fenêtre, aussi dans
+  le créateur (« Macros » choisi ; un autre menu le referme ; Mac : élément de barre d'outils sans fond de verre,
+  `titleBarNav` dans MainChrome.swift ; Windows : `_navHost` dans la barre de titre, la zone qui déplace la fenêtre
+  commence après, `UpdateTitleBarRegion`) ; Raccourcis : lignes 44 de haut, touche en texte 20 demi-gras (rouge si
+  changée), « Remettre », touche changée DANS la ligne (« | Appuie sur une touche » + Annuler ; ⌫ = aucune touche),
+  survol plein d'encre (Mac `MinimalKeyRow`, Windows `MinimalRow`) ; Trouver : la case écoute dès l'ouverture, grande
+  case de 200 soulignée, barre rouge + « Appuie sur une touche » en 48 gris, touche en très grand (taille selon sa
+  longueur), résultats à droite (« Playlist · ⌘S », Changer, Remettre), étape 3 « Nouvelle touche » (Avant, Aucune
+  touche, Annuler), « C'est changé. » (Avant / Maintenant, « Chercher un autre raccourci », « Annuler le
+  changement ») (Mac `MinimalPages.swift`, `KeyChange.apply` ; Windows `MainShellMinimal.cs`, `ChangeKeyAsync`) ;
+  Macros : « + Nouvelle macro » seul, une ligne par macro (nom, étapes en gris, touche, interrupteur Active / Éteinte,
+  « Supprimer » demandé dans la ligne), « Importer » / « Tout exporter » en petits liens, « Aucune macro. » ;
+  Compte sans titre : photo 96, pseudo en 48 + carré rouge, mail, « Ajouter une photo », Thème en onglets soulignés
+  (Papier, Noir, Orange), « Se déconnecter » bordé (tout de suite, question seulement si des changements ne sont pas
+  en ligne), « Supprimer mon compte » rouge demandé dans la page (plus de 2e question) ; connexion : « Connexion » en
+  48, Adresse mail / Mot de passe (cases bordées de 2), « Se connecter », liens « Créer un compte » / « Mot de passe
+  oublié ? » ; créer / oublié : « Recevoir le code » ; code : « Valider », « Renvoyer le code », « J'ai déjà un
+  compte » ; Communauté sans compte, sans titre : « Connecte-toi pour voir la Communauté. » + « Se connecter ».
+  **Créateur en phrases** (Mac `MacroCreatorMinimal.swift`, Windows `MacrosPage.cs` + cœur `StepSentence.cs`, essai
+  `AddStepBoxFollowsTheMockup`) : une colonne, « ← Macros » / « Terminé », nom en 32 souligné, « Touche » (« Choisir »
+  rouge pointillé), étapes « 01 Choisir [File › Export ▾] dans le menu », un clic ouvre les réglages du bloc (ceux de
+  l'inspecteur) SOUS sa ligne dans un cadre d'encre, « Monter / Descendre / Retirer » au survol, glisser gardé ;
+  « Ajouter une étape » à droite (Clavier, FL Studio, Souris, Temps, en verbes ; « Enregistrer clics et touches » en
+  tête) ; « Supprimer la macro » demandé dans la page. Plus de palette à gauche ni d'inspecteur à droite. Les essais
+  à vrais clics du créateur dans `scripts/mesure-interface.sh` (coordonnées de l'ancienne palette) sont à refaire
+  d'après les photos. « Enregistrement de l'écran » (Mac) : demandé par ScreenCaptureKit, la petite fenêtre de macOS
+  seule ; si les Réglages s'ouvrent avec elle, cachés 2 s (`ScreenLook.promptOnly`) ; Windows : rien (pas
+  d'autorisation de ce genre).
 
 - **Fenêtre « plus lisible »** (16/11, maquette PDF/HTML « FL Shortcuts — plus lisible », 8 écrans, commencée par une
   autre session sans rien pousser) : barre de gauche en parties (`ReadableSidebar` : Trouver un raccourci, Raccourcis ▸

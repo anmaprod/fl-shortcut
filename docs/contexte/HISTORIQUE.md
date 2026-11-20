@@ -1353,3 +1353,13 @@ entrée 1 ≈ 0,5 s.
 - 20/11 : photos de la CI relues (vertes : Mac et Windows) : menus en haut et Aide bien rendus. Corrigé : deux titres
   sur « Écrire à l'équipe » et un message (« Aide » puis le leur) → le titre de la page devient le leur ; Windows,
   touches longues coupées (« Ctrl+Shif… ») → case de 136 au lieu de 92, texte en 14.
+- 20/11 au soir (vidéo du propriétaire : « il y a beaucoup de choses qui ont été oubliées et pas respectées… fais
+  exactement tout ce qu'on a fait pour la maquette ») : toute la maquette « Minimal » refaite page par page, Mac et
+  Windows (voir CLAUDE.md « Fenêtre « Minimal » ») : menus dans la barre de titre (essai CI : les éléments de barre
+  d'outils de macOS reçoivent les clics ; leur fond de verre de macOS 26 retiré par `sharedBackgroundVisibility`),
+  Trouver, Raccourcis (touche changée dans la ligne), Macros, Compte, connexion, Communauté sans compte, créateur en
+  phrases avec « Ajouter une étape ». Mac : « Supprimer mon compte » demandait deux fois (page puis fenêtre) → une
+  seule. Capture du propriétaire (« que la petite page qui apparaisse ») : la demande d'« Enregistrement de l'écran »
+  ouvrait la petite fenêtre de macOS ET les Réglages → demandée par ScreenCaptureKit, Réglages cachés s'ils s'ouvrent
+  quand même (pas encore vu sur son Mac).
+
