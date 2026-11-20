@@ -1,17 +1,28 @@
-// Page Aide de la fenêtre principale (barre de gauche, sous Communauté ; aussi le menu de la barre des menus) :
-// recherche dans les questions fréquentes, puis « Écrire à l'équipe » (problème, question ou idée), avec l'état de
-// l'app joint si on le laisse coché, affiché tel quel. Envoi par le serveur s'il est branché ; sinon, ou
-// s'il échoue, par mail, en copie ou en ticket GitHub (Support.swift).
+// Page Aide de la fenêtre principale (maquette « Minimal », 20/11) : deux onglets, Questions (recherche dans les
+// questions fréquentes) et Mes messages (ce qu'on a écrit à l'équipe, sa réponse, « Répondre » ; SupportInbox.swift) ;
+// « Écrire à l'équipe » (en haut à droite de la page) ouvre sa page : le genre (Un bug, Une idée, Une question,
+// Autre), le message (la case grandit avec le texte), une capture si on veut ; l'état de l'appli part tout seul (des
+// nombres, jamais de nom de son ni de touche). Un compte est nécessaire pour écrire : la réponse arrive dans Mes
+// messages. App compilée sans serveur : copie ou mail (Support.swift).
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
+
+/// Écran de la page Aide.
+enum HelpScreen: Equatable {
+    case questions, messages, write
+    case thread(UUID)
+}
 
 /// Demande d'ouvrir la page Aide (menu de la barre des menus, « Signaler ce problème ») : la fenêtre principale la
-/// montre dès qu'elle est là, le formulaire prérempli avec l'erreur signalée.
+/// montre dès qu'elle est là, le formulaire prérempli avec l'erreur signalée. Garde aussi l'écran de la page (le
+/// bouton « Écrire à l'équipe » de l'en-tête y mène).
 final class HelpLink: ObservableObject {
     static let shared = HelpLink()
     @Published var pending = false
     /// Message d'erreur à joindre (macro qui échoue…), repris par le formulaire.
     @Published var reportedError: String?
+    @Published var screen = HelpScreen.questions
 
     func show() { pending = true }
 
@@ -29,350 +40,521 @@ struct HelpPage: View {
     @ObservedObject var community: CommunityStore
     let showGuide: () -> Void
     @ObservedObject private var helpLink = HelpLink.shared
+    @ObservedObject private var inbox = SupportInbox.shared
 
     @State private var query = ""
     @State private var opened: Set<Int> = []
     @State private var message = SupportMessage()
-    @State private var includeDiagnostic = true
-    @State private var showDiagnostic = false
+    /// Le genre, choisi par la personne (rien d'office, comme la maquette ; « Signaler ce problème » : Un bug).
+    @State private var kind: SupportKind?
+    @State private var captureImage: NSImage?
+    @State private var dropping = false
     @State private var sending = false
-    @State private var sent = false
     @State private var failure: String?
-    /// L'app de mail s'est ouverte avec le message : reste à l'envoyer.
-    @State private var mailOpened = false
-    /// Ce qui est joint (état, derniers problèmes, journal de la dernière macro), relu à l'ouverture et à l'envoi.
-    @State private var attached = ""
-    @State private var scrollToForm = 0
-    /// « Écrire… » choisi (ou un problème signalé) : le formulaire s'ouvre sous les questions.
-    @State private var writing = false
-    /// Assez large pour les questions et, à droite, « Écrire à l'équipe » et le guide.
+    /// Envoyé sans « Mes messages » (serveur d'avant, ou sans serveur) : la référence seule.
+    @State private var sentReference: String?
+    @State private var reply = ""
+    @State private var replying = false
+    @State private var replySent = false
+    @State private var tipsOpened: Set<Int> = []
     @State private var wide = true
 
     private var entries: [HelpEntry] { HelpContent.faq.filter { $0.matches(query) } }
+    private var signedIn: Bool { community.session != nil || community.demo }
 
-    /// Maquette validée le 30/10 : la recherche en grand, les questions dans une carte (réponse en étapes numérotées
-    /// quand elle en a), à droite « Écrire à l'équipe » et « Revoir le guide » ; le formulaire s'ouvre dessous.
     var body: some View {
-        ScrollViewReader { reader in
-            ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: 16) {
-                    searchField
-                    if wide {
-                        HStack(alignment: .top, spacing: 12) {
-                            faqCard
-                            sideCards.frame(width: 250)
-                        }
-                    } else {
-                        VStack(alignment: .leading, spacing: 12) {
-                            faqCard
-                            sideCards
-                        }
-                    }
-                    if writing || sent {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Écrire à l'équipe").font(.system(size: 15, weight: .bold))
-                            Group {
-                                if sent { sentCard } else { form }
-                            }
-                            .padding(16)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(MockPlate(cornerRadius: 14)).swissCard()
-                        }
-                        .id("form")
-                    }
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 0) {
+                switch helpLink.screen {
+                case .write: writePage
+                case .thread(let id): threadPage(id)
+                case .questions, .messages:
+                    tabs
+                    if helpLink.screen == .messages { messagesPage } else { questionsPage }
                 }
-                // Direction A (17/11) : la colonne du titre (avant : 26 points du bord, plus à gauche que lui).
-                .readableColumn()
-                .padding(.top, 10)
-                .padding(.bottom, 24)
-                .background(WidthReader { width in
-                    // Largeur de la colonne (avant : la page moins 2 × 26 ; deux colonnes dès 588 de colonne).
-                    let fits = min(width - 2 * ReadableLayout.inset, ReadableLayout.maxWidth) >= 588
-                    if fits != wide { wide = fits }
-                })
             }
-            .onAppear {
-                if message.email.isEmpty { message.email = community.session?.email ?? "" }
-                refreshAttached()
-                takeReportedError()
-            }
-            .onChange(of: helpLink.reportedError) { _ in takeReportedError() }
-            .onChange(of: scrollToForm) { _ in
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { reader.scrollTo("form", anchor: .top) }
-            }
-            .onReceive(DebugSnapshot.publisher(DebugSnapshot.help)) { note in
-                showCapture(note.object as? String ?? "")
-            }
+            .readableColumn()
+            .padding(.top, 6)
+            .padding(.bottom, 32)
+            .background(WidthReader { width in
+                let fits = min(width - 2 * ReadableLayout.inset, ReadableLayout.maxWidth) >= 640
+                if fits != wide { wide = fits }
+            })
+        }
+        .onAppear {
+            takeReportedError()
+            Task { await inbox.load(community) }
+        }
+        .onChange(of: helpLink.reportedError) { _ in takeReportedError() }
+        .onChange(of: community.session?.userID) { _ in
+            inbox.forget()
+            Task { await inbox.load(community) }
+        }
+        .onChange(of: helpLink.screen) { screen in
+            if screen == .messages { Task { await inbox.load(community) } }
+        }
+        .onReceive(DebugSnapshot.publisher(DebugSnapshot.help)) { note in
+            showCapture(note.object as? String ?? "")
         }
     }
 
-    /// Maquette du 05/11 : grande recherche bordée de 2 points, la loupe à 18 points du bord (« trop proche du bord »),
-    /// pleine du fond (la grille de Papier ne passe pas dedans).
+    // MARK: Onglets
+
+    /// Questions / Mes messages (comme les onglets de la Communauté) ; un point rouge : une nouvelle réponse.
+    private var tabs: some View {
+        HStack(spacing: 28) {
+            tab(String(localized: "Questions"), .questions, dot: false)
+            tab(String(localized: "Mes messages"), .messages, dot: signedIn && inbox.unread > 0)
+            Spacer(minLength: 0)
+        }
+        .overlay(alignment: .bottom) { Rectangle().fill(Swiss.line).frame(height: 1) }
+    }
+
+    private func tab(_ title: String, _ screen: HelpScreen, dot: Bool) -> some View {
+        let on = helpLink.screen == screen
+        return Button {
+            helpLink.screen = screen
+        } label: {
+            HStack(spacing: 7) {
+                Text(title)
+                    .font(Swiss.font(11.5)).tracking(1.3).textCase(.uppercase)
+                    .foregroundStyle(on ? Swiss.text : Swiss.gray)
+                if dot {
+                    Rectangle().fill(Swiss.red).frame(width: 6, height: 6)
+                        .accessibilityLabel(String(localized: "Nouvelle réponse"))
+                }
+            }
+            .frame(height: 44)
+            .overlay(alignment: .bottom) {
+                if on { Rectangle().fill(Swiss.text).frame(height: 2) }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
+    }
+
+    // MARK: Questions
+
+    private var questionsPage: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            searchField.frame(maxWidth: 480)
+            if entries.isEmpty {
+                Text("Aucune réponse.").font(.system(size: 15)).foregroundStyle(Swiss.gray)
+            } else {
+                faqList(entries, opened: $opened)
+            }
+            Button("Revoir le guide") { showGuide() }
+                .buttonStyle(SwissLinkButtonStyle())
+                .font(.system(size: 13))
+        }
+        .padding(.top, 24)
+    }
+
+    /// Recherche dans l'aide : une case bordée, la loupe devant.
     private var searchField: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "magnifyingglass").font(.system(size: 18, weight: .semibold)).foregroundStyle(Swiss.text)
-            TextField("Rechercher", text: $query, prompt: Text("Pose ta question").foregroundColor(Swiss.gray))
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass").font(.system(size: 14, weight: .semibold)).foregroundStyle(Swiss.text)
+            TextField("Rechercher dans l'aide", text: $query, prompt: Text("Rechercher dans l'aide").foregroundColor(Swiss.gray))
                 .textFieldStyle(.plain)
-                .font(Swiss.font(20))
+                .font(Swiss.font(15, .regular))
             if !query.isEmpty {
                 Button {
                     query = ""
                 } label: {
-                    Image(systemName: "xmark").font(.system(size: 13, weight: .bold)).foregroundStyle(Swiss.text)
+                    Image(systemName: "xmark").font(.system(size: 11, weight: .bold)).foregroundStyle(Swiss.text)
                 }
                 .buttonStyle(.borderless)
                 .accessibilityLabel("Effacer la recherche")
             }
         }
-        .padding(.horizontal, 18)
-        .frame(height: 60)
+        .padding(.horizontal, 14)
+        .frame(height: 44)
         .background(Rectangle().fill(Swiss.background))
         .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 2))
-        // 07/11 au soir : comme la recherche des raccourcis, elle lâche la main au premier clic ailleurs.
         .background(ReleaseOnOutsideClick())
     }
 
-    /// Les questions (maquette du 05/11) : une carte par question, la réponse en étapes numérotées ; un clic l'ouvre.
-    private var faqCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            if entries.isEmpty {
-                Text("Aucune réponse pour « \(query.displaySafe(max: 30)) ».")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Swiss.gray)
-                    .padding(18)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
+    /// Les questions en liste (▸ / ▾), un trait d'encre au-dessus, un trait fin entre elles.
+    private func faqList(_ list: [HelpEntry], opened: Binding<Set<Int>>) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(list, id: \.id) { entry in
+                HelpEntryRow(entry: entry, open: opened.wrappedValue.contains(entry.id)) {
+                    if opened.wrappedValue.contains(entry.id) { opened.wrappedValue.remove(entry.id) } else { opened.wrappedValue.insert(entry.id) }
+                }
+                .padding(.vertical, 14)
+                .overlay(alignment: .bottom) { Rectangle().fill(Swiss.line).frame(height: 1) }
+            }
+        }
+        .overlay(alignment: .top) { Rectangle().fill(Swiss.text).frame(height: 2) }
+    }
+
+    // MARK: Mes messages
+
+    @ViewBuilder private var messagesPage: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if !signedIn {
+                signInAsk(String(localized: "Connecte-toi pour retrouver tes messages."))
+            } else if inbox.ready == false {
+                Text("Mes messages n'est pas encore ouvert.").font(.system(size: 15)).foregroundStyle(Swiss.gray)
+            } else if inbox.threads.isEmpty {
+                Text(inbox.loading || inbox.ready == nil ? String(localized: "Chargement…") : String(localized: "Aucun message."))
+                    .font(.system(size: 15)).foregroundStyle(Swiss.gray)
+                if let error = inbox.error { SwissWarning(error).font(.system(size: 12)) }
             } else {
-                ForEach(entries, id: \.id) { entry in
-                    HelpEntryRow(entry: entry, open: opened.contains(entry.id)) {
-                        withAnimation(Motion.smooth) {
-                            if opened.contains(entry.id) { opened.remove(entry.id) } else { opened.insert(entry.id) }
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(inbox.threads) { thread in messageRow(thread) }
+                }
+                .overlay(alignment: .top) { Rectangle().fill(Swiss.text).frame(height: 2) }
+            }
+        }
+        .padding(.top, 24)
+    }
+
+    /// Une ligne : la 1re ligne du message en gras et son genre, la date, puis Envoyé / Réponse ✓ / Réponse ●.
+    private func messageRow(_ thread: SupportThread) -> some View {
+        let state = SupportInboxRules.state(thread, seen: inbox.seen)
+        return Button {
+            helpLink.screen = .thread(thread.id)
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 16) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(thread.firstLine.displaySafe(max: 80))
+                        .font(Swiss.font(15)).foregroundStyle(Swiss.text).lineLimit(1)
+                    Text(thread.kindLabel).font(.system(size: 12)).foregroundStyle(Swiss.gray)
+                }
+                Spacer(minLength: 8)
+                Text(SupportInboxRules.dateLabel(thread.createdAt)).font(.system(size: 12)).foregroundStyle(Swiss.gray)
+                    .fixedSize()
+                Group {
+                    switch state {
+                    case .sent: Text("Envoyé").foregroundStyle(Swiss.gray)
+                    case .answered: Text("Réponse ✓").foregroundStyle(Swiss.text)
+                    case .newAnswer:
+                        HStack(spacing: 6) {
+                            Text("Réponse").foregroundStyle(Swiss.red)
+                            Rectangle().fill(Swiss.red).frame(width: 6, height: 6)
                         }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Rectangle().fill(Swiss.background))
-                    .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
-                    .swissCard()
+                }
+                .font(Swiss.font(13))
+                .frame(width: 96, alignment: .trailing)
+            }
+            .padding(.vertical, 14)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .overlay(alignment: .bottom) { Rectangle().fill(Swiss.line).frame(height: 1) }
+    }
+
+    // MARK: Un message
+
+    @ViewBuilder private func threadPage(_ id: UUID) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            backLink(String(localized: "Mes messages"), to: .messages)
+            if let thread = inbox.threads.first(where: { $0.id == id }) {
+                Text(thread.kindLabel)
+                    .font(Swiss.title(34)).tracking(Swiss.titleTracking(34)).foregroundStyle(Swiss.text)
+                VStack(alignment: .leading, spacing: 0) {
+                    bubble(team: false, text: thread.message, date: thread.createdAt, image: inbox.captures[thread.id])
+                    ForEach(thread.replies) { r in bubble(team: r.team, text: r.message, date: r.createdAt, image: nil) }
+                }
+                .overlay(alignment: .top) { Rectangle().fill(Swiss.text).frame(height: 2) }
+                if replySent { Text("Envoyé ✓").font(Swiss.font(15)).foregroundStyle(Swiss.text) }
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Répondre").swissLabel(Swiss.text)
+                    GrowingTextArea(text: $reply, placeholder: "", minLines: 3)
+                    if let failure { SwissWarning(failure).font(.system(size: 12)) }
+                    HStack {
+                        Button("Envoyer") { Task { await sendReply(thread) } }
+                            .primaryButton()
+                            .disabled(reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || replying)
+                        if replying { ProgressView().controlSize(.small) }
+                    }
+                }
+                .padding(.top, 12)
+                .task(id: thread.id) {
+                    replySent = false
+                    failure = nil
+                    await inbox.open(thread, community)
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 8)
     }
 
-    /// À droite des questions (maquette du 05/11) : deux grands boutons, « Écrire à l'équipe » (principal) et « Revoir
-    /// le guide » (bordé, plein du fond).
-    private var sideCards: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Button {
-                writing = true
-                sent = false
-                scrollToForm += 1
-            } label: {
-                Text("Écrire à l'équipe").frame(maxWidth: .infinity)
+    private func bubble(team: Bool, text: String, date: String, image: NSImage?) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(verbatim: (team ? String(localized: "L'équipe") : String(localized: "Toi")) + " · "
+                 + SupportInboxRules.dateLabel(date))
+                .swissLabel(team ? Swiss.red : Swiss.gray)
+            Text(text)
+                .font(.system(size: 14))
+                .foregroundStyle(Swiss.text)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+            if let image {
+                Image(nsImage: image).resizable().scaledToFit().frame(maxWidth: 420, maxHeight: 280, alignment: .leading)
+                    .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
+                    .accessibilityLabel(String(localized: "Ta capture"))
             }
-            .primaryButton()
-            .heroControlSize()
-            Button {
-                showGuide()
-            } label: {
-                Text("Revoir le guide").frame(maxWidth: .infinity)
-            }
-            .secondaryButton()
-            .heroControlSize()
-            .help("Revoir le guide de FL Shortcuts")
+        }
+        .padding(.vertical, 14)
+        .padding(.leading, team ? 16 : 0)
+        .overlay(alignment: .leading) { if team { Rectangle().fill(Swiss.red).frame(width: 2) } }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .bottom) { Rectangle().fill(Swiss.line).frame(height: 1) }
+    }
+
+    private func sendReply(_ thread: SupportThread) async {
+        replying = true
+        failure = nil
+        defer { replying = false }
+        if let why = await inbox.reply(thread, text: reply, community) {
+            failure = why
+        } else {
+            reply = ""
+            replySent = true
         }
     }
 
     // MARK: Écrire à l'équipe
 
+    @ViewBuilder private var writePage: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            backLink(String(localized: "Aide"), to: .questions)
+            Text("Écrire à l'équipe")
+                .font(Swiss.title(34)).tracking(Swiss.titleTracking(34)).foregroundStyle(Swiss.text)
+            if community.isConfigured && !signedIn {
+                signInAsk(String(localized: "Connecte-toi pour écrire à l'équipe."))
+            } else if let reference = sentReference {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Envoyé ✓").font(Swiss.font(17)).foregroundStyle(Swiss.text)
+                    Text("Référence : \(reference)").font(.system(size: 12).monospacedDigit()).foregroundStyle(Swiss.gray)
+                        .textSelection(.enabled)
+                    Button("Écrire un autre message") { startWriting() }
+                        .buttonStyle(SwissLinkButtonStyle())
+                        .font(.system(size: 13))
+                }
+            } else if wide {
+                HStack(alignment: .top, spacing: 40) {
+                    form.frame(maxWidth: 560)
+                    tipsColumn.frame(width: 260)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 24) {
+                    form
+                    tipsColumn
+                }
+            }
+        }
+        .padding(.top, 8)
+    }
+
     private var form: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 24) {
             if let error = message.error {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        SwissWarning(String(localized: "Le problème signalé"))
-                            .font(.system(size: 12, weight: .semibold))
+                        SwissWarning(String(localized: "Le problème signalé")).font(.system(size: 12, weight: .semibold))
                         Spacer()
                         Button("Retirer") { message.error = nil }
                             .buttonStyle(SwissLinkButtonStyle())
                             .font(.system(size: 11))
                     }
-                    Text(error)
-                        .font(.system(size: 12))
-                        .textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
+                    Text(error).font(.system(size: 12)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(8)
-                .background(Rectangle().fill(Color.orange.opacity(0.08)))
             }
-            SwissSegmented(selection: $message.kind, options: SupportKind.allCases.map { (value: $0, label: $0.label) })
-            VStack(alignment: .trailing, spacing: 3) {
-                TextEditor(text: $message.text)
-                    .font(.system(size: 12))
-                    .frame(minHeight: 110)
-                    .overlay(alignment: .topLeading) {
-                        if message.text.isEmpty {
-                            Text(message.kind.placeholder)
-                                .font(.system(size: 12))
-                                .foregroundStyle(.tertiary)
-                                .padding(.horizontal, 9)
-                                .padding(.vertical, 5)
-                                .allowsHitTesting(false)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("C'est à propos de").swissLabel(Swiss.text)
+                HStack(spacing: -1) {
+                    ForEach(SupportKind.allCases) { k in
+                        Button(k.label) {
+                            kind = k
+                            message.kind = k
                         }
+                        .buttonStyle(SwissChoiceStyle(chosen: kind == k, uppercase: false))
+                        .accessibilityAddTraits(kind == k ? .isSelected : [])
                     }
-                    .swissTextArea()
-                Text("\(message.text.count)/\(SupportRules.messageRange.upperBound)")
-                    .font(.system(size: 10).monospacedDigit())
-                    .foregroundStyle(.tertiary)
+                }
+                .fixedSize()
             }
-            TextField("Ton mail", text: $message.email, prompt: Text("Ton mail (facultatif)"))
-                .swissField()
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Toggle("Joindre l'état de l'appli", isOn: $includeDiagnostic)
-                        .toggleStyle(SwissCheckboxStyle())
-                    Spacer()
-                    Button(showDiagnostic ? String(localized: "Masquer") : String(localized: "Voir ce qui est joint")) {
-                        refreshAttached()
-                        withAnimation(Motion.smooth) { showDiagnostic.toggle() }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Message").swissLabel(Swiss.text)
+                GrowingTextArea(text: $message.text, placeholder: (kind ?? .autre).placeholder, minLines: 6)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 10) {
+                    Text("Capture").swissLabel(Swiss.text)
+                    Text("facultatif").font(.system(size: 12)).foregroundStyle(Swiss.gray)
+                }
+                captureZone
+                if captureImage != nil {
+                    Button("Retirer la capture") {
+                        captureImage = nil
+                        message.capture = nil
                     }
                     .buttonStyle(SwissLinkButtonStyle())
                     .font(.system(size: 12))
                 }
-                if showDiagnostic {
-                    ScrollView {
-                        Text(attached)
-                            .font(.system(size: 11, design: .monospaced))
-                            .textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(8)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .frame(maxHeight: 200)
-                    .background(Rectangle().fill(Color.primary.opacity(0.05)))
-                }
-            }
-            if mailOpened {
-                Label("Message prêt dans ton app de mail.",
-                      systemImage: "envelope")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
             }
             if let failure {
-                SwissWarning(failure)
-                    .font(.system(size: 12))
-                    .fixedSize(horizontal: false, vertical: true)
+                SwissWarning(failure).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
             }
-            buttons
+            HStack(spacing: 18) {
+                if community.isConfigured {
+                    Button("Envoyer") { Task { await send() } }
+                        .primaryButton()
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(!ready || sending)
+                } else if let mail = SupportConfig.email {
+                    Button("Envoyer par mail") { openMail(mail) }
+                        .primaryButton()
+                        .disabled(!ready)
+                }
+                if !community.isConfigured || failure != nil {
+                    Button("Copier") { copy() }.secondaryButton().disabled(!ready)
+                }
+                Button("Annuler") { helpLink.screen = .questions }
+                    .buttonStyle(SwissLinkButtonStyle())
+                    .font(.system(size: 13))
+                if sending { ProgressView().controlSize(.small) }
+            }
         }
-        .padding(.vertical, 4)
     }
+
+    /// « Ajouter une capture » : un clic choisit une image ; on peut aussi la déposer ici.
+    private var captureZone: some View {
+        Button {
+            chooseCapture()
+        } label: {
+            Group {
+                if let captureImage {
+                    HStack(spacing: 14) {
+                        Image(nsImage: captureImage).resizable().scaledToFit().frame(maxWidth: 160, maxHeight: 100)
+                        Text("Changer").font(Swiss.font(13)).foregroundStyle(Swiss.text).underline()
+                    }
+                    .padding(12)
+                } else {
+                    Text("Ajouter une capture").font(Swiss.font(13)).foregroundStyle(Swiss.text)
+                        .frame(maxWidth: .infinity, minHeight: 64)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Rectangle().fill(dropping ? Swiss.faint : Swiss.background))
+            .overlay(Rectangle().strokeBorder(Swiss.text, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onDrop(of: [.fileURL], isTargeted: $dropping) { providers in
+            guard let provider = providers.first else { return false }
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                guard let url else { return }
+                DispatchQueue.main.async { useCapture(url) }
+            }
+            return true
+        }
+    }
+
+    /// « Ça t'aide peut-être » : les questions qui parlent des mots du message.
+    @ViewBuilder private var tipsColumn: some View {
+        let tips = SupportInboxRules.tips(for: message.text, kind: kind, in: HelpContent.faq)
+        if !tips.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Ça t'aide peut-être").swissLabel(Swiss.text)
+                faqList(tips, opened: $tipsOpened)
+            }
+        }
+    }
+
+    private func backLink(_ title: String, to screen: HelpScreen) -> some View {
+        Button {
+            helpLink.screen = screen
+        } label: {
+            Text(verbatim: "← " + title).font(.system(size: 13)).foregroundStyle(Swiss.gray)
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 12)
+    }
+
+    private func signInAsk(_ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(text).font(.system(size: 15)).foregroundStyle(Swiss.text)
+            Button("Se connecter") { AccountLink.shared.pending = true }
+                .primaryButton()
+        }
+    }
+
+    private var ready: Bool { kind != nil && SupportRules.problem(message) == nil }
 
     private var outgoing: SupportMessage {
         var m = message
-        m.diagnostic = includeDiagnostic ? attached : nil
+        m.kind = kind ?? .autre
+        m.email = community.session?.email ?? ""
+        m.diagnostic = SupportDiagnostic.report(
+            SupportDiagnostic.current(store: store, status: status, fl: FLMonitor.shared, link: link),
+            problems: ProblemLog.shared.text, journal: MacroLog.lastRunExcerpt())
         return m
     }
 
-    private func refreshAttached() {
-        attached = SupportDiagnostic.report(
-            SupportDiagnostic.current(store: store, status: status, fl: FLMonitor.shared, link: link),
-            problems: ProblemLog.shared.text, journal: MacroLog.lastRunExcerpt())
+    private func startWriting() {
+        message = SupportMessage()
+        kind = nil
+        captureImage = nil
+        failure = nil
+        sentReference = nil
+        helpLink.screen = .write
     }
 
-    /// « Signaler ce problème » : formulaire prêt avec l'erreur, page déroulée jusqu'à lui.
+    /// « Signaler ce problème » : la page « Écrire à l'équipe », Un bug, l'erreur jointe.
     private func takeReportedError() {
         guard let error = helpLink.reportedError else { return }
         helpLink.reportedError = nil
+        startWriting()
+        kind = .probleme
         message.kind = .probleme
         message.error = error
-        writing = true
-        sent = false
+    }
+
+    private func chooseCapture() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.image]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.directoryURL = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        useCapture(url)
+    }
+
+    private func useCapture(_ url: URL) {
+        guard let text = SupportCapture.base64(fromFile: url), let image = SupportCapture.image(text) else {
+            failure = String(localized: "Image illisible ou trop lourde.")
+            return
+        }
         failure = nil
-        mailOpened = false
-        refreshAttached()
-        scrollToForm += 1
+        message.capture = text
+        captureImage = image
     }
 
-    private var ready: Bool { SupportRules.problem(message) == nil }
-
-    /// Le serveur d'abord ; le mail de l'équipe s'il n'y a pas de serveur (ou après un échec) ; sinon copie et ticket.
-    @ViewBuilder private var buttons: some View {
-        let mail = SupportConfig.email
-        HStack(spacing: 8) {
-            if !ready, !message.text.isEmpty, let why = SupportRules.problem(message) {
-                Text(why).font(.system(size: 11)).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-            if sending { ProgressView().controlSize(.small) }
-            if !community.isConfigured || failure != nil {
-                Button("Copier") { copy() }
-                    .secondaryButton()
-                    .disabled(!ready)
-                    .help("Copier le message, pour le coller où tu veux")
-                if mail == nil {
-                    Button("Ouvrir un ticket sur GitHub") { openIssue() }
-                        .secondaryButton()
-                        .disabled(!ready)
-                        .help("Page publique : ton mail n'y est pas recopié")
-                }
-            }
-            if community.isConfigured && failure == nil {
-                Button("Envoyer") { Task { await send() } }
-                    .primaryButton()
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!ready || sending)
-            } else if let mail {
-                Button("Envoyer par mail") { openMail(mail) }
-                    .primaryButton()
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!ready)
-                    .help("Ouvre ton app de mail avec le message tout prêt, pour \(mail)")
-            }
-        }
-    }
-
-    private var sentCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Merci, c'est envoyé !", systemImage: "checkmark.circle.fill")
-                .font(.headline)
-                .foregroundStyle(.green)
-            let mail = message.email.trimmingCharacters(in: .whitespaces)
-            Text(mail.isEmpty
-                 ? String(localized: "On lira ton message.")
-                 : String(localized: "On te répond à \(mail)."))
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Text("Référence : \(message.reference)")
-                .font(.system(size: 11).monospacedDigit())
-                .foregroundStyle(.tertiary)
-                .textSelection(.enabled)
-            Button("Écrire un autre message") {
-                message.text = ""
-                message.error = nil
-                message.reference = SupportMessage.newReference()
-                sent = false
-                writing = true
-            }
-            .buttonStyle(SwissLinkButtonStyle())
-            .font(.system(size: 12))
-        }
-        .padding(.vertical, 4)
-    }
-
+    /// Envoyé : le message dans « Mes messages » (serveur avec mes-messages.sql), sinon « Envoyé ✓ » et sa référence.
     private func send() async {
         sending = true
         failure = nil
         defer { sending = false }
-        refreshAttached()
-        if let why = await community.sendSupport(outgoing) {
-            failure = String(localized: "Envoi impossible : \(why)")
+        let sent = outgoing
+        if let why = await community.sendSupport(sent) {
+            failure = why
+            return
+        }
+        await inbox.load(community)
+        if inbox.ready == true, let thread = inbox.threads.first(where: { $0.reference == sent.reference }) {
+            message = SupportMessage()
+            kind = nil
+            captureImage = nil
+            helpLink.screen = .thread(thread.id)
+            replySent = true
         } else {
-            sent = true
+            sentReference = sent.reference
         }
     }
 
@@ -382,36 +564,55 @@ struct HelpPage: View {
     }
 
     private func openMail(_ address: String) {
-        refreshAttached()
-        if let url = SupportRules.mailURL(outgoing, to: address, appVersion: MacroFileActions.appVersion) {
-            mailOpened = NSWorkspace.shared.open(url)
-            if !mailOpened {
-                failure = String(localized: "Aucune app de mail : écris à \(address).")
-            }
+        if let url = SupportRules.mailURL(outgoing, to: address, appVersion: MacroFileActions.appVersion),
+           !NSWorkspace.shared.open(url) {
+            failure = String(localized: "Aucune app de mail : écris à \(address).")
         }
     }
 
-    private func openIssue() {
-        if let url = SupportRules.issueURL(outgoing, appVersion: MacroFileActions.appVersion) {
-            NSWorkspace.shared.open(url)
-        }
-    }
-
-    /// Mode capture (mesure de la CI) : « aide », « recherche », « ecrire » ou « envoye ».
+    /// Mode capture (mesure de la CI) : « aide », « recherche », « ecrire », « envoye », « messages » ou « fil ».
     private func showCapture(_ screen: String) {
         query = screen == "recherche" ? "macro" : ""
         opened = screen == "aide" ? [1] : []
-        sent = screen == "envoye"
-        writing = screen == "ecrire" || screen == "envoye"
         failure = nil
-        if screen == "ecrire" || screen == "envoye" {
-            message = SupportMessage(kind: .probleme, text: "Je lançais ma macro « Armer la piste » depuis le Mixer.",
-                                     email: "flshortcuts@exemple.fr",
-                                     error: "Macro : échec au bloc 3 (Attendre un menu) : aucun menu de FL ne s'est ouvert en 1,5 s.")
-            showDiagnostic = false
-            refreshAttached()
-            scrollToForm += 1
+        sentReference = nil
+        if ["ecrire", "envoye", "messages", "fil"].contains(screen) {
+            community.showDemo(signedIn: true)                // compte d'exemple, rien n'est envoyé
+            Task { await inbox.load(community) }
         }
+        switch screen {
+        case "ecrire", "envoye":
+            message = SupportMessage(kind: .probleme, text: "Je lançais ma macro « Armer la piste » depuis le Mixer.",
+                                     error: "Macro : échec au bloc 3 (Attendre un menu) : aucun menu de FL ne s'est ouvert en 1,5 s.")
+            kind = .probleme
+            helpLink.screen = .write
+            if screen == "envoye" { sentReference = "FLS-3F9A2C" }
+        case "messages":
+            helpLink.screen = .messages
+        case "fil":
+            helpLink.screen = .thread(SupportInbox.demoThreads[0].id)
+        default:
+            helpLink.screen = .questions
+        }
+    }
+}
+
+/// Zone de texte qui grandit avec le texte (20/11, « que ça grandisse si on écrit trop mais pas qu'on puisse jouer
+/// avec ») : jamais redimensionnable à la main, `minLines` lignes au moins, 16 au plus (puis elle défile).
+struct GrowingTextArea: View {
+    @Binding var text: String
+    let placeholder: String
+    var minLines = 3
+
+    var body: some View {
+        TextField("", text: $text, prompt: Text(placeholder).foregroundColor(Swiss.gray), axis: .vertical)
+            .textFieldStyle(.plain)
+            .font(.system(size: 14))
+            .lineLimit(minLines...16)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Rectangle().fill(Swiss.background))
+            .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
     }
 }
 

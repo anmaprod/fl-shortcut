@@ -1331,3 +1331,13 @@ entrée 1 ≈ 0,5 s.
   et une note écrite sans demi-étoile (ancienne fonction, ligne d'essai) la reçoit toute seule (`fill_rating_half`).
   Essais du serveur passés ici avec le PostgreSQL 16 du container (`su postgres -c "bash run.sh"` sur une copie de
   `supabase/` dans /var/tmp, lisible par postgres).
+- 20/11 : « tu as re des tokens donc si tu veux finir finis » → étape 3 faite ici (l'autre Claude ne l'a pas reçue).
+  Aide « Minimal », Mac et Windows : onglets Questions / Mes messages, page « Écrire à l'équipe » (4 genres, case qui
+  grandit, capture facultative, compte obligatoire, état de l'appli joint tout seul), fil d'un message et Répondre.
+  Serveur `supabase/mes-messages.sql` (genre « autre », colonne `capture`, lecture de ses messages, table
+  `support_replies` : l'équipe = tout ce qui n'est pas écrit depuis l'app, `repondre(référence, texte)` pour le
+  propriétaire dans SQL Editor) ; `messages-par-mail.sql` : capture jointe au mail (lue par `to_jsonb(new)`, sans
+  dépendre de la colonne), ligne « Répondre dans l'app », mail quand la personne répond (`mail_support_reply`, posé
+  seulement si la table existe) ; délimiteur `$corps$` (un `$$` dans le texte coupait la fonction). Essais
+  `supabase/tests/mes-messages.sql` passés ici (PostgreSQL 16 du container). Photos CI : Mac `aide-messages`,
+  `aide-fil` ; Windows `aide-ecrire`, `aide-messages`, `aide-fil`.

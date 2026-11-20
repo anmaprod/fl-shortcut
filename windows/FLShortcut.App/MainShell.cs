@@ -209,6 +209,21 @@ internal sealed partial class MainShell
             catch (Exception) { return _account.Session?.AccessToken; }      // hors ligne : l'ancien jeton
         };
         _app.SendSupport = _help.SendQuietly;
+        // Aide › Mes messages (20/11) : le compte, « Se connecter », la fenêtre pour « Ajouter une capture ».
+        _help.Session = async () =>
+        {
+            if (_account.Session is null) return null;
+            try { return await _account.FreshSession(); }
+            catch (Exception) { return _account.Session; }
+        };
+        _help.SignedIn = () => _account.Session is not null;
+        _help.SignIn = () => Choose(PageKind.Account, _section);
+        _help.Hwnd = _hwnd;
+        _account.Changed += () =>
+        {
+            _help.Forget();
+            if (_kind == PageKind.Help) RenderPage();
+        };
         UpdateAccountButton();
         _macros = new MacrosPage(_app, macroStore, photos, window,
             listChanged: () => { if (_kind == PageKind.Macros) RenderPage(); },
@@ -473,7 +488,10 @@ internal sealed partial class MainShell
         switch (page)
         {
             case "custom": _kind = PageKind.Custom; break;
-            case "aide": _kind = PageKind.Help; break;
+            case "aide": _kind = PageKind.Help; _help.ShowScreen("aide"); break;
+            case "aide-ecrire": _kind = PageKind.Help; _help.ShowScreen("ecrire"); break;
+            case "aide-messages": _kind = PageKind.Help; _help.ShowScreen("messages"); break;
+            case "aide-fil": _kind = PageKind.Help; _help.ShowScreen("fil"); break;
             case "compte": _kind = PageKind.Account; break;
             case "communaute": _kind = PageKind.Community; _community.Demo(detail: false); break;
             case "communaute-fiche": _kind = PageKind.Community; _community.Demo(detail: true); break;
@@ -915,6 +933,8 @@ internal sealed partial class MainShell
                 SetTitle(Loc.T("Aide"));
                 SetTitleRule(true);
                 _scroll.Content = _help.Content(_columns);
+                // 20/11 (maquette « Minimal », comme le Mac) : « Écrire à l'équipe » en haut de la page.
+                _headerAction.Content = _help.HeaderWrite();
                 return;
             case PageKind.Custom:
             {

@@ -336,9 +336,9 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
     done
     sleep 4
     "$POST" app.flshortcut.debug.onboarding fin; sleep 2
-    # Page Aide : questions fréquentes, recherche, « Écrire à l'équipe », message envoyé.
+    # Page Aide : questions fréquentes, recherche, « Écrire à l'équipe », message envoyé, Mes messages, un fil (20/11).
     "$POST" app.flshortcut.debug.select aide; sleep 2
-    for screen in aide recherche ecrire envoye; do
+    for screen in aide recherche ecrire envoye messages fil; do
       "$POST" app.flshortcut.debug.help "$screen"; sleep 3
       screencapture -x "$OUT/aide-$screen.png" 2>/dev/null || true
     done

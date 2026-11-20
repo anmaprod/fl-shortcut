@@ -100,6 +100,15 @@ et l'étape 7 (modèles des mails avec le code).
    créateurs. Sans cette étape, l'app garde la Communauté d'avant. Peut être recollé sans risque.
    **12/11 : recolle-le** si tu l'avais collé le 11/11 (la Communauté affichait « more than one relationship was
    found for 'shares' and 'profiles' ») : il répare les tables des ajouts et des notes sans rien perdre.
+   **19/11 : recolle-le** pour les demi-étoiles (notes de 0,5 à 5 étoiles).
+13. **Aide › Mes messages** (20/11) : **SQL Editor › New query**, colle tout `supabase/mes-messages.sql`, puis
+   **Run** ; puis recolle `supabase/messages-par-mail.sql` **tel quel** (sans rien remplacer : il garde ta clé et ton
+   adresse). Chacun relit alors les messages envoyés avec son compte, ta réponse et peut te répondre ; un message
+   peut avoir une capture (jointe à ton mail) et le genre « Autre ». **Pour répondre** : la référence est dans le
+   sujet du mail (« FLS-3F9A2C ») ; dans **SQL Editor**, écris ta réponse entre les `$$` (apostrophes comprises) :
+   `select public.repondre('FLS-3F9A2C', $$Merci ! C'est corrigé.$$);` puis **Run**. La personne la voit dans Aide ›
+   Mes messages, et sa réponse t'arrive par mail. Sans cette étape, l'app envoie les messages comme avant et
+   « Mes messages » dit qu'il n'est pas encore ouvert. Peut être recollé sans risque.
 
 ## 2. Compiler l'app reliée au serveur (rien à faire)
 

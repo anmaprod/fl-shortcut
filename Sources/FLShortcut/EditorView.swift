@@ -487,6 +487,12 @@ struct EditorView: View {
             if current == .macros {
                 macrosHeaderButtons
             }
+            // 20/11 (maquette « Minimal ») : « Écrire à l'équipe » en haut de la page Aide.
+            if current == .help && helpLink.screen != .write {
+                Button("Écrire à l'équipe") { helpLink.screen = .write }
+                    .primaryButton()
+                    .controlSize(.large)
+            }
             if showsShareButton {
                 Button {
                     community.composing = true

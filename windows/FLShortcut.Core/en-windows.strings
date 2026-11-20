@@ -402,3 +402,7 @@
 "Installation…" = "Installing…";
 "Clique Oui si Windows le demande." = "Click Yes if Windows asks.";
 "Pour le lien avec FL Studio." = "For the link with FL Studio.";
+"à l'instant" = "just now";
+"il y a %lld min" = "%lld min ago";
+"il y a %lld h" = "%lld h ago";
+"il y a %lld j" = "%lld d ago";

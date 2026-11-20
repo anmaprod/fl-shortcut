@@ -587,7 +587,15 @@ struct CommunityClient {
                                    "app_version": String(appVersion.prefix(20))]
         let mail = message.email.trimmingCharacters(in: .whitespaces)
         if !mail.isEmpty { body["email"] = mail }
-        _ = try await call("POST", "rest/v1/support_requests", token: token, body: body)
+        if let capture = message.capture, !capture.isEmpty { body["capture"] = capture }
+        do {
+            _ = try await call("POST", "rest/v1/support_requests", token: token, body: body)
+        } catch CommunityError.server(let status, let text) where SupportInboxRules.needsOldForm(status: status, message: text) {
+            // Serveur sans mes-messages.sql (20/11) : sans capture, « Autre » envoyé comme une question.
+            body["capture"] = nil
+            if message.kind == .autre { body["kind"] = SupportKind.question.rawValue }
+            _ = try await call("POST", "rest/v1/support_requests", token: token, body: body)
+        }
     }
 
     // MARK: IA intégrée

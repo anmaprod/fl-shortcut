@@ -118,6 +118,8 @@ internal sealed class AppSettings
     /// Le guide (« Bienvenue », puis les quatre parties) a été vu : il ne revient plus tout seul, comme `guideSeen` du
     /// Mac ; on le retrouve dans la page Aide (10/11).
     public bool GuideSeen { get; set; }
+    /// Aide › Mes messages (20/11) : réponses de l'équipe déjà vues (identifiants) ; rien de sensible.
+    public string? SupportSeenReplies { get; set; }
     /// La fenêtre s'est ouverte au lancement une fois (premier lancement) : ensuite FL Shortcuts démarre en icône seule,
     /// comme sur le Mac (retour du 03/11 : « je veux que ça soit une icône avec toutes les mêmes options »).
     public bool WindowShownAtLaunch { get; set; }

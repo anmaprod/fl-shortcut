@@ -38,7 +38,7 @@ enum DebugSnapshot {
     /// la ferme. Rien n'est marqué « vu ».
     static let onboarding = Notification.Name("app.flshortcut.debug.onboarding")
     private static var onboardingObserver: NSObjectProtocol?
-    /// Page Aide : « aide », « recherche », « ecrire » ou « envoye ».
+    /// Page Aide : « aide », « recherche », « ecrire », « envoye », « messages » ou « fil ».
     static let help = Notification.Name("app.flshortcut.debug.help")
     /// Page Mon compte avec des exemples, sans réseau : « connexion », « inscription », « code » (confirmer
     /// l'inscription), « oubli » (mot de passe oublié), « connecte », « profil » (Modifier le profil), « choix » ou

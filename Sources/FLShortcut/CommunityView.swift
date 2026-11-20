@@ -1012,20 +1012,8 @@ private struct CommunityPublishSheet: View {
                     .swissField()
             }
             field(String(localized: "Explication"), count: "\(notes.count)/\(CommunityRules.maxNotes)") {
-                TextEditor(text: $notes)
-                    .font(.system(size: 12))
-                    .frame(minHeight: 110)
-                    .overlay(alignment: .topLeading) {
-                        if notes.isEmpty {
-                            Text(String(localized: "À quoi elle sert"))
-                                .font(.system(size: 12))
-                                .foregroundStyle(.tertiary)
-                                .padding(.horizontal, 9)
-                                .padding(.vertical, 5)
-                                .allowsHitTesting(false)
-                        }
-                    }
-                    .swissTextArea()
+                // 20/11 : la case grandit avec le texte, jamais redimensionnable à la main.
+                GrowingTextArea(text: $notes, placeholder: String(localized: "À quoi elle sert"), minLines: 5)
             }
             if let problem = problem ?? limitProblem {
                 SwissWarning(problem)

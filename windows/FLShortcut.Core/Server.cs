@@ -37,12 +37,14 @@ public static class ServerRequests
 
     /// Message à l'équipe (table support_requests, avec ou sans compte) ; refusé avant l'envoi s'il ne suit pas les
     /// règles (le serveur les revérifie).
-    public static HttpRequestMessage Support(ServerConfig config, SupportMessage message, string appVersion, string? token)
+    /// `oldForm` : pour un serveur sans supabase/mes-messages.sql (20/11), sans capture et « Autre » comme une question.
+    public static HttpRequestMessage Support(ServerConfig config, SupportMessage message, string appVersion, string? token,
+                                             bool oldForm = false)
     {
         if (SupportRules.Problem(message) is { } why) throw new ArgumentException(why);
         var body = new Dictionary<string, string>
         {
-            ["kind"] = message.Kind.Raw(),
+            ["kind"] = oldForm && message.Kind == SupportKind.Autre ? SupportKind.Question.Raw() : message.Kind.Raw(),
             ["reference"] = message.Reference,
             ["message"] = message.Text.Trim(),
             ["error"] = Cut(message.Error ?? "", 2000),
@@ -51,7 +53,28 @@ public static class ServerRequests
         };
         var mail = message.Email.Trim();
         if (mail.Length > 0) body["email"] = mail;
+        if (!oldForm && message.Capture is { Length: > 0 } capture) body["capture"] = capture;
         return Make(config, HttpMethod.Post, "rest/v1/support_requests", token, body);
+    }
+
+    /// Aide › Mes messages (20/11) : mes messages, les plus récents d'abord, avec leurs réponses.
+    public static HttpRequestMessage MyMessages(ServerConfig config, AccountSession session) =>
+        Make(config, HttpMethod.Get, "rest/v1/support_requests?select=id,kind,reference,message,created_at,"
+            + "support_replies(id,team,message,created_at)&user_id=eq." + session.UserId.ToString().ToLowerInvariant()
+            + "&order=created_at.desc&limit=100", session.AccessToken);
+
+    /// La capture d'un de mes messages.
+    public static HttpRequestMessage MessageCapture(ServerConfig config, AccountSession session, Guid id) =>
+        Make(config, HttpMethod.Get, "rest/v1/support_requests?select=capture&id=eq." + id.ToString().ToLowerInvariant(),
+             session.AccessToken);
+
+    /// Répondre à l'équipe dans un de mes messages.
+    public static HttpRequestMessage ReplySupport(ServerConfig config, AccountSession session, Guid id, string text)
+    {
+        var clean = text.Trim();
+        if (clean.Length == 0) throw new ArgumentException(Loc.T("Ta réponse est vide."));
+        return Make(config, HttpMethod.Post, "rest/v1/support_replies", session.AccessToken,
+                    new Dictionary<string, string> { ["request_id"] = id.ToString().ToLowerInvariant(), ["message"] = Cut(clean, 4000) });
     }
 
     private static string Cut(string s, int max) => s.Length > max ? s[..max] : s;

@@ -8,7 +8,9 @@ using System.Text.RegularExpressions;
 
 namespace FLShortcut.Core;
 
-public enum SupportKind { Probleme, Question, Idee }
+/// 20/11 (maquette « Minimal », comme le Mac) : Un bug, Une idée, Une question, Autre (« autre » :
+/// supabase/mes-messages.sql).
+public enum SupportKind { Probleme, Idee, Question, Autre }
 
 public static class SupportKinds
 {
@@ -17,7 +19,17 @@ public static class SupportKinds
     {
         SupportKind.Question => "question",
         SupportKind.Idee => "idee",
+        SupportKind.Autre => "autre",
         _ => "probleme",
+    };
+
+    public static SupportKind FromRaw(string? raw) => raw switch
+    {
+        "question" => SupportKind.Question,
+        "idee" => SupportKind.Idee,
+        "autre" => SupportKind.Autre,
+        "probleme" => SupportKind.Probleme,
+        _ => SupportKind.Question,
     };
 
     /// Le genre dans le message lu par l'équipe : en français, quelle que soit la langue de l'app.
@@ -25,16 +37,24 @@ public static class SupportKinds
     {
         SupportKind.Question => "Une question",
         SupportKind.Idee => "Une idée",
+        SupportKind.Autre => "Autre",
         _ => "Un problème",
     };
 
-    public static string Label(this SupportKind k) => Loc.T(k.TeamLabel());
+    public static string Label(this SupportKind k) => k switch
+    {
+        SupportKind.Question => Loc.T("Une question"),
+        SupportKind.Idee => Loc.T("Une idée"),
+        SupportKind.Autre => Loc.T("Autre"),
+        _ => Loc.T("Un bug"),
+    };
 
     public static string Placeholder(this SupportKind k) => k switch
     {
-        SupportKind.Question => Loc.T("Ta question, le plus précisément possible."),
-        SupportKind.Idee => Loc.T("Ce qui te ferait gagner du temps dans FL Studio."),
-        _ => Loc.T("Ce que tu faisais et ce qui s'est passé."),
+        SupportKind.Question => Loc.T("Ta question"),
+        SupportKind.Idee => Loc.T("Ton idée"),
+        SupportKind.Autre => Loc.T("Ton message"),
+        _ => Loc.T("Ce qui s'est passé"),
     };
 }
 
@@ -51,6 +71,8 @@ public sealed class SupportMessage
     public string? Diagnostic { get; set; }
     /// « FLS-3F9A2C » : retrouver le message dans la boîte de l'équipe, et y répondre.
     public string Reference { get; set; } = NewReference();
+    /// Capture facultative (JPEG en base64, 1 Mo au plus : supabase/mes-messages.sql).
+    public string? Capture { get; set; }
 
     public static string NewReference() => "FLS-" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
 }

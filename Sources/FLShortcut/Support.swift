@@ -19,16 +19,18 @@ enum SupportConfig {
     static let issuesURL = URL(string: "https://github.com/anmaprod/fl-shortcut/issues/new")!
 }
 
+/// 20/11 (maquette « Minimal ») : Un bug, Une idée, Une question, Autre (genre « autre » : supabase/mes-messages.sql).
 enum SupportKind: String, CaseIterable, Identifiable {
-    case probleme, question, idee
+    case probleme, idee, question, autre
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .probleme: return String(localized: "Un problème")
+        case .probleme: return String(localized: "Un bug")
         case .question: return String(localized: "Une question")
         case .idee: return String(localized: "Une idée")
+        case .autre: return String(localized: "Autre")
         }
     }
 
@@ -38,18 +40,16 @@ enum SupportKind: String, CaseIterable, Identifiable {
         case .probleme: return "Un problème"
         case .question: return "Une question"
         case .idee: return "Une idée"
+        case .autre: return "Autre"
         }
     }
 
     var placeholder: String {
         switch self {
-        case .probleme:
-            return String(localized: """
-                Ce que tu faisais, ce qui devait se passer, ce qui s'est passé. Ex. : « ma macro s'arrête au 3e bloc \
-                dans le Mixer ».
-                """)
-        case .question: return String(localized: "Ta question, le plus précisément possible.")
-        case .idee: return String(localized: "Ce qui te ferait gagner du temps dans FL Studio.")
+        case .probleme: return String(localized: "Ce qui s'est passé")
+        case .question: return String(localized: "Ta question")
+        case .idee: return String(localized: "Ton idée")
+        case .autre: return String(localized: "Ton message")
         }
     }
 }
@@ -66,6 +66,8 @@ struct SupportMessage: Equatable {
     var diagnostic: String?
     /// « FLS-3F9A2C » : retrouver le message dans la boîte de l'équipe, et y répondre.
     var reference = SupportMessage.newReference()
+    /// Capture facultative (JPEG en base64, SupportCapture).
+    var capture: String?
 
     static func newReference() -> String {
         "FLS-" + UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(6)

@@ -927,6 +927,16 @@
   comme « Suivre » ; page d'une personne : Abonnés et Partages en gros chiffres. Mac et Windows. Une touche ne fait
   qu'une seule chose (même action dans deux pages : même touche permise ; page avant → après ; « Changer aussi dans
   … ? »), Mac et Windows (06b6667).
+- **Aide « Minimal »** (20/11) : onglets Questions / Mes messages (point rouge = nouvelle réponse), « Écrire à
+  l'équipe » en haut de la page Aide → sa page : Un bug / Une idée / Une question / Autre (à choisir), message dans une
+  case qui grandit (jamais redimensionnable : Mac `GrowingTextArea`, Windows `GrowingField`), capture facultative (JPEG
+  ≤ 1600 de large, ≤ 1 Mo en base64 : `SupportCapture`/`SupportCaptureWin`), « Ça t'aide peut-être » ; compte
+  obligatoire, mail du compte et état de l'appli joints tout seuls (plus de case ni de champ mail) ; fil d'un message
+  (Toi / L'équipe, Répondre). Serveur `supabase/mes-messages.sql` (étape 13, À COLLER PAR LE PROPRIÉTAIRE, puis
+  `messages-par-mail.sql` recollé tel quel : capture jointe au mail, mail quand la personne répond) ; l'équipe répond
+  dans SQL Editor : `select public.repondre('FLS-…', $$…$$);`. Sans le fichier : « Mes messages n'est pas encore
+  ouvert. », envoi sans capture (« Autre » → question). Réponses vues gardées sur l'appareil (Mac `supportSeenReplies`,
+  Windows `SupportSeenReplies`). Mac `HelpView.swift`/`SupportInbox.swift`, Windows `HelpPage.cs`/cœur `SupportInbox.cs`.
 
 - **Fenêtre « plus lisible »** (16/11, maquette PDF/HTML « FL Shortcuts — plus lisible », 8 écrans, commencée par une
   autre session sans rien pousser) : barre de gauche en parties (`ReadableSidebar` : Trouver un raccourci, Raccourcis ▸

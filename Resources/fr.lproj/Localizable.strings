@@ -218,6 +218,7 @@
 "Ajouter un instrument (VST, plugin…)" = "Ajouter un instrument (VST, plugin…)";
 "Ajouter un marqueur" = "Ajouter un marqueur";
 "Ajouter un marqueur de temps" = "Ajouter un marqueur de temps";
+"Ajouter une capture" = "Ajouter une capture";
 "Ajouter une touche de secours" = "Ajouter une touche de secours";
 "Ajouter « %@ »" = "Ajouter « %@ »";
 "Ajouter à mes macros" = "Ajouter à mes macros";
@@ -320,6 +321,7 @@
 "Aucun clic ni aucune touche dans FL enregistrés." = "Aucun clic ni aucune touche dans FL enregistrés.";
 "Aucun dossier enregistré." = "Aucun dossier enregistré.";
 "Aucun glisser-déposer montré dans FL en 30 s." = "Aucun glisser-déposer montré dans FL en 30 s.";
+"Aucun message." = "Aucun message.";
 "Aucun partage de @%@" = "Aucun partage de @%@";
 "Aucun partage pour « %@ »" = "Aucun partage pour « %@ »";
 "Aucun preset choisi" = "Aucun preset choisi";
@@ -345,6 +347,7 @@
 "Aucune macro." = "Aucune macro.";
 "Aucune réponse pour « %@ » : écris-nous juste en dessous, on te répond." = "Aucune réponse pour « %@ » : écris-nous juste en dessous, on te répond.";
 "Aucune réponse pour « %@ »." = "Aucune réponse pour « %@ ».";
+"Aucune réponse." = "Aucune réponse.";
 "Aucune touche" = "Aucune touche";
 "Aucune touche de FL choisie." = "Aucune touche de FL choisie.";
 "Aucune touche reçue : macOS utilise peut-être ce raccourci." = "Aucune touche reçue : macOS utilise peut-être ce raccourci.";
@@ -432,12 +435,14 @@
 "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « %@ », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre." = "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « %@ », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre.";
 "C'est noté" = "C'est noté";
 "C'est parti" = "C'est parti";
+"C'est à propos de" = "C'est à propos de";
 "Cacher le mot de passe" = "Cacher le mot de passe";
 "Canal" = "Canal";
 "Canal au-dessus" = "Canal au-dessus";
 "Canal en dessous" = "Canal en dessous";
 "Canaux" = "Canaux";
 "Canaux, mute, solo, pas" = "Canaux, mute, solo, pas";
+"Capture" = "Capture";
 "Capture d'une zone" = "Capture d'une zone";
 "Capture d'une zone dans le presse-papiers" = "Capture d'une zone dans le presse-papiers";
 "Capture d'écran" = "Capture d'écran";
@@ -467,6 +472,7 @@
 "Ce qu'est vraiment ce son" = "Ce qu'est vraiment ce son";
 "Ce que l'Organiser range, et le diagnostic à copier pour l'équipe" = "Ce que l'Organiser range, et le diagnostic à copier pour l'équipe";
 "Ce que tu faisais, ce qui devait se passer, ce qui s'est passé. Ex. : « ma macro s'arrête au 3e bloc dans le Mixer »." = "Ce que tu faisais, ce qui devait se passer, ce qui s'est passé. Ex. : « ma macro s'arrête au 3e bloc dans le Mixer ».";
+"Ce qui s'est passé" = "Ce qui s'est passé";
 "Ce qui te ferait gagner du temps dans FL Studio." = "Ce qui te ferait gagner du temps dans FL Studio.";
 "Ce raccourci ne marchera pas encore" = "Ce raccourci ne marchera pas encore";
 "Centrer sur la tête de lecture" = "Centrer sur la tête de lecture";
@@ -481,6 +487,7 @@
 "Change les raccourcis de FL Studio, ou ajoute les tiens." = "Change les raccourcis de FL Studio, ou ajoute les tiens.";
 "Change une famille, un nom ou une piste si tu veux." = "Change une famille, un nom ou une piste si tu veux.";
 "Changements à envoyer" = "Changements à envoyer";
+"Changer" = "Changer";
 "Changer aussi" = "Changer aussi";
 "Changer aussi dans %@ ?" = "Changer aussi dans %@ ?";
 "Changer ce qu'est ce son (Kick, 808, Lead…) ou sa famille" = "Changer ce qu'est ce son (Kick, 808, Lead…) ou sa famille";
@@ -666,6 +673,8 @@
 "Connecte-toi d'abord." = "Connecte-toi d'abord.";
 "Connecte-toi dans « Mon compte » (barre latérale) : tes raccourcis et tes macros sont sauvegardés en ligne quelques secondes après chaque changement. Sur un autre Mac, connecte-toi avec le même compte : tout revient. À la déconnexion, ils quittent ce Mac et restent dans ton compte. Si ce Mac et ton compte ont chacun des changements, l'app te demande lequel garder." = "Connecte-toi dans « Mon compte » (barre latérale) : tes raccourcis et tes macros sont sauvegardés en ligne quelques secondes après chaque changement. Sur un autre Mac, connecte-toi avec le même compte : tout revient. À la déconnexion, ils quittent ce Mac et restent dans ton compte. Si ce Mac et ton compte ont chacun des changements, l'app te demande lequel garder.";
 "Connecte-toi pour choisir ton thème." = "Connecte-toi pour choisir ton thème.";
+"Connecte-toi pour retrouver tes messages." = "Connecte-toi pour retrouver tes messages.";
+"Connecte-toi pour écrire à l'équipe." = "Connecte-toi pour écrire à l'équipe.";
 "Connecte-toi sur un autre Mac : tout revient. À la déconnexion, ils quittent ce Mac et restent dans ton compte." = "Connecte-toi sur un autre Mac : tout revient. À la déconnexion, ils quittent ce Mac et restent dans ton compte.";
 "Connecté en tant que @%@" = "Connecté en tant que @%@";
 "Connexion" = "Connexion";
@@ -892,6 +901,8 @@
 "Envoyer aussi dans cette piste" = "Envoyer aussi dans cette piste";
 "Envoyer par mail" = "Envoyer par mail";
 "Envoyer vers des pistes Mixer libres" = "Envoyer vers des pistes Mixer libres";
+"Envoyé" = "Envoyé";
+"Envoyé ✓" = "Envoyé ✓";
 "Erreur du serveur (%lld)." = "Erreur du serveur (%lld).";
 "Erreur du serveur : %@" = "Erreur du serveur : %@";
 "Espace" = "Espace";
@@ -1114,6 +1125,7 @@
 "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? Retire-le avec « – », puis ajoute-le avec « + » (dossier Applications)." = "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? Retire-le avec « – », puis ajoute-le avec « + » (dossier Applications).";
 "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? Retire-le avec « – », puis glisse FL Shortcuts depuis la fenêtre du Finder dans la liste." = "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? Retire-le avec « – », puis glisse FL Shortcuts depuis la fenêtre du Finder dans la liste.";
 "Il écoute chaque son" = "Il écoute chaque son";
+"Image illisible ou trop lourde." = "Image illisible ou trop lourde.";
 "Impact" = "Impact";
 "Import impossible" = "Import impossible";
 "Importer" = "Importer";
@@ -1175,6 +1187,7 @@
 "L'icône en haut de l'écran ouvre le menu." = "L'icône en haut de l'écran ouvre le menu.";
 "L'icône en haut de l'écran ouvre son menu : modifier les raccourcis, organiser, mettre en pause." = "L'icône en haut de l'écran ouvre son menu : modifier les raccourcis, organiser, mettre en pause.";
 "L'ordinateur retient %lld sons corrigés sur ce Mac : la prochaine fois, ils seront rangés comme tu l'as dit." = "L'ordinateur retient %lld sons corrigés sur ce Mac : la prochaine fois, ils seront rangés comme tu l'as dit.";
+"L'équipe" = "L'équipe";
 "La Communauté" = "La Communauté";
 "La Communauté n'est pas encore ouverte" = "La Communauté n'est pas encore ouverte";
 "La Communauté n'est pas encore ouverte dans cette version." = "La Communauté n'est pas encore ouverte dans cette version.";
@@ -1355,6 +1368,8 @@
 "Merci, le signalement est envoyé." = "Merci, le signalement est envoyé.";
 "Mes données sont-elles envoyées quelque part ?" = "Mes données sont-elles envoyées quelque part ?";
 "Mes macros" = "Mes macros";
+"Mes messages" = "Mes messages";
+"Mes messages n'est pas encore ouvert." = "Mes messages n'est pas encore ouvert.";
 "Mes raccourcis" = "Mes raccourcis";
 "Mes raccourcis ne font rien dans FL" = "Mes raccourcis ne font rien dans FL";
 "Message" = "Message";
@@ -1482,6 +1497,7 @@
 "Nouveau raccourci…" = "Nouveau raccourci…";
 "Nouveautés" = "Nouveautés";
 "Nouvelle macro" = "Nouvelle macro";
+"Nouvelle réponse" = "Nouvelle réponse";
 "Numéro du canal dans le Channel rack (1 = le premier en haut)." = "Numéro du canal dans le Channel rack (1 = le premier en haut).";
 "OK" = "OK";
 "On lira ton message." = "On lira ton message.";
@@ -1764,6 +1780,7 @@
 "Quantize rapide" = "Quantize rapide";
 "Quantize rapide du début des clips" = "Quantize rapide du début des clips";
 "Quels sons étaient mal rangés ?" = "Quels sons étaient mal rangés ?";
+"Questions" = "Questions";
 "Questions fréquentes" = "Questions fréquentes";
 "Questions fréquentes, et écrire à l'équipe" = "Questions fréquentes, et écrire à l'équipe";
 "Quitte FL (⌘Q), puis rouvre-le" = "Quitte FL (⌘Q), puis rouvre-le";
@@ -1806,6 +1823,7 @@
 "Rechercher" = "Rechercher";
 "Rechercher avec un raccourci" = "Rechercher avec un raccourci";
 "Rechercher avec un raccourci : appuie sur les touches que tu connais" = "Rechercher avec un raccourci : appuie sur les touches que tu connais";
+"Rechercher dans l'aide" = "Rechercher dans l'aide";
 "Rechercher un partage ou un membre" = "Rechercher un partage ou un membre";
 "Rechercher une action" = "Rechercher une action";
 "Rechoisis le preset : le fichier doit exister sur ce Mac." = "Rechoisis le preset : le fichier doit exister sur ce Mac.";
@@ -1859,6 +1877,7 @@
 "Retirer" = "Retirer";
 "Retirer ce bloc" = "Retirer ce bloc";
 "Retirer ce bloc de la macro (⌫)" = "Retirer ce bloc de la macro (⌫)";
+"Retirer la capture" = "Retirer la capture";
 "Retirer la photo" = "Retirer la photo";
 "Retirer la photo de @%@ ?" = "Retirer la photo de @%@ ?";
 "Retirer la piste (sans son)" = "Retirer la piste (sans son)";
@@ -1925,7 +1944,10 @@
 "Réinstaller" = "Réinstaller";
 "Réinstaller…" = "Réinstaller…";
 "Réorganiser les fenêtres" = "Réorganiser les fenêtres";
+"Répondre" = "Répondre";
+"Réponse" = "Réponse";
 "Réponse inattendue du serveur." = "Réponse inattendue du serveur.";
+"Réponse ✓" = "Réponse ✓";
 "Répète les blocs N fois (%lld au plus)." = "Répète les blocs N fois (%lld au plus).";
 "Répète les blocs tant que la condition est vraie (%lld tours au plus)." = "Répète les blocs tant que la condition est vraie (%lld tours au plus).";
 "Répéter" = "Répéter";
@@ -2083,10 +2105,13 @@
 "Sélectionner par couleur" = "Sélectionner par couleur";
 "Sélectionner toutes les pistes" = "Sélectionner toutes les pistes";
 "Ta Playlist a plus de pistes à remplir que FL n'en a : rien n'a été touché." = "Ta Playlist a plus de pistes à remplir que FL n'en a : rien n'a été touché.";
+"Ta capture" = "Ta capture";
 "Ta carte son : un autre numéro de Port." = "Ta carte son : un autre numéro de Port.";
 "Ta note" = "Ta note";
 "Ta photo" = "Ta photo";
+"Ta question" = "Ta question";
 "Ta question, le plus précisément possible." = "Ta question, le plus précisément possible.";
+"Ta réponse est vide." = "Ta réponse est vide.";
 "Ta sauvegarde vient d'une version plus récente de FL Shortcuts : mets l'app à jour." = "Ta sauvegarde vient d'une version plus récente de FL Shortcuts : mets l'app à jour.";
 "Ta session a expiré : reconnecte-toi pour mettre en ligne tes derniers changements." = "Ta session a expiré : reconnecte-toi pour mettre en ligne tes derniers changements.";
 "Ta version de FL ne le permet pas sur cette page : mets FL à jour." = "Ta version de FL ne le permet pas sur cette page : mets FL à jour.";
@@ -2135,15 +2160,18 @@
 "Titre : %lld à %lld caractères." = "Titre : %lld à %lld caractères.";
 "Titre ou photo choquant" = "Titre ou photo choquant";
 "Titres" = "Titres";
+"Toi" = "Toi";
 "Tom" = "Tom";
 "Ton compte" = "Ton compte";
 "Ton compte FL Shortcuts" = "Ton compte FL Shortcuts";
 "Ton compte est supprimé. Tes raccourcis et tes macros restent sur ce Mac." = "Ton compte est supprimé. Tes raccourcis et tes macros restent sur ce Mac.";
 "Ton compte n'est pas encore confirmé : un code vient de partir à %@." = "Ton compte n'est pas encore confirmé : un code vient de partir à %@.";
 "Ton compte, ta sauvegarde en ligne et tes partages dans la Communauté seront effacés pour toujours. Tes raccourcis et tes macros restent sur ce Mac." = "Ton compte, ta sauvegarde en ligne et tes partages dans la Communauté seront effacés pour toujours. Tes raccourcis et tes macros restent sur ce Mac.";
+"Ton idée" = "Ton idée";
 "Ton mail" = "Ton mail";
 "Ton mail (facultatif)" = "Ton mail (facultatif)";
 "Ton mail reste privé : les autres ne voient que ton nom d'utilisateur." = "Ton mail reste privé : les autres ne voient que ton nom d'utilisateur.";
+"Ton message" = "Ton message";
 "Ton mot de passe" = "Ton mot de passe";
 "Ton mot de passe du Mac, une seule fois (ancienne installation)" = "Ton mot de passe du Mac, une seule fois (ancienne installation)";
 "Ton partage" = "Ton partage";
@@ -2226,6 +2254,7 @@
 "Un bloc caché de l'ancien format est inclus : relis-le dans le créateur avant de t'en servir." = "Un bloc caché de l'ancien format est inclus : relis-le dans le créateur avant de t'en servir.";
 "Un bloc de cette macro n'existe pas encore sur Windows : elle restera bloquée." = "Un bloc de cette macro n'existe pas encore sur Windows : elle restera bloquée.";
 "Un bloc vient d'une version plus récente de FL Shortcuts : la macro ne tournera pas." = "Un bloc vient d'une version plus récente de FL Shortcuts : la macro ne tournera pas.";
+"Un bug" = "Un bug";
 "Un bus par famille" = "Un bus par famille";
 "Un bus par famille dans le Mixer (les 808 avec les drums), chaque son envoyé seulement à son bus" = "Un bus par famille dans le Mixer (les 808 avec les drums), chaque son envoyé seulement à son bus";
 "Un clic, une seule fois." = "Un clic, une seule fois.";
@@ -2419,6 +2448,7 @@
 "et attend qu'elle s'ouvre. Si elle change de taille, montre-le de nouveau." = "et attend qu'elle s'ouvre. Si elle change de taille, montre-le de nouveau.";
 "ex. Armer la piste et lancer l'enregistrement" = "ex. Armer la piste et lancer l'enregistrement";
 "ex. fl.shortcuts" = "ex. fl.shortcuts";
+"facultatif" = "facultatif";
 "fait" = "fait";
 "familles" = "familles";
 "fenêtre de FL" = "fenêtre de FL";
@@ -2721,6 +2751,7 @@
 "À toi de choisir" = "À toi de choisir";
 "À vérifier" = "À vérifier";
 "Ça ne marche toujours pas ?" = "Ça ne marche toujours pas ?";
+"Ça t'aide peut-être" = "Ça t'aide peut-être";
 "Échanger" = "Échanger";
 "Échanger First et Last" = "Échanger First et Last";
 "Échanger les touches ?" = "Échanger les touches ?";

@@ -46,7 +46,7 @@ end $$;
 -- la personne, la version de l'app, le compte (son pseudo s'il est connecté), puis l'état de l'app joint (des
 -- nombres, jamais de nom de son ni de touche tapée).
 create or replace function public.mail_support() returns trigger
-language plpgsql security definer set search_path = public, extensions as $$
+language plpgsql security definer set search_path = public, extensions as $corps$
 declare
   k text;
   dest text;
@@ -54,6 +54,7 @@ declare
   corps text;
   envoi jsonb;
   pseudo text;
+  capture text;
 begin
   select decrypted_secret into k from vault.decrypted_secrets where name = 'fls_resend_key';
   select decrypted_secret into dest from vault.decrypted_secrets where name = 'fls_support_to';
@@ -68,7 +69,8 @@ begin
     end;
   end if;
   sujet := 'FL Shortcuts · '
-    || case new.kind when 'probleme' then 'Problème' when 'question' then 'Question' else 'Idée' end
+    || case new.kind when 'probleme' then 'Problème' when 'question' then 'Question' when 'idee' then 'Idée'
+                     else 'Autre' end
     || case when new.reference <> '' then ' · ' || new.reference else '' end;
   corps := new.message
     || case when new.error <> '' then E'\n\nErreur signalée :\n' || new.error else '' end
@@ -77,7 +79,12 @@ begin
     || E'\nVersion de l''app : ' || coalesce(nullif(new.app_version, ''), '?')
     || E'\nCompte : ' || case when new.user_id is null then 'non connecté'
                               else 'connecté' || coalesce(' (' || pseudo || ')', '') end
-    || case when new.diagnostic <> '' then E'\n\nÉtat de l''app :\n' || new.diagnostic else '' end;
+    || case when new.diagnostic <> '' then E'\n\nÉtat de l''app :\n' || new.diagnostic else '' end
+    -- 20/11 (Aide › Mes messages, supabase/mes-messages.sql) : répondre dans l'app, depuis SQL Editor.
+    || case when new.user_id is not null and new.reference <> ''
+            then E'\n\nRépondre dans l''app (Supabase › SQL Editor) :\nselect public.repondre('''
+                 || new.reference || ''', $$ta réponse$$);'
+            else '' end;
   envoi := jsonb_build_object(
     'from', 'FL Shortcuts <onboarding@resend.dev>',
     'to', jsonb_build_array(dest),
@@ -85,6 +92,12 @@ begin
     'text', corps);
   if new.email is not null then
     envoi := envoi || jsonb_build_object('reply_to', new.email);
+  end if;
+  -- Capture jointe (facultative, 20/11) : lue sans nommer la colonne, absente avant mes-messages.sql.
+  capture := to_jsonb(new) ->> 'capture';
+  if capture is not null and capture <> '' then
+    envoi := envoi || jsonb_build_object('attachments',
+      jsonb_build_array(jsonb_build_object('filename', 'capture.jpg', 'content', capture)));
   end if;
   perform net.http_post(
     url := 'https://api.resend.com/emails',
@@ -94,9 +107,54 @@ begin
 exception when others then
   return new;                         -- jamais de message perdu à cause du mail
 end;
-$$;
+$corps$;
 revoke all on function public.mail_support() from public, anon, authenticated;
 
 drop trigger if exists support_mail on public.support_requests;
 create trigger support_mail after insert on public.support_requests
   for each row execute function public.mail_support();
+
+-- 20/11 : la personne te répond dans l'app (Aide › Mes messages) : un mail aussi, « Re: » + la référence. Seulement
+-- quand supabase/mes-messages.sql est en place (sinon la table des réponses n'existe pas : rien à faire).
+create or replace function public.mail_support_reply() returns trigger
+language plpgsql security definer set search_path = public, extensions as $corps$
+declare
+  k text;
+  dest text;
+  ref text;
+  pseudo text;
+begin
+  if new.team then return new; end if;              -- ta propre réponse : pas de mail
+  select decrypted_secret into k from vault.decrypted_secrets where name = 'fls_resend_key';
+  select decrypted_secret into dest from vault.decrypted_secrets where name = 'fls_support_to';
+  if k is null or dest is null or k = 're_TA_CLE_RESEND' then return new; end if;
+  select r.reference, p.username into ref, pseudo
+    from public.support_requests r left join public.profiles p on p.id = r.user_id where r.id = new.request_id;
+  perform net.http_post(
+    url := 'https://api.resend.com/emails',
+    body := jsonb_build_object(
+      'from', 'FL Shortcuts <onboarding@resend.dev>',
+      'to', jsonb_build_array(dest),
+      'subject', 'Re: FL Shortcuts' || case when coalesce(ref, '') <> '' then ' · ' || ref else '' end,
+      'text', new.message
+        || E'\n\n— ' || coalesce(pseudo, 'Compte sans pseudo')
+        || case when coalesce(ref, '') <> ''
+                then E'\nRépondre dans l''app (Supabase › SQL Editor) :\nselect public.repondre(''' || ref
+                     || ''', $$ta réponse$$);'
+                else '' end),
+    headers := jsonb_build_object('Authorization', 'Bearer ' || k, 'Content-Type', 'application/json'));
+  return new;
+exception when others then
+  return new;                         -- jamais de réponse perdue à cause du mail
+end;
+$corps$;
+revoke all on function public.mail_support_reply() from public, anon, authenticated;
+
+do $$
+begin
+  if to_regclass('public.support_replies') is not null then
+    drop trigger if exists support_reply_mail on public.support_replies;
+    create trigger support_reply_mail after insert on public.support_replies
+      for each row execute function public.mail_support_reply();
+  end if;
+end $$;
