@@ -64,6 +64,9 @@ public sealed class OrganizerEnvironment
     public Action ReleaseLink { get; init; } = () => { };
     /// « Revenir comme avant » après la fin : le lien repris le temps de remettre FL. Vrai s'il vient d'être rouvert.
     public Func<bool> UseLinkAgain { get; init; } = () => false;
+    /// Après `UseLinkAgain` (lien rouvert) : FL répond-il ? (en arrière-plan, bloquant ; 20/11 comme le Mac : plus
+    /// d'attente à l'aveugle). Faux : rien n'est fait, l'Organiser le dit.
+    public Func<bool> AwaitLink { get; init; } = () => true;
     /// « Installer le lien » : vrai s'il est installé ; « Autre dossier de FL… ».
     public Func<bool> InstallLink { get; init; } = () => true;
     /// « Quitter et rouvrir FL » (07/11, comme le Mac) : FL fermé (il demande d'enregistrer s'il le faut), puis relancé.
@@ -421,12 +424,14 @@ public sealed class OrganizerController
             Result = result;
             Families = Organize.FamiliesOf(result);
             Kinds = Organize.KindsOf(result);
+            // 20/11 (comme le Mac, vidéo : « ça bloque encore » sur « FL charge les sons de la copie… ») : le lien reste
+            // à l'Organiser pendant l'aperçu, comme le 13/11 quand tout marchait ; rendu dès la fin du rangement.
             if (Families.Count > 0 || !Plan.IsEmpty) SetPhase(new OrganizerPhase.Preview());
-            else SetPhase(new OrganizerPhase.Failed(Loc.T("Aucun son à organiser dans ce projet.")));
-            // 13/11 (comme le Mac, « quand j'ouvre organiser et que je ferme ça re rame… si non utilisé il faut le
-            // fermer directement ») : l'aperçu n'envoie rien à FL ; le lien est rendu tout de suite et repris le temps
-            // de « Organiser ».
-            DropLink();
+            else
+            {
+                SetPhase(new OrganizerPhase.Failed(Loc.T("Aucun son à organiser dans ce projet.")));
+                DropLink();
+            }
             return;
         }
         var e = error ?? OrganizerError.Failed("?");
@@ -733,11 +738,12 @@ public sealed class OrganizerController
         _env.FocusFl();
         ApplyStep = null;
         SetPhase(new OrganizerPhase.Applying());
-        // Lien rendu pendant l'aperçu (13/11) : repris le temps du rangement, puis rendu de nouveau.
+        // Lien rendu entre-temps (plus le cas pendant l'aperçu depuis le 20/11) : repris, et FL doit répondre avant que
+        // rien ne soit écrit.
         var fresh = _linkDropped && _env.UseLinkAgain();
         _linkDropped = false;
         _linkReleased = false;
-        var sleep = _env.Sleep;
+        var awaitLink = _env.AwaitLink;
         var applier = new OrganizerApplier(link, _env.MoveUp(link), _env.MoveLeft(link), _env.PlaceIcon, _env.DeleteSelected(link),
             wait: _env.Sleep, listen: _env.Timing.TrackListen, files: _env.ProjectFiles(),
             iconIds: FlIconIds.Rack, mixerIconIds: FlIconIds.Mixer,
@@ -750,7 +756,25 @@ public sealed class OrganizerController
         var styles = Styles.ToDictionary(kv => kv.Key, kv => kv.Value);
         _env.Background(() =>
         {
-            if (fresh) sleep(2);                         // FL voit l'appareil revenir et réveille son script
+            if (fresh)
+            {
+                _env.Post(() =>
+                {
+                    ApplyStep = Loc.T("FL se relie à FL Shortcuts…");
+                    Raise();
+                });
+                if (!awaitLink())
+                {
+                    // FL ne répond pas au lien rouvert : rien n'est écrit ni ouvert.
+                    _env.Post(() =>
+                    {
+                        LastApply = new ApplyOutcome { Error = OrganizerError.NoResponse };
+                        SetPhase(new OrganizerPhase.Applied(OrganizerError.NoResponse));
+                        DropLink();
+                    });
+                    return;
+                }
+            }
             var outcome = applier.Apply(plan, result, styles);
             _env.Post(() =>
             {
@@ -842,10 +866,19 @@ public sealed class OrganizerController
         _linkReleased = false;
         var applier = new OrganizerApplier(link, _env.MoveUp(link), _env.MoveLeft(link), wait: _env.Sleep,
             listen: _env.Timing.TrackListen, files: _env.ProjectFiles());
-        var sleep = _env.Sleep;
+        var awaitLink = _env.AwaitLink;
         _env.Background(() =>
         {
-            if (fresh) sleep(2);                         // FL voit l'appareil revenir et réveille son script
+            if (fresh && !awaitLink())
+            {
+                // FL ne répond pas au lien rouvert : rien n'est touché, « Revenir comme avant » reste possible.
+                _env.Post(() =>
+                {
+                    SetPhase(new OrganizerPhase.Undone(OrganizerError.NoResponse));
+                    DropLink();
+                });
+                return;
+            }
             var outcome = applier.Undo(snapshot);
             _env.Post(() =>
             {

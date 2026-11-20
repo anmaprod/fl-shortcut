@@ -125,6 +125,8 @@ final class MenuPanel: ObservableObject {
         var quiet = Transaction()
         quiet.disablesAnimations = true                    // d'un coup (02/11 : « enlever l'animation »)
         withTransaction(quiet) { revealed = true }
+        // L'ombre de la fenêtre suit la carte carrée (marge transparente autour), une fois le contenu dessiné.
+        DispatchQueue.main.async { [weak self] in self?.panel?.invalidateShadow() }
     }
 
     /// Une autre fenêtre a pris la main (ligne choisie, clic sur une fenêtre de l'app ou sur une autre app) : le menu

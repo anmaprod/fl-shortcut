@@ -753,45 +753,49 @@ struct MenuContent: View {
             // L'Organiser écoute les sons (maquette du 28/10) : où il en est, et « Arrêter ».
             if let progress = organizer.listening {
                 OrganizerMenuCard(done: progress.done, total: progress.total) { OrganizerWindow.close() }
-                    .padding(.horizontal, 6)
-                    .padding(.bottom, 10)
+                    .padding(.horizontal, 8)
+                    .padding(.top, 8)
+                    .padding(.bottom, 4)
                 MenuSeparator()
             }
             // En tête (maquette du 05/11, « juste… pas actif… le point à la fin ») : le rond de la barre des menus et
             // « fl shortcuts. », sans état ; dessous, seulement ce qui cloche (en pause, clavier non autorisé…).
-            HStack(spacing: 10) {
+            // 20/11 (capture : « ça c'est vraiment pas beau du tout ») : comme les menus de la maquette « Minimal »
+            // (`.menu`) : carte carrée bordée d'encre, lignes de 16 en texte normal, survol plein d'encre.
+            HStack(spacing: 8) {
                 Image(nsImage: MenuBarIcon.image(.normal))
                     .renderingMode(.template)
                     .resizable()
-                    .frame(width: 24, height: 24)
+                    .frame(width: 16, height: 16)
                     .foregroundStyle(Swiss.text)
                     .accessibilityHidden(true)
-                SwissPageTitle(text: "FL Shortcuts", size: 17)
+                Text(verbatim: "FL Shortcuts")
+                    .font(Swiss.font(15, .semibold))
+                    .foregroundStyle(Swiss.text)
             }
-            .padding(.horizontal, 14)
-            .padding(.top, 6)
-            .padding(.bottom, 12)
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 10)
             if let line = statusLine {
-                HStack(spacing: 5) {
-                    Circle().fill(dotColor).frame(width: 7, height: 7)
-                    Text(line).foregroundStyle(.secondary).lineLimit(1)
+                HStack(spacing: 6) {
+                    Rectangle().fill(dotColor).frame(width: 7, height: 7)
+                    Text(line).foregroundStyle(Swiss.gray).lineLimit(1)
                 }
-                .font(.system(size: 11))
-                .padding(.horizontal, 8)
-                .padding(.top, 4)
-                .padding(.bottom, 6)
+                .font(Swiss.font(13, .regular))
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
                 .accessibilityElement(children: .combine)
             }
 
             // Seulement un échec (« Macro terminée » retiré à la demande de l'utilisateur : rien à dire quand tout va bien).
             if let macro = status.lastMacro, !macro.ok {
-                HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Image(systemName: "xmark.circle.fill").foregroundStyle(Color.orange)
-                    Text(macro.text).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                HStack(alignment: .firstTextBaseline, spacing: 7) {
+                    SwissWarningMark(size: 7).alignmentGuide(.firstTextBaseline) { d in d[.bottom] }
+                    Text(macro.text).foregroundStyle(Swiss.gray).fixedSize(horizontal: false, vertical: true)
                 }
-                .font(.system(size: 11))
-                .padding(.horizontal, 8)
-                .padding(.bottom, 6)
+                .font(Swiss.font(13, .regular))
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
                 // La page Aide, le formulaire prêt avec ce message d'erreur et le journal de la macro.
                 PanelItem(symbol: "exclamationmark.bubble", title: String(localized: "Signaler ce problème…"), tint: .orange, order: 1) {
                     HelpLink.shared.report("Macro : " + macro.text)
@@ -803,14 +807,14 @@ struct MenuContent: View {
             ForEach(alerts, id: \.self) { text in
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
                     SwissWarningMark(size: 7).alignmentGuide(.firstTextBaseline) { d in d[.bottom] }
-                    Text(text).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    Text(text).foregroundStyle(Swiss.gray).fixedSize(horizontal: false, vertical: true)
                 }
-                .font(.system(size: 11))
-                .padding(.horizontal, 8)
-                .padding(.bottom, 6)
+                .font(Swiss.font(13, .regular))
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
             }
 
-            if hasNotice { MenuSeparator() }
+            MenuSeparator()
 
             if !status.accessibilityOK {
                 PanelItem(symbol: "lock.open", title: String(localized: "Tout autoriser…"), tint: .orange, order: 2) {
@@ -849,44 +853,34 @@ struct MenuContent: View {
 
             MenuSeparator()
 
-            // Simple texte gris, sans icône (maquette du 28/10).
-            PanelPlainRow(title: String(localized: "Désinstaller FL Shortcuts…"), order: 8) {
-                Uninstaller.confirmAndRun()
+            PanelItem(symbol: "macwindow", title: String(localized: "Ouvrir FL Shortcuts"), order: 8) {
+                openWindow(id: "editor")
+                MainWindow.bringForward()
+            }
+            PanelItem(symbol: "power", title: String(localized: "Quitter"), shortcut: "⌘Q", key: "q", order: 9) {
+                NSApp.terminate(nil)
             }
 
             MenuSeparator()
 
-            // Pied du panneau (maquette validée le 28/10) : ouvrir la fenêtre à gauche, quitter à droite.
-            HStack(spacing: 8) {
-                PanelFooterButton(title: String(localized: "Ouvrir FL Shortcuts"), tint: Appearance.link, prominent: true) {
-                    openWindow(id: "editor")
-                    MainWindow.bringForward()
-                }
-                Spacer(minLength: 8)
-                PanelFooterButton(title: String(localized: "Quitter"), detail: "⌘Q", tint: .gray, key: "q") {
-                    NSApp.terminate(nil)
-                }
+            // Simple texte gris, à part (maquette du 28/10).
+            PanelPlainRow(title: String(localized: "Désinstaller FL Shortcuts…"), order: 10) {
+                Uninstaller.confirmAndRun()
             }
         }
-        .padding(.horizontal, 6)
-        .padding(.top, 8)
         .padding(.bottom, 6)
-        // Plus petit (30/10, « un peu trop gros ») : 280 de large, lignes de 34.
-        .frame(width: 280)
-        // Fond noir plein, sans Liquid Glass (29/10 : « je veux que tout soit comme dans l'exemple… fond noir ») :
-        // le fond que macOS met derrière le menu est retiré (`MenuPanel.attach`) ou recouvert.
+        .frame(width: 260)
+        // La carte de la maquette : fond de la page, trait d'encre de 2, coins carrés. La marge autour reste
+        // transparente : la bulle arrondie que macOS met derrière le menu ne se voit plus (son fond est retiré,
+        // `MenuPanel.attach` ; l'ombre de la fenêtre suit la carte).
         .background(MenuBackground())
+        .padding(MenuBackground.margin)
         // Sort de l'icône à chaque ouverture ; se ferme au choix d'une ligne ou d'un clic ailleurs (MenuPanel).
         .menuReveal(panel.revealed)
         .background(WindowReader { MenuPanel.shared.attach($0) })
         .modifier(MenuWindowBackground())
         // Couleurs du thème (04/11) : plus toujours sombre.
         .onAppear { MenuPanel.shared.appeared() }
-    }
-
-    /// Quelque chose est écrit au-dessus des lignes (état, échec d'une macro, avertissement) : un filet les sépare.
-    private var hasNotice: Bool {
-        statusLine != nil || status.lastMacro.map { !$0.ok } == true || !alerts.isEmpty
     }
 
     private var dotColor: Color {
@@ -930,35 +924,37 @@ struct MenuContent: View {
     }
 }
 
-/// Filet entre deux groupes de lignes, comme dans un menu.
+/// Filet entre deux groupes de lignes, comme `.menu .other` de la maquette (trait fin, 6 points au-dessus et dessous).
 private struct MenuSeparator: View {
     var body: some View {
         Rectangle()
-            .fill(Swiss.line)
+            .fill(Swiss.faint)
             .frame(height: 1)
-            .padding(.vertical, 5)
+            .padding(.vertical, 6)
     }
 }
 
-/// Fond du menu de l'icône (style suisse, 01/11) : noir plein, coins carrés, bord fin gris ; aucun verre.
+/// Fond du menu de l'icône (20/11, comme `.menu` de la maquette « Minimal ») : fond de la page, trait d'encre de 2,
+/// coins carrés ; aucun verre.
 struct MenuBackground: View {
     static let color = Swiss.background
-    static let cornerRadius: CGFloat = 15
+    /// Marge transparente autour de la carte : au-delà des coins arrondis de la fenêtre du menu (rayon ≈ 16 : ses
+    /// coins coupent moins de 5 points).
+    static let margin: CGFloat = 8
 
     var body: some View {
         let shape = Rectangle()
         shape.fill(Self.color)
-            .overlay(shape.strokeBorder(Swiss.line, lineWidth: 1))
-            .ignoresSafeArea()
+            .overlay(shape.strokeBorder(Swiss.text, lineWidth: 2))
             .accessibilityHidden(true)
     }
 }
 
-/// Fond de la fenêtre du menu remplacé par le noir du menu, là où macOS le permet (macOS 15 et plus).
+/// Fenêtre du menu sans fond à elle (macOS 15 et plus) : seule la carte se voit.
 private struct MenuWindowBackground: ViewModifier {
     func body(content: Content) -> some View {
         if #available(macOS 15.0, *) {
-            content.containerBackground(MenuBackground.color, for: .window)
+            content.containerBackground(Color.clear, for: .window)
         } else {
             content
         }
@@ -978,49 +974,15 @@ private struct PanelPlainRow: View {
             MenuPanel.shared.close()
         } label: {
             Text(title)
-                .font(.system(size: 12))
-                .hoverTint(Swiss.soft)
-                .padding(.horizontal, 10)
-                .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+                .font(Swiss.font(14, .regular))
+                .hoverTint(Swiss.gray)
+                .padding(.horizontal, 16)
+                .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .menuHover(tint: .gray, cornerRadius: 8)
+        .menuHover(tint: Swiss.text, cornerRadius: 0)
         .menuRevealRow(panel.revealed, index: order)
-    }
-}
-
-/// Lien du pied du panneau : « Ouvrir FL Shortcuts » en bleu, « Quitter ⌘Q » en gris. Même survol que les lignes.
-private struct PanelFooterButton: View {
-    let title: String
-    var detail: String? = nil
-    var tint: Color = .gray
-    var prominent = false
-    /// Raccourci réellement actif dans le panneau (avec ⌘).
-    var key: KeyEquivalent? = nil
-    let action: () -> Void
-
-    var body: some View {
-        Button {
-            action()
-            MenuPanel.shared.close()
-        } label: {
-            HStack(spacing: 6) {
-                Text(title)
-                    .fontWeight(prominent ? .medium : .regular)
-                    .hoverTint(prominent ? tint : Color.primary.opacity(0.75))
-                if let detail {
-                    Text(verbatim: detail).foregroundStyle(.secondary)
-                }
-            }
-            .font(.system(size: 12.5))
-            .padding(.horizontal, 8)
-            .frame(height: 28)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .menuHover(tint: tint, cornerRadius: 7)
-        .keyboardShortcut(key.map { KeyboardShortcut($0, modifiers: .command) })
     }
 }
 
@@ -1049,18 +1011,19 @@ private struct PanelItem: View {
             // Style suisse (01/11) : un petit carré de sa couleur, le titre en gras, un trait fin dessous ; survolée,
             // blanc plein et texte noir.
             // 05/11 : plus de couleur par ligne, le carré creux comme la barre de gauche ; survolée, il devient orange.
+            // 20/11 : comme `.menu button` de la maquette (16 en texte normal, 10 × 16 autour) ; plus de carré ni de
+            // trait sous chaque ligne.
             HStack(spacing: 12) {
-                BlockSquare()
                 Text(title)
                 Spacer(minLength: 12)
                 if let shortcut {
-                    Text(shortcut).font(.system(size: 11)).foregroundStyle(Swiss.gray).hoverTint(Swiss.gray)
+                    Text(shortcut).font(Swiss.font(13, .regular)).hoverTint(Swiss.gray)
                 }
             }
-            .font(.system(size: 13.5, weight: .bold))
-            .padding(.horizontal, 14)
-            .frame(height: 34)
-            .swissRule(Swiss.faint)
+            .font(Swiss.font(16, .regular))
+            .lineLimit(1)
+            .padding(.horizontal, 16)
+            .frame(height: 40)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

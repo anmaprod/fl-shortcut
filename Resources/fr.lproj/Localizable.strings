@@ -1027,6 +1027,7 @@
 "FL a supprimé d'autres sons que ceux sans note dans la copie rangée : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé." = "FL a supprimé d'autres sons que ceux sans note dans la copie rangée : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé.";
 "FL charge les sons de la copie…" = "FL charge les sons de la copie…";
 "FL charge les sons de la copie… %lld s" = "FL charge les sons de la copie… %lld s";
+"FL charge les sons de la copie… %lld/%lld · %lld s" = "FL charge les sons de la copie… %lld/%lld · %lld s";
 "FL enregistre avec « %@ » et joue le son sur « %@ » : le micro reprendrait le son des haut-parleurs (larsen). Branche un casque, ou choisis ta carte son dans FL (Options › Audio Settings) avant de lancer la lecture." = "FL enregistre avec « %@ » et joue le son sur « %@ » : le micro reprendrait le son des haut-parleurs (larsen). Branche un casque, ou choisis ta carte son dans FL (Options › Audio Settings) avant de lancer la lecture.";
 "FL enregistre la version organisée…" = "FL enregistre la version organisée…";
 "FL enregistre ton projet, puis FL Shortcuts lit son fichier : ce que joue chaque pattern et où est chaque clip, exactement (rien n'est deviné). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les autres jouent seuls, à ton tempo, sans que tu les entendes. Ne touche pas à FL ; Échap arrête." = "FL enregistre ton projet, puis FL Shortcuts lit son fichier : ce que joue chaque pattern et où est chaque clip, exactement (rien n'est deviné). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les autres jouent seuls, à ton tempo, sans que tu les entendes. Ne touche pas à FL ; Échap arrête.";
@@ -1056,6 +1057,7 @@
 "FL ne répond pas : le script FL Shortcuts n'est pas chargé dans FL. Vérifie ces réglages, puis « Réessayer »." = "FL ne répond pas : le script FL Shortcuts n'est pas chargé dans FL. Vérifie ces réglages, puis « Réessayer ».";
 "FL ne répond pas : quitte et rouvre FL Studio, il relie « %@ » tout seul en démarrant. Toujours rien : dans Options › MIDI Settings, entrée « %@ », choisis le Controller type « FL Shortcuts » (pas « generic controller »), et donne le même numéro de Port à l'entrée et à la sortie" = "FL ne répond pas : quitte et rouvre FL Studio, il relie « %@ » tout seul en démarrant. Toujours rien : dans Options › MIDI Settings, entrée « %@ », choisis le Controller type « FL Shortcuts » (pas « generic controller »), et donne le même numéro de Port à l'entrée et à la sortie";
 "FL ne répond pas encore. Dans FL › MIDI Settings › Output, « FL Shortcuts » doit s'afficher à côté de « FL Shortcuts Link », seul sur son Port. Sinon : « Ça ne marche toujours pas ? » ci-dessous." = "FL ne répond pas encore. Dans FL › MIDI Settings › Output, « FL Shortcuts » doit s'afficher à côté de « FL Shortcuts Link », seul sur son Port. Sinon : « Ça ne marche toujours pas ? » ci-dessous.";
+"FL ne répond pas encore… %lld s" = "FL ne répond pas encore… %lld s";
 "FL ne répond plus assez vite depuis l'ouverture de la copie rangée. Elle est ouverte dans FL avec sa Playlist rangée : relance l'Organiser dessus pour finir le reste. Ton projet d'origine n'a pas bougé." = "FL ne répond plus assez vite depuis l'ouverture de la copie rangée. Elle est ouverte dans FL avec sa Playlist rangée : relance l'Organiser dessus pour finir le reste. Ton projet d'origine n'a pas bougé.";
 "FL ouvre la copie rangée…" = "FL ouvre la copie rangée…";
 "FL ouvre la copie rangée… %lld s" = "FL ouvre la copie rangée… %lld s";
@@ -1068,6 +1070,7 @@
 "FL rouvre la copie avec toutes ses icônes…" = "FL rouvre la copie avec toutes ses icônes…";
 "FL rouvre ton projet d'avant…" = "FL rouvre ton projet d'avant…";
 "FL répond : le lien est prêt." = "FL répond : le lien est prêt.";
+"FL se relie à FL Shortcuts…" = "FL se relie à FL Shortcuts…";
 "FL trouve « FL Shortcuts Link » en démarrant et le relie tout seul. C'est détecté ici dès que c'est fait." = "FL trouve « FL Shortcuts Link » en démarrant et le relie tout seul. C'est détecté ici dès que c'est fait.";
 "FL utilise encore l'ancienne version du lien : redémarre FL Studio (il charge la nouvelle au lancement), puis clique sur « Réessayer »." = "FL utilise encore l'ancienne version du lien : redémarre FL Studio (il charge la nouvelle au lancement), puis clique sur « Réessayer ».";
 "FX" = "FX";

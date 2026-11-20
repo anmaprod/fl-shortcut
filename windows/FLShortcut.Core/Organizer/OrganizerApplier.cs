@@ -429,9 +429,17 @@ public sealed class OrganizerApplier
             }
             calm = listed is not null && took < CalmAnswer ? calm + 1 : 0;
             if ((calm >= 2 && count == expected) || (DateTime.UtcNow - started).TotalSeconds > CalmLimit) break;
-            if (check % 4 == 3) _report(Loc.F("FL charge les sons de la copie… %lld s", (int)(DateTime.UtcNow - started).TotalSeconds));
+            if (check % 4 == 3)
+            {
+                // 20/11 (comme le Mac) : ce qui manque se voit (des nombres seulement) : FL muet, ou pas tous les sons.
+                var seconds = (int)(DateTime.UtcNow - started).TotalSeconds;
+                if (answers == 0 && seconds >= 10) _report(Loc.F("FL ne répond pas encore… %lld s", seconds));
+                else if (count >= 0 && count != expected)
+                    _report(Loc.F("FL charge les sons de la copie… %lld/%lld · %lld s", count, expected, seconds));
+                else _report(Loc.F("FL charge les sons de la copie… %lld s", seconds));
+            }
         }
-        trace.Add($"réponses={answers} lente={(int)Math.Round(slowest * 10, MidpointRounding.AwayFromZero)}ds");
+        trace.Add($"réponses={answers} lente={(int)Math.Round(slowest * 10, MidpointRounding.AwayFromZero)}ds sons={count}/{expected}");
         if (calm < 2)
             throw OrganizerError.Failed(Loc.T("FL est trop lent : relance l'Organiser sur la copie."));
         // La copie montre tous les sons (« All ») : autant que l'analyse, sinon rien ne serait à sa place.

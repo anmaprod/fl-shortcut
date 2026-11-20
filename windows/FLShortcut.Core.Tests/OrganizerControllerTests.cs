@@ -43,8 +43,14 @@ public sealed class OrganizerControllerTests
         Func<bool>? install = null, FakeAudio? audio = null, Func<CorrectionsIA?>? corrections = null, Action<string>? share = null,
         Action<string, string>? team = null, Func<IReadOnlyList<SoundFamily>>? order = null, Action<IReadOnlyList<SoundFamily>>? saveOrder = null,
         Action<string>? copy = null, List<(string, string)>? made = null, List<string>? linkLog = null,
-        Func<(bool Buses, bool Premaster)?>? mixer = null, Action<bool, bool>? saveMixer = null) => new()
+        Func<(bool Buses, bool Premaster)?>? mixer = null, Action<bool, bool>? saveMixer = null,
+        Func<bool>? answers = null) => new()
     {
+        AwaitLink = () =>
+        {
+            linkLog?.Add("attendu");
+            return answers?.Invoke() ?? true;
+        },
         LoadMixerChoices = mixer ?? (() => null),
         SaveMixerChoices = saveMixer ?? ((_, _) => { }),
         ReleaseLink = () => linkLog?.Add("rendu"),
@@ -167,19 +173,19 @@ public sealed class OrganizerControllerTests
         var later = new Later();
         var controller = new OrganizerController(Env(link, disk, later, linkLog: log));
         controller.Start();
-        // 13/11 (comme le Mac, « si non utilisé il faut le fermer directement ») : l'aperçu n'envoie rien à FL, le lien
-        // est rendu dès la fin de l'écoute et repris le temps de « Organiser ».
+        // 20/11 (comme le Mac, « ça bloque encore » sur « FL charge les sons de la copie… ») : le lien reste pendant
+        // l'aperçu, comme le 13/11 quand tout marchait ; « Organiser » s'en sert sans le recréer.
         Assert.IsType<OrganizerPhase.Preview>(controller.Phase);
+        Assert.Empty(log);
+        Assert.True(controller.HoldsLink);
+        controller.Apply();
         Assert.Equal(new[] { "rendu" }, log);
         Assert.False(controller.HoldsLink);
-        controller.Apply();
-        Assert.Equal(new[] { "rendu", "repris", "rendu" }, log);
-        Assert.False(controller.HoldsLink);
         controller.Undo();
-        Assert.Equal(new[] { "rendu", "repris", "rendu", "repris", "rendu" }, log);
+        Assert.Equal(new[] { "rendu", "repris", "attendu", "rendu" }, log);
         controller.Close();
         later.Run();
-        Assert.Equal(new[] { "rendu", "repris", "rendu", "repris", "rendu" }, log);
+        Assert.Equal(new[] { "rendu", "repris", "attendu", "rendu" }, log);
 
         // Fermé en plein travail : rendu une seule fois (tout de suite ou au plus tard 3 s après).
         log.Clear();
@@ -190,6 +196,22 @@ public sealed class OrganizerControllerTests
         later.Run();
         Assert.Equal(new[] { "rendu" }, log);
         Assert.False(second.HoldsLink);
+    }
+
+    [Fact]
+    public void NothingIsTouchedWhenFlDoesNotAnswerTheReopenedLink()
+    {
+        // 20/11 (comme le Mac) : lien rouvert et FL muet : rien n'est touché, « Revenir comme avant » reste possible.
+        var (link, disk) = Project();
+        var answer = true;
+        var controller = new OrganizerController(Env(link, disk, new Later(), answers: () => answer));
+        controller.Start();
+        controller.Apply();
+        Assert.IsType<OrganizerPhase.Applied>(controller.Phase);
+        answer = false;
+        controller.Undo();
+        Assert.Equal(OrganizerError.Kinds.NoResponse, Assert.IsType<OrganizerPhase.Undone>(controller.Phase).Error?.Kind);
+        Assert.True(controller.CanUndo);
     }
 
     [Fact]

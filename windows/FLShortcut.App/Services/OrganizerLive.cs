@@ -158,6 +158,7 @@ internal static class OrganizerLive
             PrepareLink = () => PrepareLink(app),
             ReleaseLink = () => app.Midi.Release(LinkUser.Organizer),
             UseLinkAgain = () => app.Midi.Use(LinkUser.Organizer),
+            AwaitLink = () => app.Midi.AwaitAnswer(),
             InstallLink = () => app.InstallScript() is null,
             RestartFl = RestartFl,
             InstallLinkElsewhere = installElsewhere,

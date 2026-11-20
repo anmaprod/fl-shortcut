@@ -848,11 +848,18 @@ final class OrganizerApplier {
             calm = listed != nil && took < Self.calmAnswer ? calm + 1 : 0
             if (calm >= 2 && count == expected) || Date().timeIntervalSince(started) > Self.calmLimit { break }
             if check % 4 == 3 {
+                // 20/11 : ce qui manque se voit (des nombres seulement) : FL muet, ou pas encore tous les sons.
                 let seconds = Int(Date().timeIntervalSince(started))
-                report(String(localized: "FL charge les sons de la copie… \(seconds) s"))
+                if answers == 0, seconds >= 10 {
+                    report(String(localized: "FL ne répond pas encore… \(seconds) s"))
+                } else if count >= 0, count != expected {
+                    report(String(localized: "FL charge les sons de la copie… \(count)/\(expected) · \(seconds) s"))
+                } else {
+                    report(String(localized: "FL charge les sons de la copie… \(seconds) s"))
+                }
             }
         }
-        trace.append("réponses=\(answers) lente=\(Int((slowest * 10).rounded()))ds")
+        trace.append("réponses=\(answers) lente=\(Int((slowest * 10).rounded()))ds sons=\(count)/\(expected)")
         guard calm >= 2 else {
             throw OrganizerError.failed(String(localized: "FL ne répond plus assez vite depuis l'ouverture de la copie rangée. Elle est ouverte dans FL avec sa Playlist rangée : relance l'Organiser dessus pour finir le reste. Ton projet d'origine n'a pas bougé."))
         }

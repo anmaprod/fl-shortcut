@@ -54,6 +54,9 @@ struct OrganizerEnvironment {
     /// « Revenir comme avant » après l'organisation (lien rendu) : le lien de nouveau, le temps de remettre FL comme
     /// avant. Vrai si les ports viennent d'être recréés (FL met un moment à voir l'appareil).
     var useLinkAgain: () -> Bool = { false }
+    /// Après `useLinkAgain` (ports recréés) : FL répond-il ? (file de l'Organiser, bloquant ; 20/11 : plus d'attente
+    /// à l'aveugle). Faux : rien n'est fait, l'Organiser le dit.
+    var awaitLink: () -> Bool = { true }
     /// « Installer le lien » (fil principal) : vrai s'il est installé (faux : annulé, ou impossible, déjà dit).
     var installLink: () -> Bool = { true }
     /// « Autre dossier de FL… » : le lien réinstallé dans le dossier de données de FL choisi (fil principal).
@@ -159,6 +162,7 @@ struct OrganizerEnvironment {
             linkInstalled: { MIDILink.shared.snapshot.hasKey },
             releaseLink: { MIDILink.shared.release(.organizer) },
             useLinkAgain: { MIDILink.shared.use(.organizer) },
+            awaitLink: { MIDILink.shared.awaitOrganizerAnswer() },
             installLink: { FLScriptInstaller.installWithAlert(quiet: true) },
             installLinkElsewhere: { FLScriptInstaller.installWithAlert(chooseFolder: true, quiet: true) },
             runningFL: {
@@ -996,14 +1000,15 @@ final class OrganizerController: ObservableObject {
             families = OrganizerApplier.families(of: result)
             kinds = OrganizerApplier.kinds(of: result)
             if !families.isEmpty || !plan.isEmpty {
+                // 20/11 (vidéo : « ça bloque encore » sur « FL charge les sons de la copie… ») : le lien reste à
+                // l'Organiser pendant l'aperçu, comme le 13/11 quand tout marchait. Rendu pendant l'aperçu puis repris
+                // à « Organiser » (13/11 au soir), FL ne répondait plus à l'appareil recréé et la copie attendait sans
+                // fin. Il est rendu dès la fin du rangement, ou à la fermeture.
                 phase = .preview
             } else {
                 phase = .failed(String(localized: "Aucun son à organiser dans ce projet."))
+                dropLink()
             }
-            // 13/11 (« quand j'ouvre organiser et que je ferme ça re rame… si non utilisé il faut le fermer
-            // directement ») : l'aperçu n'envoie rien à FL ; le lien est rendu tout de suite (FL ne voit plus
-            // l'appareil) et repris le temps de « Organiser ».
-            dropLink()
         case .failure(let error):
             projectMissing = error == .projectNotFound
             if let reason = waitingReason(for: error) {
@@ -1314,10 +1319,11 @@ final class OrganizerController: ObservableObject {
         env.focusFL()                                         // ⌥↑, ⌥← et les clics des icônes vont à FL
         phase = .applying
         applyStep = nil
-        // Lien rendu pendant l'aperçu (13/11) : repris le temps du rangement, puis rendu de nouveau.
+        // Lien rendu entre-temps (plus le cas pendant l'aperçu depuis le 20/11) : repris, et FL doit répondre avant que
+        // rien ne soit écrit (avant : 2 s d'attente à l'aveugle).
         let fresh = linkDropped && env.useLinkAgain()
         linkDropped = false
-        let sleep = env.sleep
+        let awaitLink = env.awaitLink
         let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), moveLeft: env.moveLeft(link),
                                        placeIcon: env.placeIcon, deleteSelected: env.deleteSelected(link),
                                        moveTrack: env.moveTrack(link), moveClips: env.moveClips(link),
@@ -1330,7 +1336,18 @@ final class OrganizerController: ObservableObject {
                                        })
         let plan = self.plan, styles = self.styles
         queue.async { [weak self] in
-            if fresh { sleep(2) }                         // FL voit l'appareil revenir et recharge son script
+            if fresh {
+                DispatchQueue.main.async { self?.applyStep = String(localized: "FL se relie à FL Shortcuts…") }
+                guard awaitLink() else {
+                    // FL ne répond pas à l'appareil recréé : rien n'est écrit ni ouvert (la copie attendait sans fin).
+                    DispatchQueue.main.async {
+                        self?.lastApply = ApplyOutcome(snapshot: OrganizerSnapshot(), error: .noResponse)
+                        self?.phase = .applied(.noResponse)
+                        self?.dropLink()
+                    }
+                    return
+                }
+            }
             let outcome = applier.apply(plan, result: result, styles: styles)
             DispatchQueue.main.async {
                 self?.env.saveIconIDs(outcome.learnedIconIDs)
@@ -1460,13 +1477,20 @@ final class OrganizerController: ObservableObject {
         // Lien rendu à la fin de l'organisation : repris le temps de remettre FL comme avant, puis rendu de nouveau.
         let fresh = linkDropped && env.useLinkAgain()
         linkDropped = false
-        let sleep = env.sleep
+        let awaitLink = env.awaitLink
         let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), moveLeft: env.moveLeft(link),
                                        moveTrack: env.moveTrack(link), moveClips: env.moveClips(link),
                                        readClips: env.readClips(link), moveClip: env.moveClip(link),
                                        wait: env.sleep, listen: env.timing.trackListen, files: env.projectFiles())
         queue.async { [weak self] in
-            if fresh { sleep(2) }                         // FL voit l'appareil revenir et recharge son script
+            if fresh, !awaitLink() {
+                // FL ne répond pas à l'appareil recréé : rien n'est touché, « Revenir comme avant » reste possible.
+                DispatchQueue.main.async {
+                    self?.phase = .undone(.noResponse)
+                    self?.dropLink()
+                }
+                return
+            }
             let outcome = applier.undo(snapshot)
             DispatchQueue.main.async {
                 self?.snapshot = outcome.snapshot

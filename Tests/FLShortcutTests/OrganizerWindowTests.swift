@@ -485,29 +485,59 @@ final class OrganizerWindowTests: XCTestCase {
         let audio = FakeAudio(link: link)
         audio.parts = [0: [Float](repeating: 0.3, count: 64), 1: [Float](repeating: 0.3, count: 64)]
         var e = env(link, audio, saved: { _ in })
-        var released = 0, retaken = 0
+        var released = 0, retaken = 0, awaited = 0
         e.releaseLink = { released += 1 }
         e.useLinkAgain = {
             retaken += 1
             return true
         }
+        e.awaitLink = {
+            awaited += 1
+            return true
+        }
         let controller = OrganizerController(env: e)
         controller.start()
         waitFor(controller) { $0 == .preview }
-        // 13/11 (« quand j'ouvre organiser et que je ferme ça re rame… si non utilisé il faut le fermer directement ») :
-        // l'aperçu n'envoie rien à FL, le lien est rendu dès la fin de l'écoute et repris pour « Organiser ».
-        XCTAssertEqual(released, 1, "aperçu : le lien est rendu tout de suite")
-        XCTAssertFalse(controller.holdsLink)
+        // 20/11 (« ça bloque encore » sur « FL charge les sons de la copie… ») : le lien reste pendant l'aperçu, comme
+        // le 13/11 quand tout marchait (rendu puis repris, FL ne répondait plus à l'appareil recréé).
+        XCTAssertEqual(released, 0, "aperçu : le lien reste")
+        XCTAssertTrue(controller.holdsLink)
         controller.apply()
         waitFor(controller, OrganizerWindowTests.isApplied)
-        XCTAssertEqual(retaken, 1, "« Organiser » : le lien de nouveau")
-        XCTAssertEqual(released, 2, "rangé : le lien est rendu tout de suite")
+        XCTAssertEqual(retaken, 0, "« Organiser » : le même lien, rien à recréer")
+        XCTAssertEqual(released, 1, "rangé : le lien est rendu tout de suite")
         XCTAssertTrue(controller.canUndo)
         controller.undo()
         waitFor(controller, OrganizerWindowTests.isUndone)
         XCTAssertEqual(controller.phase, .undone(nil))
-        XCTAssertEqual(retaken, 2, "revenir comme avant : le lien de nouveau")
-        XCTAssertEqual(released, 3, "puis rendu")
+        XCTAssertEqual(retaken, 1, "revenir comme avant : le lien de nouveau")
+        XCTAssertEqual(awaited, 1, "et FL attendu avant de rien toucher")
+        XCTAssertEqual(released, 2, "puis rendu")
+        controller.close()
+    }
+
+    /// 20/11 : appareil recréé et FL muet : rien n'est touché, l'Organiser le dit (avant : 2 s à l'aveugle, puis la
+    /// copie attendait sans fin).
+    func testNothingIsTouchedWhenFLDoesNotAnswerTheRecreatedLink() {
+        let link = FakeOrganizerLink()
+        link.channels = [ChannelInfo(index: 0, type: 2, mixerTrack: 0, color: RGBColor(r: 1, g: 2, b: 3), name: "Son 0"),
+                         ChannelInfo(index: 1, type: 2, mixerTrack: 0, color: RGBColor(r: 4, g: 5, b: 6), name: "Son 1")]
+        let audio = FakeAudio(link: link)
+        audio.parts = [0: [Float](repeating: 0.3, count: 64), 1: [Float](repeating: 0.3, count: 64)]
+        var e = env(link, audio, saved: { _ in })
+        e.useLinkAgain = { true }
+        var answer = true
+        e.awaitLink = { answer }
+        let controller = OrganizerController(env: e)
+        controller.start()
+        waitFor(controller) { $0 == .preview }
+        controller.apply()
+        waitFor(controller, OrganizerWindowTests.isApplied)
+        answer = false
+        controller.undo()
+        waitFor(controller, OrganizerWindowTests.isUndone)
+        XCTAssertEqual(controller.phase, .undone(.noResponse))
+        XCTAssertTrue(controller.canUndo, "rien n'a été touché : « Revenir comme avant » reste possible")
         controller.close()
     }
 

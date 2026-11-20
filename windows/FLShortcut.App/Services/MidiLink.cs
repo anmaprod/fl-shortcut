@@ -215,6 +215,28 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
         }
     }
 
+    /// « Organiser » ou « Revenir comme avant » avec un lien tout juste rouvert (20/11, comme le Mac ; avant, 2 s
+    /// d'attente à l'aveugle) : FL doit répondre avant que rien ne soit écrit. PING jusqu'à son HELLO, 12 s au plus.
+    public bool AwaitAnswer()
+    {
+        if (!Light()) return true;
+        var started = DateTime.UtcNow;
+        var deadline = started.AddSeconds(12);
+        Thread.Sleep(500);
+        OpenNow();
+        while (DateTime.UtcNow < deadline)
+        {
+            if (Core.RunBriefly(Array.Empty<int>(), brief: true, TimeSpan.FromSeconds(1)) is null)
+            {
+                AppLog.Write("MIDI", $"FL answers the Organiser after {(DateTime.UtcNow - started).TotalSeconds:0} s");
+                return true;
+            }
+            Thread.Sleep(300);
+        }
+        AppLog.Write("MIDI", "no answer from FL for the Organiser");
+        return false;
+    }
+
     /// Ports tout juste créés par Windows : FL les voit et relie son script ; PING jusqu'à son HELLO.
     private void WarmUp()
     {

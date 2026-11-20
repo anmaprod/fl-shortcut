@@ -868,6 +868,41 @@ final class MIDILink: ObservableObject {
     /// FL relie le script à un appareil qui vient d'apparaître : PING jusqu'à son HELLO.
     static let warmUpLimit: TimeInterval = 8
 
+    /// « Organiser » ou « Revenir comme avant » avec un appareil tout juste recréé (20/11, vidéo : l'Organiser restait
+    /// sur « FL charge les sons de la copie… » ; avant, 2 s d'attente à l'aveugle) : FL doit répondre AVANT que rien
+    /// ne soit écrit. PING jusqu'à son HELLO ; sans réponse, l'appareil est retiré puis recréé une fois et attendu de
+    /// nouveau. Faux : FL ne répond pas (file de l'Organiser, bloquant).
+    static let organizerAnswerLimit: TimeInterval = 12
+
+    func awaitOrganizerAnswer() -> Bool {
+        guard AppMode.light else { return true }
+        if answers(within: Self.organizerAnswerLimit) { return true }
+        MacroLog.shared.write("MIDI", "no answer from FL after the ports came back: created again")
+        portLock.lock()
+        transport.closePorts()
+        portLock.unlock()
+        core.forgetScript()
+        Thread.sleep(forTimeInterval: 1)
+        openPorts()
+        return answers(within: Self.organizerAnswerLimit)
+    }
+
+    private func answers(within limit: TimeInterval) -> Bool {
+        let started = Date()
+        let deadline = started.addingTimeInterval(limit)
+        Thread.sleep(forTimeInterval: 0.5)
+        while Date() < deadline {
+            if core.runBriefly([], brief: true, timeout: 1) == nil {
+                MacroLog.shared.write("MIDI", String(format: "FL answers the Organiser after %.0f s",
+                                                     Date().timeIntervalSince(started)))
+                return true
+            }
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        MacroLog.shared.write("MIDI", "no answer from FL for the Organiser")
+        return false
+    }
+
     private func warmUp() {
         let deadline = Date().addingTimeInterval(Self.warmUpLimit)
         Thread.sleep(forTimeInterval: 0.5)

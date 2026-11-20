@@ -769,7 +769,7 @@
   pastille de SA couleur (30/10, plus le bleu), sans sélection grise du système ni compteurs), lignes des cartes (`cardRow`), menu de l'icône,
   Macros, modèles, Communauté, Aide, palette, blocs, bouton d'enregistrement, « Menu de FL » du créateur, guide.
   Menu de l'icône (29/10, « plus de Liquid Glass… fond noir ») ; plus petit le 30/10 (280 de large, lignes de 34 ;
-  Windows 250) : fond noir plein `MenuBackground`, toujours sombre,
+  Windows 250) : fond noir plein `MenuBackground`, toujours sombre (refait le 20/11 : voir « Fenêtre « Minimal » »),
   fond du système caché (`MenuPanel.clearSystemBackground`) ; « Désinstaller » en texte gris ; photo `menu-icone.png`.
   Désinstallation (29/10, « dans le nouveau style… pas toucher à sa fonctionnalité juste à l'image ») : fond noir,
   plaques claires, capsules (`UninstallView` seule ; `UninstallFlow`/`Uninstaller` inchangés).
@@ -990,6 +990,17 @@
   autres blocs restent compris dans les macros qui les ont) ; guide : « Clique « Nouvelle macro ». / Ajoute ses étapes
   à droite. » ; Aide : les 7 questions de la maquette (Windows : « FL ne répond pas au lien » à la place du carré
   rouge de l'icône), ▶ + question en 17, colonnes 1 à 8, sans défiler.
+  Vidéo du 20/11 à 14 h 31 (« ça bug ?? », « j'ai réessayé ça bloque encore ») : Organiser bloqué sur « FL charge les
+  sons de la copie… » (FL avait ouvert la copie, la marque restait). Dernier rangement réussi chez lui : 13/11 (39eb10a),
+  le lien GARDÉ pendant l'aperçu ; depuis 644f3e8 (même jour, lien rendu pendant l'aperçu puis recréé à « Organiser »
+  avec 2 s d'attente à l'aveugle), plus aucun. Maintenant (Mac et Windows) : le lien reste de « Démarrer » à la fin du
+  rangement (aperçu compris) ; repris pour « Revenir comme avant », FL doit répondre avant que rien ne soit touché
+  (`awaitLink` / `AwaitLink` : PING jusqu'au HELLO 12 s ; Mac : appareil recréé une fois puis 12 s encore ; sinon
+  « FL ne répond pas », rien d'écrit) ; l'attente dit ce qui manque (« FL ne répond pas encore… », « … 12/14 · 30 s »),
+  diagnostic `sons=vus/attendus`. Menu de l'icône (capture : « vraiment pas beau du tout ») : comme `.menu` de la
+  maquette, carte carrée au fond du thème, trait d'encre de 2, lignes de 16 en texte normal, survol plein d'encre,
+  « Ouvrir FL Shortcuts » / « Quitter ⌘Q » en lignes, « Désinstaller » gris à part ; Mac : marge transparente de 8
+  autour (la bulle arrondie de macOS ne se voit plus), Windows `TrayMenu.Row`. Pas encore vus chez lui.
 
 - **Fenêtre « plus lisible »** (16/11, maquette PDF/HTML « FL Shortcuts — plus lisible », 8 écrans, commencée par une
   autre session sans rien pousser) : barre de gauche en parties (`ReadableSidebar` : Trouver un raccourci, Raccourcis ▸

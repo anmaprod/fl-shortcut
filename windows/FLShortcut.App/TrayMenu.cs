@@ -1,7 +1,7 @@
-// Menu de l'icône (zone de notification) comme celui du Mac (29/10, « plus de Liquid Glass… fond noir ») : un panneau
-// noir plein aux coins arrondis, l'état en haut (point de couleur), une ligne par action (carré de couleur, nom ; au
-// survol, pleine de sa couleur, texte en blanc), puis « Ouvrir FL Shortcuts » en bleu et « Quitter » en bas. Se ferme
-// dès qu'on clique ailleurs ; une fenêtre à la fois. Construit en code, toujours sombre.
+// Menu de l'icône (zone de notification) comme celui du Mac (20/11, « ça c'est vraiment pas beau du tout ») : comme
+// les menus de la maquette « Minimal » (`.menu`) : carte carrée au fond du thème, trait d'encre de 2, lignes de 16 en
+// texte normal, survol plein d'encre ; « Ouvrir FL Shortcuts » et « Quitter » en lignes, « Désinstaller » à part en
+// gris. Se ferme dès qu'on clique ailleurs ; une fenêtre à la fois. Construit en code.
 // Une fenêtre faite d'emblée sans barre de titre (AppWindow à la présentation « menu »), le panneau posé dedans
 // (DesktopWindowXamlSource) : retirer la barre d'une fenêtre WinUI déjà créée (SetBorderAndTitleBar ou présentation
 // « menu ») fait libérer deux fois par le Windows App SDK l'objet d'accessibilité de ses boutons
@@ -26,9 +26,9 @@ internal sealed class TrayMenu
     /// Une ligne du menu : son carré de couleur, son nom, ce qu'elle fait.
     public sealed record Entry(string Icon, Color Tint, string Title, Action Run);
 
-    /// Le noir du menu du Mac (MenuBackground).
-    private static readonly Color MenuColor = Rgb(0x00, 0x00, 0x00);     // noir plein comme le Mac
-    private const double MenuWidth = 250;              // plus petit (30/10, « un peu trop gros »)
+    /// Le fond du thème, comme la carte du menu du Mac (MenuBackground).
+    private static Color MenuColor => WindowColor;
+    private const double MenuWidth = 260;              // comme le Mac
     private const uint WM_ACTIVATE = 0x0006;
     private static readonly UIntPtr SubclassId = new(0x464D);
 
@@ -78,52 +78,41 @@ internal sealed class TrayMenu
         var corner = Win32.DWMWCP_DONOTROUND;          // style suisse : coins carrés
         Win32.DwmSetWindowAttribute(_hwnd, Win32.DWMWA_WINDOW_CORNER_PREFERENCE, ref corner, sizeof(int));
 
-        var stack = new StackPanel { Spacing = 2 };
-        // En tête (maquette du 05/11, comme le Mac) : le rond de la zone de notification et « fl shortcuts. », sans
-        // état ; dessous, seulement ce qui cloche.
-        var title = SwissTitle(17);
-        title.Text = "fl shortcuts";
-        var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(12, 8, 12, 10) };
-        head.Children.Add(Round(24, Text, MenuColor));
-        head.Children.Add(PageTitle(title, 17));
+        var stack = new StackPanel();
+        // En tête (comme le Mac) : le rond de la zone de notification et « FL Shortcuts », sans état ; dessous,
+        // seulement ce qui cloche.
+        var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(16, 12, 16, 10) };
+        head.Children.Add(Round(16, Text, MenuColor));
+        var name = Label("FL Shortcuts", 15, Text, semibold: true);
+        name.VerticalAlignment = VerticalAlignment.Center;
+        head.Children.Add(name);
         stack.Children.Add(head);
         if (!ok)
         {
-            var state = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7, Margin = new Thickness(12, 0, 12, 8) };
-            state.Children.Add(new Ellipse { Width = 7, Height = 7, Fill = Brush(Orange), VerticalAlignment = VerticalAlignment.Center });
-            state.Children.Add(Label(status, 11.5, Secondary));
+            var state = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(16, 0, 16, 8) };
+            state.Children.Add(new Rectangle { Width = 7, Height = 7, Fill = Brush(Red), VerticalAlignment = VerticalAlignment.Center });
+            state.Children.Add(Label(status, 13, Secondary));
             stack.Children.Add(state);
         }
         stack.Children.Add(Separator());
+        foreach (var entry in entries.Where(e => e.Icon != "trash")) stack.Children.Add(Row(entry.Title, () => Run(entry.Run)));
+        stack.Children.Add(Separator());
+        stack.Children.Add(Row(Loc.T("Ouvrir FL Shortcuts"), () => Run(open)));
+        stack.Children.Add(Row(Loc.T("Quitter"), () => Run(quit)));
         // Comme le Mac (maquette du 28/10) : « Désinstaller FL Shortcuts… » à part, sous un trait, en simple texte gris.
-        foreach (var entry in entries.Where(e => e.Icon != "trash")) stack.Children.Add(Row(entry));
         foreach (var entry in entries.Where(e => e.Icon == "trash"))
         {
             stack.Children.Add(Separator());
-            var plain = FooterButton(entry.Title, Secondary, entry.Run);
-            plain.HorizontalAlignment = HorizontalAlignment.Stretch;
-            plain.HorizontalContentAlignment = HorizontalAlignment.Left;
-            plain.Padding = new Thickness(10, 6, 8, 6);
-            stack.Children.Add(plain);
+            stack.Children.Add(Row(entry.Title, () => Run(entry.Run), size: 14, color: Secondary, height: 36));
         }
-        stack.Children.Add(Separator());
-
-        var footer = new Grid { Margin = new Thickness(0, 2, 0, 0) };
-        footer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        footer.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        footer.Children.Add(FooterButton(Loc.T("Ouvrir FL Shortcuts"), Link, open));
-        var quitButton = FooterButton(Loc.T("Quitter"), Text, quit);
-        Grid.SetColumn(quitButton, 1);
-        footer.Children.Add(quitButton);
-        stack.Children.Add(footer);
 
         _panel = new Border
         {
             Child = stack,
-            Padding = new Thickness(6),
+            Padding = new Thickness(0, 0, 0, 6),
             Background = Brush(MenuColor),
-            BorderBrush = Brush(White(0.10)),
-            BorderThickness = new Thickness(1),
+            BorderBrush = Brush(Text),
+            BorderThickness = new Thickness(2),
             RequestedTheme = MacLook.SurfaceTheme,
             Width = MenuWidth,
         };
@@ -189,49 +178,19 @@ internal sealed class TrayMenu
         return canvas;
     }
 
-    /// Une ligne : son action après la fermeture du menu (une fenêtre qui s'ouvre passe devant). 05/11 : plus de couleur
-    /// par ligne, le carré creux de la barre de gauche ; survolée, il devient orange.
-    private Button Row(Entry entry)
+    /// Une ligne (20/11, comme `.menu button` de la maquette) : 16 en texte normal, 16 sur les côtés, toute la largeur ;
+    /// survolée, pleine d'encre, texte au fond du thème. Son action après la fermeture du menu.
+    private static Button Row(string text, Action click, double size = 16, Color? color = null, double height = 40)
     {
-        var square = new Border { Width = 8, Height = 8, BorderBrush = Brush(Text), BorderThickness = new Thickness(1), VerticalAlignment = VerticalAlignment.Center };
-        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-        content.Children.Add(square);
-        var title = Label(entry.Title, 13, bold: true);
-        title.VerticalAlignment = VerticalAlignment.Center;
-        content.Children.Add(title);
-        var row = Option(content, () => Run(entry.Run), minHeight: 34, padding: new Thickness(10, 0, 8, 0),
-                         hover: on =>
-                         {
-                             square.Background = Brush(on ? BrandRed : Colors.Transparent);
-                             square.BorderBrush = Brush(on ? BrandRed : Text);
-                         });
-        AutomationProperties.SetName(row, entry.Title);
+        var label = Label(text, size, color ?? Text);
+        label.VerticalAlignment = VerticalAlignment.Center;
+        label.TextTrimming = TextTrimming.CharacterEllipsis;
+        var row = Option(label, click, minHeight: height, padding: new Thickness(16, 0, 16, 0),
+                         hover: on => label.Foreground = Brush(on ? WindowColor : color ?? Text));
+        row.HorizontalAlignment = HorizontalAlignment.Stretch;
+        row.HorizontalContentAlignment = HorizontalAlignment.Left;
+        AutomationProperties.SetName(row, text);
         return row;
-    }
-
-    private Button FooterButton(string text, Color color, Action click)
-    {
-        var button = new Button
-        {
-            Style = PlainButton,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Content = Label(text, 12.5, color, semibold: color == Link),
-            CornerRadius = new CornerRadius(0),
-            Padding = new Thickness(8, 5, 8, 5),
-        };
-        button.PointerEntered += (_, _) =>
-        {
-            button.Background = Brush(MacLook.Text);              // survol suisse : blanc plein, texte noir
-            if (button.Content is TextBlock t) t.Foreground = Brush(MacLook.WindowColor);
-        };
-        button.PointerExited += (_, _) =>
-        {
-            button.Background = Brush(Colors.Transparent);
-            if (button.Content is TextBlock t) t.Foreground = Brush(color);
-        };
-        button.Click += (_, _) => Run(click);
-        AutomationProperties.SetName(button, text);
-        return button;
     }
 
     private void Run(Action action)
@@ -240,9 +199,10 @@ internal sealed class TrayMenu
         action();
     }
 
+    /// Trait fin entre deux groupes, comme `.menu .other` de la maquette.
     private static Rectangle Separator() => new()
     {
-        Height = 1, Fill = Brush(White(0.08)), Margin = new Thickness(10, 4, 10, 4), IsHitTestVisible = false,
+        Height = 1, Fill = Brush(Faint), Margin = new Thickness(0, 6, 0, 6), IsHitTestVisible = false,
     };
 
     /// La taille de la fenêtre : celle du panneau.

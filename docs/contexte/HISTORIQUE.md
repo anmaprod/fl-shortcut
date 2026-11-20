@@ -1362,4 +1362,13 @@ entrée 1 ≈ 0,5 s.
   seule. Capture du propriétaire (« que la petite page qui apparaisse ») : la demande d'« Enregistrement de l'écran »
   ouvrait la petite fenêtre de macOS ET les Réglages → demandée par ScreenCaptureKit, Réglages cachés s'ils s'ouvrent
   quand même (pas encore vu sur son Mac).
-
+- 20/11 après-midi (vidéo 14 h 31, « j'ai l'impression que ça bug », puis « j'ai réessayé ça bloque encore ») :
+  l'Organiser restait sur « FL charge les sons de la copie… 76 s » alors que FL avait ouvert « valeur_2.flp » (marque
+  « FL Shortcuts 3666 » encore là). Le 13/11, avec 39eb10a, tout marchait (« tout fonctionne bravo ») et le lien
+  restait pendant l'aperçu ; 644f3e8 (13/11 au soir, à « si non utilisé il faut le fermer directement ») le rendait
+  pendant l'aperçu et le recréait à « Organiser » avec 2 s d'attente à l'aveugle : la copie s'ouvrait (vue au titre de
+  la fenêtre), puis l'attente des réponses de FL durait jusqu'à 2 min 30. Choix : revenir au lien gardé de « Démarrer »
+  à la fin du rangement (Mac et Windows), et toujours attendre la réponse de FL quand le lien est recréé (« Revenir
+  comme avant ») avant de toucher à quoi que ce soit. Le propriétaire peut voir FL ramer pendant l'aperçu : à lui de
+  dire si c'est gênant. Menu de l'icône refait au style des menus de la maquette (capture « vraiment pas beau du
+  tout ») ; proposition demandée pour Windows (« tout accessible via la flèche en bas à droite… une vraie galère »).
