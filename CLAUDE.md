@@ -1003,9 +1003,12 @@
   bonne). Mac : une marge transparente laissait voir la bulle arrondie de macOS (photo CI de b080a04) → la carte
   remplit la fenêtre, trait posé PAR-DESSUS (les filets le coupaient), coins des vues qui portent le menu mis carrés
   (`MenuPanel.squareCorners` : verre `cornerRadius`, masque du matériau, calque) ; journal MENU (classes et rayons),
-  copié par la CI dans `menu-fenetre.txt`. Pas encore vus chez lui. Maquettes Windows (appli normale, clic droit sur
-  l'icône épinglée, Ctrl+Alt+O depuis FL ; choix du propriétaire) : artefact privé `VrTZDYsdhHrsdyfj9q7UxX`, à valider
-  avant de coder (« fais-moi d'abord des maquettes en preuve »).
+  copié par la CI dans `menu-fenetre.txt`. Pas encore vus chez lui. Windows sans la flèche (« une vraie galère ») :
+  maquettes d'abord (« fais-moi d'abord des maquettes en preuve »), artefact privé `VrTZDYsdhHrsdyfj9q7UxX` ; sa
+  précision : UN SEUL logo, le vrai « fl. », dans la barre des tâches (plus d'icône sous la flèche) ; un clic dessus
+  = le menu de l'icône (Modifier les raccourcis → la page s'ouvre, Macros, Organiser…) ; + Ctrl+Alt+O depuis FL pour
+  l'Organiser (FL ne s'en sert pas : Alt+O = outil LFO du Piano roll). Piste technique : fenêtre réduite gardée dans la
+  barre des tâches, son « restaurer » (clic sur le logo) intercepté pour montrer le menu. À coder après son accord.
 
 - **Fenêtre « plus lisible »** (16/11, maquette PDF/HTML « FL Shortcuts — plus lisible », 8 écrans, commencée par une
   autre session sans rien pousser) : barre de gauche en parties (`ReadableSidebar` : Trouver un raccourci, Raccourcis ▸
