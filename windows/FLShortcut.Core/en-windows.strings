@@ -408,3 +408,5 @@
 "il y a %lld j" = "%lld d ago";
 "Tes raccourcis et tes macros quittent ce PC et restent dans ton compte." = "Your shortcuts and macros leave this PC and stay in your account.";
 "Enregistrer et revenir aux macros" = "Save and go back to the macros";
+"Vérifie trois choses. 1. Mets FL Studio devant. 2. Vérifie que FL Shortcuts n'est pas en pause : Ctrl+Alt+Maj+F. 3. FL ne doit pas être lancé en administrateur." = "Check three things. 1. Bring FL Studio to the front. 2. Check that FL Shortcuts isn't paused: Ctrl+Alt+Shift+F. 3. FL must not run as administrator.";
+"Ctrl+Alt+Maj+F, n'importe où." = "Ctrl+Alt+Shift+F, anywhere.";

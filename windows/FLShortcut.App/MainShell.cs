@@ -250,6 +250,22 @@ internal sealed partial class MainShell
             toast: ShowToast);
         // Touche d'une macro (liste du 16/11) : la fiche de son raccourci, comme les autres raccourcis.
         _macros.EditShortcut = EditCustomAsync;
+        // Thème Papier : les traits de la grille derrière toutes les pages (maquette « Minimal »).
+        if (MacLook.Theme == AppTheme.Papier)
+        {
+            var grid = new Microsoft.UI.Xaml.Controls.Canvas { IsHitTestVisible = false };
+            root.Children.Add(grid);
+            root.SizeChanged += (_, e) =>
+            {
+                grid.Children.Clear();
+                foreach (var x in MacLook.PaperGridLines(e.NewSize.Width))
+                {
+                    var line = new Rectangle { Width = 1, Height = e.NewSize.Height, Fill = Brush(MacLook.PaperGridColor) };
+                    Microsoft.UI.Xaml.Controls.Canvas.SetLeft(line, Math.Round(x));
+                    grid.Children.Add(line);
+                }
+            };
+        }
         root.Children.Add(_main);
         root.Children.Add(_macros.Creator);
         root.Children.Add(_navHost);                     // sous l'accueil et le guide, qui le couvrent
@@ -622,7 +638,8 @@ internal sealed partial class MainShell
         var sidebar = new Border
         {
             Child = sidebarStack,
-            Width = 200 + ReadableInset,
+            // Colonnes 1 à 3 de la grille de la maquette : la page commence à la 4e (326 points du bord).
+            Width = 270,
             Padding = new Thickness(ReadableInset, 40, 0, 24),
             Visibility = Visibility.Collapsed,
         };

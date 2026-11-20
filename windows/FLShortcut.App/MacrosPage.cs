@@ -243,8 +243,8 @@ internal sealed class MacrosPage
         if (_store.Macros.Count > 0) links.Children.Add(LinkButton(Loc.T("Tout exporter"), Secondary, () => ExportMacros(_store.Macros.ToList())));
         list.Children.Add(links);
         // Même bord et même largeur que le titre de la page (MainShell.ReadableInset / ReadableMaxWidth).
-        var host = new Grid { Margin = new Thickness(56, 4, 56, 80) };
-        host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 800 });
+        var host = new Grid { Margin = new Thickness(40, 4, 40, 80) };
+        host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 1088 });
         host.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         host.Children.Add(list);
         return host;
@@ -595,7 +595,8 @@ internal sealed class MacrosPage
     /// nom, la touche, les étapes en phrases ; à droite la boîte « Ajouter une étape » ; tout défile ensemble.
     private void BuildCreator()
     {
-        Creator.Background = Brush(WindowColor);
+        // Transparent : le fond et les traits du thème Papier, dessinés sous la page, se voient (maquette « Minimal »).
+        Creator.Background = Brush(Colors.Transparent);
         Creator.Padding = new Thickness(0);
         var top = new Grid { Margin = new Thickness(0, 24, 0, 0) };
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -607,18 +608,19 @@ internal sealed class MacrosPage
         ToolTipService.SetToolTip(done, Loc.T("Enregistrer et revenir aux macros"));
         Grid.SetColumn(done, 1);
         top.Children.Add(done);
-        var body = new Grid { ColumnSpacing = 32 };
+        // Colonnes de la grille de la maquette : étapes 1 à 8, « Ajouter une étape » 9 à 12.
+        var body = new Grid { ColumnSpacing = 24 };
         body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 360 });
-        body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
+        body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(347) });
         body.Children.Add(_left);
         var box = AddStepBox();
-        box.Margin = new Thickness(0, 60, 0, 0);
+        box.Margin = new Thickness(0, 36, 0, 0);
         box.VerticalAlignment = VerticalAlignment.Top;
         Grid.SetColumn(box, 1);
         body.Children.Add(box);
         // Toute la largeur jusqu'à 1 088, collée à gauche (photo de la CI : la page prenait la largeur de son contenu).
         var page = new StackPanel { Children = { top, body } };
-        var host = new Grid { Margin = new Thickness(56, TitleBarHeight - 8, 56, 32) };
+        var host = new Grid { Margin = new Thickness(48, TitleBarHeight - 8, 48, 32) };
         host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 1088 });
         host.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         host.Children.Add(page);
@@ -636,12 +638,10 @@ internal sealed class MacrosPage
         title.Margin = new Thickness(16, 10, 16, 4);
         AutomationProperties.SetHeadingLevel(title, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2);
         stack.Children.Add(title);
-        stack.Children.Add(AddStepLine(Loc.T("Enregistrer clics et touches"), StartRecording, red: true,
-                                       help: Loc.T("FL passe devant : clique et tape ta suite, puis reviens ici.")));
         foreach (var (category, entries) in StepSentence.Groups(_palette))
         {
             var label = Label(category, 12, Secondary);
-            label.Margin = new Thickness(16, 10, 16, 2);
+            label.Margin = new Thickness(16, 8, 16, 2);
             stack.Children.Add(label);
             foreach (var entry in entries) stack.Children.Add(AddStepLine(StepSentence.AddLabel(entry), () => Insert(entry, before: null), entry: entry, help: entry.Help));
         }
@@ -656,7 +656,7 @@ internal sealed class MacrosPage
         var row = new Border
         {
             Child = label,
-            Padding = new Thickness(16, 6, 16, 6),
+            Padding = new Thickness(16, 5, 16, 5),
             Margin = new Thickness(2, 0, 2, 0),
             Background = Brush(Colors.Transparent),
             CanDrag = entry is not null,
@@ -980,6 +980,15 @@ internal sealed class MacrosPage
         var text = recording ? Loc.T("Appuie sur une touche") : combo?.ToString() ?? prompt;
         var label = Label(text, recording || combo is null ? 17 : 24, recording || combo is null ? Red : Text, semibold: !recording && combo is not null);
         label.TextWrapping = TextWrapping.NoWrap;
+        // Maquette (« val wait ») : pendant l'écoute, un curseur rouge qui clignote devant le texte.
+        FrameworkElement shown = label;
+        if (recording)
+            shown = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 6,
+                Children = { Blink(new Rectangle { Width = 2, Height = 18, Fill = Brush(Red), VerticalAlignment = VerticalAlignment.Center }), label },
+            };
         var line = new Rectangle { Height = 2, Fill = Brush(recording ? Red : Text), VerticalAlignment = VerticalAlignment.Bottom };
         if (!recording && combo is null)
         {
@@ -989,7 +998,7 @@ internal sealed class MacrosPage
             line.StrokeDashArray = new DoubleCollection { 1, 1.5 };
             line.Height = 2;
         }
-        return new StackPanel { Spacing = 4, Children = { label, line } };
+        return new StackPanel { Spacing = 4, Children = { shown, line } };
     }
 
     private void StopCapture()

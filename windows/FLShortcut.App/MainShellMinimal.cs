@@ -102,7 +102,7 @@ internal sealed partial class MainShell
                 VerticalAlignment = VerticalAlignment.Center,
                 Children =
                 {
-                    new Rectangle { Width = 2, Height = 18, Fill = Brush(Red) },
+                    Blink(new Rectangle { Width = 2, Height = 18, Fill = Brush(Red) }),
                     Label(Loc.T("Appuie sur une touche"), 15, Red),
                 },
             };
@@ -231,7 +231,7 @@ internal sealed partial class MainShell
             Orientation = Orientation.Horizontal,
             Spacing = 24,
             VerticalAlignment = VerticalAlignment.Bottom,
-            Children = { new Rectangle { Width = 20, Height = 168, Fill = Brush(Red) }, word },
+            Children = { Blink(new Rectangle { Width = 20, Height = 168, Fill = Brush(Red) }), word },
         };
     }
 

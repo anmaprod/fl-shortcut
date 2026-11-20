@@ -95,6 +95,39 @@ internal static class MacLook
     public static Color Rgb(byte r, byte g, byte b) => Color.FromArgb(255, r, g, b);
     /// L'encre du thème, transparente (voiles, traits, survols discrets) : blanche sous Noir, noire sous Papier.
     public static Color White(double opacity) => WithOpacity(Text, opacity);
+    /// Clignote comme le curseur de la maquette « Minimal » (allumé 0,55 s, éteint 0,55 s), seulement tant qu'il est à
+    /// l'écran (vidéo du 20/11 : « la barre qui est censée clignoter ne clignote pas »).
+    public static T Blink<T>(T element) where T : FrameworkElement
+    {
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(550) };
+        timer.Tick += (_, _) => element.Opacity = element.Opacity > 0.5 ? 0 : 1;
+        element.Loaded += (_, _) => timer.Start();
+        element.Unloaded += (_, _) =>
+        {
+            timer.Stop();
+            element.Opacity = 1;
+        };
+        return element;
+    }
+
+    /// Thème Papier (maquette « Minimal », 20/11 : « papier n'a pas les traits ») : abscisses des traits de la grille
+    /// suisse (12 colonnes, gouttières de 24, 48 points du bord), bords gauche et droit de chaque colonne, comme le Mac.
+    public static IEnumerable<double> PaperGridLines(double width, double margin = 48, double gutter = 24, int columns = 12)
+    {
+        var content = Math.Min(width - 2 * margin, 1088);
+        var column = (content - (columns - 1) * gutter) / columns;
+        if (column <= 0) yield break;
+        for (var k = 0; k < columns; k++)
+        {
+            var x = margin + k * (column + gutter);
+            yield return x;
+            yield return x + column;
+        }
+    }
+
+    /// Couleur des traits de la grille du thème Papier (#E2DFD8).
+    public static Color PaperGridColor => Rgb(0xE2, 0xDF, 0xD8);
+
     /// Gris clair des textes en attente (« Appuie sur une touche », étapes à venir), comme `Swiss.faintText` du Mac.
     public static Color FaintText => WithOpacity(Secondary, 0.65);
 

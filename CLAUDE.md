@@ -978,6 +978,18 @@
   clics sur les lignes 2 puis 1 (au-dessus des réglages ouverts, qu'un 2e clic referme). « Enregistrement de l'écran » (Mac) : demandé par ScreenCaptureKit, la petite fenêtre de macOS
   seule ; si les Réglages s'ouvrent avec elle, cachés 2 s (`ScreenLook.promptOnly`) ; Windows : rien (pas
   d'autorisation de ce genre).
+  Vidéo du 20/11 à 13 h 12 + « papier n'a pas les traits », Mac et Windows : barres d'attente qui CLIGNOTENT comme la
+  maquette (Trouver 20 × 168, ligne en écoute, « Appuie sur une touche » du créateur avec son curseur ; Mac
+  `.blinking()`, Windows `MacLook.Blink`) ; pages sur la grille de la maquette : 48 points du bord, 1 088 de large au
+  plus (Mac `ReadableLayout.inset` 40 + 8 / `maxWidth` 1088 ; Windows `ReadableInset` 40), colonne des pages de FL sur
+  les colonnes 1 à 3 ; thème Papier : traits fins #E2DFD8 au bord de chaque colonne (12 colonnes, gouttières de 24 ;
+  Mac `PaperGrid`, Windows `MacLook.PaperGridLines`, Noir et Orange sans) ; créateur : PLUS « Enregistrer clics et
+  touches » (demande : « doit être supprimé »), « Ajouter une étape » = les 9 étapes de la maquette seulement (Appuyer
+  sur une touche ; Choisir dans un menu de FL, Ouvrir une fenêtre, Cliquer sur un bouton, Faire une action, Ouvrir un
+  preset, Renommer la piste ; Faire un clic de souris ; Attendre), boîte sur les colonnes 9 à 12, sans défiler (les
+  autres blocs restent compris dans les macros qui les ont) ; guide : « Clique « Nouvelle macro ». / Ajoute ses étapes
+  à droite. » ; Aide : les 7 questions de la maquette (Windows : « FL ne répond pas au lien » à la place du carré
+  rouge de l'icône), ▶ + question en 17, colonnes 1 à 8, sans défiler.
 
 - **Fenêtre « plus lisible »** (16/11, maquette PDF/HTML « FL Shortcuts — plus lisible », 8 écrans, commencée par une
   autre session sans rien pousser) : barre de gauche en parties (`ReadableSidebar` : Trouver un raccourci, Raccourcis ▸

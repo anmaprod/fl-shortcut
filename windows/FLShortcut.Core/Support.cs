@@ -216,48 +216,31 @@ public static class HelpContent
 {
     private static IReadOnlyList<HelpEntry>? _faq;
 
-    /// Les questions fréquentes de Windows (numéros du Mac ; 2, 4 et 12 n'existent que sur Mac, 13 et 14 que sur
-    /// Windows).
+    /// Les 7 questions de la maquette « Minimal » (vidéo du 20/11 : « je ne veux pas qu'on ait à scroller, quitte à
+    /// enlever les questions les plus débiles »), comme le Mac ; sur Windows, « FL ne répond pas au lien » (16) à la
+    /// place du carré rouge de l'icône (2, Mac seulement).
     public static IReadOnlyList<HelpEntry> Faq => _faq ??= new List<HelpEntry>
     {
         new(1, Loc.T("Mes raccourcis ne font rien dans FL"),
-            Loc.T("Vérifie : 1. FL Studio est devant. 2. FL Shortcuts n'est pas en pause. 3. FL n'est pas lancé en administrateur."),
+            Loc.T("Vérifie trois choses. 1. Mets FL Studio devant. 2. Vérifie que FL Shortcuts n'est pas en pause : Ctrl+Alt+Maj+F. 3. FL ne doit pas être lancé en administrateur."),
             "marche pas fonctionne touche inactif rien administrateur"),
-        new(14, Loc.T("« FL Studio n'est pas reconnu »"),
-            Loc.T("Relance FL Studio, puis FL Shortcuts."),
-            "reconnu signature ouvert ferme detecte crack"),
-        new(15, Loc.T("Mon antivirus bloque FL Shortcuts"),
-            Loc.T("Il n'y a aucun virus. Autorise FL Shortcuts dans ton antivirus : Avast › Menu › Paramètres › Exceptions."),
-            "antivirus avast virus bloque defender smartscreen exception menace"),
-        new(13, Loc.T("À quoi sert loopMIDI ?"),
-            Loc.T("Il relie l'app à FL. L'installation de FL Shortcuts l'ajoute, sinon : accueil › Installer loopMIDI. Rien à faire dedans."),
-            "loopmidi midi port lien organiser actions installer windows 11 25h2 services"),
         new(16, Loc.T("FL ne répond pas au lien"),
             Loc.T("Quitte et rouvre FL : il voit le lien seulement à son ouverture. Puis MIDI Settings : Controller type « FL Shortcuts », même Port pour la sortie « FL Shortcuts »."),
-            "lien muet repond attente organiser midi settings port controller relancer rouvrir"),
+            "lien muet repond attente organiser midi settings port controller relancer rouvrir loopmidi"),
         new(3, Loc.T("Comment créer une macro ?"),
-            Loc.T("Page Macros : « Macro vide » ou « Modèles »."),
-            "creer nouvelle blocs createur modele"),
-        new(5, Loc.T("Une macro est « À apprendre »"),
-            Loc.T("Remontre le clic du bloc marqué : « Montrer dans FL… »."),
-            "apprendre position endroit montrer"),
-        new(6, Loc.T("Une macro s'arrête ou clique au mauvais endroit"),
-            Loc.T("Le message dit le bloc. Remontre son endroit ou ajoute « Attendre »."),
-            "erreur echec arrete bloque mauvais clic bouge bouton"),
+            Loc.T("1. Macros › Nouvelle macro. 2. Clique sa touche, puis appuie sur celle que tu veux. 3. Ajoute ses étapes une par une."),
+            "creer nouvelle enregistrer etapes createur"),
+        new(13, Loc.T("Comment changer la touche d'un raccourci ?"),
+            Loc.T("1. Raccourcis, puis la page de FL à gauche. 2. Clique la touche, puis appuie sur la nouvelle."),
+            "changer modifier touche raccourci"),
+        new(14, Loc.T("Revenir à la touche d'origine"),
+            Loc.T("Clique « Remettre » à côté de la touche changée."),
+            "reinitialiser origine remettre defaut"),
         new(7, Loc.T("Mettre en pause ou reprendre"),
-            Loc.T("Ctrl+Alt+Maj+F. « Reprendre » dans le menu de l'icône."),
+            Loc.T("Ctrl+Alt+Maj+F, n'importe où."),
             "pause reprendre arreter desactiver"),
         new(8, Loc.T("Je n'ai pas reçu le code par mail"),
-            Loc.T("Regarde tes spams, sinon « Renvoyer le code »."),
+            Loc.T("Regarde dans les courriers indésirables. Sinon, « Renvoyer le code »."),
             "compte inscription confirmation code mail spam connexion mot de passe oublie"),
-        new(9, Loc.T("Mes données sont-elles envoyées quelque part ?"),
-            Loc.T("Tes touches ne sont lues que dans FL. Rien n'est gardé ni envoyé."),
-            "vie privee donnees confidentialite securite internet"),
-        new(11, Loc.T("Signaler un problème"),
-            Loc.T("En bas : « Écrire à l'équipe »."),
-            "bug erreur contact equipe support aide ecrire"),
-        new(10, Loc.T("Désinstaller FL Shortcuts"),
-            Loc.T("Menu de l'icône › « Désinstaller FL Shortcuts… »."),
-            "supprimer enlever desinstallation"),
     };
 }

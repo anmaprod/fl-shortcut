@@ -75,9 +75,10 @@ enum StepSentence {
         }
     }
 
-    /// Ordre de la maquette : Clavier, FL Studio (menu, fenêtre, bouton, action, preset, nom), Souris, Temps.
-    static let order = ["key", "menuKey", "menuBar", "openPage", "pageOption", "flAction", "dropFile", "nameColor",
-                        "organize", "mouseClick", "clickLearned", "drag", "wait"]
+    /// Les 9 étapes de la maquette, dans son ordre : Clavier, FL Studio (menu, fenêtre, bouton, action, preset, nom),
+    /// Souris, Temps (vidéo du 20/11 : la boîte ne doit pas défiler ; les autres blocs restent compris dans les macros
+    /// qui les ont déjà).
+    static let order = ["key", "menuBar", "openPage", "pageOption", "flAction", "dropFile", "nameColor", "mouseClick", "wait"]
 
     struct StepGroup: Identifiable {
         let title: String
@@ -86,7 +87,7 @@ enum StepSentence {
     }
 
     static func groups(_ items: [PaletteItem]) -> [StepGroup] {
-        let sorted = items.filter { !$0.soon }.sorted {
+        let sorted = items.filter { !$0.soon && order.contains($0.id) }.sorted {
             (order.firstIndex(of: $0.id) ?? order.count) < (order.firstIndex(of: $1.id) ?? order.count)
         }
         let categories: [(BlockCategory, String)] = [
@@ -125,7 +126,8 @@ struct MinimalCreatorPage: View {
                         .help("Enregistrer et revenir aux macros (⌘S)")
                 }
                 .padding(.top, 24)
-                HStack(alignment: .top, spacing: 32) {
+                // Colonnes de la grille de la maquette : étapes 1 à 8, « Ajouter une étape » 9 à 12.
+                HStack(alignment: .top, spacing: 24) {
                     VStack(alignment: .leading, spacing: 0) {
                         head
                         if let warning = triggerWarning {
@@ -140,12 +142,12 @@ struct MinimalCreatorPage: View {
                         deleteArea.padding(.top, 48)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    AddStepBox(items: paletteItems, recording: { model.recordClicks() }) { item in
+                    AddStepBox(items: paletteItems) { item in
                         withAnimation(Self.spring) { model.insert(item) }
                         if let id = model.selection { openRow = id }
                     }
-                    .frame(width: 300)
-                    .padding(.top, 60)
+                    .frame(width: 347)
+                    .padding(.top, 36)
                 }
             }
             .frame(maxWidth: 1088, alignment: .leading)
@@ -503,27 +505,21 @@ struct DottedLine: Shape {
 }
 
 /// « Ajouter une étape » (maquette) : une boîte bordée d'encre, les blocs par catégorie ; un clic ajoute le bloc sous
-/// l'étape choisie, on peut aussi le glisser à sa place. En tête, « Enregistrer clics et touches » (⇧⌘R).
+/// l'étape choisie, on peut aussi le glisser à sa place. Vidéo du 20/11 : plus « Enregistrer clics et touches », et
+/// la boîte tient sans défiler.
 private struct AddStepBox: View {
     let items: [PaletteItem]
-    let recording: () -> Void
     let add: (PaletteItem) -> Void
-    @ObservedObject private var recorder = ClickSequenceRecorder.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Ajouter une étape").swissLabel()
                 .padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 4)
                 .accessibilityAddTraits(.isHeader)
-            AddStepLine(title: recorder.active ? String(localized: "Enregistrement en cours…")
-                                               : String(localized: "Enregistrer clics et touches"),
-                        red: true, action: recording)
-                .keyboardShortcut("r", modifiers: [.command, .shift])
-                .disabled(recorder.active)
             ForEach(StepSentence.groups(items)) { group in
                 Text(verbatim: group.title)
                     .font(Swiss.font(12, .regular)).foregroundStyle(Swiss.gray)
-                    .padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 2)
+                    .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 2)
                 ForEach(group.items) { item in
                     AddStepLine(title: StepSentence.addLabel(item), action: { add(item) })
                         .onDrag { PaletteDrag.provider(item) }
@@ -548,7 +544,7 @@ private struct AddStepLine: View {
             Text(verbatim: title)
                 .font(Swiss.font(16, .regular))
                 .foregroundStyle(hovering ? Swiss.background : red ? Swiss.red : Swiss.text)
-                .padding(.horizontal, 16).padding(.vertical, 6)
+                .padding(.horizontal, 16).padding(.vertical, 5)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Rectangle().fill(hovering ? Swiss.text : Color.clear))
                 .padding(.horizontal, 2)

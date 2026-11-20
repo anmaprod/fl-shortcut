@@ -553,9 +553,9 @@ public class SupportTests
         Assert.Equal(HelpContent.Faq.Select(e => e.Id), Ids(""));
         Assert.Contains(7, Ids("pause"));
         Assert.Contains(8, Ids("RECU LE CODE"));
-        Assert.Contains(5, Ids("macro apprendre"));
-        Assert.Contains(13, Ids("loopmidi"));
+        Assert.Contains(14, Ids("touche origine"));
         Assert.Contains(16, Ids("lien muet"));
+        Assert.Equal(7, HelpContent.Faq.Count);
         Assert.Empty(Ids("zzzz"));
         Assert.Equal(HelpContent.Faq.Count, HelpContent.Faq.Select(e => e.Id).Distinct().Count());
     }

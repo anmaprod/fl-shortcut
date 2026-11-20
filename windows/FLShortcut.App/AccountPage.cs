@@ -167,7 +167,7 @@ internal sealed class AccountPage
         if (_session is { } session) return SignedIn(session, columns);
         // Maquette « Minimal » (20/11, comme le Mac) : la connexion seule, sans titre de page ni présentation.
         var card = _pending is { } pending ? CodeCard(pending.Kind, pending.Email) : SignInCard();
-        return new StackPanel { Children = { card }, Padding = new Thickness(56, 40, 56, 32), MaxWidth = 592, HorizontalAlignment = HorizontalAlignment.Left };
+        return new StackPanel { Children = { card }, Padding = new Thickness(40, 40, 40, 32), MaxWidth = 592, HorizontalAlignment = HorizontalAlignment.Left };
     }
 
     // ---------- Serveur ----------
@@ -744,7 +744,7 @@ internal sealed class AccountPage
     /// « Supprimer mon compte » en rouge, qui demande dans la page. La sauvegarde ne se montre que s'il faut choisir.
     private FrameworkElement SignedIn(AccountSession session, int columns)
     {
-        var page = new StackPanel { Padding = new Thickness(56, 40, 56, 24), MaxWidth = 912, HorizontalAlignment = HorizontalAlignment.Left };
+        var page = new StackPanel { Padding = new Thickness(40, 40, 40, 24), MaxWidth = 1168, HorizontalAlignment = HorizontalAlignment.Left };
         var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 20 };
         var avatar = new Button { Style = PlainButton, Content = Avatar(_myPhoto, session.Username, 96), Padding = new Thickness(0), VerticalAlignment = VerticalAlignment.Center };
         avatar.Click += (_, _) => EditProfile();

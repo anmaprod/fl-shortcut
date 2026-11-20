@@ -182,11 +182,14 @@ struct HelpPage: View {
                 HelpEntryRow(entry: entry, open: opened.wrappedValue.contains(entry.id)) {
                     if opened.wrappedValue.contains(entry.id) { opened.wrappedValue.remove(entry.id) } else { opened.wrappedValue.insert(entry.id) }
                 }
-                .padding(.vertical, 14)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 13)
                 .overlay(alignment: .bottom) { Rectangle().fill(Swiss.line).frame(height: 1) }
             }
         }
         .overlay(alignment: .top) { Rectangle().fill(Swiss.text).frame(height: 2) }
+        // Colonnes 1 à 8 de la grille, comme la maquette.
+        .frame(maxWidth: 720, alignment: .leading)
     }
 
     // MARK: Mes messages
@@ -621,9 +624,14 @@ private struct HelpEntryRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Button(action: toggle) {
-                HStack {
+                // Maquette « Minimal » : ▶ gris (▼ ouverte) devant la question, en 17 normal.
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text(verbatim: open ? "▼" : "▶")
+                        .font(Swiss.font(10, .regular)).foregroundStyle(Swiss.gray)
+                        .frame(width: 12, alignment: .leading)
                     Text(entry.question)
-                        .font(Swiss.font(17)).tracking(-0.3)
+                        .font(Swiss.font(17, .regular)).tracking(-0.3)
+                        .foregroundStyle(Swiss.text)
                         .multilineTextAlignment(.leading)
                     Spacer(minLength: 8)
                 }

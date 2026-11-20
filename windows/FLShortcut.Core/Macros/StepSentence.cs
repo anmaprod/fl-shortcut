@@ -48,19 +48,20 @@ public static class StepSentence
         _ => entry.Label,
     };
 
-    /// Ordre de la maquette : Clavier, FL Studio (menu, fenêtre, bouton, action, preset, nom), Souris, Temps.
+    /// Les 9 étapes de la maquette, dans son ordre : Clavier, FL Studio (menu, fenêtre, bouton, action, preset, nom),
+    /// Souris, Temps (vidéo du 20/11 : la boîte ne doit pas défiler ; les autres blocs restent compris dans les macros
+    /// qui les ont déjà).
     private static readonly BlockType[] Order =
     {
-        BlockType.Key, BlockType.MenuKey, BlockType.MenuBar, BlockType.OpenPage, BlockType.PageOption, BlockType.FlAction,
-        BlockType.DropFile, BlockType.NameColor, BlockType.Organize, BlockType.MouseClick, BlockType.Click, BlockType.Drag,
-        BlockType.WaitWindow,
+        BlockType.Key, BlockType.MenuBar, BlockType.OpenPage, BlockType.PageOption, BlockType.FlAction, BlockType.DropFile,
+        BlockType.NameColor, BlockType.MouseClick, BlockType.WaitWindow,
     };
 
     public static IReadOnlyList<(string Title, IReadOnlyList<PaletteEntry> Entries)> Groups(
         IEnumerable<(BlockCategory Category, IReadOnlyList<PaletteEntry> Entries)> palette)
     {
-        var all = palette.SelectMany(p => p.Entries)
-            .OrderBy(e => Array.IndexOf(Order, e.Type) is var i && i >= 0 ? i : Order.Length).ToList();
+        var all = palette.SelectMany(p => p.Entries).Where(e => Array.IndexOf(Order, e.Type) >= 0)
+            .OrderBy(e => Array.IndexOf(Order, e.Type)).ToList();
         var categories = new[]
         {
             (BlockCategory.Keyboard, Loc.T("Clavier")), (BlockCategory.Fl, Loc.T("FL Studio")),

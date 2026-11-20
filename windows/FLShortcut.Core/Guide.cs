@@ -21,8 +21,8 @@ public static class GuideContent
         }),
         new GuidePage(2, Loc.T("Les macros"), new[]
         {
-            Loc.T("« Nouvelle macro », puis « Enregistrer clics et touches »."),
-            Loc.T("Retouche les blocs dans le créateur."),
+            Loc.T("Clique « Nouvelle macro »."),
+            Loc.T("Ajoute ses étapes à droite."),
             Loc.T("Donne-lui un raccourci."),
         }),
         new GuidePage(3, Loc.T("La Communauté"), new[]

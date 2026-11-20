@@ -101,7 +101,7 @@ struct MacroCreatorView: View {
         }
         .padding(8)
         .frame(minWidth: Self.minWidth, maxWidth: .infinity, maxHeight: .infinity)
-        .background(Appearance.windowColor)
+        .background(ZStack { Appearance.windowColor; PaperGrid() })
         // Sous la barre de titre transparente, comme la page des raccourcis (MainWindowChrome).
         .ignoresSafeArea()
         // Titre de la fenêtre (menu Fenêtre, VoiceOver) ; jamais affiché.
@@ -122,7 +122,7 @@ struct MacroCreatorView: View {
     }
 
     /// Étapes (430 au plus serré) + « Ajouter une étape » (300) + écarts et marges de la page.
-    static var minWidth: CGFloat { 430 + 32 + 300 + 2 * ReadableLayout.inset + 16 }
+    static var minWidth: CGFloat { 430 + 24 + 347 + 2 * ReadableLayout.inset + 16 }
 
     /// Fenêtre plus étroite que le créateur à son ouverture : élargie tout de suite (sur l'écran), plutôt que de couper
     /// la colonne des étapes.

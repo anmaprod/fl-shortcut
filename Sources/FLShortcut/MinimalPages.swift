@@ -156,7 +156,7 @@ struct MinimalKeyRow: View {
     @ViewBuilder private var keyCell: some View {
         if capturing {
             HStack(spacing: 8) {
-                Rectangle().fill(Swiss.red).frame(width: 2, height: 18)
+                Rectangle().fill(Swiss.red).frame(width: 2, height: 18).blinking()
                 Text("Appuie sur une touche").font(Swiss.font(15, .regular)).foregroundStyle(Swiss.red)
             }
         } else {
@@ -206,7 +206,8 @@ struct MinimalWaitingKey: View {
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 24) {
-            Rectangle().fill(Swiss.red).frame(width: 20, height: 168)
+            // Vidéo du 20/11 (« la barre qui est censée clignoter ne clignote pas ») : elle clignote, comme la maquette.
+            Rectangle().fill(Swiss.red).frame(width: 20, height: 168).blinking()
             Text(placeholder)
                 .font(Swiss.font(48, .regular))
                 .tracking(-0.5)

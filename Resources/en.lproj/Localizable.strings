@@ -131,7 +131,9 @@
 "1 à %lld" = "1 to %lld";
 "1 étape à relire dans le créateur." = "1 step to check in the creator.";
 "1 étoile" = "1 star";
+"1. Macros › Nouvelle macro. 2. Clique sa touche, puis appuie sur celle que tu veux. 3. Ajoute ses étapes une par une." = "1. Macros › New macro. 2. Click its key, then press the one you want. 3. Add its steps one by one.";
 "1. Quitte FL (⌘Q), puis rouvre-le.\n2. Dans FL : Options › MIDI Settings.\n3. Règle les 4 cases entourées, avec le même numéro de Port en haut et en bas.\n\nPas de « FL Shortcuts » dans Controller type : le lien est dans %@ ; compare avec Options › File settings › User data folder dans FL." = "1. Quit FL (⌘Q), then reopen it.\n2. In FL: Options › MIDI Settings.\n3. Set the 4 circled boxes, with the same Port number at the top and at the bottom.\n\nNo “FL Shortcuts” in Controller type: the link is in %@; compare with Options › File settings › User data folder in FL.";
+"1. Raccourcis, puis la page de FL à gauche. 2. Clique la touche, puis appuie sur la nouvelle." = "1. Shortcuts, then the FL page on the left. 2. Click the key, then press the new one.";
 "123456" = "123456";
 "2 (pavé)" = "2 (keypad)";
 "3 (pavé)" = "3 (keypad)";
@@ -211,6 +213,7 @@
 "Ajoute ce bloc sous la ligne choisie" = "Adds this block below the selected row";
 "Ajoute des macros toutes faites, après avoir lu ce qu'elles font." = "Add ready-made macros, after reading what they do.";
 "Ajoute les macros des autres." = "Add other people's macros.";
+"Ajoute ses étapes à droite." = "Add its steps on the right.";
 "Ajoute un instrument dans le Channel rack." = "Adds an instrument to the Channel rack.";
 "Ajouter" = "Add";
 "Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcuts › Macros" = "Add macros you received (.flsmacro); the dialog opens in Documents › FL Shortcuts › Macros";
@@ -653,6 +656,8 @@
 "Clique une fois à l'endroit voulu dans FL. Échap annule." = "Click once on the spot you want in FL. Esc cancels.";
 "Clique une piste pour voir où elle va." = "Click a track to see where it goes.";
 "Clique une touche, puis tape la nouvelle." = "Click a key, then type the new one.";
+"Clique « Nouvelle macro »." = "Click “New macro”.";
+"Clique « Remettre » à côté de la touche changée." = "Click “Restore” next to the changed key.";
 "Cliquer" = "Click";
 "Cliquer pour enregistrer" = "Click to record";
 "Cliquer sur" = "Click on";
@@ -681,6 +686,7 @@
 "Comme « Gradient color… » de FL : de la première couleur (First) à la dernière (Last), sur les pistes ou les canaux sélectionnés (au moins 2). Le nom ne change pas." = "Like FL's “Gradient color…”: from the first color (First) to the last (Last), on the selected tracks or channels (at least 2). The name doesn't change.";
 "Commence par un clic droit." = "Start with a right-click.";
 "Commencer l'enregistrement" = "Start recording";
+"Comment changer la touche d'un raccourci ?" = "How do I change a shortcut's key?";
 "Comment créer une macro ?" = "How do I create a macro?";
 "Comment ça marche" = "How it works";
 "Commentaire" = "Comment";
@@ -1253,6 +1259,7 @@
 "Le bandeau en bas du créateur dit à quel bloc elle s'est arrêtée (« Montrer le bloc »). Si FL a changé de taille ou d'écran, remontre l'endroit de ce bloc. Un bouton qui porte un nom (« FILE », « Insert 1 ») est retrouvé par son nom même s'il bouge, si l'app peut lire l'écran (autorisation « Enregistrement de l'écran ») ; un bouton sans nom qui bouge (le « + » du Channel rack) : active « Retrouver ce bouton s'il bouge » sur ce clic. Si une fenêtre de FL met du temps à s'ouvrir, ajoute un bloc « Attendre » juste avant." = "The banner at the bottom of the creator tells you which block it stopped at (“Show block”). If FL changed size or screen, show that block's spot again. A button with a name (“FILE”, “Insert 1”) is found by its name even if it moves, if the app can read the screen (“Screen Recording” permission); for a button with no name that moves (the Channel rack's “+”), turn on “Find this button if it moves” for that click. If an FL window takes a while to open, add a “Wait” block just before.";
 "Le clavier est autorisé : tout est prêt." = "The keyboard is allowed: you're all set.";
 "Le clavier n'est pas, ou plus, autorisé. Ouvre Réglages Système › Confidentialité et sécurité › Accessibilité, retire FL Shortcuts avec « − », puis ajoute-le de nouveau avec « + » (dans Applications). Après une mise à jour de l'app, macOS demande parfois de refaire ce geste." = "The keyboard isn't allowed, or no longer is. Open System Settings › Privacy & Security › Accessibility, remove FL Shortcuts with “−”, then add it again with “+” (in Applications). After an app update, macOS sometimes asks you to do this again.";
+"Le clavier n'est plus autorisé. Dans Accessibilité, retire FL Shortcuts avec −, puis ajoute-le avec +." = "The keyboard is no longer allowed. In Accessibility, remove FL Shortcuts with −, then add it again with +.";
 "Le code fait 6 chiffres : recopie-le depuis le mail." = "The code has 6 digits: copy it from the email.";
 "Le dossier Documents › FL Shortcuts › Macros › Exporter n'a pas pu être créé." = "The folder Documents › FL Shortcuts › Macros › Exporter could not be created.";
 "Le début de l'enregistrement, en blocs : menu de la piste, preset, puis armement de la piste. À compléter étape par étape." = "The start of a recording, as blocks: track menu, preset, then arming the track. Complete it step by step.";
@@ -1877,6 +1884,7 @@
 "Refusé : %@ n'est pas un fichier ordinaire." = "Refused: %@ isn't a regular file.";
 "Refusés par sécurité : %@" = "Blocked for safety: %@";
 "Regarde dans les courriers indésirables. Le code arrive en une minute environ ; sinon, « Renvoyer le code ». Il sert à confirmer ton compte, ou à choisir un nouveau mot de passe (« Mot de passe oublié ? »). Toujours rien ? Écris à l'équipe ci-dessous." = "Check your spam folder. The code arrives in about a minute; if not, “Resend code”. It's used to confirm your account, or to choose a new password (“Forgot password?”). Still nothing? Write to the team below.";
+"Regarde dans les courriers indésirables. Sinon, « Renvoyer le code »." = "Look in your junk mail. Otherwise, “Resend code”.";
 "Relance l'apprentissage pour finir les autres." = "Run the learning again to finish the others.";
 "Relier FL Studio" = "Link FL Studio";
 "Relire la liste dans FL (plugins ajoutés depuis) : le menu Add s'ouvre un instant s'il le faut" = "Reload the list from FL (plugins added since): the Add menu opens briefly if needed";
@@ -1941,6 +1949,7 @@
 "Revenir à : " = "Revert to: ";
 "Revenir à la Communauté" = "Back to the Community";
 "Revenir à la couleur de départ" = "Back to the original color";
+"Revenir à la touche d'origine" = "Go back to the original key";
 "Revient au pattern précédent" = "Goes back to the previous pattern";
 "Revoir le guide" = "See the guide again";
 "Revoir le guide de FL Shortcuts" = "View the FL Shortcuts guide again";
@@ -2307,6 +2316,7 @@
 "Un bug" = "A bug";
 "Un bus par famille" = "One bus per family";
 "Un bus par famille dans le Mixer (les 808 avec les drums), chaque son envoyé seulement à son bus" = "One bus per family in the Mixer (808s with the drums), each sound sent only to its bus";
+"Un carré rouge apparaît sur l'icône en haut de l'écran" = "A red square appears on the icon at the top of the screen";
 "Un clic, une seule fois." = "One click, just once.";
 "Un clip de la Playlist n'a pas pu être remis à sa place : annule dans FL (Edit › Undo), puis réessaie." = "A Playlist clip could not be put back in place: undo in FL (Edit › Undo), then try again.";
 "Un code vient de partir à %@ : entre-le ici pour confirmer ton compte." = "A code was just sent to %@: enter it here to confirm your account.";
@@ -2378,6 +2388,7 @@
 "Vérifie tes mails" = "Check your email";
 "Vérifie trois choses. 1. FL Studio est la fenêtre au premier plan : tes raccourcis ne marchent que là. 2. FL Shortcuts n'est pas en pause (Ctrl+Alt+Maj+F, ou le menu de l'icône près de l'horloge). 3. FL Studio n'est pas lancé en administrateur : Windows empêche alors FL Shortcuts d'agir dessus." = "Check three things. 1. FL Studio is the window in front: your shortcuts only work there. 2. FL Shortcuts isn't paused (Ctrl+Alt+Shift+F, or the menu of the icon next to the clock). 3. FL Studio isn't running as administrator: Windows then stops FL Shortcuts from acting on it.";
 "Vérifie trois choses. 1. FL Studio est la fenêtre au premier plan : tes raccourcis ne marchent que là. 2. FL Shortcuts n'est pas en pause (⌃⌥⌘F, ou le menu de l'icône en haut de l'écran). 3. Le clavier est autorisé : Réglages Système › Confidentialité et sécurité › Accessibilité, FL Shortcuts coché. Quand une autre app attend un mot de passe (saisie sécurisée), les raccourcis se taisent le temps qu'elle le fasse." = "Check three things. 1. FL Studio is the window in front: your shortcuts only work there. 2. FL Shortcuts isn't paused (⌃⌥⌘F, or the menu bar icon's menu). 3. The keyboard is allowed: System Settings › Privacy & Security › Accessibility, FL Shortcuts checked. When another app is waiting for a password (secure input), shortcuts go quiet until it's done.";
+"Vérifie trois choses. 1. Mets FL Studio devant. 2. Vérifie que FL Shortcuts n'est pas en pause : ⌃⌥⌘F. 3. Autorise le clavier : Réglages Système › Confidentialité et sécurité › Accessibilité." = "Check three things. 1. Bring FL Studio to the front. 2. Check that FL Shortcuts isn't paused: ⌃⌥⌘F. 3. Allow the keyboard: System Settings › Privacy & Security › Accessibility.";
 "Vérifier" = "Check";
 "Vérifier le larsen" = "Check for feedback";
 "X Mixer, P Piano Roll, F Browser, Y instruments et effets, T outils, Q quantize, ⌘T découpe, ⌘R répète, " = "X Mixer, P Piano Roll, F Browser, Y instruments and effects, T tools, Q quantize, ⌘T splits, ⌘R repeats, ";
@@ -2821,6 +2832,7 @@
 "Échanger First et Last" = "Swap First and Last";
 "Échanger les touches ?" = "Swap the keys?";
 "Échap" = "Esc";
+"Échap pour annuler" = "Esc to cancel";
 "Échec" = "Failed";
 "Échec au bloc %@ (%@) : %@" = "Failed at block %@ (%@): %@";
 "Échec au bloc %lld%@ : %@" = "Failed at block %lld%@: %@";
@@ -2893,6 +2905,7 @@
 "⌃⌥⌘F met en pause ou reprend." = "⌃⌥⌘F pauses or resumes.";
 "⌃⌥⌘F sert à mettre FL Shortcuts en pause." = "⌃⌥⌘F is used to pause FL Shortcuts.";
 "⌃⌥⌘F, n'importe où, ou « Mettre en pause » dans le menu de l'icône en haut de l'écran. Une pastille rappelle que c'est en pause." = "⌃⌥⌘F, from anywhere, or “Pause” in the menu bar icon's menu. A badge reminds you that it's paused.";
+"⌃⌥⌘F, n'importe où." = "⌃⌥⌘F, anywhere.";
 "⌃⌥⌘F, n'importe où. Une pastille rappelle que c'est en pause, et « Reprendre » apparaît alors dans le menu de l'icône en haut de l'écran." = "⌃⌥⌘F, from anywhere. A badge reminds you that it's paused, and “Resume” then appears in the menu bar icon's menu.";
 "⌘Espace ouvre Spotlight" = "⌘Space opens Spotlight";
 "⌘J consolide, ⌘U quantize, ⌘R renomme, 0 coupe le son de la sélection, B dessine, O métronome, ⌘4 " = "⌘J consolidates, ⌘U quantizes, ⌘R renames, 0 mutes the selection, B draws, O metronome, ⌘4 ";

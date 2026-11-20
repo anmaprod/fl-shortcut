@@ -165,7 +165,7 @@ internal sealed partial class CommunityPage
             line.TextWrapping = TextWrapping.Wrap;
             var signIn = MinimalButton(Loc.T("Se connecter"), () => OpenAccount?.Invoke());
             signIn.HorizontalAlignment = HorizontalAlignment.Left;
-            return new StackPanel { Spacing = 24, Padding = new Thickness(56, 40, 56, 32), MaxWidth = 912, HorizontalAlignment = HorizontalAlignment.Left, Children = { line, signIn } };
+            return new StackPanel { Spacing = 24, Padding = new Thickness(40, 40, 40, 32), MaxWidth = 1168, HorizontalAlignment = HorizontalAlignment.Left, Children = { line, signIn } };
         }
         // Premier passage : la liste est demandée, la page montre le chargement (sans se redessiner pendant sa construction).
         if (_shares is null && !_loading && _error is null)
@@ -309,8 +309,8 @@ internal sealed partial class CommunityPage
     /// La page de la Communauté sous les marges des pages lisibles (800 points au plus, collée à gauche).
     private static Grid Wrap(FrameworkElement content)
     {
-        var host = new Grid { Margin = new Thickness(56, 4, 56, 40) };
-        host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 800 });
+        var host = new Grid { Margin = new Thickness(40, 4, 40, 40) };
+        host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 1088 });
         host.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         host.Children.Add(content);
         return host;

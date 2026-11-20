@@ -443,7 +443,7 @@ struct EditorView: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Appearance.windowColor)
+        .background(ZStack { Appearance.windowColor; PaperGrid() })
         // Sous la barre de titre transparente : la plaque de gauche monte jusqu'en haut, les boutons fermer /
         // réduire / agrandir y sont posés (MainWindowChrome).
         .ignoresSafeArea()
@@ -1806,8 +1806,14 @@ struct CaptureField: View {
         } label: {
             Group {
                 if recording {
-                    Text("Appuie sur une touche").font(Swiss.font(17, .regular)).foregroundStyle(Swiss.red)
-                        .overlay(alignment: .bottom) { Rectangle().fill(Swiss.red).frame(height: 2).offset(y: 4) }
+                    // Maquette (« val wait ») : un curseur rouge qui clignote devant, le texte rouge souligné de rouge ;
+                    // Échap annule.
+                    HStack(spacing: 6) {
+                        Rectangle().fill(Swiss.red).frame(width: 2, height: 17).blinking()
+                        Text("Appuie sur une touche").font(Swiss.font(17, .regular)).foregroundStyle(Swiss.red)
+                    }
+                    .overlay(alignment: .bottom) { Rectangle().fill(Swiss.red).frame(height: 2).offset(y: 4) }
+                    .help("Échap pour annuler")
                 } else if let combo {
                     Text(verbatim: combo.display).font(Swiss.font(24, .semibold)).foregroundStyle(Swiss.text)
                         .overlay(alignment: .bottom) { Rectangle().fill(Swiss.text).frame(height: 2).offset(y: 4) }

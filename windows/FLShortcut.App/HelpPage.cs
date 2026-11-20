@@ -150,7 +150,7 @@ internal sealed class HelpPage
     public FrameworkElement Content(int columns)
     {
         // Direction A (17/11, comme le Mac) : la colonne du titre.
-        var page = new StackPanel { Spacing = 0, Padding = new Thickness(56, 4, 56, 32), MaxWidth = 912, HorizontalAlignment = HorizontalAlignment.Left };
+        var page = new StackPanel { Spacing = 0, Padding = new Thickness(40, 4, 40, 32), MaxWidth = 1168, HorizontalAlignment = HorizontalAlignment.Left };
         switch (_screen)
         {
             case Screen.Write: page.Children.Add(WritePage(columns)); break;
@@ -274,16 +274,19 @@ internal sealed class HelpPage
     /// Les questions en liste (▸ / ▾), un trait d'encre au-dessus, un trait fin entre elles.
     private static FrameworkElement FaqList(IEnumerable<HelpEntry> entries, Func<int, bool> isOpen, Action<int> toggle)
     {
-        var list = new StackPanel();
+        // Maquette « Minimal » (comme le Mac) : colonnes 1 à 8 de la grille, ▶ gris (▼ ouverte), question en 17 normal.
+        var list = new StackPanel { MaxWidth = 720, HorizontalAlignment = HorizontalAlignment.Left };
         list.Children.Add(Rule2(Text));
         foreach (var entry in entries)
         {
             var open = isOpen(entry.Id);
-            var head = new Grid { ColumnSpacing = 10 };
-            head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var head = new Grid { ColumnSpacing = 12 };
+            head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
             head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            head.Children.Add(Label(open ? "▾" : "▸", 13, Secondary));
-            var question = Label(entry.Question, 16, Text, semibold: true);
+            var marker = Label(open ? "▼" : "▶", 10, Secondary);
+            marker.VerticalAlignment = VerticalAlignment.Center;
+            head.Children.Add(marker);
+            var question = Label(entry.Question, 17, Text);
             question.TextWrapping = TextWrapping.Wrap;
             Grid.SetColumn(question, 1);
             head.Children.Add(question);
@@ -294,7 +297,7 @@ internal sealed class HelpPage
                 Content = head,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                Padding = new Thickness(0, 14, 0, 14),
+                Padding = new Thickness(12, 13, 12, 13),
             };
             button.Click += (_, _) => toggle(id);
             AutomationProperties.SetName(button, entry.Question + " — " + Loc.T(open ? "ouverte" : "fermée"));

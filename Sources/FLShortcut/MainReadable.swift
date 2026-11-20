@@ -8,8 +8,10 @@ import SwiftUI
 
 /// Mise en page des pages lisibles (maquette : le titre et la liste partent du même bord, liste de 784 points au plus).
 enum ReadableLayout {
-    static let inset: CGFloat = 56
-    static let maxWidth: CGFloat = 800
+    /// Maquette « Minimal » (20/11, vidéo : « la page macro n'est pas la même ») : 48 points du bord de la fenêtre
+    /// (8 de la fenêtre + 40), pages sur toute la largeur de la grille de 12 colonnes (1 088 au plus).
+    static let inset: CGFloat = 40
+    static let maxWidth: CGFloat = 1088
     /// Colonne du nom de groupe (« Outils 09 ») à gauche des lignes d'une page de raccourcis.
     static let groupColumn: CGFloat = 170
     /// Cadre d'une touche (« ⌘S », maquette A : 88 points).
@@ -560,8 +562,10 @@ struct ShortcutsSubnav: View {
             .padding(.top, 40)
             .padding(.bottom, 24)
         }
-        .frame(width: 200, alignment: .leading)
+        // Colonnes 1 à 3 de la grille de la maquette : la page commence à la 4e.
+        .frame(width: 254, alignment: .leading)
         .padding(.leading, ReadableLayout.inset)
+        .padding(.trailing, 24 - ReadableLayout.inset)
     }
 
     private func row(_ item: SidebarItem, _ title: String) -> some View {
@@ -647,4 +651,52 @@ struct FindSteps: View {
         }
         .font(Swiss.font(13, n == now ? .semibold : .regular))
     }
+}
+
+// MARK: - Grille du papier
+
+/// Thème Papier (maquette « Minimal », 20/11 : « papier n'a pas les traits ») : la grille suisse visible, un trait fin
+/// au bord de chaque colonne (12 colonnes, gouttières de 24, 48 points du bord de la fenêtre), couleur #E2DFD8.
+/// Rien dans les thèmes Noir et Orange.
+struct PaperGrid: View {
+    static let color = Color(red: 0xE2 / 255, green: 0xDF / 255, blue: 0xD8 / 255)
+
+    var body: some View {
+        if AppTheme.current == .papier {
+            GeometryReader { proxy in
+                Path { path in
+                    for x in PaperGrid.lines(width: proxy.size.width) {
+                        path.addRect(CGRect(x: x, y: 0, width: 1, height: proxy.size.height))
+                    }
+                }
+                .fill(PaperGrid.color)
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
+    }
+
+    /// Pur : abscisses des traits pour une fenêtre de `width` points (bords gauche et droit de chaque colonne).
+    static func lines(width: CGFloat, margin: CGFloat = 48, gutter: CGFloat = 24, columns: Int = 12) -> [CGFloat] {
+        let content = min(width - 2 * margin, ReadableLayout.maxWidth)
+        let column = (content - CGFloat(columns - 1) * gutter) / CGFloat(columns)
+        guard column > 0 else { return [] }
+        return (0..<columns).flatMap { k -> [CGFloat] in
+            let x = margin + CGFloat(k) * (column + gutter)
+            return [x, x + column]
+        }
+    }
+}
+
+/// Clignote comme le curseur de la maquette (1,1 s : allumé puis éteint), seulement à l'écran.
+struct Blinking: ViewModifier {
+    func body(content: Content) -> some View {
+        TimelineView(.periodic(from: .now, by: 0.55)) { context in
+            content.opacity(Int(context.date.timeIntervalSinceReferenceDate / 0.55) % 2 == 0 ? 1 : 0)
+        }
+    }
+}
+
+extension View {
+    func blinking() -> some View { modifier(Blinking()) }
 }

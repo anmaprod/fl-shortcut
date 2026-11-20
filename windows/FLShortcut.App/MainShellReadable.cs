@@ -18,7 +18,9 @@ namespace FLShortcut.App;
 internal sealed partial class MainShell
 {
     /// Mise en page des pages lisibles : le titre et la liste partent du même bord, liste de 800 points au plus.
-    private const double ReadableInset = 56, ReadableMaxWidth = 800, GroupColumn = 170;
+    /// Maquette « Minimal » (20/11, comme le Mac) : 48 points du bord de la fenêtre (8 + 40), pages sur toute la largeur
+    /// de la grille de 12 colonnes (1 088 au plus).
+    private const double ReadableInset = 40, ReadableMaxWidth = 1088, GroupColumn = 170;
 
     /// Partie « Raccourcis » de la barre de gauche ouverte (une page de raccourcis choisie l'ouvre).
     private bool _shortcutsOpen = true;

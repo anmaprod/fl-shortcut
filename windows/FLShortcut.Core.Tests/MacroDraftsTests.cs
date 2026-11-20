@@ -78,8 +78,11 @@ public class MacroDraftsTests
         Assert.Equal(new[] { "Clavier", "FL Studio", "Souris", "Temps" }, groups.Select(g => g.Title));
         Assert.Equal(BlockType.Key, groups[0].Entries[0].Type);
         Assert.Equal(new[] { BlockType.MenuBar, BlockType.OpenPage, BlockType.PageOption, BlockType.FlAction, BlockType.DropFile,
-                             BlockType.NameColor, BlockType.Organize },
+                             BlockType.NameColor },
                      groups[1].Entries.Select(e => e.Type));
+        // Les 9 étapes de la maquette seulement (20/11 : la boîte ne défile pas).
+        Assert.Equal(9, groups.Sum(g => g.Entries.Count));
+        Assert.Equal(new[] { BlockType.MouseClick }, groups[2].Entries.Select(e => e.Type));
         Assert.Equal("Appuyer sur une touche", StepSentence.AddLabel(groups[0].Entries[0]));
         Assert.Equal(new StepSentence.Parts("Choisir", "dans le menu", "un élément"), StepSentence.For(BlockType.MenuBar, "Menu de FL"));
         Assert.Equal(new StepSentence.Parts("Attendre", "", "une durée"), StepSentence.For(BlockType.WaitWindow, "Attendre"));
