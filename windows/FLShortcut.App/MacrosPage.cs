@@ -616,8 +616,13 @@ internal sealed class MacrosPage
         box.VerticalAlignment = VerticalAlignment.Top;
         Grid.SetColumn(box, 1);
         body.Children.Add(box);
-        var page = new StackPanel { Margin = new Thickness(56, TitleBarHeight - 8, 56, 32), MaxWidth = 1088, HorizontalAlignment = HorizontalAlignment.Left, Children = { top, body } };
-        _stepsScroll.Content = page;
+        // Toute la largeur jusqu'à 1 088, collée à gauche (photo de la CI : la page prenait la largeur de son contenu).
+        var page = new StackPanel { Children = { top, body } };
+        var host = new Grid { Margin = new Thickness(56, TitleBarHeight - 8, 56, 32) };
+        host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 1088 });
+        host.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        host.Children.Add(page);
+        _stepsScroll.Content = host;
         Creator.Children.Add(_stepsScroll);
     }
 

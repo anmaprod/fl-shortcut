@@ -252,6 +252,7 @@ struct MinimalCreatorPage: View {
     }
 
     private func toggle(_ row: MacroStepRow) {
+        dropLine = nil
         guard row.kind == .block else { return }
         if openRow == row.id {
             openRow = nil

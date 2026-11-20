@@ -224,6 +224,11 @@ struct StepDragDrop: ViewModifier {
                     .onChange(of: g.size.height) { h in height = h }
             })
             .onDrop(of: [.plainText], delegate: StepDropDelegate(index: index, height: height, line: $line, drop: drop))
+            // Glisser qui ne se termine pas (lâché trop vite, essai de la CI du 20/11) : le trait rouge ne reste pas.
+            .onChange(of: line) { shown in
+                guard let shown, shown.owner == index else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { if line == shown { line = nil } }
+            }
             .overlay(alignment: .top) { if line?.before == index { mark.offset(y: -1.5) } }
             .overlay(alignment: .bottom) { if index == count - 1, line?.before == count { mark.offset(y: 1.5) } }
             .animation(Motion.reduce ? nil : .easeOut(duration: 0.16), value: line?.before)
