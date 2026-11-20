@@ -69,6 +69,23 @@ public class MacroDraftsTests
             e => e.Type == BlockType.Drag);
     }
 
+    /// Créateur « Minimal » (20/11, comme le Mac) : « Ajouter une étape » dans l'ordre de la maquette, des verbes, et
+    /// les mots autour de la valeur d'une étape.
+    [Fact]
+    public void AddStepBoxFollowsTheMockup()
+    {
+        var groups = StepSentence.Groups(MacroDrafts.CreatorPalette(MacroEffectsWindows.Unsupported, _ => true));
+        Assert.Equal(new[] { "Clavier", "FL Studio", "Souris", "Temps" }, groups.Select(g => g.Title));
+        Assert.Equal(BlockType.Key, groups[0].Entries[0].Type);
+        Assert.Equal(new[] { BlockType.MenuBar, BlockType.OpenPage, BlockType.PageOption, BlockType.FlAction, BlockType.DropFile,
+                             BlockType.NameColor, BlockType.Organize },
+                     groups[1].Entries.Select(e => e.Type));
+        Assert.Equal("Appuyer sur une touche", StepSentence.AddLabel(groups[0].Entries[0]));
+        Assert.Equal(new StepSentence.Parts("Choisir", "dans le menu", "un élément"), StepSentence.For(BlockType.MenuBar, "Menu de FL"));
+        Assert.Equal(new StepSentence.Parts("Attendre", "", "une durée"), StepSentence.For(BlockType.WaitWindow, "Attendre"));
+        Assert.Equal("Si", StepSentence.For(BlockType.IfElse, "Si").Pre);
+    }
+
     [Fact]
     public void NewMacrosGetUniqueNamesAndFreshIds()
     {

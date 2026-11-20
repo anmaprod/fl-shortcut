@@ -226,6 +226,18 @@ final class MacroEditorModel: ObservableObject {
         _ = library.remove(draft.id)
     }
 
+    /// « Supprimer la macro » du créateur (maquette « Minimal », la question est posée dans la page) : elle quitte la
+    /// bibliothèque avec ses raccourcis ; rien n'est plus enregistré ensuite.
+    func deleteMacro() {
+        guard !closed, !ephemeral, let draft else { return }
+        pendingSave?.cancel()
+        pendingSave = nil
+        dirty = false
+        isNewMacro = false
+        for remap in store.remaps(forMacro: draft.id) { store.delete(remap.id) }
+        _ = library.remove(draft.id)
+    }
+
     /// Fenêtre fermée (une seule fois, les appels suivants ne font rien) : « Montrer dans FL… » annulé (son clic
     /// n'écrira rien), brouillon enregistré, essai en préparation abandonné, besoins rendus (rien au repos).
     func close() {

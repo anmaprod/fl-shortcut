@@ -407,3 +407,4 @@
 "il y a %lld h" = "%lld h ago";
 "il y a %lld j" = "%lld d ago";
 "Tes raccourcis et tes macros quittent ce PC et restent dans ton compte." = "Your shortcuts and macros leave this PC and stay in your account.";
+"Enregistrer et revenir aux macros" = "Save and go back to the macros";
