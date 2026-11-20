@@ -215,146 +215,165 @@ internal sealed class MacrosPage
     /// Clic sur la touche d'une macro qui a déjà un raccourci : sa fiche (la fenêtre principale l'ouvre).
     public Func<Shortcut, Task>? EditShortcut { get; set; }
 
-    /// En-tête de la page (maquette « plus lisible » du 16/11, comme le Mac) : « Importer », « Exporter » bordés,
-    /// « Nouvelle macro » plein ; sans macro, « Importer » seul (« Nouvelle macro » est au milieu de la page vide).
-    public FrameworkElement HeaderActions()
-    {
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-        var import = Soft(Loc.T("Importer"), ImportMacros);
-        ToolTipService.SetToolTip(import, Loc.T("Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcuts › Macros › Importer"));
-        row.Children.Add(import);
-        if (_store.Macros.Count > 0)
-        {
-            var export = Soft(Loc.T("Exporter"), () => ExportMacros(_store.Macros.ToList()));
-            ToolTipService.SetToolTip(export, Loc.T("Toutes les macros, un fichier chacune, dans Documents › FL Shortcuts › Macros › Exporter"));
-            row.Children.Add(export);
-            row.Children.Add(NewMacroButton());
-        }
-        return row;
-    }
+    /// En-tête de la page (maquette « Minimal » du 20/11, comme le Mac) : « + Nouvelle macro » seul, plein d'encre.
+    public FrameworkElement HeaderActions() => MinimalButton("+ " + Loc.T("Nouvelle macro"), NewMacro);
 
-    /// « Nouvelle macro » : plein ; un clic ouvre tout de suite le créateur sur une macro vide, comme le Mac (16/11 :
-    /// « j'avais demandé de supprimer enregistrer macro et modèle… que ça ouvre juste la page de macro » ;
-    /// l'enregistrement des clics et des touches reste dans le créateur).
-    private Button NewMacroButton() => Primary(Loc.T("Nouvelle macro"), NewMacro);
+    /// « Supprimer » demandé dans la ligne (maquette « Minimal ») : la macro concernée.
+    private Guid? _confirmDelete;
 
     public FrameworkElement ListContent(int columns)
     {
-        // Maquette « plus lisible » du 16/11 (comme le Mac) : une ligne par macro (nom, touche dans sa case,
-        // interrupteur) ; sans macro, « Aucune macro. » et « Nouvelle macro ».
-        if (_store.Macros.Count == 0) return EmptyList();
-        // Direction A (17/11, comme le Mac) : un tableau numéroté (N°, Macro, Touche, Active).
-        var list = new StackPanel { Children = { IndexHeader(Loc.T("Macro"), last: Loc.T("Active"), lastWidth: SwitchColumn) } };
-        var n = 0;
-        foreach (var doc in _store.Macros) list.Children.Add(MacroLine(doc, ++n));
-        var host = new Grid { Margin = new Thickness(56, 18, 56, 80) };
+        // Maquette « Minimal » (20/11, comme le Mac) : un tableau sous un trait d'encre ; une macro par ligne, ses
+        // étapes en gris ; « Importer » et « Tout exporter » en petits liens dessous. `columns` ne sert plus.
+        var list = new StackPanel();
+        if (_store.Macros.Count == 0)
+        {
+            var empty = Label(Loc.T("Aucune macro."), 16, Secondary);
+            empty.Margin = new Thickness(0, 24, 0, 0);
+            list.Children.Add(empty);
+        }
+        else
+        {
+            list.Children.Add(new Rectangle { Height = 2, Fill = Brush(Text) });
+            foreach (var doc in _store.Macros) list.Children.Add(MacroLine(doc));
+        }
+        var links = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 20, Margin = new Thickness(0, 24, 0, 0) };
+        links.Children.Add(LinkButton(Loc.T("Importer"), Secondary, ImportMacros));
+        if (_store.Macros.Count > 0) links.Children.Add(LinkButton(Loc.T("Tout exporter"), Secondary, () => ExportMacros(_store.Macros.ToList())));
+        list.Children.Add(links);
+        // Même bord et même largeur que le titre de la page (MainShell.ReadableInset / ReadableMaxWidth).
+        var host = new Grid { Margin = new Thickness(56, 4, 56, 80) };
         host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 800 });
         host.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         host.Children.Add(list);
         return host;
     }
 
-    /// Une macro (maquette) : son nom (gris si son raccourci est désactivé), « À APPRENDRE » ou « À CORRIGER », sa
-    /// touche dans sa case, l'interrupteur. Un clic l'ouvre dans le créateur ; la touche ouvre la fiche de son
-    /// raccourci (sans raccourci : le créateur, où il se choisit).
-    /// Largeur de la colonne de l'interrupteur (« ACTIVE »).
-    private const double SwitchColumn = 62;
+    /// Les étapes en une ligne (« Menu de FL File › Export · Attendre 1 s · Touche Entrée »), comme le Mac.
+    private static string StepsSummary(MacroDoc doc)
+    {
+        if (doc.Blocks.Count == 0) return Loc.T("Aucune étape");
+        var parts = new List<string>();
+        foreach (var block in doc.Blocks.Take(6))
+        {
+            if (block.Body.Type is not { } type) continue;
+            var label = BlockRegistry.Label(block.Body);
+            var value = BlockRegistry.Spec(type)?.Summary(block.Body) ?? "";
+            parts.Add(value.Length == 0 ? label : label + " " + value);
+        }
+        return string.Join(" · ", parts.Where(p => p.Length > 0));
+    }
 
-    private FrameworkElement MacroLine(MacroDoc doc, int number)
+    /// Une macro (maquette) : son nom en demi-gras et ses étapes en une ligne grise (« À apprendre » / « À corriger »
+    /// en rouge devant), sa touche en texte, l'interrupteur et « Supprimer » ; survolée, pleine d'encre ; un clic
+    /// l'ouvre ; la touche ouvre la fiche de son raccourci (sans raccourci : le créateur, où il se choisit).
+    private FrameworkElement MacroLine(MacroDoc doc)
     {
         var shortcut = _demo ? null : _app.MacroShortcut(doc.Id);
-        var disabled = shortcut is { Enabled: false };
-        var grid = new Grid { MinHeight = 64, Background = Brush(Colors.Transparent) };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(NumberColumn) });
+        var title = DisplayText.Safe(doc.Name, MacroValidation.MaxNameLength);
+        var grid = new Grid { ColumnSpacing = 24, MinHeight = 58, Padding = new Thickness(12, 8, 12, 8), Background = Brush(Colors.Transparent) };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(SwitchColumn) });
-        grid.Children.Add(RowNumber(number));
-        var name = Label(DisplayText.Safe(doc.Name, MacroValidation.MaxNameLength), 17, disabled ? Secondary : Text, semibold: true);
+
+        var name = Label(title, 16, Text, semibold: true);
         name.TextTrimming = TextTrimming.CharacterEllipsis;
-        name.VerticalAlignment = VerticalAlignment.Center;
-        var left = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, VerticalAlignment = VerticalAlignment.Center, Children = { name } };
-        Grid.SetColumn(left, 1);
-        if (MacroDrafts.ToLearn(doc.Blocks))
+        name.TextWrapping = TextWrapping.NoWrap;
+        string? alert = MacroDrafts.ToLearn(doc.Blocks) ? Loc.T("À apprendre") : Issue(doc) is not null ? Loc.T("À corriger") : null;
+        var steps = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        if (alert is not null)
         {
-            var badge = SwissLabel(Loc.T("À apprendre"), 11, Red);
-            badge.VerticalAlignment = VerticalAlignment.Center;
-            ToolTipService.SetToolTip(badge, Loc.T("Un endroit est à montrer dans FL."));
-            left.Children.Add(badge);
+            var warn = Label(alert, 13, Red);
+            if (Issue(doc) is { } problem) ToolTipService.SetToolTip(warn, problem);
+            steps.Children.Add(warn);
         }
-        else if (Issue(doc) is { } problem)
-        {
-            var badge = SwissLabel(Loc.T("À corriger"), 11, Red);
-            badge.VerticalAlignment = VerticalAlignment.Center;
-            ToolTipService.SetToolTip(badge, problem);
-            left.Children.Add(badge);
-        }
-        grid.Children.Add(left);
-        // Pas encore de touche (maquette A) : « Choisir », cadre en pointillés.
-        FrameworkElement keyBox = shortcut?.Trigger is null
-            ? new Grid
-            {
-                Width = KeyWidth,
-                Height = 32,
-                Children =
-                {
-                    new Rectangle { Stroke = Brush(Secondary), StrokeThickness = 1, StrokeDashArray = new DoubleCollection { 3, 3 } },
-                    new TextBlock { Text = Loc.T("Choisir"), FontFamily = SwissFont, FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = Brush(Secondary), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
-                },
-            }
-            : KeyBox(shortcut.Trigger);
-        keyBox.Opacity = disabled ? 0.55 : 1;
-        var key = new Button { Style = PlainButton, Content = keyBox, Padding = new Thickness(0), VerticalAlignment = VerticalAlignment.Center };
+        var summary = Label(StepsSummary(doc), 13, Secondary);
+        summary.TextTrimming = TextTrimming.CharacterEllipsis;
+        summary.TextWrapping = TextWrapping.NoWrap;
+        steps.Children.Add(summary);
+        grid.Children.Add(new StackPanel { Spacing = 3, VerticalAlignment = VerticalAlignment.Center, Children = { name, steps } });
+
+        var keyText = shortcut?.Trigger?.ToString();
+        var keyLabel = Label(keyText ?? "—", 20, keyText is null ? Secondary : Text, semibold: true);
+        keyLabel.FontFamily = TitleFont;
+        keyLabel.TextTrimming = TextTrimming.CharacterEllipsis;
+        keyLabel.TextWrapping = TextWrapping.NoWrap;
+        var key = new Button { Style = PlainButton, Content = keyLabel, Padding = new Thickness(0), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
         key.Click += async (_, _) =>
         {
             if (shortcut is { } s && EditShortcut is { } edit) await edit(s);
             else Open(doc.Id);
         };
         ToolTipService.SetToolTip(key, Loc.T("Changer la touche"));
-        AutomationProperties.SetName(key, Loc.F("Changer la touche de %@", DisplayText.Safe(doc.Name, MacroValidation.MaxNameLength)));
-        Grid.SetColumn(key, 2);
+        AutomationProperties.SetName(key, Loc.F("Changer la touche de %@", title));
+        Grid.SetColumn(key, 1);
         grid.Children.Add(key);
+
+        var right = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 24, VerticalAlignment = VerticalAlignment.Center };
+        Action<bool>? paintSwitch = null;
         if (shortcut is { } sc)
         {
-            var toggle = Switch(sc.Enabled, on => _app.Upsert(sc with { Enabled = on }),
-                                sc.Enabled ? Loc.T("Désactiver le raccourci") : Loc.T("Activer le raccourci"));
-            toggle.HorizontalAlignment = HorizontalAlignment.Right;
-            toggle.VerticalAlignment = VerticalAlignment.Center;
-            Grid.SetColumn(toggle, 3);
-            grid.Children.Add(toggle);
+            var (toggle, paint) = MinimalSwitch(sc.Enabled, () => _app.Upsert(sc with { Enabled = !sc.Enabled }));
+            paintSwitch = paint;
+            right.Children.Add(toggle);
         }
-        var line = Rule(Faint);
-        line.VerticalAlignment = VerticalAlignment.Bottom;
-        Grid.SetColumnSpan(line, 4);
-        grid.Children.Add(line);
+        else
+        {
+            right.Children.Add(new Border { Width = 106, Height = 22 });
+        }
+        var deleteLabel = Label(Loc.T("Supprimer"), 13, Secondary);
+        deleteLabel.TextDecorations = Windows.UI.Text.TextDecorations.Underline;
+        var delete = new Button { Style = PlainButton, Content = deleteLabel, Padding = new Thickness(0), VerticalAlignment = VerticalAlignment.Center };
+        delete.Click += (_, _) => AskDelete(doc.Id);
+        AutomationProperties.SetName(delete, Loc.T("Supprimer"));
+        right.Children.Add(delete);
+        Grid.SetColumn(right, 2);
+        grid.Children.Add(right);
+
+        var box = new Border { Child = grid, BorderBrush = Brush(LineColor), BorderThickness = new Thickness(0, 0, 0, 1) };
+        void Paint(bool on)
+        {
+            grid.Background = Brush(on ? Text : Colors.Transparent);
+            box.BorderBrush = Brush(on ? Text : LineColor);
+            name.Foreground = Brush(on ? WindowColor : Text);
+            summary.Foreground = Brush(on ? WithOpacity(WindowColor, 0.7) : Secondary);
+            keyLabel.Foreground = Brush(keyText is null ? (on ? WithOpacity(WindowColor, 0.6) : Secondary) : on ? WindowColor : Text);
+            deleteLabel.Foreground = Brush(on ? WindowColor : Secondary);
+            paintSwitch?.Invoke(on);
+        }
+        grid.PointerEntered += (_, _) => Paint(true);
+        grid.PointerExited += (_, _) => Paint(false);
         grid.Tapped += (_, e) =>
         {
-            // La touche et l'interrupteur font le leur : la ligne n'ouvre pas le créateur en plus (16/11).
+            // La touche, l'interrupteur et « Supprimer » font le leur : la ligne n'ouvre pas le créateur en plus.
             if (e.Handled || OnButton(e, grid)) return;
             e.Handled = true;
             Open(doc.Id);
         };
         grid.ContextFlyout = MacroOptions(doc, shortcut);
-        AutomationProperties.SetName(grid, DisplayText.Safe(doc.Name, MacroValidation.MaxNameLength));
-        return grid;
+        AutomationProperties.SetName(grid, title);
+
+        var stack = new StackPanel { Children = { box } };
+        if (_confirmDelete == doc.Id)
+        {
+            var band = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, Padding = new Thickness(12, 10, 12, 10) };
+            var question = Label(Loc.F("Supprimer « %@ » ?", DisplayText.Safe(doc.Name, 40)), 14, Text);
+            question.VerticalAlignment = VerticalAlignment.Center;
+            band.Children.Add(question);
+            band.Children.Add(MinimalButton(Loc.T("Supprimer"), () => { _confirmDelete = null; Delete(doc); }));
+            var cancel = LinkButton(Loc.T("Annuler"), Text, () => { _confirmDelete = null; _window.DispatcherQueue.TryEnqueue(() => _listChanged()); });
+            cancel.VerticalAlignment = VerticalAlignment.Center;
+            band.Children.Add(cancel);
+            stack.Children.Add(new Border { Child = band, BorderBrush = Brush(LineColor), BorderThickness = new Thickness(0, 0, 0, 1) });
+        }
+        return stack;
     }
 
-
-
-    /// Page vide, comme le Mac (08/11, « même le bouton enregistrer n'est pas là ») : « Aucune macro » en grand,
-    /// « Enregistrer une macro » (principal, avec son rond), « Macro vide » et « Partir d'un modèle… », puis « Importer
-    /// un fichier .flsmacro… » ; plus de carré de couleur.
-    /// Sans macro (maquette, écran 6, comme le Mac) : « Aucune macro. » en grand, puis « Nouvelle macro ».
-    private FrameworkElement EmptyList()
+    /// « Supprimer » d'une ligne ou du clic droit : la question vient dans la ligne même (maquette « Minimal »).
+    private void AskDelete(Guid id)
     {
-        var stack = new StackPanel { Spacing = 28, Margin = new Thickness(56, 110, 56, 40), HorizontalAlignment = HorizontalAlignment.Left };
-        var title = Label(Loc.T("Aucune macro."), 56, Text, bold: true);
-        title.CharacterSpacing = -40;
-        stack.Children.Add(title);
-        var start = NewMacroButton();
-        start.HorizontalAlignment = HorizontalAlignment.Left;
-        stack.Children.Add(start);
-        return stack;
+        _confirmDelete = id;
+        _window.DispatcherQueue.TryEnqueue(() => _listChanged());
     }
 
     private void NewMacro() => Open(_store.Add(MacroDrafts.Empty(_store)).Id);
@@ -429,7 +448,7 @@ internal sealed class MacrosPage
             Add(s.Enabled ? Loc.T("Désactiver le raccourci") : Loc.T("Activer le raccourci"), () => _app.Upsert(s with { Enabled = !s.Enabled }));
         }
         menu.Items.Add(new MenuFlyoutSeparator());
-        Add(Loc.T("Supprimer"), () => Delete(doc));
+        Add(Loc.T("Supprimer"), () => AskDelete(doc.Id));
         return SwissMenu(menu);
     }
 
@@ -546,9 +565,9 @@ internal sealed class MacrosPage
         _toast(Loc.F("« %@ » ajoutée, sans raccourci", DisplayText.Safe(added.Name, 40)), () => _store.Remove(added.Id));
     }
 
-    /// Supprime la macro et son raccourci après une question (06/11, comme le Mac : « c'est seulement pour supprimer
-    /// que ça doit demander »), « Annuler » encore dans la notification.
-    private async void Delete(MacroDoc doc)
+    /// Supprime la macro et son raccourci (la question a été posée dans la ligne, maquette « Minimal » ; 06/11 : « c'est
+    /// seulement pour supprimer que ça doit demander »), « Annuler » encore dans la notification.
+    private void Delete(MacroDoc doc)
     {
         var name = DisplayText.Safe(doc.Name, 40);
         if (_demo)
@@ -556,9 +575,6 @@ internal sealed class MacrosPage
             _store.Remove(doc.Id);
             return;
         }
-        if (!await AskAsync(Loc.F("Supprimer « %@ » ?", name), "",
-                            Loc.T("Supprimer"), Loc.T("Annuler"), destructive: true))
-            return;
         var undo = _app.DeleteMacro(doc.Id);
         _toast(Loc.F("« %@ » supprimée", name), undo);
     }

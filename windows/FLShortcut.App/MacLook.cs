@@ -592,6 +592,76 @@ internal static class MacLook
              : null;
     }
 
+    // ---------- Maquette « Minimal » (20/11) ----------
+
+    /// Lien souligné de la maquette (« Remettre », « Changer », « Supprimer »…).
+    public static Button LinkButton(string text, Color color, Action action)
+    {
+        var label = Label(text, 13, color);
+        label.TextDecorations = Windows.UI.Text.TextDecorations.Underline;
+        var button = new Button { Style = PlainButton, Content = label, Padding = new Thickness(0) };
+        button.Click += (_, _) => action();
+        AutomationProperties.SetName(button, text);
+        return button;
+    }
+
+    /// Bouton plein d'encre de la maquette (rouge au survol) ou bordé de 2 points.
+    public static Button MinimalButton(string text, Action action, bool outlined = false)
+    {
+        var label = Label(text, 14, outlined ? Text : WindowColor, semibold: true);
+        var border = new Border
+        {
+            Child = label,
+            Height = 44,
+            Padding = new Thickness(20, 0, 20, 0),
+            Background = Brush(outlined ? Colors.Transparent : Text),
+            BorderBrush = Brush(Text),
+            BorderThickness = new Thickness(outlined ? 2 : 0),
+        };
+        label.VerticalAlignment = VerticalAlignment.Center;
+        var button = new Button { Style = PlainButton, Content = border, Padding = new Thickness(0) };
+        if (!outlined)
+        {
+            button.PointerEntered += (_, _) => border.Background = Brush(Red);
+            button.PointerExited += (_, _) => border.Background = Brush(Text);
+        }
+        button.Click += (_, _) => action();
+        AutomationProperties.SetName(button, text);
+        return button;
+    }
+
+    /// Interrupteur de la maquette : un rectangle bordé d'encre (plein si allumé, carré dedans à droite), puis
+    /// « Active » ou « Éteinte ». `paint(true)` le dessine en clair sur une ligne pleine d'encre (survol).
+    public static (Button Button, Action<bool> Paint) MinimalSwitch(bool on, Action toggle)
+    {
+        var track = new Border { Width = 40, Height = 22, BorderThickness = new Thickness(2) };
+        var knob = new Rectangle { Width = 12, Height = 12, Margin = new Thickness(3, 0, 3, 0), HorizontalAlignment = on ? HorizontalAlignment.Right : HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
+        track.Child = knob;
+        var word = Label(on ? Loc.T("Active") : Loc.T("Éteinte"), 14, Text);
+        word.Width = 56;
+        word.VerticalAlignment = VerticalAlignment.Center;
+        void Paint(bool inverted)
+        {
+            var ink = inverted ? WindowColor : Text;
+            var paper = inverted ? Text : WindowColor;
+            track.BorderBrush = Brush(ink);
+            track.Background = Brush(on ? ink : Colors.Transparent);
+            knob.Fill = Brush(on ? paper : ink);
+            word.Foreground = Brush(ink);
+        }
+        Paint(false);
+        var button = new Button
+        {
+            Style = PlainButton,
+            Padding = new Thickness(0),
+            VerticalAlignment = VerticalAlignment.Center,
+            Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { track, word } },
+        };
+        button.Click += (_, _) => toggle();
+        AutomationProperties.SetName(button, on ? Loc.T("Désactiver le raccourci") : Loc.T("Activer le raccourci"));
+        return (button, Paint);
+    }
+
     /// Bouton principal (Valider, Organiser…) au style suisse : rectangle blanc plein, texte noir en capitales ; au
     /// survol, noir bordé de blanc (SwissButtonBody du Mac).
     public static Button Primary(string text, Action click) => SwissButton(text, click, primary: true);

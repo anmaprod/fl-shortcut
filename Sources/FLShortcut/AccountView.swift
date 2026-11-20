@@ -31,11 +31,15 @@ enum AccountText {
 @MainActor
 enum AccountActions {
     /// `backup` nil : le compte de l'app (lu ici, sur le fil principal, et pas en valeur par défaut : Swift 6).
-    static func signOut(_ backup: AccountBackup? = nil) async {
+    /// `ask` : « Se déconnecter ? » d'abord (menu de la Communauté) ; la page Mon compte se déconnecte tout de suite,
+    /// comme la maquette « Minimal » (20/11). La question revient si des changements ne sont pas en ligne.
+    static func signOut(_ backup: AccountBackup? = nil, ask: Bool = true) async {
         let backup = backup ?? .shared
-        guard Dialogs.choose(String(localized: "Se déconnecter ?"),
-                             String(localized: "Tes raccourcis et tes macros restent dans ton compte."),
-                             [String(localized: "Se déconnecter"), String(localized: "Annuler")]) == 0 else { return }
+        if ask {
+            guard Dialogs.choose(String(localized: "Se déconnecter ?"),
+                                 String(localized: "Tes raccourcis et tes macros restent dans ton compte."),
+                                 [String(localized: "Se déconnecter"), String(localized: "Annuler")]) == 0 else { return }
+        }
         var outcome = await backup.signOut()
         while case .notSaved(let why) = outcome {
             switch Dialogs.choose(String(localized: "Tes derniers changements ne sont pas en ligne"),
@@ -49,10 +53,11 @@ enum AccountActions {
         }
     }
 
-    /// nil : supprimé, ou rien fait (annulé) ; sinon, ce qui s'est passé.
-    static func deleteAccount(_ backup: AccountBackup? = nil) async -> String? {
+    /// nil : supprimé, ou rien fait (annulé) ; sinon, ce qui s'est passé. `asked` : la question a déjà été posée dans la
+    /// page (maquette « Minimal ») : pas une deuxième fois.
+    static func deleteAccount(_ backup: AccountBackup? = nil, asked: Bool = false) async -> String? {
         let backup = backup ?? .shared
-        guard Dialogs.choose(String(localized: "Supprimer ton compte ?"),
+        guard asked || Dialogs.choose(String(localized: "Supprimer ton compte ?"),
                              String(localized: """
                                  Ton compte, ta sauvegarde en ligne et tes partages dans la Communauté seront effacés \
                                  pour toujours. Tes raccourcis et tes macros restent sur ce Mac.
@@ -129,7 +134,7 @@ struct AccountPage: View {
                     .padding(.top, 32)
                 }
                 MinimalButton(title: String(localized: "Se déconnecter"), outlined: true) {
-                    Task { await AccountActions.signOut(backup) }
+                    Task { await AccountActions.signOut(backup, ask: false) }
                 }
                 .fixedSize()
                 .help("Tes raccourcis et tes macros quittent ce Mac et restent dans ton compte.")
@@ -141,7 +146,7 @@ struct AccountPage: View {
                             HStack(spacing: 16) {
                                 MinimalButton(title: String(localized: "Supprimer")) {
                                     confirmingDelete = false
-                                    Task { deleteError = await AccountActions.deleteAccount(backup) }
+                                    Task { deleteError = await AccountActions.deleteAccount(backup, asked: true) }
                                 }
                                 .fixedSize()
                                 MinimalLink(title: String(localized: "Annuler")) { confirmingDelete = false }

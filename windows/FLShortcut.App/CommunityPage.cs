@@ -89,6 +89,8 @@ internal sealed partial class CommunityPage
     /// La fiche ou « Partager » ont changé : la fenêtre redessine seulement ce qui est posé au-dessus de la liste (la
     /// liste derrière garde sa place). Sans fenêtre pour le faire : toute la page.
     public Action? AboveChanged { get; set; }
+    /// « Se connecter » de la page sans compte : ouvre Compte (la fenêtre principale le branche).
+    public Action? OpenAccount { get; set; }
 
     private void RenderAbove()
     {
@@ -156,7 +158,15 @@ internal sealed partial class CommunityPage
     {
         if (HelpPage.Server is null && !_demo)
             return Message(Loc.T("Les comptes ne sont pas encore ouverts"), "", null, null);
-        if (_account.Session is null && !_demo) return _account.Content(columns);
+        if (_account.Session is null && !_demo)
+        {
+            // Maquette « Minimal » (comme le Mac) : la phrase et « Se connecter » (la connexion est dans Compte).
+            var line = Label(Loc.T("Connecte-toi pour voir la Communauté."), 24, Text);
+            line.TextWrapping = TextWrapping.Wrap;
+            var signIn = MinimalButton(Loc.T("Se connecter"), () => OpenAccount?.Invoke());
+            signIn.HorizontalAlignment = HorizontalAlignment.Left;
+            return new StackPanel { Spacing = 24, Padding = new Thickness(56, 40, 56, 32), MaxWidth = 912, HorizontalAlignment = HorizontalAlignment.Left, Children = { line, signIn } };
+        }
         // Premier passage : la liste est demandée, la page montre le chargement (sans se redessiner pendant sa construction).
         if (_shares is null && !_loading && _error is null)
         {

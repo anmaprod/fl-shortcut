@@ -83,7 +83,6 @@ internal sealed class AccountPage
     private Button? _submit;
     private TextBlock? _nameStatus;
     private TextBlock? _nameHint;
-    private readonly List<(TextBlock Label, int Rule)> _ruleLabels = new();
 
     public AccountPage(Action render, Func<string, string, string, bool, Task<bool>> confirm, IntPtr hwnd)
     {
@@ -127,39 +126,28 @@ internal sealed class AccountPage
     /// Carte « Thème » (MainShell), posée sous le profil quand on est connecté.
     public Func<FrameworkElement>? ThemeCard { get; set; }
 
-    /// Choix du thème (demande du 04/11, comme le Mac) : trois aperçus, Noir, Papier, Orange ; le choisi entouré et
-    /// soulevé sur son ombre rouge ; un clic le prend (MainShell.ChooseTheme relance l'app dans ce thème).
-    /// `locked` (sans compte, 07/11) : aperçus éteints, rien à cliquer, une ligne pour se connecter.
-    public static FrameworkElement ThemeChoice(AppTheme current, Action<AppTheme> choose, bool locked = false)
+    /// Thème (maquette « Minimal », comme le Mac) : Papier, Noir, Orange en onglets soulignés ; un clic le prend
+    /// (MainShell.ChooseTheme relance l'app dans ce thème).
+    public static FrameworkElement ThemeTabs(AppTheme current, Action<AppTheme> choose)
     {
-        var tiles = new Grid { ColumnSpacing = 12 };
-        var themes = Enum.GetValues<AppTheme>();
-        for (var i = 0; i < themes.Length; i++)
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 24 };
+        foreach (var theme in new[] { AppTheme.Papier, AppTheme.Noir, AppTheme.Orange })
         {
-            tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            var tile = ThemeTile(themes[i], !locked && themes[i] == current, choose);
-            if (tile is Control control) control.IsEnabled = !locked;
-            Grid.SetColumn(tile, i);
-            tiles.Children.Add(tile);
+            var on = theme == current;
+            var label = Label(ThemeTitle(theme), 14, on ? Text : MacLook.Secondary, semibold: on);
+            var tab = new Border
+            {
+                Child = label,
+                Padding = new Thickness(0, 0, 0, 6),
+                BorderBrush = Brush(Text),
+                BorderThickness = new Thickness(0, 0, 0, on ? 2 : 0),
+            };
+            var button = new Button { Style = PlainButton, Content = tab, Padding = new Thickness(0) };
+            button.Click += (_, _) => choose(theme);
+            AutomationProperties.SetName(button, ThemeTitle(theme));
+            row.Children.Add(button);
         }
-        var label = SwissLabel(Loc.T("Thème"));
-        AutomationProperties.SetHeadingLevel(label, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2);
-        var content = new StackPanel { Spacing = 12, Children = { label, tiles } };
-        if (locked)
-        {
-            tiles.Opacity = 0.35;
-            content.Children.Add(Label(Loc.T("Connecte-toi pour choisir ton thème."), 13, MacLook.Secondary));
-        }
-        return new Border
-        {
-            Child = content,
-            MaxWidth = 560,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Padding = new Thickness(22, 20, 26, 20),
-            Background = Brush(MacLook.WindowColor),
-            BorderBrush = Brush(LineColor),
-            BorderThickness = new Thickness(1),
-        };
+        return row;
     }
 
     public static string ThemeTitle(AppTheme theme) => theme switch
@@ -169,156 +157,17 @@ internal sealed class AccountPage
         _ => Loc.T("Noir"),
     };
 
-    /// Un thème : son petit aperçu dans ses propres couleurs (barre de gauche, titre, texte, rond de la marque) et son nom.
-    private static FrameworkElement ThemeTile(AppTheme theme, bool selected, Action<AppTheme> choose)
-    {
-        var (page, side, sideLine, sideInk, ink, frame) = theme switch
-        {
-            AppTheme.Papier => (0xF3F2EEu, 0xF3F2EEu, 0xD9D6CFu, 0x111111u, 0x111111u, 0xD9D6CFu),
-            AppTheme.Orange => (ThemePalette.BrandRed, 0x000000u, 0x000000u, 0xFFFFFFu, 0x000000u, 0x000000u),
-            _ => (0x000000u, 0x000000u, 0x333333u, 0xFFFFFFu, 0xFFFFFFu, 0x333333u),
-        };
-        static Color C(uint rgb, double opacity = 1) =>
-            Color.FromArgb((byte)Math.Round(opacity * 255), (byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb);
-        static Microsoft.UI.Xaml.Shapes.Rectangle Bar(double width, double height, Color color) =>
-            new() { Width = width, Height = height, Fill = Brush(color), HorizontalAlignment = HorizontalAlignment.Left };
-
-        var preview = new Grid { Height = 62, Background = Brush(C(page)) };
-        preview.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32, GridUnitType.Star) });
-        preview.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(68, GridUnitType.Star) });
-        preview.Children.Add(new Border
-        {
-            Background = Brush(C(side)),
-            BorderBrush = Brush(C(sideLine)),
-            BorderThickness = new Thickness(0, 0, 1, 0),
-            Padding = new Thickness(5, 8, 5, 8),
-            Child = new StackPanel
-            {
-                Spacing = 5,
-                Children = { Bar(24, 4, C(sideInk)), Bar(18, 4, C(sideInk, 0.45)), Bar(21, 4, C(sideInk, 0.45)) },
-            },
-        });
-        var body = new StackPanel
-        {
-            Spacing = 6,
-            Padding = new Thickness(8),
-            Children =
-            {
-                Bar(46, 9, C(ink)), Bar(66, 4, C(ink, 0.4)),
-                new Microsoft.UI.Xaml.Shapes.Ellipse { Width = 11, Height = 11, Fill = Brush(BrandRed), HorizontalAlignment = HorizontalAlignment.Left },
-            },
-        };
-        Grid.SetColumn(body, 1);
-        preview.Children.Add(body);
-
-        var footer = new Grid { Padding = new Thickness(2, 0, 2, 0) };
-        footer.Children.Add(Label(ThemeTitle(theme), 14, Text, bold: true));
-        if (selected)
-        {
-            var check = Icon("check", 11, Text);
-            check.HorizontalAlignment = HorizontalAlignment.Right;
-            footer.Children.Add(check);
-        }
-        var inner = new StackPanel
-        {
-            Spacing = 8,
-            Padding = new Thickness(6),
-            Background = Brush(MacLook.WindowColor),
-            Children = { new Border { Child = preview, BorderBrush = Brush(C(frame)), BorderThickness = new Thickness(1) }, footer },
-        };
-        var frameBorder = new Border
-        {
-            Child = inner,
-            BorderBrush = Brush(selected ? Text : LineColor),
-            BorderThickness = new Thickness(selected ? 2 : 1),
-        };
-        var holder = new Grid();
-        if (selected)
-        {
-            // Soulevé sur son ombre rouge, comme le Mac.
-            holder.Children.Add(new Border { Background = Brush(BrandRed), Margin = new Thickness(4, 4, -4, -4) });
-            frameBorder.Margin = new Thickness(-3, -3, 3, 3);
-        }
-        holder.Children.Add(frameBorder);
-        var button = new Button
-        {
-            Style = PlainButton,
-            Content = holder,
-            Padding = new Thickness(0),
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-        };
-        button.Click += (_, _) => choose(theme);
-        AutomationProperties.SetName(button, ThemeTitle(theme));
-        ToolTipService.SetToolTip(button, ThemeTitle(theme));
-        return button;
-    }
-
     public FrameworkElement Content(int columns)
     {
         _submit = null;
         _nameStatus = null;
         _nameHint = null;
-        _ruleLabels.Clear();
         if (HelpPage.Server is null)
             return Message(Loc.T("Les comptes ne sont pas encore ouverts"), "");
         if (_session is { } session) return SignedIn(session, columns);
+        // Maquette « Minimal » (20/11, comme le Mac) : la connexion seule, sans titre de page ni présentation.
         var card = _pending is { } pending ? CodeCard(pending.Kind, pending.Email) : SignInCard();
-        if (_pending is not null) return new StackPanel { Children = { card }, Padding = new Thickness(56, 18, 56, 32), MaxWidth = 912, HorizontalAlignment = HorizontalAlignment.Left };
-        // 05/11 (comme le Mac) : à gauche ce que donne un compte, à droite le formulaire ; l'un sous l'autre si étroit.
-        // 10/11 (photo de la CI : « your shortc… » coupé) : comme ViewThatFits du Mac, côte à côte seulement si le grand
-        // titre tient en entier à côté de la carte ; sinon l'un sous l'autre.
-        var pitch = Pitch();
-        if (columns < 2) return new StackPanel { Spacing = 30, Children = { pitch, card }, Padding = new Thickness(56, 18, 56, 32), MaxWidth = 912, HorizontalAlignment = HorizontalAlignment.Left };
-        return SideBySideIfItFits(pitch, card);
-    }
-
-    /// Le texte de présentation et la carte côte à côte quand le grand titre tient entier dans sa colonne (au moins
-    /// 280, au plus 400, comme AuthPitch du Mac), l'un sous l'autre sinon. Rien n'est déplacé d'un parent à l'autre :
-    /// seules les places dans la grille changent quand sa largeur change.
-    private static Grid SideBySideIfItFits(FrameworkElement pitch, FrameworkElement card)
-    {
-        const double gap = 44;
-        var grid = new Grid { Padding = new Thickness(56, 18, 56, 32), MaxWidth = 912, HorizontalAlignment = HorizontalAlignment.Left };
-        var first = new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) };
-        var second = new ColumnDefinition { Width = GridLength.Auto };
-        grid.ColumnDefinitions.Add(first);
-        grid.ColumnDefinitions.Add(second);
-        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        grid.Children.Add(pitch);
-        grid.Children.Add(card);
-        var wide = new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity);
-        pitch.Measure(wide);
-        card.Measure(wide);
-        var titleWidth = Math.Clamp(PitchTitleWidth(pitch), 280, 400);
-        var cardWidth = card.DesiredSize.Width;
-        bool? side = null;
-        void Place(double width)
-        {
-            var now = width - grid.Padding.Left - grid.Padding.Right >= titleWidth + gap + cardWidth;
-            if (side == now) return;
-            side = now;
-            first.MaxWidth = now ? 400 : double.PositiveInfinity;
-            second.Width = now ? GridLength.Auto : new GridLength(0);
-            grid.ColumnSpacing = now ? gap : 0;
-            grid.RowSpacing = now ? 0 : 30;
-            Grid.SetColumn(card, now ? 1 : 0);
-            Grid.SetRow(card, now ? 0 : 1);
-        }
-        Place(double.PositiveInfinity);
-        grid.SizeChanged += (_, e) => Place(e.NewSize.Width);
-        return grid;
-    }
-
-    /// Largeur du plus long des trois grands titres de la présentation (« tes raccourcis, », point carré compris).
-    private static double PitchTitleWidth(FrameworkElement pitch)
-    {
-        if (pitch is not Panel panel) return 0;
-        double widest = 0;
-        foreach (var child in panel.Children.Take(3).OfType<FrameworkElement>())
-            widest = Math.Max(widest, child.DesiredSize.Width);
-        return widest;
+        return new StackPanel { Children = { card }, Padding = new Thickness(56, 40, 56, 32), MaxWidth = 592, HorizontalAlignment = HorizontalAlignment.Left };
     }
 
     // ---------- Serveur ----------
@@ -448,6 +297,7 @@ internal sealed class AccountPage
         get
         {
             var mail = _email.Trim();
+            if (_forgot) return SupportRules.EmailProblem(mail) is null;
             if (!_creating) return mail.Length > 0 && _password.Length > 0;
             return AccountRules.UsernameProblem(_username.Trim()) is null && _nameCheck != NameCheck.Taken
                    && SupportRules.EmailProblem(mail) is null && AccountRules.PasswordProblem(_password) is null;
@@ -456,6 +306,11 @@ internal sealed class AccountPage
 
     private async void Submit()
     {
+        if (_forgot)
+        {
+            ForgotPassword();
+            return;
+        }
         var mail = _email.Trim();
         var name = _username.Trim();
         var pass = _password;
@@ -606,6 +461,8 @@ internal sealed class AccountPage
     {
         _nameCheck = check;
         _nameWhy = why;
+        // Maquette « Minimal » (comme le Mac) : seulement ce qui ne va pas, en orange sous la case.
+        ShowHint(_nameHint, why ?? (check == NameCheck.Taken ? Loc.T("Ce pseudo est déjà pris.") : null));
         if (_nameStatus is not null)
         {
             (_nameStatus.Text, _nameStatus.Foreground) = check switch
@@ -616,11 +473,6 @@ internal sealed class AccountPage
                 _ => ("", Brush(Secondary)),
             };
         }
-        if (_nameHint is not null)
-        {
-            _nameHint.Text = why ?? "";
-            _nameHint.Visibility = why is null ? Visibility.Collapsed : Visibility.Visible;
-        }
         UpdateSubmit();
     }
 
@@ -630,148 +482,128 @@ internal sealed class AccountPage
         _submit.IsEnabled = !_busy && (_editing && _session is not null ? CanSaveProfile
             : _pending is { } p ? AccountRules.Code(_code) is not null && (p.Kind == CodeKind.Signup || AccountRules.PasswordProblem(_newPassword) is null)
             : CanSubmit);
-    }
-
-    private void UpdateRules(string password)
-    {
-        var checks = AccountRules.PasswordChecks(password);
-        foreach (var (label, rule) in _ruleLabels) label.Foreground = Brush(checks[rule] ? Text : Secondary);
+        // Le bouton plein d'encre de la maquette ne pâlit pas tout seul : à demi effacé tant qu'il attend.
+        if (!(_editing && _session is not null)) _submit.Opacity = _submit.IsEnabled ? 1 : 0.4;
     }
 
     // ---------- Écrans de connexion ----------
 
-    /// Ce que donne un compte (comme AuthPitch du Mac) : « tes raccourcis, tes macros, partout. » en grand, puis trois
-    /// lignes numérotées séparées d'un trait.
-    private static FrameworkElement Pitch()
+    /// « Mot de passe oublié ? » : l'adresse seule, puis le code reçu par mail (maquette « Minimal »).
+    private bool _forgot;
+    /// Ce qui manque au mot de passe choisi (en orange sous la case, comme le Mac).
+    private TextBlock? _passHint;
+
+    /// Titre d'un écran du compte (maquette « Minimal ») : « Connexion », « Créer un compte »… en 48 demi-gras.
+    private static TextBlock BigTitle(string text)
     {
-        var panel = new StackPanel { Spacing = 0 };
-        foreach (var line in new[] { Loc.T("Tes raccourcis,"), Loc.T("tes macros,") })
-        {
-            var t = SwissTitle(40);
-            t.Text = line.ToLower(System.Globalization.CultureInfo.CurrentCulture);
-            panel.Children.Add(t);
-        }
-        var last = SwissTitle(40);
-        last.Text = Loc.T("partout").ToLower(System.Globalization.CultureInfo.CurrentCulture);
-        var lastLine = PageTitle(last, 40);
-        lastLine.Margin = new Thickness(0, 0, 0, 28);
-        lastLine.HorizontalAlignment = HorizontalAlignment.Left;
-        panel.Children.Add(lastLine);
-        var rows = new[]
-        {
-            ("01", Loc.T("Sauvegarde")),
-            ("02", Loc.T("Tous tes ordis")),
-            ("03", Loc.T("Communauté")),
-        };
-        // 16/11 (« enlève les phrases qui expliquent trop pour rien ») : le mot seul, plus de phrase dessous.
-        foreach (var (number, title) in rows)
-        {
-            var grid = new Grid { ColumnSpacing = 16, Padding = new Thickness(0, 14, 0, 14), BorderBrush = Brush(LineColor), BorderThickness = new Thickness(0, 1, 0, 0) };
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            var n = Label(number, 13, Red, bold: true);
-            n.VerticalAlignment = VerticalAlignment.Top;
-            grid.Children.Add(n);
-            var words = Label(title, 16, Text, bold: true);
-            Grid.SetColumn(words, 1);
-            grid.Children.Add(words);
-            panel.Children.Add(grid);
-        }
-        return panel;
+        var title = Label(text, 48, Text, semibold: true);
+        title.CharacterSpacing = -30;
+        title.TextWrapping = TextWrapping.Wrap;
+        AutomationProperties.SetHeadingLevel(title, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level1);
+        return title;
     }
 
+    /// Champ de la maquette : son nom en gris au-dessus, la case bordée d'encre (2 points), 48 de haut.
+    private static FrameworkElement MinimalField(string title, Control input)
+    {
+        input.MinHeight = 48;
+        input.FontSize = 16;
+        input.BorderThickness = new Thickness(2);
+        input.BorderBrush = Brush(Text);
+        AutomationProperties.SetName(input, title);
+        return new StackPanel { Spacing = 8, Margin = new Thickness(0, 24, 0, 0), Children = { Label(title, 13, Secondary), input } };
+    }
+
+    private static TextBlock Hint() => new()
+    {
+        FontFamily = SwissFont, FontSize = 11, Foreground = Brush(Orange), TextWrapping = TextWrapping.Wrap,
+        Margin = new Thickness(0, 6, 0, 0), Visibility = Visibility.Collapsed,
+    };
+
+    private static void ShowHint(TextBlock? hint, string? text)
+    {
+        if (hint is null) return;
+        hint.Text = text ?? "";
+        hint.Visibility = string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    /// Connexion (maquette « Minimal », comme le Mac) : « Connexion » en grand, Adresse mail, Mot de passe,
+    /// « Se connecter » plein d'encre ; dessous « Créer un compte » et « Mot de passe oublié ? ». Créer un compte : le
+    /// pseudo en plus, « Recevoir le code » ; oublié : l'adresse seule ; « J'ai déjà un compte » y ramène.
     private FrameworkElement SignInCard()
     {
-        var card = new StackPanel { Spacing = 18 };
-        card.Children.Add(Tabs());
-
-        var fields = new StackPanel { Spacing = 16 };
-        if (_creating)
-        {
-            var name = Input(_username, Loc.T("ton.pseudo"));
-            name.MaxLength = 24;
-            name.TextChanged += (_, _) =>
-            {
-                _username = name.Text;
-                CheckName(name.Text);
-            };
-            AutomationProperties.SetName(name, Loc.T("Pseudo"));
-            _nameStatus = Label("", 11.5, Secondary, bold: true);
-            fields.Children.Add(Field(Loc.T("Pseudo"), name, _nameStatus));
-            _nameHint = Paragraph("", 11, Orange);
-            fields.Children.Add(_nameHint);
-        }
-        var mail = Input(_email, Loc.T("toi@exemple.com"));
+        var card = new StackPanel { MaxWidth = 480, HorizontalAlignment = HorizontalAlignment.Left };
+        card.Children.Add(BigTitle(_forgot ? Loc.T("Mot de passe oublié") : _creating ? Loc.T("Créer un compte") : Loc.T("Connexion")));
+        var mail = Input(_email, "");
         mail.InputScope = new InputScope { Names = { new InputScopeName(InputScopeNameValue.EmailSmtpAddress) } };
         mail.TextChanged += (_, _) =>
         {
             _email = mail.Text;
             UpdateSubmit();
         };
-        AutomationProperties.SetName(mail, Loc.T("E-mail"));
-        fields.Children.Add(Field(Loc.T("E-mail"), mail));
-        var pass = Secret(_password, _creating ? Loc.T("8 caractères au moins") : Loc.T("Ton mot de passe"));
-        pass.PasswordChanged += (_, _) =>
+        mail.KeyDown += (_, e) => { if (e.Key == Windows.System.VirtualKey.Enter && CanSubmit && !_busy) Submit(); };
+        card.Children.Add(MinimalField(Loc.T("Adresse mail"), mail));
+        if (_creating && !_forgot)
         {
-            _password = pass.Password;
-            UpdateRules(pass.Password);
-            UpdateSubmit();
-        };
-        pass.KeyDown += (_, e) =>
+            var name = Input(_username, "");
+            name.MaxLength = 24;
+            name.TextChanged += (_, _) =>
+            {
+                _username = name.Text;
+                CheckName(name.Text);
+            };
+            card.Children.Add(MinimalField(Loc.T("Pseudo"), name));
+            _nameHint = Hint();
+            card.Children.Add(_nameHint);
+        }
+        if (!_forgot)
         {
-            if (e.Key == Windows.System.VirtualKey.Enter && CanSubmit && !_busy) Submit();
-        };
-        AutomationProperties.SetName(pass, Loc.T("Mot de passe"));
-        fields.Children.Add(Field(Loc.T("Mot de passe"), pass, _creating ? null : LinkButton(Loc.T("Mot de passe oublié ?"), ForgotPassword)));
-        if (_creating) fields.Children.Add(Rules(_password));
-        card.Children.Add(fields);
-
-        _submit = Primary(_creating ? Loc.T("Créer mon compte") : Loc.T("Se connecter"), Submit);
-        _submit.HorizontalAlignment = HorizontalAlignment.Stretch;
-        _submit.MinHeight = 40;
+            var pass = Secret(_password, "");
+            pass.PasswordChanged += (_, _) =>
+            {
+                _password = pass.Password;
+                if (_creating) ShowHint(_passHint, pass.Password.Length == 0 ? null : AccountRules.PasswordProblem(pass.Password));
+                UpdateSubmit();
+            };
+            pass.KeyDown += (_, e) => { if (e.Key == Windows.System.VirtualKey.Enter && CanSubmit && !_busy) Submit(); };
+            card.Children.Add(MinimalField(Loc.T("Mot de passe"), pass));
+            if (_creating)
+            {
+                _passHint = Hint();
+                ShowHint(_passHint, _password.Length == 0 ? null : AccountRules.PasswordProblem(_password));
+                card.Children.Add(_passHint);
+            }
+        }
+        _submit = MinimalButton(_forgot || _creating ? Loc.T("Recevoir le code") : Loc.T("Se connecter"), Submit);
+        _submit.HorizontalAlignment = HorizontalAlignment.Left;
+        _submit.Margin = new Thickness(0, 32, 0, 0);
         card.Children.Add(_submit);
-        card.Children.Add(Status());
-        if (_creating) SetNameCheck(_nameCheck, _nameWhy); else UpdateSubmit();
-        return Card(card);
+        var status = Status();
+        status.Margin = new Thickness(0, 12, 0, 0);
+        card.Children.Add(status);
+        var links = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 20, Margin = new Thickness(0, 24, 0, 0) };
+        if (_creating || _forgot)
+        {
+            links.Children.Add(MacLook.LinkButton(Loc.T("J'ai déjà un compte"), Text, () => ShowSignIn(creating: false, forgot: false)));
+        }
+        else
+        {
+            links.Children.Add(MacLook.LinkButton(Loc.T("Créer un compte"), Text, () => ShowSignIn(creating: true, forgot: false)));
+            links.Children.Add(MacLook.LinkButton(Loc.T("Mot de passe oublié ?"), Secondary, () => ShowSignIn(creating: false, forgot: true)));
+        }
+        card.Children.Add(links);
+        if (_creating && !_forgot) SetNameCheck(_nameCheck, _nameWhy); else UpdateSubmit();
+        return card;
     }
 
-    /// Onglets (05/11, comme le Mac) : deux cases collées, la choisie pleine d'encre.
-    private FrameworkElement Tabs()
+    /// Passe d'un écran de connexion à l'autre (Connexion, Créer un compte, Mot de passe oublié).
+    private void ShowSignIn(bool creating, bool forgot)
     {
-        var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        void Tab(string title, bool creating, int column)
-        {
-            var selected = _creating == creating;
-            var label = SwissLabel(title, 11.5, selected ? MacLook.WindowColor : Text);
-            var button = new Button
-            {
-                Style = PlainButton,
-                Content = label,
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-                HorizontalContentAlignment = HorizontalAlignment.Center,
-                MinHeight = 40,
-                Background = Brush(selected ? Text : MacLook.WindowColor),
-                BorderBrush = Brush(Text),
-                BorderThickness = new Thickness(2),
-                Margin = new Thickness(column == 1 ? -2 : 0, 0, 0, 0),
-            };
-            button.Click += (_, _) =>
-            {
-                if (_creating == creating) return;
-                _creating = creating;
-                _error = null;
-                _notice = null;
-                _render();
-            };
-            AutomationProperties.SetName(button, title);
-            Grid.SetColumn(button, column);
-            grid.Children.Add(button);
-        }
-        Tab(Loc.T("Se connecter"), false, 0);
-        Tab(Loc.T("Créer un compte"), true, 1);
-        return grid;
+        _creating = creating;
+        _forgot = forgot;
+        _error = null;
+        _notice = null;
+        _render();
     }
 
     /// Code reçu par mail en 6 cases (19/11, comme le Mac, CodeBoxes) : un clic n'importe où, chaque chiffre va dans la
@@ -843,59 +675,54 @@ internal sealed class AccountPage
         return grid;
     }
 
+    /// Code reçu par mail (maquette « Minimal », comme le Mac) : le titre de l'écran, « Code envoyé à … », les 6 cases ;
+    /// nouveau mot de passe s'il est oublié ; « Valider » et « Renvoyer le code » ; « J'ai déjà un compte ».
     private FrameworkElement CodeCard(CodeKind kind, string email)
     {
         var recovery = kind == CodeKind.Recovery;
-        var card = new StackPanel { Spacing = 18 };
-        var head = new StackPanel { Spacing = 8 };
-        var title = SwissTitle(28);
-        title.Text = (recovery ? Loc.T("Nouveau mot de passe") : Loc.T("Vérifie tes mails")).ToLower(System.Globalization.CultureInfo.CurrentCulture);
-        var titleLine = PageTitle(title, 28);
-        titleLine.HorizontalAlignment = HorizontalAlignment.Left;
-        head.Children.Add(titleLine);
-        head.Children.Add(Paragraph(Loc.F("Code envoyé à %@", email.Length > 60 ? email[..60] + "…" : email), 13));
-        card.Children.Add(head);
-
-        card.Children.Add(Field(Loc.T("Code reçu par mail"), CodeBoxes(() => { if (_submit?.IsEnabled == true) Validate(); })));
+        var card = new StackPanel { MaxWidth = 480, HorizontalAlignment = HorizontalAlignment.Left };
+        card.Children.Add(BigTitle(recovery ? Loc.T("Mot de passe oublié") : Loc.T("Créer un compte")));
+        var sent = Label(Loc.F("Code envoyé à %@.", email.Length > 60 ? email[..60] + "…" : email), 14, Text);
+        sent.TextWrapping = TextWrapping.Wrap;
+        sent.Margin = new Thickness(0, 16, 0, 0);
+        card.Children.Add(sent);
+        var boxes = CodeBoxes(() => { if (_submit?.IsEnabled == true) Validate(); });
+        boxes.Margin = new Thickness(0, 24, 0, 0);
+        card.Children.Add(boxes);
         if (recovery)
         {
-            var pass = Secret(_newPassword, Loc.T("8 caractères au moins"));
+            var pass = Secret(_newPassword, "");
+            _passHint = Hint();
             pass.PasswordChanged += (_, _) =>
             {
                 _newPassword = pass.Password;
-                UpdateRules(pass.Password);
+                ShowHint(_passHint, pass.Password.Length == 0 ? null : AccountRules.PasswordProblem(pass.Password));
                 UpdateSubmit();
             };
-            AutomationProperties.SetName(pass, Loc.T("Nouveau mot de passe"));
-            card.Children.Add(Field(Loc.T("Nouveau mot de passe"), pass));
-            card.Children.Add(Rules(_newPassword));
+            card.Children.Add(MinimalField(Loc.T("Nouveau mot de passe"), pass));
+            ShowHint(_passHint, _newPassword.Length == 0 ? null : AccountRules.PasswordProblem(_newPassword));
+            card.Children.Add(_passHint);
         }
-        _submit = Primary(recovery ? Loc.T("Changer le mot de passe") : Loc.T("Valider"), Validate);
-        _submit.HorizontalAlignment = HorizontalAlignment.Stretch;
-        _submit.MinHeight = 40;
-        card.Children.Add(_submit);
-        var links = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 18, HorizontalAlignment = HorizontalAlignment.Center };
-        links.Children.Add(LinkButton(Loc.T("Renvoyer le code"), ResendCode));
-        links.Children.Add(LinkButton(Loc.T("Changer d'adresse"), () => CancelCode()));
-        card.Children.Add(links);
-        card.Children.Add(Status());
-        var spam = Paragraph(Loc.T("Rien reçu ? Regarde dans les spams."), 11.5);
-        spam.TextAlignment = TextAlignment.Center;
-        card.Children.Add(spam);
-        if (!recovery)
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, Margin = new Thickness(0, 32, 0, 0) };
+        _submit = MinimalButton(Loc.T("Valider"), Validate);
+        row.Children.Add(_submit);
+        var resend = MacLook.LinkButton(Loc.T("Renvoyer le code"), Text, ResendCode);
+        resend.VerticalAlignment = VerticalAlignment.Center;
+        row.Children.Add(resend);
+        card.Children.Add(row);
+        var status = Status();
+        status.Margin = new Thickness(0, 12, 0, 0);
+        card.Children.Add(status);
+        var back = MacLook.LinkButton(Loc.T("J'ai déjà un compte"), Text, () =>
         {
-            // Mail avec un lien au lieu d'un code : le lien confirme l'adresse, il ne reste qu'à se connecter.
-            var link = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, HorizontalAlignment = HorizontalAlignment.Center };
-            link.Children.Add(Paragraph(Loc.T("Reçu un lien au lieu d'un code ?"), 11));
-            link.Children.Add(LinkButton(Loc.T("J'ai cliqué sur le lien"), () =>
-            {
-                _creating = false;
-                CancelCode(Loc.T("Adresse confirmée : connecte-toi."));
-            }, 11));
-            card.Children.Add(link);
-        }
+            _creating = false;
+            _forgot = false;
+            CancelCode();
+        });
+        back.Margin = new Thickness(0, 24, 0, 0);
+        card.Children.Add(back);
         UpdateSubmit();
-        return Card(card);
+        return card;
     }
 
     private FrameworkElement Status()
@@ -907,114 +734,111 @@ internal sealed class AccountPage
         return panel;
     }
 
-    /// Les 5 règles du mot de passe (pastilles du Mac), vertes une fois remplies.
-    private FrameworkElement Rules(string password)
-    {
-        var names = new[] { Loc.T("8 caractères"), Loc.T("Minuscule"), Loc.T("Majuscule"), Loc.T("Chiffre"), Loc.T("Symbole") };
-        var grid = new Grid { ColumnSpacing = 10, RowSpacing = 4 };
-        for (var c = 0; c < 3; c++) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.RowDefinitions.Add(new RowDefinition());
-        grid.RowDefinitions.Add(new RowDefinition());
-        for (var i = 0; i < names.Length; i++)
-        {
-            var label = Label("✓ " + names[i], 11.5, Secondary, semibold: true);
-            Grid.SetColumn(label, i % 3);
-            Grid.SetRow(label, i / 3);
-            grid.Children.Add(label);
-            _ruleLabels.Add((label, i));
-        }
-        UpdateRules(password);
-        return grid;
-    }
-
     // ---------- Connecté ----------
 
-    /// Maquette du 05/11 (comme le Mac) : à gauche le profil puis le thème ; à droite la sauvegarde (et le choix quand
-    /// ce PC et le compte ont chacun leurs changements) ; en bas « Se déconnecter » et « Supprimer mon compte » souligné.
+    /// « Supprimer mon compte » demandé dans la page (maquette « Minimal »).
+    private bool _confirmingDelete;
+
+    /// Maquette « Minimal » (20/11, comme le Mac) : la photo ronde et le pseudo en très grand avec son point rouge, le
+    /// mail ; « Ajouter une photo » ; « Thème » : Papier, Noir, Orange soulignés ; « Se déconnecter » bordé ;
+    /// « Supprimer mon compte » en rouge, qui demande dans la page. La sauvegarde ne se montre que s'il faut choisir.
     private FrameworkElement SignedIn(AccountSession session, int columns)
     {
-        var left = new StackPanel { Spacing = 20 };
-        left.Children.Add(_editing ? EditCard(session) : ProfileCard(session));
-        if (ThemeCard is { } theme) left.Children.Add(theme());
-        var right = new StackPanel { Spacing = 20 };
-        if (_notice is not null) right.Children.Add(Paragraph(_notice, 12, Text));
-        if (_backup is { } backup)
-        {
-            if (backup.Notice is { } notice) right.Children.Add(Paragraph(notice, 12, Text));
-            if (backup.Choice is { } choice) right.Children.Add(ConflictCard(backup, choice));
-            right.Children.Add(BackupCard(backup));
-            // Page ouverte : le compte est relu s'il n'a pas été vu depuis 2 minutes (après ce dessin).
-            Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() => _ = backup.RefreshIfStale());
-        }
-        var page = new StackPanel { Spacing = 22, Padding = new Thickness(56, 10, 56, 24), MaxWidth = 912, HorizontalAlignment = HorizontalAlignment.Left };
-        if (columns >= 2)
-        {
-            var grid = new Grid { ColumnSpacing = 20 };
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.Children.Add(left);
-            Grid.SetColumn(right, 1);
-            grid.Children.Add(right);
-            page.Children.Add(grid);
-        }
-        else
-        {
-            page.Children.Add(left);
-            page.Children.Add(right);
-        }
-        var bottom = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 20 };
-        var signOut = Soft(Loc.T("Se déconnecter"), SignOut);
-        signOut.MinHeight = 40;
-        bottom.Children.Add(signOut);
-        var delete = LinkButton(Loc.T("Supprimer mon compte"), DeleteAccount, 13);
-        delete.VerticalAlignment = VerticalAlignment.Center;
-        ToolTipService.SetToolTip(delete, Loc.T("Efface ton compte. Tes raccourcis restent ici."));
-        bottom.Children.Add(delete);
-        page.Children.Add(bottom);
-        if (_deleteError is not null) page.Children.Add(Paragraph(_deleteError, 12, Red));
-        return page;
-    }
-
-    /// Carte du profil (maquette du 05/11, comme le Mac) : « PROFIL », la photo ronde, le pseudo, le mail, puis
-    /// « Modifier le profil ».
-    private FrameworkElement ProfileCard(AccountSession session)
-    {
-        var grid = new Grid { ColumnSpacing = 16 };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var avatar = new Button
-        {
-            Style = PlainButton,
-            Content = Avatar(_myPhoto, session.Username, 72),
-            Padding = new Thickness(0),
-            VerticalAlignment = VerticalAlignment.Center,
-        };
+        var page = new StackPanel { Padding = new Thickness(56, 40, 56, 24), MaxWidth = 912, HorizontalAlignment = HorizontalAlignment.Left };
+        var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 20 };
+        var avatar = new Button { Style = PlainButton, Content = Avatar(_myPhoto, session.Username, 96), Padding = new Thickness(0), VerticalAlignment = VerticalAlignment.Center };
         avatar.Click += (_, _) => EditProfile();
         ToolTipService.SetToolTip(avatar, Loc.T("Changer ta photo"));
         AutomationProperties.SetName(avatar, Loc.T("Changer ta photo"));
-        grid.Children.Add(avatar);
-        var who = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
-        var name = Label(session.Username.Length > 0 ? session.Username : session.Email, 24, Text, bold: true);
-        name.FontFamily = SwissFont;
+        head.Children.Add(avatar);
+        var who = new StackPanel { Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+        var nameRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 3 };
+        var name = Label(DisplayText.Safe(session.Username.Length > 0 ? session.Username : session.Email, 24), 48, Text, semibold: true);
+        name.CharacterSpacing = -30;
         name.TextTrimming = TextTrimming.CharacterEllipsis;
-        who.Children.Add(name);
-        var mail = Paragraph(session.Email, 14);
+        nameRow.Children.Add(new Viewbox { Child = name, StretchDirection = StretchDirection.DownOnly, MaxWidth = 560, HorizontalAlignment = HorizontalAlignment.Left });
+        nameRow.Children.Add(new Microsoft.UI.Xaml.Shapes.Rectangle { Width = 8, Height = 8, Fill = Brush(Red), VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, 12) });
+        who.Children.Add(nameRow);
+        var mail = Label(DisplayText.Safe(session.Email, 60), 13, Secondary);
         mail.TextTrimming = TextTrimming.CharacterEllipsis;
         who.Children.Add(mail);
-        Grid.SetColumn(who, 1);
-        grid.Children.Add(who);
-        var label = SwissLabel(Loc.T("Profil"));
-        AutomationProperties.SetHeadingLevel(label, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2);
-        var card = new StackPanel { Spacing = 16, Children = { label, grid, Soft(Loc.T("Modifier le profil"), EditProfile) } };
-        return Boxed(card, new Thickness(22));
+        head.Children.Add(who);
+        page.Children.Add(head);
+        var photo = MacLook.LinkButton(_myPhoto is null ? Loc.T("Ajouter une photo") : Loc.T("Changer la photo"), Text, EditProfile);
+        photo.Margin = new Thickness(0, 16, 0, 0);
+        photo.HorizontalAlignment = HorizontalAlignment.Left;
+        page.Children.Add(photo);
+        if (_editing)
+        {
+            var edit = EditCard(session);
+            edit.Margin = new Thickness(0, 24, 0, 0);
+            page.Children.Add(edit);
+        }
+        if (_notice is not null) page.Children.Add(Spaced(Paragraph(_notice, 12, Text), 24));
+        var themeLabel = Label(Loc.T("Thème"), 13, Secondary);
+        themeLabel.Margin = new Thickness(0, 48, 0, 0);
+        page.Children.Add(themeLabel);
+        if (ThemeCard is { } theme) page.Children.Add(Spaced(theme(), 16));
+        if (_backup is { } backup)
+        {
+            if (backup.Notice is { } notice) page.Children.Add(Spaced(Paragraph(notice, 12, Text), 24));
+            if (backup.Choice is { } choice) page.Children.Add(Spaced(ConflictCard(backup, choice), 32));
+            // Page ouverte : le compte est relu s'il n'a pas été vu depuis 2 minutes (après ce dessin).
+            Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() => _ = backup.RefreshIfStale());
+        }
+        var signOut = MinimalButton(Loc.T("Se déconnecter"), () => SignOut(ask: false), outlined: true);
+        signOut.HorizontalAlignment = HorizontalAlignment.Left;
+        ToolTipService.SetToolTip(signOut, Loc.T("Tes raccourcis et tes macros quittent ce PC et restent dans ton compte."));
+        page.Children.Add(Spaced(signOut, 48));
+        if (_confirmingDelete)
+        {
+            var ask = new StackPanel { Spacing = 8 };
+            ask.Children.Add(Label(Loc.T("Supprimer le compte et sa sauvegarde ?"), 14, Text));
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
+            row.Children.Add(MinimalButton(Loc.T("Supprimer"), () =>
+            {
+                _confirmingDelete = false;
+                DeleteAccount();
+            }));
+            var cancel = MacLook.LinkButton(Loc.T("Annuler"), Text, () =>
+            {
+                _confirmingDelete = false;
+                _render();
+            });
+            cancel.VerticalAlignment = VerticalAlignment.Center;
+            row.Children.Add(cancel);
+            ask.Children.Add(row);
+            page.Children.Add(Spaced(ask, 32));
+        }
+        else
+        {
+            var delete = MacLook.LinkButton(Loc.T("Supprimer mon compte"), Red, () =>
+            {
+                _confirmingDelete = true;
+                _deleteError = null;
+                _render();
+            });
+            delete.HorizontalAlignment = HorizontalAlignment.Left;
+            page.Children.Add(Spaced(delete, 32));
+        }
+        if (_deleteError is not null) page.Children.Add(Spaced(Paragraph(_deleteError, 12, Red), 12));
+        return page;
+    }
+
+    private static FrameworkElement Spaced(FrameworkElement element, double top)
+    {
+        element.Margin = new Thickness(0, top, 0, 0);
+        return element;
     }
 
     /// « Se déconnecter » : comme le Mac, tout part d'abord en ligne, puis raccourcis et macros quittent ce PC (ils
     /// restent dans le compte) ; si quelque chose n'a pas pu partir, la question le dit.
-    private async void SignOut()
+    /// `ask` : « Se déconnecter ? » d'abord ; la page Mon compte se déconnecte tout de suite (maquette « Minimal »), la
+    /// question revient seulement si des changements ne sont pas en ligne.
+    private async void SignOut(bool ask = true)
     {
         if (_session is null) return;
-        if (!await _confirm(Loc.T("Se déconnecter ?"),
+        if (ask && !await _confirm(Loc.T("Se déconnecter ?"),
                 Loc.T("Tes raccourcis et tes macros restent dans ton compte."),
                 Loc.T("Se déconnecter"), false)) return;
         if (_backup is null)
@@ -1048,12 +872,10 @@ internal sealed class AccountPage
         _render();
     }
 
+    /// Le compte effacé (la question a été posée dans la page, maquette « Minimal »).
     private async void DeleteAccount()
     {
         if (_session is null) return;
-        if (!await _confirm(Loc.T("Supprimer ton compte ?"),
-                Loc.T("Compte, sauvegarde et partages effacés pour toujours. Tes raccourcis restent ici."),
-                Loc.T("Supprimer définitivement"), true)) return;
         _deleteError = null;
         try
         {
@@ -1072,60 +894,6 @@ internal sealed class AccountPage
     }
 
     // ---------- Sauvegarde ----------
-
-    /// État de la sauvegarde (comme AccountBackupStatus du Mac) : ce PC et le compte, « Sauvegarder ».
-    private FrameworkElement BackupCard(AccountBackupWin backup)
-    {
-        var (color, title, detail, busy) = backup.Status switch
-        {
-            AccountBackupWin.State.UpToDate u => (Green, Loc.T("Sauvegarde à jour"), When(u.When) ?? Loc.T("Tout est en ligne."), false),
-            AccountBackupWin.State.Pending => (Blue, Loc.T("Changements à envoyer"), "", false),
-            AccountBackupWin.State.Saving => (Blue, Loc.T("Enregistrement en ligne…"), "", true),
-            AccountBackupWin.State.Waiting w => (Orange, Loc.T("Pas encore en ligne"), w.Why, false),
-            AccountBackupWin.State.Choice => (Orange, Loc.T("À toi de choisir"), "", false),
-            AccountBackupWin.State.Blocked b => (Red, Loc.T("Sauvegarde arrêtée"), b.Why, false),
-            _ => (Secondary, Loc.T("Vérification de ta sauvegarde…"), "", true),
-        };
-        // Maquette du 05/11 (comme le Mac) : « SAUVEGARDE EN LIGNE » et le bouton à droite, l'état en grand, son détail,
-        // puis ce PC et le compte en lignes séparées d'un trait.
-        var card = new StackPanel { Spacing = 12 };
-        var head = new Grid { ColumnSpacing = 12 };
-        head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var label = SwissLabel(Loc.T("Sauvegarde en ligne"));
-        label.VerticalAlignment = VerticalAlignment.Center;
-        head.Children.Add(label);
-        var save = Soft(Loc.T("Sauvegarder"), () => _ = backup.SaveNow());
-        save.IsEnabled = !busy && backup.Status is not AccountBackupWin.State.Choice;
-        ToolTipService.SetToolTip(save, Loc.T("Sauvegarder maintenant"));
-        Grid.SetColumn(save, 1);
-        head.Children.Add(save);
-        card.Children.Add(head);
-        var big = Label(title, 22, color == Red || color == Orange ? Red : Text, bold: true);
-        big.FontFamily = SwissFont;
-        big.TextWrapping = TextWrapping.Wrap;
-        card.Children.Add(big);
-        if (detail.Length > 0) card.Children.Add(Paragraph(detail, 13));
-        if (busy) card.Children.Add(new ProgressBar { IsIndeterminate = true, Foreground = Brush(Text), Background = Brush(Faint) });
-        card.Children.Add(Line(Loc.T("Sur ce PC"), backup.HereSummary));
-        card.Children.Add(Line(Loc.T("En ligne"), backup.OnlineSummary ?? "—"));
-        return Boxed(card, new Thickness(22));
-
-        static FrameworkElement Line(string title, string value)
-        {
-            var row = new Grid { MinHeight = 44, BorderBrush = Brush(Faint), BorderThickness = new Thickness(0, 1, 0, 0) };
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var t = SwissLabel(title);
-            t.VerticalAlignment = VerticalAlignment.Center;
-            row.Children.Add(t);
-            var v = Label(value, 14, Text, semibold: true);
-            v.VerticalAlignment = VerticalAlignment.Center;
-            Grid.SetColumn(v, 1);
-            row.Children.Add(v);
-            return row;
-        }
-    }
 
     /// Ce PC et le compte ont chacun leurs changements : laquelle garder (comme AccountConflictCard du Mac).
     private FrameworkElement ConflictCard(AccountBackupWin backup, AccountBackupWin.Conflict choice)

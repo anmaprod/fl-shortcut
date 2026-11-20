@@ -240,147 +240,157 @@ internal sealed partial class MainShell
 
     // ---------- Trouver un raccourci ----------
 
-    /// La page (construite une fois, la case garde la main pendant la frappe) : la grande case, « ou tape son nom »,
-    /// puis les résultats.
+    /// « Trouver » (maquette « Minimal », construite une fois : la case du nom garde la main pendant la frappe) : à gauche
+    /// la grande case de 200 (elle écoute dès l'ouverture ; « ou tape un nom »), à droite ce que la touche fait.
     private FrameworkElement FindPage()
     {
         if (_findPage is not null) return _findPage;
-        _findKey.Click += (_, _) => StartKeySearch();
-        AutomationProperties.SetName(_findKey, Loc.T("Appuie sur un raccourci"));
-        var link = new Button { Style = PlainButton, Content = _findLinkLabel, Padding = new Thickness(0, 2, 0, 2), Margin = new Thickness(0, 12, 0, 0) };
-        _findLinkLabel.TextDecorations = Windows.UI.Text.TextDecorations.Underline;
+        AutomationProperties.SetName(_findKey, Loc.T("Appuie sur une touche"));
+        _findKey.Click += (_, _) => { if (!_findTyping && _findEditing is null && _findDone is null) StartKeySearch(); };
+        _findBox.Height = 200;
+        _findBox.BorderBrush = Brush(Text);
+        _findBox.BorderThickness = new Thickness(0, 0, 0, 2);
+        _findBox.Padding = new Thickness(0, 0, 0, 16);
+        var link = new Button { Style = PlainButton, Content = _findLinkLabel, Padding = new Thickness(0, 2, 0, 2), Margin = new Thickness(0, 16, 0, 0) };
         link.Click += (_, _) =>
         {
             if (_keyListening) StopKeySearch();
             _findTyping = !_findTyping;
             UpdateFindField();
             RenderFindResults();
-            if (_findTyping) _search.Focus(FocusState.Programmatic);
+            if (_findTyping) _search.Focus(FocusState.Programmatic); else StartKeySearch();
         };
-        _findCaption.Margin = new Thickness(0, 0, 0, 8);
-        var stack = new StackPanel { Children = { _findCaption, _findBox, link, _findResults } };
-        _findPage = Readable(stack, top: 18);
+        _findErrorLabel.Margin = new Thickness(0, 16, 0, 0);
+        var left = new StackPanel { Children = { _findBox, link, _findErrorLabel } };
+        var grid = new Grid { ColumnSpacing = 24, MaxWidth = 1088, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(ReadableInset, 24, ReadableInset, 80) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(440) });
+        grid.Children.Add(left);
+        _findResults.Margin = new Thickness(0, 8, 0, 0);
+        Grid.SetColumn(_findResults, 1);
+        grid.Children.Add(_findResults);
+        _findPage = grid;
         UpdateFindField();
         return _findPage;
     }
 
-    /// La grande case : en attente des touches, avec les touches appuyées (cadre rouge, ×), ou la recherche par le nom.
+    private readonly TextBlock _findErrorLabel = Label("", 13, Red);
+
+    /// La grande case : en attente (barre rouge et « Appuie sur une touche »), la touche en très grand, le nom tapé, ou
+    /// l'étape 3 (« Nouvelle touche ») et la nouvelle touche une fois changée.
     private void UpdateFindField()
     {
-        // Direction A : « TOUCHES », puis la grande ligne soulignée (rouge quand elle attend ou montre des touches).
-        var lit = (!_findTyping && _keySearch is not null) || _keyListening || _findTyping;
-        _findCaption.Text = (_findTyping ? Loc.T("Nom") : Loc.T("Touches")).ToUpper(System.Globalization.CultureInfo.CurrentCulture);
-        _findBox.BorderBrush = Brush(lit ? Red : Text);
-        _findBox.BorderThickness = new Thickness(0, 0, 0, 2);
-        _findBox.Background = Brush(Colors.Transparent);
-        _findLinkLabel.Text = _findTyping ? Loc.T("ou appuie sur le raccourci") : Loc.T("ou tape son nom");
-        // La case du nom changée de place garde la main si elle l'avait (la page se redessine aussi pendant la frappe).
         var hadFocus = _search.XamlRoot is not null
                        && Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(_search.XamlRoot) == _search;
         if (_search.Parent is Panel holder) holder.Children.Remove(_search);
-        // 16/11 (« enlève toutes les fioritures ») : plus d'icône clavier ni de loupe devant.
-        var grid = new Grid { ColumnSpacing = 12, Padding = new Thickness(0, 0, 0, 0) };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        if (_findTyping)
+        if (_search.Parent is Border b) b.Child = null;
+        _findLinkLabel.Text = _findTyping ? Loc.T("ou appuie sur une touche") : Loc.T("ou tape un nom");
+        _findLinkLabel.Foreground = Brush(Secondary);
+        _findLinkLabel.TextDecorations = Windows.UI.Text.TextDecorations.None;
+        var showLink = _findEditing is null && _findDone is null && (_findTyping || _keySearch is null);
+        if (_findLinkLabel.Parent is Button linkButton) linkButton.Visibility = showLink ? Visibility.Visible : Visibility.Collapsed;
+        _findErrorLabel.Text = _findEditing is not null && _captureError is { } err ? err.Text : "";
+        _findErrorLabel.Visibility = _findErrorLabel.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (_findTyping && _findEditing is null && _findDone is null)
         {
-            _search.PlaceholderText = Loc.T("Tape son nom");
-            _search.FontSize = 24;
-            Grid.SetColumn(_search, 0);
-            grid.Children.Add(_search);
-        }
-        else
-        {
-            var text = _keySearch is { } k
-                ? Label(string.Join("+", k.Caps), 56, Text, semibold: true)
-                : Label(_keyListening ? Loc.T("Appuie sur les touches…") : Loc.T("Clique ici"), 26, _keyListening ? Text : Secondary);
-            if (_keySearch is not null)
-            {
-                text.FontFamily = TitleFont;
-                text.CharacterSpacing = -30;
-            }
-            text.VerticalAlignment = VerticalAlignment.Center;
-            Grid.SetColumn(text, 0);
-            grid.Children.Add(text);
-        }
-        if ((_findTyping && _query.Length > 0) || (!_findTyping && _keySearch is not null))
-        {
-            // × dans un carré bordé d'encre (maquette A).
-            var clear = new Button
-            {
-                Style = PlainButton,
-                Padding = new Thickness(0),
-                Content = new Border
-                {
-                    Width = 44,
-                    Height = 44,
-                    BorderBrush = Brush(Text),
-                    BorderThickness = new Thickness(1),
-                    Child = new TextBlock { Text = "✕", FontSize = 14, Foreground = Brush(Text), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
-                },
-            };
-            ToolTipService.SetToolTip(clear, Loc.T("Effacer"));
-            AutomationProperties.SetName(clear, Loc.T("Effacer"));
-            clear.Click += (_, _) =>
-            {
-                if (_findTyping) _search.Text = "";
-                else _keySearch = null;
-                UpdateFindField();
-                RenderFindResults();
-            };
-            clear.VerticalAlignment = VerticalAlignment.Center;
-            Grid.SetColumn(clear, 1);
-            grid.Children.Add(clear);
-        }
-        if (_findTyping)
-        {
+            _search.PlaceholderText = Loc.T("Nom de l'action");
+            _search.FontSize = 48;
+            _search.VerticalAlignment = VerticalAlignment.Bottom;
             _findKey.Content = null;
-            _findBox.Child = grid;
+            _findBox.Child = _search;
             if (hadFocus)
             {
                 _search.Focus(FocusState.Programmatic);
                 _search.SelectionStart = _search.Text.Length;
             }
+            return;
         }
-        else
-        {
-            _findKey.Content = grid;
-            _findBox.Child = _findKey;
-        }
+        FrameworkElement content = _findDone is { } done ? KeyImage(done.New?.ToString() ?? Loc.T("Aucune"))
+            : _findEditing is not null ? WaitingKey(Loc.T("Nouvelle touche"))
+            : _keySearch is { } k ? KeyImage(k.ToString())
+            : WaitingKey(Loc.T("Appuie sur une touche"));
+        content.VerticalAlignment = VerticalAlignment.Bottom;
+        content.HorizontalAlignment = HorizontalAlignment.Left;
+        _findKey.VerticalContentAlignment = VerticalAlignment.Bottom;
+        _findKey.HorizontalContentAlignment = HorizontalAlignment.Left;
+        _findKey.Content = content;
+        _findBox.Child = _findKey;
     }
 
-    /// Ce que font les touches appuyées (ou ce qui porte ce nom), dans toutes les pages : nom, page (« GÉNÉRAL · AVANT
-    /// CTRL+S » si changée), touche dans sa case.
+    /// À droite : ce que fait la touche (ou ce qui porte ce nom), l'étape 3, ou « C'est changé. ».
     private void RenderFindResults()
     {
         UpdateFindSteps();
         _findResults.Children.Clear();
+        if (_findDone is { } done)
+        {
+            _findResults.Children.Add(Label(Loc.T("C'est changé."), 24, Text, semibold: true));
+            var section = Label(done.Section, 13, Secondary);
+            section.Margin = new Thickness(0, 24, 0, 0);
+            _findResults.Children.Add(section);
+            var title = Label(done.Title, 24, Text);
+            title.Margin = new Thickness(0, 8, 0, 0);
+            title.TextWrapping = TextWrapping.Wrap;
+            _findResults.Children.Add(title);
+            var change = Label(Loc.F("Avant : %@ · Maintenant : %@", done.Old?.ToString() ?? Loc.T("aucune"), done.New?.ToString() ?? Loc.T("aucune")), 13, Secondary);
+            change.Margin = new Thickness(0, 8, 0, 0);
+            _findResults.Children.Add(change);
+            var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, Margin = new Thickness(0, 32, 0, 0) };
+            buttons.Children.Add(MinimalButton(Loc.T("Chercher un autre raccourci"), ResetFind));
+            var undo = LinkButton(Loc.T("Annuler le changement"), Text, () => { _app.Restore(done.Before); ResetFind(); });
+            undo.VerticalAlignment = VerticalAlignment.Center;
+            buttons.Children.Add(undo);
+            _findResults.Children.Add(buttons);
+            return;
+        }
+        if (_findEditing is { } row)
+        {
+            _findResults.Children.Add(Label(row.Entry.Section.Title(), 13, Secondary));
+            var title = Label(row.Entry.Title, 24, Text);
+            title.Margin = new Thickness(0, 8, 0, 0);
+            title.TextWrapping = TextWrapping.Wrap;
+            _findResults.Children.Add(title);
+            var before = Label(Loc.F("Avant : %@", row.Current?.ToString() ?? Loc.T("sans touche")), 13, Secondary);
+            before.Margin = new Thickness(0, 8, 0, 0);
+            _findResults.Children.Add(before);
+            var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, Margin = new Thickness(0, 32, 0, 0) };
+            if (row.Entry.Kind is CatalogEntryKind.Action)
+                buttons.Children.Add(MinimalButton(Loc.T("Aucune touche"), () => FinishFindChange(row, null), outlined: true));
+            var cancel = LinkButton(Loc.T("Annuler"), Text, CancelFindChange);
+            cancel.VerticalAlignment = VerticalAlignment.Center;
+            buttons.Children.Add(cancel);
+            _findResults.Children.Add(buttons);
+            return;
+        }
         var (rows, others) = _app.Catalog;
         var combo = _findTyping ? null : _keySearch;
         var q = _findTyping ? _query.Trim() : "";
         if (combo is null && q.Length == 0) return;
         bool Matches(CatalogRow r) => combo is { } k
             ? r.Current == k || r.Entry.DefaultTrigger == k
-            : $"{r.Entry.Title} {r.Entry.Detail} {r.Current} {r.Entry.Section.Title()}".Contains(q, StringComparison.CurrentCultureIgnoreCase);
-        var found = rows.Where(Matches).ToList();
+            : $"{r.Entry.Title} {r.Entry.Detail} {r.Entry.Section.Title()}".Contains(q, StringComparison.CurrentCultureIgnoreCase);
+        var found = rows.Where(Matches).Take(40).ToList();
         var mine = others.Where(o => o.Kind != ShortcutKind.Macro && (combo is { } k
             ? o.Trigger == k
-            : $"{_app.TitleOf(o)} {o.Trigger}".Contains(q, StringComparison.CurrentCultureIgnoreCase))).ToList();
+            : _app.TitleOf(o).Contains(q, StringComparison.CurrentCultureIgnoreCase))).Take(20).ToList();
         if (found.Count == 0 && mine.Count == 0)
         {
-            var none = Paragraph(combo is { } c ? Loc.F("Rien n'utilise %@.", c.ToString())
-                                                : Loc.F("Aucun raccourci ne correspond à « %@ ».", q), 15, Secondary);
-            none.Margin = new Thickness(0, 44, 0, 0);
-            _findResults.Children.Add(none);
+            _findResults.Children.Add(Label(combo is { } c ? Loc.F("Rien sur %@.", c.ToString()) : Loc.T("Aucun résultat."), 24, combo is null ? Secondary : Text));
             return;
         }
-        // Direction A : un tableau numéroté (N°, Raccourci, Page, Touche).
-        var head = IndexHeader(Loc.T("Raccourci"), Loc.T("Page"));
-        head.Margin = new Thickness(0, 44, 0, 0);
-        _findResults.Children.Add(head);
-        var n = 0;
-        foreach (var r in found) _findResults.Children.Add(CatalogLine(r, FindDetail(r), bold: true, number: ++n));
-        foreach (var o in mine) _findResults.Children.Add(CustomLine(o, Loc.T("Mes raccourcis"), bold: true, number: ++n));
+        foreach (var r in found)
+        {
+            var current = r;
+            _findResults.Children.Add(ResultRow(r.Entry.Section.Title(), _findTyping ? (r.Current?.ToString() ?? Loc.T("Sans touche")) : null,
+                                                !r.IsDefault, r.Entry.Title, () => BeginFindChange(current),
+                                                r.IsDefault ? null : () => Reset(current)));
+        }
+        foreach (var o in mine)
+        {
+            var current = o;
+            _findResults.Children.Add(ResultRow(Loc.T("Mes raccourcis"), _findTyping ? o.Trigger?.ToString() : null, false,
+                                                _app.TitleOf(o), async () => await EditCustomAsync(current), null));
+        }
     }
 
     /// « GÉNÉRAL » : la page seule (16/11, plus de « · AVANT CTRL+S » : « enlève toutes les fioritures »).
@@ -388,30 +398,14 @@ internal sealed partial class MainShell
 
     // ---------- Lignes et groupes ----------
 
-    /// Une page de raccourcis : chaque groupe avec son nom à gauche (« OUTILS ») et ses lignes à droite.
+    /// Une page de raccourcis (maquette « Minimal ») : chaque groupe en capitales sur son trait d'encre, puis ses lignes.
     private void ShowGroups(List<(string Title, List<FrameworkElement> Rows)> groups)
     {
-        var page = new StackPanel();
+        var page = new StackPanel { Margin = new Thickness(0, -24, 0, 0) };
         foreach (var (title, rows) in groups)
         {
-            var group = new Grid { Margin = new Thickness(0, 0, 0, 36) };
-            group.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(GroupColumn) });
-            group.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            // Direction A : le nom du groupe en demi-gras et son nombre en gris (« Outils 09 »).
-            var label = Label(title, 13, Text, semibold: true);
-            label.TextWrapping = TextWrapping.Wrap;
-            var count = Label(rows.Count.ToString("00", System.Globalization.CultureInfo.InvariantCulture), 11, Secondary);
-            count.FontWeight = Microsoft.UI.Text.FontWeights.Medium;
-            count.Margin = new Thickness(8, 1, 0, 0);
-            var head = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 16, 10, 0), VerticalAlignment = VerticalAlignment.Top, Children = { label, count } };
-            AutomationProperties.SetHeadingLevel(head, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level3);
-            AutomationProperties.SetName(head, title);
-            group.Children.Add(head);
-            var lines = new StackPanel();
-            foreach (var row in rows) lines.Children.Add(row);
-            Grid.SetColumn(lines, 1);
-            group.Children.Add(lines);
-            page.Children.Add(group);
+            page.Children.Add(MinimalGroupHeader(title));
+            foreach (var row in rows) page.Children.Add(row);
         }
         _scroll.Content = Readable(page);
     }
@@ -483,19 +477,15 @@ internal sealed partial class MainShell
     /// Ligne d'un raccourci de FL : nom, touche (rouge si changée), ↺ ; clic droit : changer, réinitialiser.
     private FrameworkElement CatalogLine(CatalogRow row, string? detail = null, bool bold = false, int? number = null)
     {
-        var warnings = new List<string>();
-        if (row.TakenBy is { } taken)
-            warnings.Add(Loc.F("Touche aussi utilisée par « %@ ».", taken));
-        if (row.Shortcut is { } s) warnings.AddRange(_app.IssuesOf(s.Id).Select(i => i.Message));
-        var reset = row.IsDefault ? null
-            : RoundIcon("reset", Loc.T("Revenir à : ") + (row.Entry.DefaultTrigger?.ToString() ?? Loc.T("aucune touche")), () => Reset(row), 32);
-        var line = ReadableRow(row.Entry.Title, bold, detail, false, warnings.Count > 0 ? string.Join("\n", warnings) : null,
-                               row.Current, !row.IsDefault, () => EditKey(row), reset, number);
+        // Maquette « Minimal » : un clic, puis la nouvelle touche dans la ligne ; « Remettre » s'il a changé.
+        var line = MinimalRow(row.Entry.Title, detail, row.Current?.ToString(), !row.IsDefault, false, _captureRowId == row.Id,
+                              _captureError is { } err && err.Id == row.Id ? err.Text : null,
+                              () => StartRowCapture(row), row.IsDefault ? null : Loc.T("Remettre"), () => Reset(row));
         ToolTipService.SetToolTip(line, row.Entry.IsNative ? Loc.T("Raccourci d'origine de FL Studio") : row.Entry.Detail);
         var menu = new MenuFlyout();
         var change = new MenuFlyoutItem { Text = Loc.T("Changer la touche…") };
-        change.Click += (_, _) => EditKey(row);
-        var resetItem = new MenuFlyoutItem { Text = Loc.T("Réinitialiser"), IsEnabled = !row.IsDefault };
+        change.Click += (_, _) => StartRowCapture(row);
+        var resetItem = new MenuFlyoutItem { Text = Loc.T("Remettre"), IsEnabled = !row.IsDefault };
         resetItem.Click += (_, _) => Reset(row);
         menu.Items.Add(change);
         menu.Items.Add(resetItem);
@@ -503,14 +493,11 @@ internal sealed partial class MainShell
         return line;
     }
 
-    /// Ligne d'un raccourci que tu as créé : nom (gris s'il est désactivé), touche, Supprimer.
     private FrameworkElement CustomLine(Shortcut s, string? detail = null, bool bold = false, int? number = null)
     {
-        var issues = _app.IssuesOf(s.Id);
-        var delete = RoundIcon("trash", Loc.T("Supprimer"), () => Delete(s), 32);
-        var line = ReadableRow(_app.TitleOf(s), bold, detail, !s.Enabled,
-                               issues.Count > 0 ? string.Join("\n", issues.Select(i => i.Message)) : null,
-                               s.Trigger, false, async () => await EditCustomAsync(s), delete, number);
+        // Maquette « Minimal » : un clic ouvre sa fiche ; « Supprimer ».
+        var line = MinimalRow(_app.TitleOf(s), detail, s.Trigger?.ToString(), false, !s.Enabled, false, null,
+                              async () => await EditCustomAsync(s), Loc.T("Supprimer"), () => Delete(s));
         var menu = new MenuFlyout();
         var toggle = new MenuFlyoutItem { Text = s.Enabled ? Loc.T("Désactiver") : Loc.T("Activer") };
         toggle.Click += (_, _) => _app.Upsert(s with { Enabled = !s.Enabled });

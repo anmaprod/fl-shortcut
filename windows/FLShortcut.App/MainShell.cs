@@ -187,10 +187,11 @@ internal sealed partial class MainShell
         };
         // La carte de connexion sert aussi à la page Communauté (sans compte).
         _account = new AccountPage(() => { if (_kind is PageKind.Account or PageKind.Community) RenderPage(); }, ConfirmAsync, _hwnd);
-        _account.ThemeCard = () => AccountPage.ThemeChoice(Theme, ChooseTheme);
+        _account.ThemeCard = () => AccountPage.ThemeTabs(Theme, ChooseTheme);
         _community = new CommunityPage(_app, _account, () => { if (_kind == PageKind.Community) RenderPage(); }, ShowToast, ConfirmAsync)
         {
             AboveChanged = UpdateAbove,
+            OpenAccount = () => Choose(PageKind.Account, _section),
             // 11/11 : point rouge de la barre de gauche, et « Noter » dans le message qui suit un ajout.
             BadgeChanged = () => RenderSidebar(),
             ToastAction = ShowToastWithAction,
@@ -656,7 +657,8 @@ internal sealed partial class MainShell
         _titleRule.Margin = new Thickness(0, 0, 0, -24);       // sous la marge de l'en-tête, comme la maquette
         Grid.SetColumnSpan(_titleRule, 2);
         header.Children.Add(_titleRule);
-        var headerHost = new Grid { Margin = new Thickness(ReadableInset, 28, ReadableInset, 4) };
+        var headerHost = _headerHost;
+        headerHost.Margin = new Thickness(ReadableInset, 28, ReadableInset, 4);
         headerHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = ReadableMaxWidth });
         headerHost.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         headerHost.Children.Add(header);
@@ -721,20 +723,24 @@ internal sealed partial class MainShell
             e.Handled = true;
             return;
         }
-        if (!_keyListening) return;
         var vk = (ushort)e.Key;
         if (Vk.IsModifier(vk)) return;
-        e.Handled = true;
         var combo = CurrentCombo(vk);
+        // Alt+F4 garde son rôle.
+        if (combo.Alt && vk == 0x73) return;
+        // Maquette « Minimal » (20/11) : une ligne ou l'étape 3 de « Trouver » attend une touche.
+        if (MinimalKey(e, combo)) return;
+        if (!_keyListening) return;
+        e.Handled = true;
         if (e.Key == Windows.System.VirtualKey.Escape && !combo.HasModifiers)
         {
-            StopKeySearch();
+            _keySearch = null;                              // Échap : la case se vide et écoute encore
+            RenderPage();
             return;
         }
         if (!combo.IsValidKey) return;
-        _keySearch = combo;
-        StopKeySearch();
-        RenderFindResults();
+        _keySearch = combo;                                 // elle écoute encore : une autre touche remplace celle-ci
+        RenderPage();
     }
 
     private static bool IsDown(Windows.System.VirtualKey key) =>
@@ -816,8 +822,13 @@ internal sealed partial class MainShell
     /// Titre de la page (direction A du 17/11, comme le Mac) : son surtitre numéroté, puis le titre tel quel, très grand
     /// (« Appuie sur / un raccourci. » sur deux lignes).
     /// 20/11 (maquette « Minimal », comme le Mac) : le titre en 32 demi-gras ; « Trouver » : ses trois étapes à la place.
+    /// En-tête de la page (titre, bouton à droite) : caché sur Mon compte et la Communauté sans compte (maquette).
+    private readonly Grid _headerHost = new();
+
+    /// `text` vide : pas de titre ni d'en-tête (maquette « Minimal » : Compte, Communauté sans compte).
     private void SetTitle(string text)
     {
+        _headerHost.Visibility = text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         var find = _kind == PageKind.Find;
         _eyebrow.Text = Eyebrow(_kind).ToUpper(System.Globalization.CultureInfo.CurrentCulture);
         _title.FontSize = 32;
@@ -833,16 +844,17 @@ internal sealed partial class MainShell
     /// Étapes de « Trouver » : 1 Touche, 2 Action (ce qu'elle fait est affiché), 3 Nouvelle touche.
     private void UpdateFindSteps()
     {
-        var now = _keySearch is not null || _query.Trim().Length > 0 ? 2 : 1;
+        var now = _findDone is not null ? 4 : _findEditing is not null ? 3 : (_findTyping ? _query.Trim().Length > 0 : _keySearch is not null) ? 2 : 1;
         _findSteps.Children.Clear();
         var names = new[] { Loc.T("Touche"), Loc.T("Action"), Loc.T("Nouvelle touche") };
         for (var i = 0; i < names.Length; i++)
         {
             var n = i + 1;
-            var color = n == now ? Text : n < now ? Secondary : Faint;
+            // Maquette : l'étape en cours, numéro rouge et nom à l'encre en demi-gras ; passées en gris ; suivantes pâles.
+            var color = n == now ? Text : n < now ? Secondary : Tertiary;
             var step = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-            step.Children.Add(Label(n.ToString(System.Globalization.CultureInfo.InvariantCulture), 14, color, semibold: n == now));
-            step.Children.Add(Label(names[i], 14, color, semibold: n == now));
+            step.Children.Add(Label(n.ToString(System.Globalization.CultureInfo.InvariantCulture), 13, n == now ? Red : color, semibold: n == now));
+            step.Children.Add(Label(names[i], 13, color, semibold: n == now));
             _findSteps.Children.Add(step);
         }
         _findSteps.Margin = new Thickness(0, 28, 0, 0);
@@ -938,6 +950,8 @@ internal sealed partial class MainShell
                 _scroll.Content = FindPage();
                 UpdateFindField();
                 RenderFindResults();
+                // Maquette « Minimal » : la case écoute dès l'ouverture.
+                if (!_keyListening && !_findTyping && _findEditing is null && _findDone is null) StartKeySearch();
                 return;
             case PageKind.Macros:
                 SetTitle(Loc.T("Macros"));
@@ -947,14 +961,16 @@ internal sealed partial class MainShell
                 return;
             case PageKind.Community:
                 // 11/11 : sur la page d'une personne, son pseudo à la place de « communauté. », la flèche pour revenir.
-                SetTitle(_community.PersonName ?? Loc.T("Communauté"));
+                // Sans compte (maquette, comme le Mac) : pas de titre, seulement « Connecte-toi pour voir la Communauté. ».
+                SetTitle(_account.Session is null && !_photos ? "" : _community.PersonName ?? Loc.T("Communauté"));
                 SetTitleRule(true);
                 if (_community.PersonName is not null) _titleBack.Visibility = Visibility.Visible;
                 _scroll.Content = _community.Content(_columns);
                 _headerAction.Content = _community.HeaderShare();
                 return;
             case PageKind.Account:
-                SetTitle(Loc.T("Mon compte"));
+                // Maquette « Minimal » (comme le Mac) : pas de titre, la page commence par la photo ou « Connexion ».
+                SetTitle("");
                 SetTitleRule(true);
                 // Sans compte, la connexion seule (07/11 au soir : plus la carte des thèmes) ; connecté, le thème est
                 // sous le profil.
@@ -977,13 +993,15 @@ internal sealed partial class MainShell
                 SetTitleRule(true);
                 if (changed.Count == 0 && created.Count == 0)
                 {
-                    ShowEmpty("star", Loc.T("Aucun raccourci changé"), "");
+                    var none = Paragraph(Loc.T("Aucun raccourci changé."), 16, Secondary);
+                    none.Margin = new Thickness(0, 24, 0, 0);
+                    _scroll.Content = Readable(none);
                     return;
                 }
-                var list = new StackPanel { Children = { IndexHeader(Loc.T("Raccourci"), Loc.T("Page")) } };
-                var n = 0;
-                foreach (var r in changed) list.Children.Add(CatalogLine(r, FindDetail(r), bold: true, number: ++n));
-                foreach (var c in created) list.Children.Add(CustomLine(c, bold: true, number: ++n));
+                // Maquette « Minimal » : un trait d'encre, puis les lignes, la page sous le nom.
+                var list = new StackPanel { Children = { new Rectangle { Height = 2, Fill = Brush(Text), Margin = new Thickness(0, 8, 0, 0) } } };
+                foreach (var r in changed) list.Children.Add(CatalogLine(r, FindDetail(r)));
+                foreach (var c in created) list.Children.Add(CustomLine(c, Loc.T("Créé par toi")));
                 _scroll.Content = Readable(list);
                 return;
             }
