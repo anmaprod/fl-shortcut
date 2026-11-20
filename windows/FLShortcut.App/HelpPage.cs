@@ -130,7 +130,7 @@ internal sealed class HelpPage
     }
 
     /// « Écrire à l'équipe » en haut de la page (comme le Mac) ; rien sur sa propre page.
-    public FrameworkElement? HeaderWrite() => _screen == Screen.Write ? null : Primary(Loc.T("Écrire à l'équipe"), () =>
+    public FrameworkElement? HeaderWrite() => _screen == Screen.Write ? null : MinimalButton(Loc.T("Écrire à l'équipe"), () =>
     {
         StartWriting();
         _render();
@@ -181,7 +181,8 @@ internal sealed class HelpPage
     {
         var on = _screen == screen;
         var label = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7, VerticalAlignment = VerticalAlignment.Center };
-        var text = SwissLabel(title, 11.5, on ? Text : Secondary);
+        // Maquette « Minimal » : le mot en 15 (demi-gras quand l'onglet est ouvert), plus de petites capitales.
+        var text = Label(title, 15, on ? Text : Secondary, semibold: on);
         label.Children.Add(text);
         if (dot)
         {
@@ -241,13 +242,8 @@ internal sealed class HelpPage
         AutomationProperties.SetName(box, Loc.T("Rechercher dans l'aide"));
         box.KeyDown += (_, e) => { if (e.Key == Windows.System.VirtualKey.Enter) Search(box.Text); };
         box.LostFocus += (_, _) => Search(box.Text);
-        var grid = new Grid { ColumnSpacing = 10 };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var loupe = Icon("search", 14, Text);
-        loupe.VerticalAlignment = VerticalAlignment.Center;
-        grid.Children.Add(loupe);
-        Grid.SetColumn(box, 1);
+        // Maquette « Minimal » : la case seule, sans loupe.
+        var grid = new Grid();
         grid.Children.Add(box);
         return new Border
         {

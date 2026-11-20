@@ -116,8 +116,9 @@ struct HelpPage: View {
             helpLink.screen = screen
         } label: {
             HStack(spacing: 7) {
+                // Maquette « Minimal » : le mot en 15 (demi-gras quand l'onglet est ouvert), plus de petites capitales.
                 Text(title)
-                    .font(Swiss.font(11.5)).tracking(1.3).textCase(.uppercase)
+                    .font(Swiss.font(15, on ? .semibold : .regular))
                     .foregroundStyle(on ? Swiss.text : Swiss.gray)
                 if dot {
                     Rectangle().fill(Swiss.red).frame(width: 6, height: 6)
@@ -153,8 +154,8 @@ struct HelpPage: View {
 
     /// Recherche dans l'aide : une case bordée, la loupe devant.
     private var searchField: some View {
+        // Maquette « Minimal » : la case seule, sans loupe.
         HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass").font(.system(size: 14, weight: .semibold)).foregroundStyle(Swiss.text)
             TextField("Rechercher dans l'aide", text: $query, prompt: Text("Rechercher dans l'aide").foregroundColor(Swiss.gray))
                 .textFieldStyle(.plain)
                 .font(Swiss.font(15, .regular))
