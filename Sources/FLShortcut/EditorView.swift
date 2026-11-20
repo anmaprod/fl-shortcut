@@ -199,6 +199,13 @@ struct EditorView: View {
     @State private var shortcutsOpen = true
     /// Dernière page de raccourcis ouverte : « Raccourcis » des menus du haut y revient (20/11).
     @State private var lastShortcutsPage: SidebarItem = .section(FLSection.allCases[0])
+    /// Maquette « Minimal » (20/11) : la touche se change dans la ligne (« Appuie sur une touche »), et dans « Trouver »
+    /// (étape 3, puis « C'est changé. »).
+    @State private var capturingRow: String?
+    @State private var captureError: (id: String, text: String)?
+    @State private var findEditing: CatalogRow?
+    @State private var findDone: FindDone?
+    @FocusState private var findFocused: Bool
     @ObservedObject private var supportInbox = SupportInbox.shared
     /// « ou tape son nom » : la grande case de « Trouver un raccourci » cherche par le nom.
     @State private var findTyping = false
@@ -463,6 +470,8 @@ struct EditorView: View {
             if newValue == .custom { lastShortcutsPage = .custom }
             // On quitte « Trouver un raccourci » : la case n'attend plus de touches.
             if newValue != .find, recorder.activeID == Self.keySearchID { recorder.stop() }
+            if newValue != .find, findEditing != nil { cancelFindChange() }
+            if capturingRow != nil { stopRowCapture() }
             openPart(for: newValue)
         }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.select)) { note in
@@ -500,7 +509,8 @@ struct EditorView: View {
             // « Trouver » : ses trois étapes à la place du titre ; la flèche ← sur la page d'une personne.
             if current == .find {
                 FindSteps(now: findStep)
-            } else {
+            } else if !(current == .account || (current == .community && community.session == nil)) {
+                // Maquette : Compte et la Communauté sans compte n'ont pas de titre.
                 MinimalTitle(text: title, back: backToCommunity)
             }
             Spacer(minLength: 8)
@@ -509,19 +519,12 @@ struct EditorView: View {
             }
             // 20/11 (maquette « Minimal ») : « Écrire à l'équipe » en haut de la page Aide.
             if current == .help && helpLink.screen != .write {
-                Button("Écrire à l'équipe") { helpLink.screen = .write }
-                    .primaryButton()
-                    .controlSize(.large)
+                MinimalButton(title: String(localized: "Écrire à l'équipe")) { helpLink.screen = .write }.fixedSize()
             }
             if showsShareButton {
-                Button {
-                    community.composing = true
-                } label: {
-                    Text("Partager")
-                }
-                .primaryButton()
-                .controlSize(.large)
-                .help("Partager une macro ou tes raccourcis")
+                MinimalButton(title: String(localized: "Partager")) { community.composing = true }
+                    .fixedSize()
+                    .help("Partager une macro ou tes raccourcis")
             }
         }
         .padding(.top, current == .find ? 56 : 36)
@@ -534,30 +537,16 @@ struct EditorView: View {
     /// Étape de « Trouver » : 1 en attendant une touche ou un nom, 2 quand ce qu'elle fait est affiché, 3 pendant le
     /// choix de la nouvelle touche (fiche ouverte).
     private var findStep: Int {
-        if editingRow != nil { return 3 }
+        if findDone != nil { return 4 }
+        if findEditing != nil || editingRow != nil { return 3 }
         let searching = findTyping ? !trimmedQuery.isEmpty : keySearch != nil
         return searching ? 2 : 1
     }
 
-    /// Macros (maquette) : « Importer », « Exporter » bordés, « Nouvelle macro » plein ; sans macro, « Importer » seul
-    /// (« Nouvelle macro » est au milieu de la page vide).
     private var macrosHeaderButtons: some View {
-        HStack(spacing: 12) {
-            Button("Importer") {
-                MacroLibraryActions.importFile(into: store.library, layout: store.layout, toast: { show($0) }, open: { openCreator($0) })
-            }
-            .secondaryButton()
-            .controlSize(.large)
-            .help("Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcuts › Macros › Importer")
-            if !store.library.macros.isEmpty {
-                Button("Exporter") { MacroLibraryActions.exportAll(store.library, toast: { show($0) }) }
-                    .secondaryButton()
-                    .controlSize(.large)
-                    .help("Toutes les macros, un fichier chacune, dans Documents › FL Shortcuts › Macros › Exporter")
-                NewMacroButton(library: store.library)
-            }
-        }
-        .fixedSize()
+        // Maquette « Minimal » : « + Nouvelle macro » seul (Importer / Tout exporter : petits liens sous la liste).
+        MinimalButton(title: String(localized: "+ Nouvelle macro")) { MacroLibraryActions.newMacro(in: store.library) }
+            .fixedSize()
     }
 
     /// Surtitre de la page (direction A) : son numéro dans la barre de gauche et le nom de sa partie (« 02 — RACCOURCIS »).
@@ -728,162 +717,272 @@ struct EditorView: View {
         }
     }
 
-    /// Une page de raccourcis (maquette) : chaque groupe de FL (Outils, Clips…) avec son nom à gauche et ses lignes à
-    /// droite, puis les actions en plus et tes raccourcis ajoutés sur cette page.
+    /// Une page de raccourcis (maquette « Minimal ») : chaque groupe de FL (« PROJET ») sur son trait d'encre, puis ses
+    /// lignes ; ensuite les actions en plus et tes raccourcis ajoutés sur cette page.
     private func sectionList(_ section: FLSection, rows: [CatalogRow], mine custom: [Remap]) -> some View {
         let mine = rows.filter { $0.entry.section == section }
         let groups = CatalogGroups.cards(for: section, rows: mine.filter { $0.entry.isNative }, entry: \.entry)
         let extras = mine.filter { !$0.entry.isNative }
         return readablePage {
             ForEach(Array(groups.enumerated()), id: \.offset) { _, group in
-                ReadableGroup(title: group.title, count: group.rows.count) {
-                    ForEach(group.rows) { catalogLine($0) }
-                }
+                MinimalGroupHeader(title: group.title)
+                ForEach(group.rows) { catalogLine($0) }
             }
             if !extras.isEmpty {
-                ReadableGroup(title: String(localized: "Actions en plus"), count: extras.count) {
-                    ForEach(extras) { catalogLine($0) }
-                }
+                MinimalGroupHeader(title: String(localized: "Actions en plus"))
+                ForEach(extras) { catalogLine($0) }
             }
             if !custom.isEmpty {
-                ReadableGroup(title: String(localized: "Tes raccourcis sur cette page"), count: custom.count) {
-                    ForEach(custom) { customLine($0) }
-                }
+                MinimalGroupHeader(title: String(localized: "Tes raccourcis sur cette page"))
+                ForEach(custom) { customLine($0) }
             }
         }
-        .padding(.top, 10)
+        .padding(.top, -24)
         .id(section)                                 // nouvelle section : la page repart du haut
     }
 
-    /// « appuie sur un raccourci » (maquette, écrans 1 à 3) : la grande case attend les touches (ou le nom, « ou tape
-    /// son nom »), puis ce qu'elles font, dans toutes les pages : nom, page (« GÉNÉRAL · AVANT ⌘S » si changée), touche.
+    /// « Mes raccourcis » (maquette) : les raccourcis changés, la page sous le nom ; puis ceux que tu as créés.
+    private func customList(_ data: CatalogData) -> some View {
+        let changed = MyShortcuts.changed(data.rows)
+        let created = MyShortcuts.created(data.others, starters: store.freshRemaps())
+        return readablePage {
+            if changed.isEmpty && created.isEmpty {
+                Text("Aucun raccourci changé.").font(Swiss.font(16, .regular)).foregroundStyle(Swiss.gray).padding(.top, 24)
+            } else {
+                Rectangle().fill(Swiss.text).frame(height: 2).padding(.top, 8)
+                ForEach(changed) { catalogLine($0, page: $0.entry.section.title) }
+                ForEach(created) { customLine($0, page: String(localized: "Créé par toi")) }
+            }
+        }
+    }
+
+    /// Ligne d'un raccourci de FL (maquette) : un clic, puis la nouvelle touche, dans la ligne ; « Remettre » s'il a
+    /// changé ; clic droit : changer, remettre.
+    private func catalogLine(_ row: CatalogRow, page: String? = nil) -> some View {
+        let capturing = capturingRow == row.id
+        return MinimalKeyRow(title: row.entry.title, page: page, key: row.current?.display, changed: !row.isDefault,
+                             capturing: capturing, error: captureError?.id == row.id ? captureError?.text : nil,
+                             onTap: { startRowCapture(row) },
+                             trailingTitle: row.isDefault ? nil : String(localized: "Remettre"),
+                             onTrailing: { reset(row) },
+                             onCancel: { stopRowCapture() })
+            .help(row.entry.isNative ? String(localized: "Raccourci d'origine de FL Studio") : row.entry.detail)
+            .swissContextMenu {
+                var items: [RightClickMenu.Item?] = [RightClickMenu.Item(title: String(localized: "Changer la touche…"),
+                                                                         action: { startRowCapture(row) })]
+                if !row.isDefault { items.append(RightClickMenu.Item(title: String(localized: "Remettre"), action: { reset(row) })) }
+                return items
+            }
+    }
+
+    /// Ligne d'un raccourci que tu as créé : un clic ouvre sa fiche ; « Supprimer ».
+    private func customLine(_ remap: Remap, page: String? = nil) -> some View {
+        let open = { editingIsNew = false; editing = remap }
+        return MinimalKeyRow(title: remap.title, page: page, key: remap.trigger?.display, dimmed: !remap.enabled,
+                             onTap: open, trailingTitle: String(localized: "Supprimer"), onTrailing: { delete(remap) })
+            .swissContextMenu {
+                [RightClickMenu.Item(title: String(localized: "Modifier…"), action: open),
+                 RightClickMenu.Item(title: remap.enabled ? String(localized: "Désactiver") : String(localized: "Activer"), action: {
+                     var copy = remap
+                     copy.enabled.toggle()
+                     store.upsert(copy)
+                 }),
+                 nil,
+                 RightClickMenu.Item(title: String(localized: "Supprimer"), destructive: true, action: { delete(remap) })]
+            }
+    }
+
+    /// Un clic sur une ligne : elle attend la nouvelle touche (Échap annule ; ⌫ seule : aucune touche, pour une action).
+    private func startRowCapture(_ row: CatalogRow) {
+        captureError = nil
+        capturingRow = row.id
+        recorder.start("ligne-\(row.id)", timeout: false) { combo in
+            if !combo.hasModifiers && combo.keyCode == 53 { stopRowCapture(); return }      // Échap
+            let wanted: KeyCombo? = !combo.hasModifiers && combo.keyCode == 51 ? nil : combo  // ⌫ : aucune touche
+            guard let fresh = store.catalogRows().rows.first(where: { $0.id == row.id }) else { stopRowCapture(); return }
+            switch KeyChange.apply(fresh, to: wanted, store: store) {
+            case .done(_, let new, let before):
+                stopRowCapture()
+                show(ToastMessage(text: String(localized: "« \(fresh.entry.title) » : ") + (new?.display ?? String(localized: "aucune touche")),
+                                  undo: { store.remaps = before }))
+            case .cancelled:
+                stopRowCapture()
+            case .refused(let why):
+                captureError = (row.id, why)
+                startRowCapture(fresh)
+                captureError = (row.id, why)
+            }
+        }
+    }
+
+    private func stopRowCapture() {
+        if let id = capturingRow, recorder.activeID == "ligne-\(id)" { recorder.stop() }
+        capturingRow = nil
+        captureError = nil
+    }
+
+    /// « Trouver » (maquette « Minimal ») : à gauche la grande case (elle écoute dès l'ouverture ; « ou tape un nom »),
+    /// à droite ce que la touche fait ; « Changer » : la nouvelle touche dans la même page, puis « C'est changé. ».
     private func findPage(_ data: CatalogData) -> some View {
-        let listening = recorder.activeID == Self.keySearchID
         let combo = findTyping ? nil : keySearch
         let q = findTyping ? trimmedQuery : ""
         let active = combo != nil || !q.isEmpty
         let rows: [CatalogRow] = !active ? [] : data.rows.filter { row in
             if let combo { return KeySearch.matches(row, combo) }
-            return [row.entry.title, row.entry.detail, row.current?.display ?? "", row.entry.section.title]
+            return [row.entry.title, row.entry.detail, row.entry.section.title]
                 .joined(separator: " ").localizedCaseInsensitiveContains(q)
         }
         let others: [Remap] = !active ? [] : data.others.filter { r in
             if let combo { return KeySearch.matches(r, combo) }
-            return [r.title, r.subtitle, r.trigger?.display ?? ""].joined(separator: " ").localizedCaseInsensitiveContains(q)
+            return [r.title, r.subtitle].joined(separator: " ").localizedCaseInsensitiveContains(q)
         }
-        return readablePage {
-            FindShortcutField(combo: combo, listening: listening, typing: findTyping, query: $query,
-                              focusSerial: searchFocusSerial,
-                              startListening: { startKeySearch() },
-                              clear: {
-                                  if findTyping { query = "" } else { keySearch = nil }
-                              })
-            ReadableLink(title: findTyping ? String(localized: "ou appuie sur le raccourci") : String(localized: "ou tape son nom")) {
-                if recorder.activeID == Self.keySearchID { recorder.stop() }
-                findTyping.toggle()
-                if findTyping { searchFocusSerial += 1 }
-            }
-            .padding(.top, 12)
-            if recorder.hintID == Self.keySearchID, let hint = recorder.hint {
-                SwissWarning(hint).font(.system(size: 13)).padding(.top, 16)
-            }
-            if active {
-                if rows.isEmpty && others.isEmpty {
-                    Text(combo.map { String(localized: "Rien n'utilise \($0.display).") }
-                         ?? String(localized: "Aucun raccourci ne correspond à « \(q) »."))
-                        .font(.system(size: 15))
-                        .foregroundStyle(Swiss.gray)
-                        .padding(.top, 44)
-                } else {
-                    // Direction A : un tableau numéroté (N°, Raccourci, Page, Touche).
-                    IndexTableHeader(title: String(localized: "Raccourci"), page: String(localized: "Page"))
-                        .padding(.top, 44)
-                    ForEach(Array(rows.enumerated()), id: \.element.id) { i, row in
-                        catalogLine(row, detail: findDetail(row), bold: true, number: i + 1)
-                    }
-                    ForEach(Array(others.enumerated()), id: \.element.id) { i, remap in
-                        customLine(remap, detail: String(localized: "Mes raccourcis"), bold: true, number: rows.count + i + 1)
+        return ScrollView(.vertical) {
+            HStack(alignment: .top, spacing: 24) {
+                VStack(alignment: .leading, spacing: 16) {
+                    findField(combo: combo)
+                    if let error = findDone == nil ? captureError?.text : nil, findEditing != nil {
+                        Text(error).font(Swiss.font(13, .regular)).foregroundStyle(Swiss.red)
+                    } else if findEditing == nil, findDone == nil, combo == nil {
+                        Button {
+                            if recorder.activeID == Self.keySearchID { recorder.stop() }
+                            findTyping.toggle()
+                            if findTyping { searchFocusSerial += 1 } else { startKeySearch() }
+                        } label: {
+                            Text(findTyping ? String(localized: "ou appuie sur une touche") : String(localized: "ou tape un nom"))
+                                .font(Swiss.font(13, .regular)).foregroundStyle(Swiss.gray)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 0) {
+                    findRight(rows: rows, others: others, combo: combo, typing: findTyping, active: active)
+                }
+                .frame(width: 440, alignment: .leading)
+                .padding(.top, 8)
             }
+            .frame(maxWidth: 1088, alignment: .leading)
+            .padding(.horizontal, ReadableLayout.inset)
+            .padding(.top, 24)
+            .padding(.bottom, 80)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.top, 18)
+        .onAppear { if !findTyping && findEditing == nil && findDone == nil { startKeySearch() } }
     }
 
-    /// « GÉNÉRAL » : la page seule (16/11, plus de « · AVANT ⌘S » : « enlève toutes les fioritures »).
-    private func findDetail(_ row: CatalogRow) -> String { row.entry.section.title }
-
-    /// « Mes raccourcis » (05/11, « juste action, page, puis raccourci, avec le bouton réinitialiser derrière ») : une
-    /// ligne par raccourci de FL changé, puis par raccourci créé ou importé. Jamais les macros (page Macros).
-    private func customList(_ data: CatalogData) -> some View {
-        let changed = MyShortcuts.changed(data.rows)
-        let created = MyShortcuts.created(data.others, starters: store.freshRemaps())
-        return Group {
-            if changed.isEmpty && created.isEmpty {
-                EmptyState(symbol: SidebarItem.custom.symbol, title: String(localized: "Aucun raccourci changé"),
-                           text: PageSummary.custom)
+    @ViewBuilder private func findField(combo: KeyCombo?) -> some View {
+        MinimalBigField {
+            if let done = findDone {
+                MinimalKeyImage(text: done.new?.display ?? String(localized: "Aucune"))
+            } else if findEditing != nil {
+                MinimalWaitingKey(placeholder: String(localized: "Nouvelle touche"))
+            } else if findTyping {
+                HStack(alignment: .bottom, spacing: 12) {
+                    TextField("", text: $query, prompt: Text("Nom de l'action").foregroundColor(Swiss.faintText))
+                        .textFieldStyle(.plain)
+                        .font(Swiss.font(48, .regular))
+                        .foregroundStyle(Swiss.text)
+                        .focused($findFocused)
+                        .onAppear { findFocused = true }
+                }
+            } else if let combo {
+                MinimalKeyImage(text: combo.display)
             } else {
-                readablePage {
-                    IndexTableHeader(title: String(localized: "Raccourci"), page: String(localized: "Page"))
-                    ForEach(Array(changed.enumerated()), id: \.element.id) { i, row in
-                        catalogLine(row, detail: findDetail(row), bold: true, number: i + 1)
-                    }
-                    ForEach(Array(created.enumerated()), id: \.element.id) { i, remap in
-                        customLine(remap, bold: true, number: changed.count + i + 1)
-                    }
+                MinimalWaitingKey(placeholder: String(localized: "Appuie sur une touche"))
+            }
+        }
+    }
+
+    @ViewBuilder private func findRight(rows: [CatalogRow], others: [Remap], combo: KeyCombo?, typing: Bool, active: Bool) -> some View {
+        if let done = findDone {
+            Text("C'est changé.").font(Swiss.font(24, .semibold)).foregroundStyle(Swiss.text)
+            Text(done.section).font(Swiss.font(13, .regular)).foregroundStyle(Swiss.gray).padding(.top, 24)
+            Text(done.title).font(Swiss.font(24, .regular)).foregroundStyle(Swiss.text).padding(.top, 8)
+            Text("Avant : \(done.old?.display ?? String(localized: "aucune")) · Maintenant : \(done.new?.display ?? String(localized: "aucune"))")
+                .font(Swiss.font(13, .regular)).foregroundStyle(Swiss.gray).padding(.top, 8)
+            HStack(spacing: 16) {
+                MinimalButton(title: String(localized: "Chercher un autre raccourci")) { resetFind() }
+                MinimalLink(title: String(localized: "Annuler le changement")) {
+                    store.remaps = done.before
+                    resetFind()
                 }
-                .padding(.top, 10)
+            }
+            .padding(.top, 32)
+        } else if let row = findEditing {
+            Text(row.entry.section.title).font(Swiss.font(13, .regular)).foregroundStyle(Swiss.gray)
+            Text(row.entry.title).font(Swiss.font(24, .regular)).foregroundStyle(Swiss.text).padding(.top, 8)
+            Text("Avant : \(row.current?.display ?? String(localized: "sans touche"))")
+                .font(Swiss.font(13, .regular)).foregroundStyle(Swiss.gray).padding(.top, 8)
+            HStack(spacing: 16) {
+                if case .action = row.entry.kind {
+                    MinimalButton(title: String(localized: "Aucune touche"), outlined: true) { finishFindChange(row, nil) }
+                }
+                MinimalLink(title: String(localized: "Annuler")) { cancelFindChange() }
+            }
+            .padding(.top, 32)
+        } else if active {
+            if rows.isEmpty && others.isEmpty {
+                Text(combo.map { String(localized: "Rien sur \($0.display).") } ?? String(localized: "Aucun résultat."))
+                    .font(Swiss.font(24, .regular)).foregroundStyle(combo == nil ? Swiss.gray : Swiss.text)
+            } else {
+                ForEach(rows.prefix(40)) { row in
+                    MinimalResultRow(section: row.entry.section.title, key: typing ? (row.current?.display ?? String(localized: "Sans touche")) : nil,
+                                     title: row.entry.title, changed: !row.isDefault,
+                                     change: { beginFindChange(row) },
+                                     reset: row.isDefault ? nil : { reset(row) })
+                }
+                ForEach(others.prefix(20)) { remap in
+                    MinimalResultRow(section: String(localized: "Mes raccourcis"), key: typing ? remap.trigger?.display : nil,
+                                     title: remap.title, change: { editingIsNew = false; editing = remap })
+                }
             }
         }
     }
 
-    /// Ligne d'un raccourci de FL : nom, touche (rouge si changée), ↺ ; clic droit : changer, réinitialiser.
-    private func catalogLine(_ row: CatalogRow, detail: String? = nil, bold: Bool = false, number: Int? = nil) -> some View {
-        let issues = row.remap.map { store.issues(for: $0.id) } ?? []
-        let warning: String? = row.takenBy.map {
-            String(localized: "Touche aussi utilisée par « \($0) ».")
-        } ?? (issues.isEmpty ? nil : issues.map(\.message).joined(separator: "\n"))
-        let edit = { editNotice = nil; editingRow = row }
-        return ReadableRow(title: row.entry.title, bold: bold, number: number, detail: detail, warning: warning,
-                           combo: row.current, changed: !row.isDefault, onKey: edit) {
-            if !row.isDefault {
-                ReadableResetButton(help: String(localized: "Revenir à : ")
-                                    + (row.entry.defaultTrigger?.display ?? String(localized: "aucune touche"))) { reset(row) }
-            }
-        }
-        .help(row.entry.isNative ? String(localized: "Raccourci d'origine de FL Studio") : row.entry.detail)
-        .swissContextMenu {
-            var items: [RightClickMenu.Item?] = [RightClickMenu.Item(title: String(localized: "Changer la touche…"), action: edit)]
-            if !row.isDefault { items.append(RightClickMenu.Item(title: String(localized: "Réinitialiser"), action: { reset(row) })) }
-            return items
+    /// « Changer » d'un résultat : étape 3, la grande case attend la nouvelle touche.
+    private func beginFindChange(_ row: CatalogRow) {
+        if recorder.activeID == Self.keySearchID { recorder.stop() }
+        captureError = nil
+        findEditing = row
+        recorder.start("trouver-nouvelle", timeout: false) { combo in
+            if !combo.hasModifiers && combo.keyCode == 53 { cancelFindChange(); return }    // Échap
+            let wanted: KeyCombo? = !combo.hasModifiers && combo.keyCode == 51 ? nil : combo // ⌫ : aucune touche
+            finishFindChange(row, wanted)
         }
     }
 
-    /// Ligne d'un raccourci que tu as créé : nom (gris s'il est désactivé), touche, Supprimer.
-    private func customLine(_ remap: Remap, detail: String? = nil, bold: Bool = false, number: Int? = nil) -> some View {
-        let issues = store.issues(for: remap.id)
-        let open = { editingIsNew = false; editing = remap }
-        return ReadableRow(title: remap.title, bold: bold, number: number, detail: detail, dimmed: !remap.enabled,
-                           warning: issues.isEmpty ? nil : issues.map(\.message).joined(separator: "\n"),
-                           combo: remap.trigger, onKey: open) {
-            Button { delete(remap) } label: {
-                Image(systemName: "trash").font(.system(size: 12, weight: .medium)).foregroundStyle(Swiss.gray)
-                    .frame(width: 32, height: 32).contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Supprimer")
-            .accessibilityLabel(String(localized: "Supprimer"))
+    private func finishFindChange(_ row: CatalogRow, _ combo: KeyCombo?) {
+        if recorder.activeID == "trouver-nouvelle" { recorder.stop() }
+        guard let fresh = store.catalogRows().rows.first(where: { $0.id == row.id }) else { cancelFindChange(); return }
+        switch KeyChange.apply(fresh, to: combo, store: store) {
+        case .done(let old, let new, let before):
+            captureError = nil
+            findEditing = nil
+            findDone = FindDone(section: fresh.entry.section.title, title: fresh.entry.title, old: old, new: new, before: before)
+        case .cancelled:
+            beginFindChange(fresh)
+        case .refused(let why):
+            beginFindChange(fresh)
+            captureError = (fresh.id, why)
         }
-        .swissContextMenu {
-            [RightClickMenu.Item(title: String(localized: "Modifier…"), action: open),
-             RightClickMenu.Item(title: remap.enabled ? String(localized: "Désactiver") : String(localized: "Activer"), action: {
-                 var copy = remap
-                 copy.enabled.toggle()
-                 store.upsert(copy)
-             }),
-             nil,
-             RightClickMenu.Item(title: String(localized: "Supprimer"), destructive: true, action: { delete(remap) })]
-        }
+    }
+
+    private func cancelFindChange() {
+        if recorder.activeID == "trouver-nouvelle" { recorder.stop() }
+        findEditing = nil
+        captureError = nil
+        if !findTyping { startKeySearch() }
+    }
+
+    /// « Chercher un autre raccourci » : la case vide, qui écoute.
+    private func resetFind() {
+        findDone = nil
+        findEditing = nil
+        captureError = nil
+        keySearch = nil
+        query = ""
+        findTyping = false
+        startKeySearch()
     }
 
     // MARK: Avertissements (seulement quand il faut agir)
@@ -926,12 +1025,16 @@ struct EditorView: View {
 
     /// La grande case de « Trouver un raccourci » attend les touches : appuyées, elle montre ce qu'elles font (pour qui
     /// connaît ses touches mais pas le nom du raccourci). Échap annule.
+    /// Maquette « Minimal » : la case écoute dès l'ouverture et après chaque touche (⌘Q, ⌘W… passent toujours).
     private func startKeySearch() {
         findTyping = false
-        recorder.start(Self.keySearchID) { combo in
-            if !combo.hasModifiers && combo.keyCode == 53 { return }          // Échap : annuler
-            guard combo.isValidTrigger else { return }
-            keySearch = combo
+        recorder.start(Self.keySearchID, timeout: false, letSystemKeysPass: true) { combo in
+            if !combo.hasModifiers && combo.keyCode == 53 {                   // Échap : la case se vide
+                keySearch = nil
+            } else if combo.isValidTrigger {
+                keySearch = combo
+            }
+            if selection == .find, findEditing == nil, findDone == nil, !findTyping { startKeySearch() }
         }
     }
 
@@ -1565,7 +1668,9 @@ final class Recorder: ObservableObject {
 
     /// Touches, ou bouton de souris du milieu ou du côté (05/11) : le champ reçoit une combinaison, la touche codée
     /// comme un bouton de souris le cas échéant (KeyCombo.mouseBase).
-    func start(_ id: String, handler: @escaping (KeyCombo) -> Void) {
+    /// `timeout` faux : la case attend sans limite (« Trouver », maquette « Minimal » : elle écoute dès l'ouverture).
+    /// `letSystemKeysPass` : ⌘Q, ⌘W, ⌘H, ⌘M et ⌘, gardent leur rôle (la case de « Trouver » écoute en continu).
+    func start(_ id: String, timeout: Bool = true, letSystemKeysPass: Bool = false, handler: @escaping (KeyCombo) -> Void) {
         stop()
         hint = nil
         hintID = nil
@@ -1575,6 +1680,9 @@ final class Recorder: ObservableObject {
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .otherMouseDown]) { [weak self] event in
             guard let self, let h = self.handler else { return event }
             let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            if letSystemKeysPass, event.type == .keyDown, mods == .command, [12, 13, 4, 46, 43].contains(Int(event.keyCode)) {
+                return event
+            }
             let combo: KeyCombo
             if event.type == .otherMouseDown {
                 guard let pressed = KeyCombo(mouseButton: event.buttonNumber, modifiers: mods) else { return event }
@@ -1586,13 +1694,15 @@ final class Recorder: ObservableObject {
             DispatchQueue.main.async { h(combo) }
             return nil
         }
-        let work = DispatchWorkItem { [weak self] in
-            self?.stop()
-            self?.hint = String(localized: "Aucune touche reçue : macOS utilise peut-être ce raccourci.")
-            self?.hintID = id
+        if timeout {
+            let work = DispatchWorkItem { [weak self] in
+                self?.stop()
+                self?.hint = String(localized: "Aucune touche reçue : macOS utilise peut-être ce raccourci.")
+                self?.hintID = id
+            }
+            self.timeout = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: work)
         }
-        timeout = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: work)
         resignObserver = NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification,
                                                                 object: nil, queue: .main) { [weak self] _ in
             self?.stop()

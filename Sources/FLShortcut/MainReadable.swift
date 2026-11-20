@@ -634,12 +634,13 @@ struct FindSteps: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// Maquette : l'étape en cours, son numéro en rouge et son nom à l'encre en demi-gras ; les passées en gris ; les
+    /// suivantes pâles. `now` 4 : tout est fait (« C'est changé. »), les trois en gris.
     private func step(_ n: Int, _ title: String) -> some View {
         HStack(spacing: 8) {
-            Text(verbatim: "\(n)")
-            Text(title)
+            Text(verbatim: "\(n)").foregroundStyle(n == now ? Swiss.red : n < now ? Swiss.gray : Swiss.faintText)
+            Text(title).foregroundStyle(n == now ? Swiss.text : n < now ? Swiss.gray : Swiss.faintText)
         }
-        .font(Swiss.font(14, n == now ? .semibold : .regular))
-        .foregroundStyle(n == now ? Swiss.text : n < now ? Swiss.gray : Swiss.faint)
+        .font(Swiss.font(13, n == now ? .semibold : .regular))
     }
 }

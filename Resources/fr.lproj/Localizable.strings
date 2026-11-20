@@ -102,6 +102,7 @@
 "(sans nom)" = "(sans nom)";
 "(sans raccourci)" = "(sans raccourci)";
 "+ (pavé)" = "+ (pavé)";
+"+ Nouvelle macro" = "+ Nouvelle macro";
 ", copie impossible : elle n'est pas modifiée." = ", copie impossible : elle n'est pas modifiée.";
 ", copie impossible : le fichier n'est pas modifié." = ", copie impossible : le fichier n'est pas modifié.";
 ", dont %lld à relire" = ", dont %lld à relire";
@@ -181,6 +182,7 @@
 "Actualiser : voir les derniers partages" = "Actualiser : voir les derniers partages";
 "Adlib" = "Adlib";
 "Administrateur : retirer cette photo pour tout le monde" = "Administrateur : retirer cette photo pour tout le monde";
+"Adresse mail" = "Adresse mail";
 "Adresse mail invalide." = "Adresse mail invalide.";
 "Affichage" = "Affichage";
 "Affiche la Playlist" = "Affiche la Playlist";
@@ -219,6 +221,7 @@
 "Ajouter un marqueur" = "Ajouter un marqueur";
 "Ajouter un marqueur de temps" = "Ajouter un marqueur de temps";
 "Ajouter une capture" = "Ajouter une capture";
+"Ajouter une photo" = "Ajouter une photo";
 "Ajouter une touche de secours" = "Ajouter une touche de secours";
 "Ajouter « %@ »" = "Ajouter « %@ »";
 "Ajouter à mes macros" = "Ajouter à mes macros";
@@ -243,6 +246,7 @@
 "Annule la dernière action" = "Annule la dernière action";
 "Annuler" = "Annuler";
 "Annuler / rétablir la dernière modification" = "Annuler / rétablir la dernière modification";
+"Annuler le changement" = "Annuler le changement";
 "Annuler le dernier remplacement" = "Annuler le dernier remplacement";
 "Annuler les modifications" = "Annuler les modifications";
 "Annuler pas à pas" = "Annuler pas à pas";
@@ -258,6 +262,7 @@
 "Appuie sur les touches…" = "Appuie sur les touches…";
 "Appuie sur un bouton de ta souris…" = "Appuie sur un bouton de ta souris…";
 "Appuie sur un raccourci" = "Appuie sur un raccourci";
+"Appuie sur une touche" = "Appuie sur une touche";
 "Appuyer sur" = "Appuyer sur";
 "Après la suppression des sons sans note, le Channel rack de la copie rangée ne correspond plus à l'analyse : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé." = "Après la suppression des sons sans note, le Channel rack de la copie rangée ne correspond plus à l'analyse : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé.";
 "Arme la piste du Mixer sélectionnée, ou la désarme" = "Arme la piste du Mixer sélectionnée, ou la désarme";
@@ -327,10 +332,12 @@
 "Aucun preset choisi" = "Aucun preset choisi";
 "Aucun raccourci" = "Aucun raccourci";
 "Aucun raccourci changé" = "Aucun raccourci changé";
+"Aucun raccourci changé." = "Aucun raccourci changé.";
 "Aucun raccourci défini." = "Aucun raccourci défini.";
 "Aucun raccourci ne correspond à « %@ »." = "Aucun raccourci ne correspond à « %@ ».";
 "Aucun raccourci." = "Aucun raccourci.";
 "Aucun résultat" = "Aucun résultat";
+"Aucun résultat." = "Aucun résultat.";
 "Aucun son n'a été écouté : tous ont été rangés d'après leur nom. Change leur nom dans FL." = "Aucun son n'a été écouté : tous ont été rangés d'après leur nom. Change leur nom dans FL.";
 "Aucun son reçu de FL pendant l'écoute. Vérifie que FL Shortcuts a l'autorisation « Audio du système » (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système), et que les sons choisis jouent bien dans FL (Master pas coupé), puis « Réessayer »." = "Aucun son reçu de FL pendant l'écoute. Vérifie que FL Shortcuts a l'autorisation « Audio du système » (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système), et que les sons choisis jouent bien dans FL (Master pas coupé), puis « Réessayer ».";
 "Aucun son reçu de FL pendant l'écoute. Vérifie que FL Shortcuts est coché dans « Enregistrement de l'écran et audio du système » (Réglages Système › Confidentialité et sécurité, la liste du haut), et que les sons choisis jouent bien dans FL (Master pas coupé), puis « Réessayer »." = "Aucun son reçu de FL pendant l'écoute. Vérifie que FL Shortcuts est coché dans « Enregistrement de l'écran et audio du système » (Réglages Système › Confidentialité et sécurité, la liste du haut), et que les sons choisis jouent bien dans FL (Master pas coupé), puis « Réessayer ».";
@@ -351,6 +358,7 @@
 "Aucune touche" = "Aucune touche";
 "Aucune touche de FL choisie." = "Aucune touche de FL choisie.";
 "Aucune touche reçue : macOS utilise peut-être ce raccourci." = "Aucune touche reçue : macOS utilise peut-être ce raccourci.";
+"Aucune étape" = "Aucune étape";
 "Automatique" = "Automatique";
 "Automatique (%@)" = "Automatique (%@)";
 "Automatique (aucune carte branchée)" = "Automatique (aucune carte branchée)";
@@ -379,6 +387,8 @@
 "Autres" = "Autres";
 "Avance rapide" = "Avance rapide";
 "Avancer" = "Avancer";
+"Avant : %@" = "Avant : %@";
+"Avant : %@ · Maintenant : %@" = "Avant : %@ · Maintenant : %@";
 "Avec le lien avec FL : la piste choisie passe en solo (ou le perd) tout de suite, sans aucun clic." = "Avec le lien avec FL : la piste choisie passe en solo (ou le perd) tout de suite, sans aucun clic.";
 "Avec le lien avec FL : le son de la piste choisie est coupé (ou remis) tout de suite, sans aucun clic." = "Avec le lien avec FL : le son de la piste choisie est coupé (ou remis) tout de suite, sans aucun clic.";
 "Avec le lien avec FL, rien à faire (aucun clic). Sans lui : bouton mute à montrer une fois sur ce Mac, avec « Montrer le bouton mute dans FL… »." = "Avec le lien avec FL, rien à faire (aucun clic). Sans lui : bouton mute à montrer une fois sur ce Mac, avec « Montrer le bouton mute dans FL… ».";
@@ -429,6 +439,7 @@
 "Bureau de gauche" = "Bureau de gauche";
 "Bypass des effets de la piste" = "Bypass des effets de la piste";
 "C'est bon" = "C'est bon";
+"C'est changé." = "C'est changé.";
 "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout, sauf les sons supprimés." = "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout, sauf les sons supprimés.";
 "C'est fait : ton projet est rangé" = "C'est fait : ton projet est rangé";
 "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « %@ », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre et met la copie à la Corbeille." = "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « %@ », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre et met la copie à la Corbeille.";
@@ -474,6 +485,7 @@
 "Ce que tu faisais, ce qui devait se passer, ce qui s'est passé. Ex. : « ma macro s'arrête au 3e bloc dans le Mixer »." = "Ce que tu faisais, ce qui devait se passer, ce qui s'est passé. Ex. : « ma macro s'arrête au 3e bloc dans le Mixer ».";
 "Ce qui s'est passé" = "Ce qui s'est passé";
 "Ce qui te ferait gagner du temps dans FL Studio." = "Ce qui te ferait gagner du temps dans FL Studio.";
+"Ce raccourci de FL garde une touche." = "Ce raccourci de FL garde une touche.";
 "Ce raccourci ne marchera pas encore" = "Ce raccourci ne marchera pas encore";
 "Centrer sur la tête de lecture" = "Centrer sur la tête de lecture";
 "Ces réponses partent à l'équipe de FL Shortcuts avec le diagnostic (des nombres, aucun nom de son)." = "Ces réponses partent à l'équipe de FL Shortcuts avec le diagnostic (des nombres, aucun nom de son).";
@@ -483,6 +495,7 @@
 "Cette option n'est pas dans %@." = "Cette option n'est pas dans %@.";
 "Cette photo est choquante ou n'a rien à faire ici : l'équipe la regarde" = "Cette photo est choquante ou n'a rien à faire ici : l'équipe la regarde";
 "Cette touche" = "Cette touche";
+"Cette touche ne peut pas servir de raccourci." = "Cette touche ne peut pas servir de raccourci.";
 "Change le magnétisme : 1/4, 1/8, triolets…" = "Change le magnétisme : 1/4, 1/8, triolets…";
 "Change les raccourcis de FL Studio, ou ajoute les tiens." = "Change les raccourcis de FL Studio, ou ajoute les tiens.";
 "Change une famille, un nom ou une piste si tu veux." = "Change une famille, un nom ou une piste si tu veux.";
@@ -494,6 +507,7 @@
 "Changer ce qu'est ce son (Kick, 808, Lead…), ou écrire son nom" = "Changer ce qu'est ce son (Kick, 808, Lead…), ou écrire son nom";
 "Changer d'adresse" = "Changer d'adresse";
 "Changer la couleur" = "Changer la couleur";
+"Changer la photo" = "Changer la photo";
 "Changer la touche" = "Changer la touche";
 "Changer la touche de %@" = "Changer la touche de %@";
 "Changer la touche…" = "Changer la touche…";
@@ -517,6 +531,7 @@
 "Charger un profil" = "Charger un profil";
 "Cherche dans l'aide : raccourcis, macro, pause…" = "Cherche dans l'aide : raccourcis, macro, pause…";
 "Chercher" = "Chercher";
+"Chercher un autre raccourci" = "Chercher un autre raccourci";
 "Chercher une macro, des raccourcis" = "Chercher une macro, des raccourcis";
 "Cherché par son nom ou son image au moment du clic (autorisation « Enregistrement de l'écran »)." = "Cherché par son nom ou son image au moment du clic (autorisation « Enregistrement de l'écran »).";
 "Chiffre" = "Chiffre";
@@ -644,6 +659,7 @@
 "Code de la couleur (#RRGGBB), comme dans FL" = "Code de la couleur (#RRGGBB), comme dans FL";
 "Code de la couleur, comme dans la fenêtre de couleur de FL (Entrée pour la garder dans les récentes)" = "Code de la couleur, comme dans la fenêtre de couleur de FL (Entrée pour la garder dans les récentes)";
 "Code envoyé à %@" = "Code envoyé à %@";
+"Code envoyé à %@." = "Code envoyé à %@.";
 "Code incorrect ou expiré : vérifie-le, ou demande un nouveau code." = "Code incorrect ou expiré : vérifie-le, ou demande un nouveau code.";
 "Code reçu par mail" = "Code reçu par mail";
 "Coller" = "Coller";
@@ -674,6 +690,7 @@
 "Connecte-toi dans « Mon compte » (barre latérale) : tes raccourcis et tes macros sont sauvegardés en ligne quelques secondes après chaque changement. Sur un autre Mac, connecte-toi avec le même compte : tout revient. À la déconnexion, ils quittent ce Mac et restent dans ton compte. Si ce Mac et ton compte ont chacun des changements, l'app te demande lequel garder." = "Connecte-toi dans « Mon compte » (barre latérale) : tes raccourcis et tes macros sont sauvegardés en ligne quelques secondes après chaque changement. Sur un autre Mac, connecte-toi avec le même compte : tout revient. À la déconnexion, ils quittent ce Mac et restent dans ton compte. Si ce Mac et ton compte ont chacun des changements, l'app te demande lequel garder.";
 "Connecte-toi pour choisir ton thème." = "Connecte-toi pour choisir ton thème.";
 "Connecte-toi pour retrouver tes messages." = "Connecte-toi pour retrouver tes messages.";
+"Connecte-toi pour voir la Communauté." = "Connecte-toi pour voir la Communauté.";
 "Connecte-toi pour écrire à l'équipe." = "Connecte-toi pour écrire à l'équipe.";
 "Connecte-toi sur un autre Mac : tout revient. À la déconnexion, ils quittent ce Mac et restent dans ton compte." = "Connecte-toi sur un autre Mac : tout revient. À la déconnexion, ils quittent ce Mac et restent dans ton compte.";
 "Connecté en tant que @%@" = "Connecté en tant que @%@";
@@ -723,6 +740,7 @@
 "Créer mon compte" = "Créer mon compte";
 "Créer sa piste audio (Playlist)" = "Créer sa piste audio (Playlist)";
 "Créer un compte" = "Créer un compte";
+"Créé par toi" = "Créé par toi";
 "Créés par toi" = "Créés par toi";
 "Ctrl+Alt+Maj+F, n'importe où. « Reprendre » apparaît alors dans le menu de l'icône près de l'horloge." = "Ctrl+Alt+Maj+F, n'importe où. « Reprendre » apparaît alors dans le menu de l'icône près de l'horloge.";
 "Cymbal" = "Cymbal";
@@ -1471,6 +1489,7 @@
 "Nom automatique" = "Nom automatique";
 "Nom d'utilisateur" = "Nom d'utilisateur";
 "Nom d'utilisateur : 3 à 24 caractères, lettres sans accent, chiffres, « _ », « . » ou « - »." = "Nom d'utilisateur : 3 à 24 caractères, lettres sans accent, chiffres, « _ », « . » ou « - ».";
+"Nom de l'action" = "Nom de l'action";
 "Nom de la macro" = "Nom de la macro";
 "Nom de macro invalide." = "Nom de macro invalide.";
 "Nom de variable invalide." = "Nom de variable invalide.";
@@ -1820,6 +1839,7 @@
 "Rangement dans la copie…" = "Rangement dans la copie…";
 "Rangement… Ne touche pas à FL." = "Rangement… Ne touche pas à FL.";
 "Re-stretch de tous les clips audio" = "Re-stretch de tous les clips audio";
+"Recevoir le code" = "Recevoir le code";
 "Recherche" = "Recherche";
 "Rechercher" = "Rechercher";
 "Rechercher avec un raccourci" = "Rechercher avec un raccourci";
@@ -1845,6 +1865,7 @@
 "Relire la liste dans FL (plugins ajoutés depuis) : le menu Add s'ouvre un instant s'il le faut" = "Relire la liste dans FL (plugins ajoutés depuis) : le menu Add s'ouvre un instant s'il le faut";
 "Relire les cartes branchées" = "Relire les cartes branchées";
 "Relire les menus dans FL" = "Relire les menus dans FL";
+"Remettre" = "Remettre";
 "Remplace certaines touches de FL (F9, B, O, Z…)." = "Remplace certaines touches de FL (F9, B, O, Z…).";
 "Remplace un raccourci natif — %@." = "Remplace un raccourci natif — %@.";
 "Remplacer" = "Remplacer";
@@ -1918,6 +1939,7 @@
 "Rien n'utilise %@." = "Rien n'utilise %@.";
 "Rien où retourner pour l'instant" = "Rien où retourner pour l'instant";
 "Rien reçu ? Regarde dans les spams." = "Rien reçu ? Regarde dans les spams.";
+"Rien sur %@." = "Rien sur %@.";
 "Rien à régler." = "Rien à régler.";
 "Riff Machine" = "Riff Machine";
 "Rim" = "Rim";
@@ -1968,6 +1990,7 @@
 "Sans lien avec FL, ce bloc échoue (aucun équivalent au clavier)." = "Sans lien avec FL, ce bloc échoue (aucun équivalent au clavier).";
 "Sans lien, cette touche de FL :" = "Sans lien, cette touche de FL :";
 "Sans raccourci" = "Sans raccourci";
+"Sans touche" = "Sans touche";
 "Sat" = "Sat";
 "Saturation" = "Saturation";
 "Sauvegarde" = "Sauvegarde";
@@ -2072,6 +2095,7 @@
 "Supprimer la sélection" = "Supprimer la sélection";
 "Supprimer le bloc" = "Supprimer le bloc";
 "Supprimer le bloc choisi (⌫)" = "Supprimer le bloc choisi (⌫)";
+"Supprimer le compte et sa sauvegarde ?" = "Supprimer le compte et sa sauvegarde ?";
 "Supprimer les canaux" = "Supprimer les canaux";
 "Supprimer les clips audio inutilisés" = "Supprimer les clips audio inutilisés";
 "Supprimer les sons sans aucune note (on ne peut pas les remettre)" = "Supprimer les sons sans aucune note (on ne peut pas les remettre)";
@@ -2223,6 +2247,7 @@
 "Tout est enregistré" = "Tout est enregistré";
 "Tout est prêt" = "Tout est prêt";
 "Tout est prêt, mais attention au larsen" = "Tout est prêt, mais attention au larsen";
+"Tout exporter" = "Tout exporter";
 "Tout réinitialiser ?" = "Tout réinitialiser ?";
 "Tout réinitialiser…" = "Tout réinitialiser…";
 "Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre et met la nouvelle version à la Corbeille. Aucune lecture de l'écran." = "Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre et met la nouvelle version à la Corbeille. Aucune lecture de l'écran.";
@@ -2599,7 +2624,9 @@
 "option inconnue" = "option inconnue";
 "option à choisir" = "option à choisir";
 "ou appuie sur le raccourci" = "ou appuie sur le raccourci";
+"ou appuie sur une touche" = "ou appuie sur une touche";
 "ou tape son nom" = "ou tape son nom";
+"ou tape un nom" = "ou tape un nom";
 "ou écris le nom." = "ou écris le nom.";
 "ouvert" = "ouvert";
 "ouverte" = "ouverte";
@@ -2650,6 +2677,7 @@
 "risque de larsen : change d'entrée ou de sortie (casque, carte son)" = "risque de larsen : change d'entrée ou de sortie (casque, carte son)";
 "réponse de FL illisible" = "réponse de FL illisible";
 "s" = "s";
+"sans touche" = "sans touche";
 "seulement dans la Playlist : clique sur le nom d'une piste de la Playlist, puis relance" = "seulement dans la Playlist : clique sur le nom d'une piste de la Playlist, puis relance";
 "sons rangés" = "sons rangés";
 "sons sans note retirés" = "sons sans note retirés";
@@ -2798,6 +2826,7 @@
 "Étape %lld sur 3" = "Étape %lld sur 3";
 "Étapes" = "Étapes";
 "Étapes, fenêtres de FL et clics de chaque macro, pour comprendre un échec. Aucune frappe, aucun nom de fichier." = "Étapes, fenêtres de FL et clics de chaque macro, pour comprendre un échec. Aucune frappe, aucun nom de fichier.";
+"Éteinte" = "Éteinte";
 "Étendre la sélection vers le bas" = "Étendre la sélection vers le bas";
 "Étendre la sélection vers le haut" = "Étendre la sélection vers le haut";
 "× (pavé)" = "× (pavé)";

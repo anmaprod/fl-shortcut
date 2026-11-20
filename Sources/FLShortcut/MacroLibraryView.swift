@@ -70,69 +70,79 @@ private struct MacroLibraryList: View {
     let toast: (ToastMessage) -> Void
     let editKey: (Remap, Bool) -> Void
 
+    /// « Supprimer » demandé dans la ligne (maquette « Minimal ») : la macro concernée.
+    @State private var confirmDelete: UUID?
+
     var body: some View {
-        Group {
-            if library.macros.isEmpty {
-                empty
-            } else {
-                ScrollView(.vertical) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        MacroLibraryProblemLabel(library: library)
-                            .padding(.bottom, 10)
-                        // Direction A (17/11) : un tableau numéroté (N°, Macro, Touche, Active).
-                        IndexTableHeader(title: String(localized: "Macro"), last: String(localized: "Active"),
-                                         lastWidth: MacroLibraryLine.switchColumn)
-                            .padding(.top, 14)
-                        ForEach(Array(library.macros.enumerated()), id: \.element.id) { i, doc in
-                            row(doc, number: i + 1)
+        // Maquette « Minimal » (20/11) : un tableau sous un trait d'encre ; une macro par ligne, ses étapes en gris.
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 0) {
+                MacroLibraryProblemLabel(library: library)
+                    .padding(.bottom, 10)
+                if library.macros.isEmpty {
+                    Text("Aucune macro.").font(Swiss.font(16, .regular)).foregroundStyle(Swiss.gray).padding(.top, 24)
+                } else {
+                    Rectangle().fill(Swiss.text).frame(height: 2)
+                    ForEach(library.macros) { doc in row(doc) }
+                }
+                // Importer / tout exporter (06/11) gardés en petits liens sous la liste.
+                HStack(spacing: 20) {
+                    MinimalLink(title: String(localized: "Importer"), color: Swiss.gray) {
+                        MacroLibraryActions.importFile(into: library, layout: store.layout, toast: toast, open: open)
+                    }
+                    if !library.macros.isEmpty {
+                        MinimalLink(title: String(localized: "Tout exporter"), color: Swiss.gray) {
+                            MacroLibraryActions.exportAll(library, toast: toast)
                         }
                     }
-                    .frame(maxWidth: ReadableLayout.maxWidth, alignment: .leading)
-                    .padding(.horizontal, ReadableLayout.inset)
-                    .padding(.top, 4)
-                    .padding(.bottom, 80)
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .padding(.top, 24)
             }
+            .frame(maxWidth: 1088, alignment: .leading)
+            .padding(.horizontal, ReadableLayout.inset)
+            .padding(.top, 4)
+            .padding(.bottom, 80)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    /// Sans macro (maquette, écran 6) : « Aucune macro. » en grand, puis « Nouvelle macro ».
-    private var empty: some View {
-        VStack(alignment: .leading, spacing: 28) {
-            Text("Aucune macro.").swissTitle(56)
-            NewMacroButton(library: library)
-            MacroLibraryProblemLabel(library: library)
-                .frame(maxWidth: 420, alignment: .leading)
-        }
-        .padding(.top, 110)
-        .frame(maxWidth: ReadableLayout.maxWidth, alignment: .leading)
-        .padding(.horizontal, ReadableLayout.inset)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    /// Les étapes en une ligne (« Menu de FL File › Export · Attendre 1 s · Touche Entrée »).
+    private func summary(_ doc: MacroDoc) -> String {
+        guard !doc.blocks.isEmpty else { return String(localized: "Aucune étape") }
+        let layout = store.layout
+        return doc.blocks.prefix(6).map { block -> String in
+            guard let type = block.body.type else { return "" }
+            let spec = BlockRegistry.spec(type)
+            let value = spec.resume(block.body, layout)
+            return value.isEmpty ? spec.label : spec.label + " " + value
+        }.filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
-    private func row(_ doc: MacroDoc, number: Int) -> some View {
+    private func row(_ doc: MacroDoc) -> some View {
         let sample = sampleRemaps[doc.id]
         let remap = sample ?? store.remaps(forMacro: doc.id).first
         let program = store.programs[doc.id]
         let flags = MacroOutline.flags(doc.blocks, learnedInput: MacroSpots.loadPath(.input) != nil)
-        var alert: (String, Color, String)?
-        if flags.toLearn {
-            alert = (String(localized: "À apprendre"), Swiss.red, String(localized: "Un endroit ou l'entrée 1 est à montrer dans FL."))
-        } else if let problem = program?.problem {
-            alert = (String(localized: "À corriger"), Swiss.red, problem)
-        }
-        return MacroLibraryLine(doc: doc, number: number, trigger: remap?.trigger, disabled: remap.map { !$0.enabled } ?? false,
-                                alert: alert,
-                                onOpen: { open(doc.id) },
-                                onKey: {
-                                    guard sample == nil else { return }
-                                    if let remap { editKey(remap, false) } else { editKey(Remap(trigger: nil, macroRef: doc.id), true) }
-                                },
-                                onDuplicate: { duplicate(doc) },
-                                onExport: { export(doc) },
-                                onToggle: remap.map { r -> () -> Void in { if sample == nil { toggle(r) } } },
-                                onDelete: { delete(doc) })
+        let alert: String? = flags.toLearn ? String(localized: "À apprendre") : (program?.problem != nil ? String(localized: "À corriger") : nil)
+        return MinimalMacroRow(name: doc.name.displaySafe(max: 60), summary: summary(doc), alert: alert,
+                               key: remap?.trigger?.display, active: remap.map { $0.enabled },
+                               confirming: confirmDelete == doc.id,
+                               onOpen: { open(doc.id) },
+                               onKey: {
+                                   guard sample == nil else { return }
+                                   if let remap { editKey(remap, false) } else { editKey(Remap(trigger: nil, macroRef: doc.id), true) }
+                               },
+                               onToggle: { if sample == nil, let remap { toggle(remap) } },
+                               onDelete: { confirmDelete = doc.id },
+                               onConfirmDelete: { confirmDelete = nil; delete(doc) },
+                               onCancelDelete: { confirmDelete = nil })
+            .swissContextMenu {
+                [RightClickMenu.Item(title: String(localized: "Modifier…"), action: { open(doc.id) }),
+                 RightClickMenu.Item(title: String(localized: "Dupliquer"), action: { duplicate(doc) }),
+                 RightClickMenu.Item(title: String(localized: "Exporter…"), action: { export(doc) }),
+                 nil,
+                 RightClickMenu.Item(title: String(localized: "Supprimer"), destructive: true, action: { confirmDelete = doc.id })]
+            }
     }
 
     // MARK: Actions
@@ -158,11 +168,6 @@ private struct MacroLibraryList: View {
     /// Supprime la macro et ses raccourcis, après une question (03/11 : « c'est seulement pour supprimer que ça doit
     /// demander ») ; encore annulable depuis la notification.
     private func delete(_ doc: MacroDoc) {
-        let shown = doc.name.displaySafe(max: 40)
-        guard Dialogs.choose(String(localized: "Supprimer « \(shown) » ?"),
-                             "",
-                             [String(localized: "Supprimer"), String(localized: "Annuler")], destructive: 0) == 0
-        else { return }
         let shortcuts = store.remaps(forMacro: doc.id)
         guard let removed = library.remove(doc.id) else { return }
         for r in shortcuts { store.delete(r.id) }

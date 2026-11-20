@@ -102,6 +102,7 @@
 "(sans nom)" = "(unnamed)";
 "(sans raccourci)" = "(no shortcut)";
 "+ (pavé)" = "+ (keypad)";
+"+ Nouvelle macro" = "+ New macro";
 ", copie impossible : elle n'est pas modifiée." = ", couldn't make a copy: it's left unchanged.";
 ", copie impossible : le fichier n'est pas modifié." = ", couldn't make a copy: the file is left unchanged.";
 ", dont %lld à relire" = ", %lld to review";
@@ -181,6 +182,7 @@
 "Actualiser : voir les derniers partages" = "Refresh: see the latest posts";
 "Adlib" = "Adlib";
 "Administrateur : retirer cette photo pour tout le monde" = "Administrator: remove this photo for everyone";
+"Adresse mail" = "Email address";
 "Adresse mail invalide." = "Invalid email address.";
 "Affichage" = "View";
 "Affiche la Playlist" = "Shows the Playlist";
@@ -219,6 +221,7 @@
 "Ajouter un marqueur" = "Add a marker";
 "Ajouter un marqueur de temps" = "Add a time marker";
 "Ajouter une capture" = "Add a screenshot";
+"Ajouter une photo" = "Add a photo";
 "Ajouter une touche de secours" = "Add a fallback key";
 "Ajouter « %@ »" = "Add “%@”";
 "Ajouter à mes macros" = "Add to my macros";
@@ -243,6 +246,7 @@
 "Annule la dernière action" = "Undoes the last action";
 "Annuler" = "Cancel";
 "Annuler / rétablir la dernière modification" = "Undo / redo last change";
+"Annuler le changement" = "Undo the change";
 "Annuler le dernier remplacement" = "Undo the last replacement";
 "Annuler les modifications" = "Discard changes";
 "Annuler pas à pas" = "Undo step by step";
@@ -258,6 +262,7 @@
 "Appuie sur les touches…" = "Press the keys…";
 "Appuie sur un bouton de ta souris…" = "Press a button on your mouse…";
 "Appuie sur un raccourci" = "Press a shortcut";
+"Appuie sur une touche" = "Press a key";
 "Appuyer sur" = "Press";
 "Après la suppression des sons sans note, le Channel rack de la copie rangée ne correspond plus à l'analyse : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé." = "After deleting the sounds with no notes, the Channel rack of the organized copy no longer matches the analysis: Organize stopped. “Undo changes” reopens your original project, which hasn't changed.";
 "Arme la piste du Mixer sélectionnée, ou la désarme" = "Arms the selected Mixer track, or disarms it";
@@ -327,10 +332,12 @@
 "Aucun preset choisi" = "No preset chosen";
 "Aucun raccourci" = "No shortcut";
 "Aucun raccourci changé" = "No changed shortcuts";
+"Aucun raccourci changé." = "No changed shortcut.";
 "Aucun raccourci défini." = "No shortcut set.";
 "Aucun raccourci ne correspond à « %@ »." = "No shortcut matches “%@”.";
 "Aucun raccourci." = "No shortcuts.";
 "Aucun résultat" = "No results";
+"Aucun résultat." = "No results.";
 "Aucun son n'a été écouté : tous ont été rangés d'après leur nom. Change leur nom dans FL." = "No sound was listened to: all were organized by their name. Change their name in FL.";
 "Aucun son reçu de FL pendant l'écoute. Vérifie que FL Shortcuts a l'autorisation « Audio du système » (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système), et que les sons choisis jouent bien dans FL (Master pas coupé), puis « Réessayer »." = "No sound came from FL while listening. Check that FL Shortcuts has the “System Audio” permission (System Settings › Privacy & Security › Screen & System Audio Recording), and that the chosen sounds really play in FL (Master not muted), then “Try again”.";
 "Aucun son reçu de FL pendant l'écoute. Vérifie que FL Shortcuts est coché dans « Enregistrement de l'écran et audio du système » (Réglages Système › Confidentialité et sécurité, la liste du haut), et que les sons choisis jouent bien dans FL (Master pas coupé), puis « Réessayer »." = "No sound came from FL while listening. Check that FL Shortcuts is turned on in “Screen & System Audio Recording” (System Settings › Privacy & Security, the top list), and that the chosen sounds really play in FL (Master not muted), then “Try again”.";
@@ -351,6 +358,7 @@
 "Aucune touche" = "No key";
 "Aucune touche de FL choisie." = "No FL key chosen.";
 "Aucune touche reçue : macOS utilise peut-être ce raccourci." = "No key received: macOS may be using this shortcut.";
+"Aucune étape" = "No steps";
 "Automatique" = "Automatic";
 "Automatique (%@)" = "Automatic (%@)";
 "Automatique (aucune carte branchée)" = "Automatic (no card connected)";
@@ -379,6 +387,8 @@
 "Autres" = "Other";
 "Avance rapide" = "Fast forward";
 "Avancer" = "Forward";
+"Avant : %@" = "Before: %@";
+"Avant : %@ · Maintenant : %@" = "Before: %@ · Now: %@";
 "Avec le lien avec FL : la piste choisie passe en solo (ou le perd) tout de suite, sans aucun clic." = "With the FL link: the chosen track is soloed (or unsoloed) right away, with no clicks.";
 "Avec le lien avec FL : le son de la piste choisie est coupé (ou remis) tout de suite, sans aucun clic." = "With the FL link: the chosen track is muted (or unmuted) right away, with no clicks.";
 "Avec le lien avec FL, rien à faire (aucun clic). Sans lui : bouton mute à montrer une fois sur ce Mac, avec « Montrer le bouton mute dans FL… »." = "With the FL link, nothing to do (no clicks). Without it: show the mute button once on this Mac, with “Show the mute button in FL…”.";
@@ -429,6 +439,7 @@
 "Bureau de gauche" = "Move left a space";
 "Bypass des effets de la piste" = "Bypass track effects";
 "C'est bon" = "Done";
+"C'est changé." = "Changed.";
 "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout, sauf les sons supprimés." = "Done: the project is sorted, colored and renamed. “Undo changes” undoes everything except the deleted sounds.";
 "C'est fait : ton projet est rangé" = "Done: your project is organized";
 "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « %@ », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre et met la copie à la Corbeille." = "Done: your project is organized, colored and renamed in a copy, “%@”, next to the original. The original wasn't changed: “Undo changes” reopens it and moves the copy to the Trash.";
@@ -474,6 +485,7 @@
 "Ce que tu faisais, ce qui devait se passer, ce qui s'est passé. Ex. : « ma macro s'arrête au 3e bloc dans le Mixer »." = "What you were doing, what should have happened, what happened. E.g.: “my macro stops at the 3rd block in the Mixer”.";
 "Ce qui s'est passé" = "What happened";
 "Ce qui te ferait gagner du temps dans FL Studio." = "What would save you time in FL Studio.";
+"Ce raccourci de FL garde une touche." = "This FL shortcut keeps a key.";
 "Ce raccourci ne marchera pas encore" = "This shortcut won't work yet";
 "Centrer sur la tête de lecture" = "Center on playhead";
 "Ces réponses partent à l'équipe de FL Shortcuts avec le diagnostic (des nombres, aucun nom de son)." = "These answers go to the FL Shortcuts team with the diagnostic (numbers only, no sound names).";
@@ -483,6 +495,7 @@
 "Cette option n'est pas dans %@." = "This option isn't in %@.";
 "Cette photo est choquante ou n'a rien à faire ici : l'équipe la regarde" = "This photo is offensive or doesn't belong here: the team will look at it";
 "Cette touche" = "This key";
+"Cette touche ne peut pas servir de raccourci." = "This key can't be used as a shortcut.";
 "Change le magnétisme : 1/4, 1/8, triolets…" = "Changes the snap: 1/4, 1/8, triplets…";
 "Change les raccourcis de FL Studio, ou ajoute les tiens." = "Change FL Studio's shortcuts, or add your own.";
 "Change une famille, un nom ou une piste si tu veux." = "Change a family, a name or a track if you like.";
@@ -494,6 +507,7 @@
 "Changer ce qu'est ce son (Kick, 808, Lead…), ou écrire son nom" = "Change what this sound is (Kick, 808, Lead…), or type its name";
 "Changer d'adresse" = "Change address";
 "Changer la couleur" = "Change color";
+"Changer la photo" = "Change the photo";
 "Changer la touche" = "Change key";
 "Changer la touche de %@" = "Change the key for %@";
 "Changer la touche…" = "Change key…";
@@ -517,6 +531,7 @@
 "Charger un profil" = "Load a profile";
 "Cherche dans l'aide : raccourcis, macro, pause…" = "Search help: shortcuts, macro, pause…";
 "Chercher" = "Search";
+"Chercher un autre raccourci" = "Find another shortcut";
 "Chercher une macro, des raccourcis" = "Search a macro, shortcuts";
 "Cherché par son nom ou son image au moment du clic (autorisation « Enregistrement de l'écran »)." = "Looked up by its name or image at click time (“Screen Recording” permission).";
 "Chiffre" = "Number";
@@ -644,6 +659,7 @@
 "Code de la couleur (#RRGGBB), comme dans FL" = "Color code (#RRGGBB), as in FL";
 "Code de la couleur, comme dans la fenêtre de couleur de FL (Entrée pour la garder dans les récentes)" = "Color code, as in FL's color window (Return to keep it in recent colors)";
 "Code envoyé à %@" = "Code sent to %@";
+"Code envoyé à %@." = "Code sent to %@.";
 "Code incorrect ou expiré : vérifie-le, ou demande un nouveau code." = "Wrong or expired code: check it, or ask for a new one.";
 "Code reçu par mail" = "Code received by email";
 "Coller" = "Paste";
@@ -674,6 +690,7 @@
 "Connecte-toi dans « Mon compte » (barre latérale) : tes raccourcis et tes macros sont sauvegardés en ligne quelques secondes après chaque changement. Sur un autre Mac, connecte-toi avec le même compte : tout revient. À la déconnexion, ils quittent ce Mac et restent dans ton compte. Si ce Mac et ton compte ont chacun des changements, l'app te demande lequel garder." = "Sign in under “My account” (sidebar): your shortcuts and macros are backed up online a few seconds after each change. On another Mac, sign in with the same account: everything comes back. When you sign out, they leave this Mac and stay in your account. If this Mac and your account both have changes, the app asks you which to keep.";
 "Connecte-toi pour choisir ton thème." = "Sign in to choose your theme.";
 "Connecte-toi pour retrouver tes messages." = "Sign in to see your messages.";
+"Connecte-toi pour voir la Communauté." = "Sign in to see the Community.";
 "Connecte-toi pour écrire à l'équipe." = "Sign in to write to the team.";
 "Connecte-toi sur un autre Mac : tout revient. À la déconnexion, ils quittent ce Mac et restent dans ton compte." = "Sign in on another Mac: everything comes back. When you sign out, they leave this Mac and stay in your account.";
 "Connecté en tant que @%@" = "Signed in as @%@";
@@ -723,6 +740,7 @@
 "Créer mon compte" = "Create my account";
 "Créer sa piste audio (Playlist)" = "Create your audio track (Playlist)";
 "Créer un compte" = "Create an account";
+"Créé par toi" = "Made by you";
 "Créés par toi" = "Created by you";
 "Ctrl+Alt+Maj+F, n'importe où. « Reprendre » apparaît alors dans le menu de l'icône près de l'horloge." = "Ctrl+Alt+Shift+F, anywhere. “Resume” then appears in the menu of the icon next to the clock.";
 "Cymbal" = "Cymbal";
@@ -1471,6 +1489,7 @@
 "Nom automatique" = "Automatic name";
 "Nom d'utilisateur" = "Username";
 "Nom d'utilisateur : 3 à 24 caractères, lettres sans accent, chiffres, « _ », « . » ou « - »." = "Username: 3 to 24 characters, letters without accents, numbers, “_”, “.” or “-”.";
+"Nom de l'action" = "Action name";
 "Nom de la macro" = "Macro name";
 "Nom de macro invalide." = "Invalid macro name.";
 "Nom de variable invalide." = "Invalid variable name.";
@@ -1820,6 +1839,7 @@
 "Rangement dans la copie…" = "Organizing the copy…";
 "Rangement… Ne touche pas à FL." = "Organizing… Don't touch FL.";
 "Re-stretch de tous les clips audio" = "Re-stretch all audio clips";
+"Recevoir le code" = "Get the code";
 "Recherche" = "Search";
 "Rechercher" = "Search";
 "Rechercher avec un raccourci" = "Search by shortcut";
@@ -1845,6 +1865,7 @@
 "Relire la liste dans FL (plugins ajoutés depuis) : le menu Add s'ouvre un instant s'il le faut" = "Reload the list from FL (plugins added since): the Add menu opens briefly if needed";
 "Relire les cartes branchées" = "Reload connected sound cards";
 "Relire les menus dans FL" = "Read the menus in FL again";
+"Remettre" = "Restore";
 "Remplace certaines touches de FL (F9, B, O, Z…)." = "Replaces some FL keys (F9, B, O, Z…).";
 "Remplace un raccourci natif — %@." = "Replaces a built-in shortcut — %@.";
 "Remplacer" = "Replace";
@@ -1918,6 +1939,7 @@
 "Rien n'utilise %@." = "Nothing uses %@.";
 "Rien où retourner pour l'instant" = "Nothing to go back to yet";
 "Rien reçu ? Regarde dans les spams." = "Nothing received? Check your spam folder.";
+"Rien sur %@." = "Nothing on %@.";
 "Rien à régler." = "Nothing to set.";
 "Riff Machine" = "Riff Machine";
 "Rim" = "Rim";
@@ -1968,6 +1990,7 @@
 "Sans lien avec FL, ce bloc échoue (aucun équivalent au clavier)." = "Without the FL link, this block fails (no keyboard equivalent).";
 "Sans lien, cette touche de FL :" = "Without link, this FL key:";
 "Sans raccourci" = "No shortcut";
+"Sans touche" = "No key";
 "Sat" = "Sat";
 "Saturation" = "Saturation";
 "Sauvegarde" = "Backup";
@@ -2072,6 +2095,7 @@
 "Supprimer la sélection" = "Delete selection";
 "Supprimer le bloc" = "Delete block";
 "Supprimer le bloc choisi (⌫)" = "Delete the selected block (⌫)";
+"Supprimer le compte et sa sauvegarde ?" = "Delete the account and its backup?";
 "Supprimer les canaux" = "Delete channels";
 "Supprimer les clips audio inutilisés" = "Delete unused audio clips";
 "Supprimer les sons sans aucune note (on ne peut pas les remettre)" = "Delete sounds without any notes (they can't be brought back)";
@@ -2223,6 +2247,7 @@
 "Tout est enregistré" = "All saved";
 "Tout est prêt" = "All set";
 "Tout est prêt, mais attention au larsen" = "All set, but watch out for feedback";
+"Tout exporter" = "Export all";
 "Tout réinitialiser ?" = "Reset everything?";
 "Tout réinitialiser…" = "Reset all…";
 "Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre et met la nouvelle version à la Corbeille. Aucune lecture de l'écran." = "Everything is organized in a new version of your project (“_2”, like FL's “Save new version”), next to the original: your original project isn't changed, “Undo changes” reopens it and moves the new version to the Trash. No screen reading.";
@@ -2599,7 +2624,9 @@
 "option inconnue" = "unknown option";
 "option à choisir" = "option to choose";
 "ou appuie sur le raccourci" = "or press the shortcut";
+"ou appuie sur une touche" = "or press a key";
 "ou tape son nom" = "or type its name";
+"ou tape un nom" = "or type a name";
 "ou écris le nom." = "or type the name.";
 "ouvert" = "open";
 "ouverte" = "expanded";
@@ -2650,6 +2677,7 @@
 "risque de larsen : change d'entrée ou de sortie (casque, carte son)" = "feedback risk: change the input or output (headphones, sound card)";
 "réponse de FL illisible" = "FL reply unreadable";
 "s" = "s";
+"sans touche" = "no key";
 "seulement dans la Playlist : clique sur le nom d'une piste de la Playlist, puis relance" = "Playlist only: click the name of a Playlist track, then run it again";
 "sons rangés" = "sounds organized";
 "sons sans note retirés" = "silent sounds removed";
@@ -2798,6 +2826,7 @@
 "Étape %lld sur 3" = "Step %lld of 3";
 "Étapes" = "Steps";
 "Étapes, fenêtres de FL et clics de chaque macro, pour comprendre un échec. Aucune frappe, aucun nom de fichier." = "Steps, FL windows and clicks of each macro, to understand a failure. No keystrokes, no file names.";
+"Éteinte" = "Off";
 "Étendre la sélection vers le bas" = "Extend selection down";
 "Étendre la sélection vers le haut" = "Extend selection up";
 "× (pavé)" = "× (keypad)";

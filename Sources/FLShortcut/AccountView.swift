@@ -67,6 +67,7 @@ struct AccountPage: View {
     @ObservedObject var community: CommunityStore
     @ObservedObject var backup: AccountBackup
     @State private var deleteError: String?
+    @State private var confirmingDelete = false
 
     var body: some View {
         Group {
@@ -91,52 +92,105 @@ struct AccountPage: View {
         }
     }
 
-    /// Maquette du 05/11 (« la page Mon compte, elle est plutôt cool… la page de thème, elle est très bien ») : à
-    /// gauche le profil puis le thème ; à droite la sauvegarde en ligne (et le choix quand ce Mac et le compte ont
-    /// chacun leurs changements) ; en bas « Se déconnecter » et « Supprimer mon compte » souligné.
+    /// Maquette « Minimal » (20/11) : la photo ronde et le pseudo en très grand avec son point rouge, le mail ; « Ajouter
+    /// une photo » ; « Thème » : Papier, Noir, Orange soulignés ; « Se déconnecter » ; « Supprimer mon compte » en rouge,
+    /// qui demande dans la page. Le choix de la sauvegarde ne s'affiche que s'il faut choisir.
     private func signedIn(_ session: CommunitySession) -> some View {
         ScrollView(.vertical) {
-            VStack(alignment: .leading, spacing: 22) {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 330), spacing: 20, alignment: .top)],
-                          alignment: .leading, spacing: 20) {
-                    VStack(alignment: .leading, spacing: 20) {
-                        AccountProfileCard(community: community, session: session)
-                        AccountThemeCard()
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .center, spacing: 20) {
+                    Button { community.editingProfile = true } label: {
+                        AvatarView(photo: community.myPhoto, username: session.username, size: 96)
                     }
-                    VStack(alignment: .leading, spacing: 20) {
-                        AccountBackupStatus(status: backup.status, here: backup.hereSummary, online: backup.onlineSummary,
-                                            notice: backup.notice) { Task { await backup.saveNow() } }
-                        if let conflict = backup.conflict {
-                            AccountConflictCard(conflict: conflict) { keepAccount in
-                                Task { await backup.resolve(keepAccount: keepAccount) }
+                    .buttonStyle(.plain)
+                    .help("Changer ta photo")
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(alignment: .lastTextBaseline, spacing: 3) {
+                            Text(verbatim: session.username.displaySafe(max: 24))
+                                .font(Swiss.font(48, .semibold)).tracking(-1.4)
+                                .foregroundStyle(Swiss.text)
+                                .lineLimit(1).minimumScaleFactor(0.5)
+                            Rectangle().fill(Swiss.red).frame(width: 8, height: 8)
+                        }
+                        Text(verbatim: session.email.displaySafe(max: 60))
+                            .font(Swiss.font(13, .regular)).foregroundStyle(Swiss.gray)
+                    }
+                }
+                MinimalLink(title: community.myPhoto == nil ? String(localized: "Ajouter une photo") : String(localized: "Changer la photo")) {
+                    community.editingProfile = true
+                }
+                .padding(.top, 16)
+                Text("Thème").font(Swiss.font(13, .regular)).foregroundStyle(Swiss.gray).padding(.top, 48)
+                AccountThemeTabs().padding(.top, 16)
+                if let conflict = backup.conflict {
+                    AccountConflictCard(conflict: conflict) { keepAccount in
+                        Task { await backup.resolve(keepAccount: keepAccount) }
+                    }
+                    .padding(.top, 32)
+                }
+                MinimalButton(title: String(localized: "Se déconnecter"), outlined: true) {
+                    Task { await AccountActions.signOut(backup) }
+                }
+                .fixedSize()
+                .help("Tes raccourcis et tes macros quittent ce Mac et restent dans ton compte.")
+                .padding(.top, 48)
+                Group {
+                    if confirmingDelete {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Supprimer le compte et sa sauvegarde ?").font(Swiss.font(14, .regular)).foregroundStyle(Swiss.text)
+                            HStack(spacing: 16) {
+                                MinimalButton(title: String(localized: "Supprimer")) {
+                                    confirmingDelete = false
+                                    Task { deleteError = await AccountActions.deleteAccount(backup) }
+                                }
+                                .fixedSize()
+                                MinimalLink(title: String(localized: "Annuler")) { confirmingDelete = false }
                             }
                         }
+                    } else {
+                        MinimalLink(title: String(localized: "Supprimer mon compte"), color: Swiss.red) { confirmingDelete = true }
                     }
                 }
-                HStack(spacing: 20) {
-                    Button("Se déconnecter") { Task { await AccountActions.signOut(backup) } }
-                        .secondaryButton()
-                        .controlSize(.large)
-                        .help("Tes raccourcis et tes macros quittent ce Mac et restent dans ton compte.")
-                    Button("Supprimer mon compte") {
-                        Task { deleteError = await AccountActions.deleteAccount(backup) }
-                    }
-                    .buttonStyle(SwissLinkButtonStyle())
-                    .font(.system(size: 13))
-                    .help("Efface ton compte, ta sauvegarde en ligne et tes partages. Tes raccourcis et tes macros restent sur ce Mac.")
-                }
+                .padding(.top, 32)
                 if let deleteError {
-                    SwissWarning(deleteError)
-                        .font(.system(size: 12))
+                    SwissWarning(deleteError).font(.system(size: 12)).padding(.top, 12)
                 }
             }
-            .readableColumn()                     // direction A : la colonne du titre
-            .padding(.top, 10)
+            .frame(maxWidth: 1088, alignment: .leading)
+            .padding(.horizontal, ReadableLayout.inset)
+            .padding(.top, 40)
             .padding(.bottom, 24)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .sheet(isPresented: $community.editingProfile) {
             EditProfileSheet(community: community)
                 .swissSheet()
+        }
+    }
+}
+
+/// Thème (maquette « Minimal ») : Papier, Noir, Orange en onglets soulignés ; un clic le prend tout de suite.
+struct AccountThemeTabs: View {
+    @State private var chosen = AppTheme.current
+
+    var body: some View {
+        HStack(spacing: 24) {
+            ForEach([AppTheme.papier, .noir, .orange]) { theme in
+                let on = theme == chosen
+                Button {
+                    chosen = theme
+                    AppTheme.choose(theme)
+                } label: {
+                    Text(theme.title)
+                        .font(Swiss.font(14, on ? .semibold : .regular))
+                        .foregroundStyle(on ? Swiss.text : Swiss.gray)
+                        .padding(.bottom, 6)
+                        .overlay(alignment: .bottom) { if on { Rectangle().fill(Swiss.text).frame(height: 2) } }
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
+            }
         }
     }
 }

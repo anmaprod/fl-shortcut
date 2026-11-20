@@ -73,7 +73,15 @@ struct CommunityPage: View {
                 CommunityMessage(symbol: "network.slash", title: String(localized: "La Communauté n'est pas encore ouverte"),
                                  text: "")
             } else if community.session == nil {
-                CommunitySignIn(community: community)
+                // Maquette « Minimal » : la phrase et « Se connecter » (la connexion est dans Compte).
+                VStack(alignment: .leading, spacing: 24) {
+                    Text("Connecte-toi pour voir la Communauté.").font(Swiss.font(24, .regular)).foregroundStyle(Swiss.text)
+                    MinimalButton(title: String(localized: "Se connecter")) { AccountLink.shared.pending = true }.fixedSize()
+                }
+                .frame(maxWidth: 1088, alignment: .leading)
+                .padding(.horizontal, ReadableLayout.inset)
+                .padding(.top, 40)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             } else {
                 CommunityBrowse(community: community, open: { opened = $0 }, report: { reporting = $0 },
                                 delete: { share in Task { await delete(share) } })
@@ -812,8 +820,10 @@ struct CommunitySignIn: View {
                 }
             }
             .softSwitch(community.pendingCode == nil ? 0 : 1, quick: true)
-            .readableColumn()                     // direction A : la colonne du titre
-            .padding(.top, 18)
+            .frame(maxWidth: 1088, alignment: .leading)
+            .padding(.horizontal, ReadableLayout.inset)
+            .padding(.top, 40)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.bottom, 32)
         }
         .glassListBackground()
@@ -823,122 +833,93 @@ struct CommunitySignIn: View {
         }
     }
 
-    // MARK: Se connecter / Créer un compte
+    // MARK: Se connecter / Créer un compte (maquette « Minimal »)
 
-    /// 05/11 (« faut que tu me fasses la page de avant mon compte… un truc très beau ») : à gauche, ce que donne un
-    /// compte en trois lignes numérotées ; à droite, le formulaire (onglets, champs, bouton principal). L'un sous
-    /// l'autre si la fenêtre est étroite.
+    /// « Mot de passe oublié » : l'adresse, puis le code reçu par mail.
+    @State private var forgot = false
+
     private var signInCard: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: 44) {
-                AuthPitch().frame(minWidth: 280, maxWidth: 400, alignment: .leading)
-                signInForm
-            }
-            VStack(alignment: .leading, spacing: 30) {
-                AuthPitch()
-                signInForm
-            }
-        }
-    }
-
-    private var signInForm: some View {
-        AuthCard {
-            AuthTabs(creating: $community.creatingAccount)
-            VStack(alignment: .leading, spacing: 18) {
-                if creating {
-                    AuthField(title: String(localized: "Pseudo"), text: $username, prompt: String(localized: "ton.pseudo"),
-                              prefix: "@") {
-                        UsernameStatus(check: nameCheck)
-                    }
+        VStack(alignment: .leading, spacing: 0) {
+            Text(forgot ? String(localized: "Mot de passe oublié") : creating ? String(localized: "Créer un compte") : String(localized: "Connexion"))
+                .font(Swiss.font(48, .semibold)).tracking(-1.4).foregroundStyle(Swiss.text)
+            MinimalField(title: String(localized: "Adresse mail"), text: $email)
+            if creating && !forgot {
+                MinimalField(title: String(localized: "Pseudo"), text: $username)
                     .modifier(UsernameChecker(community: community, name: username, check: $nameCheck))
-                    if case .invalid(let why) = nameCheck { hint(why) }
-                }
-                AuthField(title: String(localized: "E-mail"), text: $email, prompt: String(localized: "toi@exemple.com"))
-                AuthField(title: String(localized: "Mot de passe"), text: $password,
-                          prompt: creating ? String(localized: "8 caractères au moins") : String(localized: "Ton mot de passe"),
-                          secure: true, link: creating ? nil : forgotLink)
-                if creating { PasswordRules(password: password) }
+                if case .invalid(let why) = nameCheck { hint(why) }
+                if nameCheck == .taken { hint(String(localized: "Ce pseudo est déjà pris.")) }
             }
-            Button(creating ? String(localized: "Créer mon compte") : String(localized: "Se connecter")) { submit() }
-                .buttonStyle(AuthPrimaryButtonStyle())
-                .keyboardShortcut(.defaultAction)
-                .disabled(!canSubmit || community.busy)
-                .overlay(alignment: .trailing) {
-                    if community.busy { ProgressView().controlSize(.small).padding(.trailing, 18) }
+            if !forgot {
+                MinimalField(title: String(localized: "Mot de passe"), text: $password, secure: true)
+                if creating, let why = password.isEmpty ? nil : CommunityRules.passwordProblem(password) { hint(why) }
+            }
+            HStack(spacing: 16) {
+                MinimalButton(title: forgot || creating ? String(localized: "Recevoir le code") : String(localized: "Se connecter")) { submit() }
+                    .fixedSize()
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!canSubmit || community.busy)
+                    .opacity(!canSubmit || community.busy ? 0.4 : 1)
+                if community.busy { ProgressView().controlSize(.small) }
+            }
+            .padding(.top, 32)
+            CommunityStatus(community: community).padding(.top, 12)
+            HStack(spacing: 20) {
+                if creating || forgot {
+                    MinimalLink(title: String(localized: "J'ai déjà un compte")) { community.creatingAccount = false; forgot = false }
+                } else {
+                    MinimalLink(title: String(localized: "Créer un compte")) { community.creatingAccount = true }
+                    MinimalLink(title: String(localized: "Mot de passe oublié ?"), color: Swiss.gray) { forgot = true }
                 }
-            CommunityStatus(community: community)
+            }
+            .padding(.top, 24)
         }
-    }
-
-    private var forgotLink: (title: String, action: () -> Void) {
-        (String(localized: "Mot de passe oublié ?"), { Task { await community.resetPassword(email: email) } })
+        .frame(maxWidth: 480, alignment: .leading)
     }
 
     // MARK: Code reçu par mail
 
-    /// Code reçu par mail : confirmer l'inscription, ou choisir un nouveau mot de passe.
+    /// Code reçu par mail : confirmer l'inscription, ou choisir un nouveau mot de passe (maquette « Minimal »).
     private func codeCard(_ pending: CommunityStore.PendingCode) -> some View {
         let recovery = pending.kind == .recovery
-        return AuthCard {
-            VStack(alignment: .leading, spacing: 8) {
-                SwissPageTitle(text: recovery ? String(localized: "Nouveau mot de passe") : String(localized: "Vérifie tes mails"),
-                               size: 28)
-                Text("Code envoyé à \(Text(pending.email.displaySafe(max: 60)).fontWeight(.semibold))")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Swiss.gray)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            CodeBoxes(code: $code)
+        return VStack(alignment: .leading, spacing: 0) {
+            Text(recovery ? String(localized: "Mot de passe oublié") : String(localized: "Créer un compte"))
+                .font(Swiss.font(48, .semibold)).tracking(-1.4).foregroundStyle(Swiss.text)
+            Text("Code envoyé à \(pending.email.displaySafe(max: 60)).")
+                .font(Swiss.font(14, .regular)).foregroundStyle(Swiss.text).padding(.top, 16)
+            CodeBoxes(code: $code).padding(.top, 24)
             if recovery {
-                VStack(alignment: .leading, spacing: 10) {
-                    AuthField(title: String(localized: "Nouveau mot de passe"), text: $newPassword, secure: true)
-                    PasswordRules(password: newPassword)
-                }
+                MinimalField(title: String(localized: "Nouveau mot de passe"), text: $newPassword, secure: true)
+                if !newPassword.isEmpty, let why = CommunityRules.passwordProblem(newPassword) { hint(why) }
             }
-            Button(recovery ? String(localized: "Changer le mot de passe") : String(localized: "Valider")) {
-                let typed = code, chosen = newPassword
-                Task {
-                    if recovery {
-                        await community.finishReset(code: typed, newPassword: chosen)
-                    } else {
-                        await community.confirmSignup(code: typed)
-                    }
-                }
-            }
-            .buttonStyle(AuthPrimaryButtonStyle())
-            .keyboardShortcut(.defaultAction)
-            .disabled(CommunityRules.code(code) == nil || (recovery && CommunityRules.passwordProblem(newPassword) != nil)
-                      || community.busy)
-            .overlay(alignment: .trailing) {
-                if community.busy { ProgressView().controlSize(.small).padding(.trailing, 18) }
-            }
-            HStack(spacing: 18) {
-                AuthLinkButton(title: String(localized: "Renvoyer le code")) { Task { await community.resendCode() } }
-                AuthLinkButton(title: String(localized: "Changer d'adresse")) {
-                    email = pending.email
-                    community.cancelCode()
-                }
-            }
-            CommunityStatus(community: community)
-            VStack(spacing: 6) {
-                Text("Rien reçu ? Regarde dans les spams.")
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(.secondary)
-                if !recovery {
-                    // Mail avec un lien au lieu d'un code : le lien confirme l'adresse (la page affichée après peut ne
-                    // pas s'ouvrir), il ne reste qu'à se connecter.
-                    HStack(spacing: 4) {
-                        Text("Reçu un lien au lieu d'un code ?").foregroundStyle(.secondary)
-                        Button("J'ai cliqué sur le lien") {
-                            email = pending.email
-                            community.confirmedByLink()
+            HStack(spacing: 16) {
+                MinimalButton(title: String(localized: "Valider")) {
+                    let typed = code, chosen = newPassword
+                    Task {
+                        if recovery {
+                            await community.finishReset(code: typed, newPassword: chosen)
+                        } else {
+                            await community.confirmSignup(code: typed)
                         }
-                        .buttonStyle(SwissLinkButtonStyle())
                     }
-                    .font(.system(size: 11))
                 }
+                .fixedSize()
+                .keyboardShortcut(.defaultAction)
+                .disabled(CommunityRules.code(code) == nil || (recovery && CommunityRules.passwordProblem(newPassword) != nil)
+                          || community.busy)
+                MinimalLink(title: String(localized: "Renvoyer le code")) { Task { await community.resendCode() } }
+                if community.busy { ProgressView().controlSize(.small) }
             }
+            .padding(.top, 32)
+            CommunityStatus(community: community).padding(.top, 12)
+            MinimalLink(title: String(localized: "J'ai déjà un compte")) {
+                email = pending.email
+                forgot = false
+                community.creatingAccount = false
+                community.cancelCode()
+            }
+            .padding(.top, 24)
         }
+        .frame(maxWidth: 480, alignment: .leading)
     }
 
     private func hint(_ text: String) -> some View {
@@ -947,6 +928,7 @@ struct CommunitySignIn: View {
 
     private var canSubmit: Bool {
         let mail = email.trimmingCharacters(in: .whitespaces)
+        if forgot { return CommunityRules.emailProblem(mail) == nil }
         guard creating else { return !mail.isEmpty && !password.isEmpty }
         return CommunityRules.usernameProblem(username.trimmingCharacters(in: .whitespaces)) == nil && nameCheck != .taken
             && CommunityRules.emailProblem(mail) == nil && CommunityRules.passwordProblem(password) == nil
@@ -957,7 +939,9 @@ struct CommunitySignIn: View {
         let name = username.trimmingCharacters(in: .whitespaces)
         let pass = password
         Task {
-            if creating {
+            if forgot {
+                await community.resetPassword(email: mail)
+            } else if creating {
                 await community.signUp(email: mail, password: pass, username: name)
             } else {
                 await community.signIn(email: mail, password: pass)
