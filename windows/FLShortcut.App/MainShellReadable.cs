@@ -265,14 +265,20 @@ internal sealed partial class MainShell
         };
         _findErrorLabel.Margin = new Thickness(0, 16, 0, 0);
         var left = new StackPanel { Children = { _findBox, link, _findErrorLabel } };
-        var grid = new Grid { ColumnSpacing = 24, MaxWidth = 1088, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(ReadableInset, 24, ReadableInset, 80) };
+        // Photo de la CI du 20/11 : la case n'avait que la largeur de son texte → la colonne de gauche prend toute la
+        // place jusqu'aux résultats (1 088 au plus, collée à gauche comme la maquette).
+        var grid = new Grid { ColumnSpacing = 24 };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(440) });
         grid.Children.Add(left);
         _findResults.Margin = new Thickness(0, 8, 0, 0);
         Grid.SetColumn(_findResults, 1);
         grid.Children.Add(_findResults);
-        _findPage = grid;
+        var host = new Grid { Margin = new Thickness(ReadableInset, 24, ReadableInset, 80) };
+        host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 1088 });
+        host.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        host.Children.Add(grid);
+        _findPage = host;
         UpdateFindField();
         return _findPage;
     }

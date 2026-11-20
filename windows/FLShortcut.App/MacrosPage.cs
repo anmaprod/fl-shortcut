@@ -281,7 +281,10 @@ internal sealed class MacrosPage
         name.TextTrimming = TextTrimming.CharacterEllipsis;
         name.TextWrapping = TextWrapping.NoWrap;
         string? alert = MacroDrafts.ToLearn(doc.Blocks) ? Loc.T("À apprendre") : Issue(doc) is not null ? Loc.T("À corriger") : null;
-        var steps = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        // Une grille (pas une pile horizontale, de largeur infinie) : la ligne des étapes se coupe avec « … ».
+        var steps = new Grid { ColumnSpacing = 6 };
+        steps.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        steps.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         if (alert is not null)
         {
             var warn = Label(alert, 13, Red);
@@ -291,6 +294,7 @@ internal sealed class MacrosPage
         var summary = Label(StepsSummary(doc), 13, Secondary);
         summary.TextTrimming = TextTrimming.CharacterEllipsis;
         summary.TextWrapping = TextWrapping.NoWrap;
+        Grid.SetColumn(summary, 1);
         steps.Children.Add(summary);
         grid.Children.Add(new StackPanel { Spacing = 3, VerticalAlignment = VerticalAlignment.Center, Children = { name, steps } });
 
@@ -737,7 +741,8 @@ internal sealed class MacrosPage
     {
         var head = new Grid { ColumnSpacing = 32, Margin = new Thickness(0, 16, 0, 0) };
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) });
+        // La touche prend sa place, le nom garde le reste (fenêtre étroite : le nom était coupé sur le Mac).
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var name = NameField(doc);
         name.FontSize = 32;
         name.FontFamily = SwissFont;

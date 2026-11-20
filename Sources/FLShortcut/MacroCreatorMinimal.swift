@@ -202,7 +202,7 @@ struct MinimalCreatorPage: View {
                     .fixedSize()
             }
             .padding(.bottom, 6)
-            .frame(width: 280, alignment: .leading)
+            .fixedSize()                                   // la touche prend sa place, le nom garde le reste
         }
         .padding(.top, 16)
     }
@@ -229,7 +229,6 @@ struct MinimalCreatorPage: View {
                         MinimalStepRow(row: row, index: index, count: rows.count,
                                        status: status(row), current: monitor.current == row.blockID && row.kind == .block,
                                        open: openRow == row.id,
-                                       onValue: { toggle(row) },
                                        onUp: { move(index, by: -1) },
                                        onDown: { move(index, by: 1) },
                                        onRemove: { remove(row) })
@@ -362,7 +361,6 @@ private struct MinimalStepRow: View {
     let status: MacroRunMonitor.Status?
     let current: Bool
     let open: Bool
-    let onValue: () -> Void
     let onUp: () -> Void
     let onDown: () -> Void
     let onRemove: () -> Void
@@ -413,40 +411,32 @@ private struct MinimalStepRow: View {
         .accessibilityElement(children: .contain)
     }
 
+    /// La phrase en un seul texte (photo de la CI du 20/11 : par morceaux, une longue note dépassait sur la boîte de
+    /// droite) : elle revient à la ligne ; un clic sur la ligne ouvre les réglages.
     private var sentence: some View {
-        FlowRow(spacing: 8, lineSpacing: 4) {
-            if !parts.pre.isEmpty {
-                Text(verbatim: parts.pre).font(Swiss.font(17, .regular)).foregroundStyle(Swiss.text)
-            }
-            if value != nil || !parts.placeholder.isEmpty {
-                Button(action: onValue) {
-                    HStack(spacing: 4) {
-                        Text(verbatim: value ?? parts.placeholder)
-                            .font(Swiss.font(17, value == nil ? .regular : .semibold))
-                            .lineLimit(1)
-                        Text(verbatim: "▾").font(Swiss.font(13, .regular))
-                    }
-                    .foregroundStyle(value == nil ? Swiss.red : Swiss.text)
-                    .padding(.bottom, 2)
-                    .overlay(alignment: .bottom) {
-                        if value == nil {
-                            DottedLine().stroke(Swiss.red, style: StrokeStyle(lineWidth: 2, dash: [2, 3])).frame(height: 2)
-                        } else {
-                            Rectangle().fill(Swiss.text).frame(height: 2)
-                        }
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help("Réglages de cette étape")
-            }
-            if !parts.post.isEmpty {
-                Text(verbatim: parts.post).font(Swiss.font(17, .regular)).foregroundStyle(Swiss.text)
-            }
-            if !row.ownEnabled {
-                Text("désactivée").font(Swiss.font(13, .regular)).foregroundStyle(Swiss.gray)
-            }
+        sentenceText
+            .font(Swiss.font(17, .regular))
+            .foregroundStyle(Swiss.text)
+            .fixedSize(horizontal: false, vertical: true)
+            .help("Réglages de cette étape")
+    }
+
+    private var sentenceText: Text {
+        if row.type == .comment {
+            return Text(verbatim: row.verb).italic().foregroundColor(Swiss.gray)
         }
+        var pieces: [Text] = []
+        if !parts.pre.isEmpty { pieces.append(Text(verbatim: parts.pre)) }
+        if value != nil || !parts.placeholder.isEmpty {
+            let shown = Text(verbatim: (value ?? parts.placeholder) + " ▾")
+            pieces.append(value == nil ? shown.foregroundColor(Swiss.red).underline(true, color: Swiss.red)
+                                       : shown.fontWeight(.semibold).underline())
+        }
+        if !parts.post.isEmpty { pieces.append(Text(verbatim: parts.post)) }
+        if !row.ownEnabled { pieces.append(Text("désactivée").font(Swiss.font(13, .regular)).foregroundColor(Swiss.gray)) }
+        guard var text = pieces.first else { return Text(verbatim: row.verb) }
+        for piece in pieces.dropFirst() { text = text + Text(verbatim: " ") + piece }
+        return text
     }
 
     private var failure: String? {

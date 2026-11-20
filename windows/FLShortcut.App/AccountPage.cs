@@ -532,7 +532,7 @@ internal sealed class AccountPage
     /// pseudo en plus, « Recevoir le code » ; oublié : l'adresse seule ; « J'ai déjà un compte » y ramène.
     private FrameworkElement SignInCard()
     {
-        var card = new StackPanel { MaxWidth = 480, HorizontalAlignment = HorizontalAlignment.Left };
+        var card = new StackPanel { Width = 480, HorizontalAlignment = HorizontalAlignment.Left };
         card.Children.Add(BigTitle(_forgot ? Loc.T("Mot de passe oublié") : _creating ? Loc.T("Créer un compte") : Loc.T("Connexion")));
         var mail = Input(_email, "");
         mail.InputScope = new InputScope { Names = { new InputScopeName(InputScopeNameValue.EmailSmtpAddress) } };
@@ -680,7 +680,7 @@ internal sealed class AccountPage
     private FrameworkElement CodeCard(CodeKind kind, string email)
     {
         var recovery = kind == CodeKind.Recovery;
-        var card = new StackPanel { MaxWidth = 480, HorizontalAlignment = HorizontalAlignment.Left };
+        var card = new StackPanel { Width = 480, HorizontalAlignment = HorizontalAlignment.Left };
         card.Children.Add(BigTitle(recovery ? Loc.T("Mot de passe oublié") : Loc.T("Créer un compte")));
         var sent = Label(Loc.F("Code envoyé à %@.", email.Length > 60 ? email[..60] + "…" : email), 14, Text);
         sent.TextWrapping = TextWrapping.Wrap;

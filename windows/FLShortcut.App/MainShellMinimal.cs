@@ -223,7 +223,7 @@ internal sealed partial class MainShell
     /// « Appuie sur une touche » / « Nouvelle touche » : la barre rouge qui attend, puis le mot en très grand gris.
     private static FrameworkElement WaitingKey(string placeholder)
     {
-        var word = Label(placeholder, 48, Tertiary);
+        var word = Label(placeholder, 48, FaintText);
         word.VerticalAlignment = VerticalAlignment.Bottom;
         word.TextWrapping = TextWrapping.NoWrap;
         return new StackPanel

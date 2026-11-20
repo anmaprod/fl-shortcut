@@ -882,7 +882,7 @@ internal sealed partial class MainShell
         {
             var n = i + 1;
             // Maquette : l'étape en cours, numéro rouge et nom à l'encre en demi-gras ; passées en gris ; suivantes pâles.
-            var color = n == now ? Text : n < now ? Secondary : Tertiary;
+            var color = n == now ? Text : n < now ? Secondary : FaintText;
             var step = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
             step.Children.Add(Label(n.ToString(System.Globalization.CultureInfo.InvariantCulture), 13, n == now ? Red : color, semibold: n == now));
             step.Children.Add(Label(names[i], 13, color, semibold: n == now));

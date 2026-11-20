@@ -95,6 +95,9 @@ internal static class MacLook
     public static Color Rgb(byte r, byte g, byte b) => Color.FromArgb(255, r, g, b);
     /// L'encre du thème, transparente (voiles, traits, survols discrets) : blanche sous Noir, noire sous Papier.
     public static Color White(double opacity) => WithOpacity(Text, opacity);
+    /// Gris clair des textes en attente (« Appuie sur une touche », étapes à venir), comme `Swiss.faintText` du Mac.
+    public static Color FaintText => WithOpacity(Secondary, 0.65);
+
     public static Color WithOpacity(Color c, double opacity) => Color.FromArgb((byte)Math.Round(opacity * 255), c.R, c.G, c.B);
     public static SolidColorBrush Brush(Color c) => new(c);
 
