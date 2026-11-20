@@ -1030,7 +1030,6 @@ internal sealed class MacrosPage
         var grid = new Grid { ColumnSpacing = 16, MinHeight = 52, Padding = new Thickness(12, 8, 12, 8), Background = Brush(Colors.Transparent) };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var number = Label((index + 1).ToString("00", System.Globalization.CultureInfo.InvariantCulture), 13, Secondary);
         number.VerticalAlignment = VerticalAlignment.Center;
         grid.Children.Add(number);
@@ -1065,12 +1064,24 @@ internal sealed class MacrosPage
         Grid.SetColumn(middle, 1);
         grid.Children.Add(middle);
 
-        var tools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, VerticalAlignment = VerticalAlignment.Center };
-        if (index > 0) tools.Children.Add(LinkButton(Loc.T("Monter"), Secondary, () => MoveStep(doc, index, -1)));
-        if (index < doc.Blocks.Count - 1) tools.Children.Add(LinkButton(Loc.T("Descendre"), Secondary, () => MoveStep(doc, index, 1)));
-        tools.Children.Add(LinkButton(Loc.T("Retirer"), Secondary, () => Remove(doc, index)));
-        tools.Opacity = open ? 1 : 0;
-        Grid.SetColumn(tools, 2);
+        // Comme le Mac (photo de la CI du 20/11) : par-dessus la fin de la ligne, au survol seulement ; cachés, ils ne
+        // prennent plus de place à la phrase.
+        var toolRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, VerticalAlignment = VerticalAlignment.Center };
+        if (index > 0) toolRow.Children.Add(LinkButton(Loc.T("Monter"), Secondary, () => MoveStep(doc, index, -1)));
+        if (index < doc.Blocks.Count - 1) toolRow.Children.Add(LinkButton(Loc.T("Descendre"), Secondary, () => MoveStep(doc, index, 1)));
+        toolRow.Children.Add(LinkButton(Loc.T("Retirer"), Secondary, () => Remove(doc, index)));
+        var hoverFill = Color.FromArgb(255, (byte)(WindowColor.R + (Text.R - WindowColor.R) * 0.06), (byte)(WindowColor.G + (Text.G - WindowColor.G) * 0.06),
+                                       (byte)(WindowColor.B + (Text.B - WindowColor.B) * 0.06));
+        var tools = new Border
+        {
+            Child = toolRow,
+            Background = Brush(hoverFill),
+            Padding = new Thickness(16, 0, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            Visibility = open ? Visibility.Visible : Visibility.Collapsed,
+        };
+        Grid.SetColumn(tools, 1);
         grid.Children.Add(tools);
         foreach (var child in new UIElement[] { number, middle }) child.Opacity = block.Enabled ? 1 : 0.45;
 
@@ -1088,7 +1099,7 @@ internal sealed class MacrosPage
         void Hover(bool on)
         {
             row.Background = Brush(on || open ? WithOpacity(Text, 0.06) : Colors.Transparent);
-            tools.Opacity = on || open ? 1 : 0;
+            tools.Visibility = on || open ? Visibility.Visible : Visibility.Collapsed;
         }
         row.PointerEntered += (_, _) => Hover(true);
         row.PointerExited += (_, _) => Hover(false);

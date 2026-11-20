@@ -158,6 +158,8 @@ struct MinimalCreatorPage: View {
             MacroResultBanner(model: model, monitor: monitor)
         }
         .onAppear { if let id = model.selection { openRow = id } }
+        // Le trait rouge d'un dépôt ne reste jamais après un changement des étapes.
+        .onChange(of: model.rows) { _ in dropLine = nil }
     }
 
     static let spring = Animation.spring(response: 0.32, dampingFraction: 0.86)
@@ -392,12 +394,6 @@ private struct MinimalStepRow: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            HStack(spacing: 16) {
-                tool(String(localized: "Monter"), action: onUp).opacity(index > 0 ? 1 : 0).disabled(index == 0)
-                tool(String(localized: "Descendre"), action: onDown).opacity(index < count - 1 ? 1 : 0).disabled(index >= count - 1)
-                tool(String(localized: "Retirer"), red: true, action: onRemove)
-            }
-            .opacity(hovering || open ? 1 : 0)
         }
         .padding(.leading, CGFloat(row.depth) * 24)
         .padding(.horizontal, 12)
@@ -405,6 +401,21 @@ private struct MinimalStepRow: View {
         .frame(minHeight: 52)
         .opacity(row.enabled ? 1 : 0.45)
         .background(Rectangle().fill(hovering || open ? Swiss.text.opacity(0.06) : Color.clear))
+        // Photo de la CI du 20/11 : cachés mais à leur place, ils serraient la phrase (retour à la ligne trop tôt) ;
+        // ils passent maintenant par-dessus la fin de la ligne, au survol seulement.
+        .overlay(alignment: .trailing) {
+            if hovering || open {
+                HStack(spacing: 16) {
+                    if index > 0 { tool(String(localized: "Monter"), action: onUp) }
+                    if index < count - 1 { tool(String(localized: "Descendre"), action: onDown) }
+                    tool(String(localized: "Retirer"), red: true, action: onRemove)
+                }
+                .padding(.leading, 16)
+                .padding(.trailing, 12)
+                .frame(maxHeight: .infinity)
+                .background(ZStack { Swiss.background; Swiss.text.opacity(0.06) })
+            }
+        }
         .overlay(alignment: .bottom) { Rectangle().fill(Swiss.faint).frame(height: 1) }
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
