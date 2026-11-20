@@ -961,7 +961,7 @@ internal sealed partial class MainShell
                 _scroll.Content = _account.Content(_columns);
                 return;
             case PageKind.Help:
-                SetTitle(Loc.T("Aide"));
+                SetTitle(_help.Title);
                 SetTitleRule(true);
                 _scroll.Content = _help.Content(_columns);
                 // 20/11 (maquette « Minimal », comme le Mac) : « Écrire à l'équipe » en haut de la page.

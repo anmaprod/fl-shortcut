@@ -583,7 +583,13 @@ struct EditorView: View {
         case .macros: return String(localized: "Macros")
         // 11/11 : sur la page d'une personne, son pseudo à la place de « communauté. ».
         case .community: return community.personName ?? String(localized: "Communauté")
-        case .help: return String(localized: "Aide")
+        // 20/11 : « Écrire à l'équipe » et un message ont leur propre titre (un seul titre par page).
+        case .help:
+            switch helpLink.screen {
+            case .write: return String(localized: "Écrire à l'équipe")
+            case .thread(let id): return supportInbox.threads.first { $0.id == id }?.kindLabel ?? String(localized: "Aide")
+            default: return String(localized: "Aide")
+            }
         case .account: return String(localized: "Mon compte")
         }
     }

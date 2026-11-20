@@ -1350,3 +1350,6 @@ entrée 1 ≈ 0,5 s.
   ne faisait déjà qu'un passage mais écrivait encore le réglage `liquidGlass` (plus lu par l'app depuis le 14/11) et
   s'appelait « avec et sans verre » → réglage retiré (effacé s'il traîne), passage nommé « interface » (captures
   `interface*.png` au lieu de `verre*.png`), étape renommée « Mesure de l'interface (mémoire et processeur) ».
+- 20/11 : photos de la CI relues (vertes : Mac et Windows) : menus en haut et Aide bien rendus. Corrigé : deux titres
+  sur « Écrire à l'équipe » et un message (« Aide » puis le leur) → le titre de la page devient le leur ; Windows,
+  touches longues coupées (« Ctrl+Shif… ») → case de 136 au lieu de 92, texte en 14.

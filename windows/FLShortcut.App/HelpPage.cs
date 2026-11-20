@@ -136,6 +136,14 @@ internal sealed class HelpPage
         _render();
     });
 
+    /// Titre de la page (20/11 : un seul titre ; « Écrire à l'équipe » et un message ont le leur, comme le Mac).
+    public string Title => _screen switch
+    {
+        Screen.Write => Loc.T("Écrire à l'équipe"),
+        Screen.Thread => _threads.FirstOrDefault(t => t.Id == _thread)?.Kind.Label() ?? Loc.T("Aide"),
+        _ => Loc.T("Aide"),
+    };
+
     /// Unread : les nouvelles réponses de l'équipe (point rouge de l'onglet).
     public int Unread => SupportInbox.Unread(_threads, _seen);
 
@@ -422,9 +430,6 @@ internal sealed class HelpPage
         var stack = new StackPanel { Spacing = 20, Padding = new Thickness(0, 8, 0, 0) };
         stack.Children.Add(BackLink(Loc.T("Mes messages"), Screen.Messages));
         if (_threads.FirstOrDefault(t => t.Id == _thread) is not { } thread) return stack;
-        var title = SwissTitle(34);
-        title.Text = thread.Kind.Label();
-        stack.Children.Add(title);
         var list = new StackPanel();
         list.Children.Add(Rule2(Text));
         list.Children.Add(Bubble(false, thread.Message, thread.CreatedAt, _captures.GetValueOrDefault(thread.Id)));
@@ -507,9 +512,6 @@ internal sealed class HelpPage
     {
         var stack = new StackPanel { Spacing = 20, Padding = new Thickness(0, 8, 0, 0) };
         stack.Children.Add(BackLink(Loc.T("Aide"), Screen.Questions));
-        var title = SwissTitle(34);
-        title.Text = Loc.T("Écrire à l'équipe");
-        stack.Children.Add(title);
         if (Server is not null && !SignedIn() && !Demo)
         {
             stack.Children.Add(SignInAsk(Loc.T("Connecte-toi pour écrire à l'équipe.")));

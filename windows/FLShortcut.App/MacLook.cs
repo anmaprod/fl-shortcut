@@ -435,14 +435,15 @@ internal static class MacLook
     /// La touche d'un raccourci dans sa case (maquette « plus lisible » du 16/11, comme KeyBox du Mac) : « Ctrl+S » en
     /// gras, cadre gris ; changée : en rouge ; aucune : « — ».
     /// Largeur du cadre d'une touche (maquette A : 88 points), de la colonne des numéros et de celle de la page.
-    public const double KeyWidth = 92, NumberColumn = 46, PageColumn = 200;
+    // 20/11 : 136 (avant 92, comme le Mac) : les touches de Windows sont plus longues (« Ctrl+Shift+S » était coupé).
+    public const double KeyWidth = 136, NumberColumn = 46, PageColumn = 200;
 
     /// La touche d'un raccourci dans son cadre à l'encre (direction A du 17/11, comme le Mac) : Inter Display demi-gras ;
     /// changée, rouge plein et texte blanc.
     public static Border KeyBox(KeyCombo? combo, bool changed = false)
     {
         var text = combo is { } c ? string.Join("+", c.Caps) : "—";
-        var label = Label(text, 15, changed ? OnRed : combo is null ? Secondary : Text, semibold: true);
+        var label = Label(text, 14, changed ? OnRed : combo is null ? Secondary : Text, semibold: true);
         label.FontFamily = TitleFont;
         label.HorizontalAlignment = HorizontalAlignment.Center;
         label.VerticalAlignment = VerticalAlignment.Center;

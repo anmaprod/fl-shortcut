@@ -253,8 +253,6 @@ struct HelpPage: View {
         VStack(alignment: .leading, spacing: 20) {
             backLink(String(localized: "Mes messages"), to: .messages)
             if let thread = inbox.threads.first(where: { $0.id == id }) {
-                Text(thread.kindLabel)
-                    .font(Swiss.title(34)).tracking(Swiss.titleTracking(34)).foregroundStyle(Swiss.text)
                 VStack(alignment: .leading, spacing: 0) {
                     bubble(team: false, text: thread.message, date: thread.createdAt, image: inbox.captures[thread.id])
                     ForEach(thread.replies) { r in bubble(team: r.team, text: r.message, date: r.createdAt, image: nil) }
@@ -323,8 +321,6 @@ struct HelpPage: View {
     @ViewBuilder private var writePage: some View {
         VStack(alignment: .leading, spacing: 20) {
             backLink(String(localized: "Aide"), to: .questions)
-            Text("Écrire à l'équipe")
-                .font(Swiss.title(34)).tracking(Swiss.titleTracking(34)).foregroundStyle(Swiss.text)
             if community.isConfigured && !signedIn {
                 signInAsk(String(localized: "Connecte-toi pour écrire à l'équipe."))
             } else if let reference = sentReference {
