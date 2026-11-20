@@ -282,7 +282,7 @@ internal sealed class MacrosPage
         name.TextWrapping = TextWrapping.NoWrap;
         string? alert = MacroDrafts.ToLearn(doc.Blocks) ? Loc.T("À apprendre") : Issue(doc) is not null ? Loc.T("À corriger") : null;
         // Une grille (pas une pile horizontale, de largeur infinie) : la ligne des étapes se coupe avec « … ».
-        var steps = new Grid { ColumnSpacing = 6 };
+        var steps = new Grid { ColumnSpacing = alert is null ? 0 : 6 };
         steps.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         steps.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         if (alert is not null)
