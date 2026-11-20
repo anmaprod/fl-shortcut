@@ -310,6 +310,8 @@ run() {   # $1 : libellé (début du nom des captures)
   # Menu de l'icône (fond noir plein, 29/10) : ouvert par l'app comme un clic sur son icône, photographié, refermé.
   "$POST" app.flshortcut.debug.menu ouvrir; sleep 2
   screencapture -x "$OUT/menu-icone.png" 2>/dev/null || true
+  # 20/11 : comment macOS construit la fenêtre du menu (classes et coins arrondis, journal MENU de l'app).
+  grep " MENU " ~/Library/Logs/"FL Shortcuts"/macro.log 2>/dev/null | tail -4 > "$OUT/menu-fenetre.txt" || true
   "$POST" app.flshortcut.debug.menu fermer; sleep 1
   # Accueil au ralenti : ouverture (écran du clavier), clavier autorisé, puis passage au guide dans la même fenêtre.
   "$POST" app.flshortcut.debug.onboarding "clavier lent"

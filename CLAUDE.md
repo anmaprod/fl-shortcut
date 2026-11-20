@@ -999,8 +999,13 @@
   « FL ne répond pas », rien d'écrit) ; l'attente dit ce qui manque (« FL ne répond pas encore… », « … 12/14 · 30 s »),
   diagnostic `sons=vus/attendus`. Menu de l'icône (capture : « vraiment pas beau du tout ») : comme `.menu` de la
   maquette, carte carrée au fond du thème, trait d'encre de 2, lignes de 16 en texte normal, survol plein d'encre,
-  « Ouvrir FL Shortcuts » / « Quitter ⌘Q » en lignes, « Désinstaller » gris à part ; Mac : marge transparente de 8
-  autour (la bulle arrondie de macOS ne se voit plus), Windows `TrayMenu.Row`. Pas encore vus chez lui.
+  « Ouvrir FL Shortcuts » / « Quitter ⌘Q » en lignes, « Désinstaller » gris à part ; Windows `TrayMenu.Row` (photo CI
+  bonne). Mac : une marge transparente laissait voir la bulle arrondie de macOS (photo CI de b080a04) → la carte
+  remplit la fenêtre, trait posé PAR-DESSUS (les filets le coupaient), coins des vues qui portent le menu mis carrés
+  (`MenuPanel.squareCorners` : verre `cornerRadius`, masque du matériau, calque) ; journal MENU (classes et rayons),
+  copié par la CI dans `menu-fenetre.txt`. Pas encore vus chez lui. Maquettes Windows (appli normale, clic droit sur
+  l'icône épinglée, Ctrl+Alt+O depuis FL ; choix du propriétaire) : artefact privé `VrTZDYsdhHrsdyfj9q7UxX`, à valider
+  avant de coder (« fais-moi d'abord des maquettes en preuve »).
 
 - **Fenêtre « plus lisible »** (16/11, maquette PDF/HTML « FL Shortcuts — plus lisible », 8 écrans, commencée par une
   autre session sans rien pousser) : barre de gauche en parties (`ReadableSidebar` : Trouver un raccourci, Raccourcis ▸

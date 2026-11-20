@@ -870,11 +870,11 @@ struct MenuContent: View {
         }
         .padding(.bottom, 6)
         .frame(width: 260)
-        // La carte de la maquette : fond de la page, trait d'encre de 2, coins carrés. La marge autour reste
-        // transparente : la bulle arrondie que macOS met derrière le menu ne se voit plus (son fond est retiré,
-        // `MenuPanel.attach` ; l'ombre de la fenêtre suit la carte).
-        .background(MenuBackground())
-        .padding(MenuBackground.margin)
+        // La carte de la maquette : fond de la page, trait d'encre de 2 PAR-DESSUS (les filets et le survol ne le
+        // coupent plus), coins carrés ; elle remplit la fenêtre (photo de la CI du 20/11 : avec une marge, la bulle
+        // arrondie de macOS se voyait autour ; ses coins sont mis carrés par `MenuPanel.attach`).
+        .background(MenuBackground.color)
+        .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 2).allowsHitTesting(false))
         // Sort de l'icône à chaque ouverture ; se ferme au choix d'une ligne ou d'un clic ailleurs (MenuPanel).
         .menuReveal(panel.revealed)
         .background(WindowReader { MenuPanel.shared.attach($0) })
@@ -934,27 +934,17 @@ private struct MenuSeparator: View {
     }
 }
 
-/// Fond du menu de l'icône (20/11, comme `.menu` de la maquette « Minimal ») : fond de la page, trait d'encre de 2,
-/// coins carrés ; aucun verre.
-struct MenuBackground: View {
+/// Fond du menu de l'icône (20/11, comme `.menu` de la maquette « Minimal ») : le fond de la page ; le trait d'encre
+/// de 2 est posé par-dessus le contenu (MenuContent).
+enum MenuBackground {
     static let color = Swiss.background
-    /// Marge transparente autour de la carte : au-delà des coins arrondis de la fenêtre du menu (rayon ≈ 16 : ses
-    /// coins coupent moins de 5 points).
-    static let margin: CGFloat = 8
-
-    var body: some View {
-        let shape = Rectangle()
-        shape.fill(Self.color)
-            .overlay(shape.strokeBorder(Swiss.text, lineWidth: 2))
-            .accessibilityHidden(true)
-    }
 }
 
-/// Fenêtre du menu sans fond à elle (macOS 15 et plus) : seule la carte se voit.
+/// Fond de la fenêtre du menu à la couleur de la carte (macOS 15 et plus) : rien d'autre ne se voit derrière.
 private struct MenuWindowBackground: ViewModifier {
     func body(content: Content) -> some View {
         if #available(macOS 15.0, *) {
-            content.containerBackground(Color.clear, for: .window)
+            content.containerBackground(MenuBackground.color, for: .window)
         } else {
             content
         }

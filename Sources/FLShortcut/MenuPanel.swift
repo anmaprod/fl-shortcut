@@ -41,6 +41,7 @@ final class MenuPanel: ObservableObject {
         panel = window
         window.animationBehavior = .none                   // ni fondu de macOS à l'ouverture (02/11)
         Self.clearSystemBackground(of: window)
+        Self.squareCorners(of: window)
         let center = NotificationCenter.default
         observers.append(center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window,
                                             queue: .main) { [weak self] _ in self?.opened() })
@@ -61,6 +62,30 @@ final class MenuPanel: ObservableObject {
         var root: NSView = content
         while let parent = root.superview { root = parent }
         hideBackdrops(in: root, keeping: content)
+        window.invalidateShadow()
+    }
+
+    /// 20/11 (photo de la CI : la bulle arrondie de macOS restait autour de la carte carrée) : les vues qui portent le
+    /// contenu perdent leurs coins arrondis (verre de macOS 26 : `cornerRadius` ; matériau d'avant : son masque ;
+    /// calque arrondi). La carte remplit la fenêtre : rien d'arrondi ne dépasse. Le journal MENU dit ce que macOS a mis
+    /// (noms de classes et rayons seulement).
+    private static func squareCorners(of window: NSWindow) {
+        guard let content = window.contentView else { return }
+        var chain: [String] = []
+        var view: NSView? = content
+        while let current = view {
+            let name = NSStringFromClass(type(of: current))
+            let radius = current.layer?.cornerRadius ?? 0
+            if let effect = current as? NSVisualEffectView { effect.maskImage = nil }
+            if name.contains("Glass"), current.responds(to: NSSelectorFromString("setCornerRadius:")) {
+                current.setValue(0, forKey: "cornerRadius")
+            }
+            if let layer = current.layer, layer.cornerRadius > 0 { layer.cornerRadius = 0 }
+            chain.append("\(name) r=\(Int(radius))")
+            view = current.superview
+        }
+        MacroLog.shared.write("MENU", "window \(Int(window.frame.width))x\(Int(window.frame.height)) mask=\(window.styleMask.rawValue) "
+                              + chain.joined(separator: " < "))
         window.invalidateShadow()
     }
 
