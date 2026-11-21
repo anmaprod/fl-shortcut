@@ -144,8 +144,10 @@ enum SupportCapture {
         return nil
     }
 
+    /// Seulement un JPEG (comme le serveur, `left(capture, 4) = '/9j/'`) : aucun autre format n'est décodé (21/11).
     static func image(_ base64: String) -> NSImage? {
-        Data(base64Encoded: base64).flatMap { NSImage(data: $0) }
+        guard let data = Data(base64Encoded: base64), data.starts(with: [0xFF, 0xD8, 0xFF]) else { return nil }
+        return NSImage(data: data)
     }
 }
 

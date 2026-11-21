@@ -264,8 +264,9 @@ public static class MacroExchange
     {
         if (data.Length > MaxBytes) throw ImportFailure.TooLarge;
         JsonObject root;
-        try { root = JsonNode.Parse(data) as JsonObject ?? throw ImportFailure.NotAMacro; }
-        catch (JsonException) { throw ImportFailure.NotAMacro; }
+        // Lu en entier d'un coup (UntrustedJson, 21/11) : un texte mal encodé ou une clé en double faisait tomber l'appli.
+        try { root = UntrustedJson.Parse(data) as JsonObject ?? throw ImportFailure.NotAMacro; }
+        catch (FormatException) { throw ImportFailure.NotAMacro; }
         if (J.Str(root["format"]) != Format || root["macro"] is not JsonObject macro) throw ImportFailure.NotAMacro;
         if ((J.Int(root["version"]) ?? 1) > Version) throw ImportFailure.NewerVersion;
         if (macro["blocks"] is not JsonArray list) throw ImportFailure.NotAMacro;

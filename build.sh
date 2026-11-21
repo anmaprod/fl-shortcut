@@ -164,33 +164,53 @@ CFG
   [[ -n "$DEV_ID" ]]
 }
 
+# Hardened Runtime sur TOUTES les signatures (21/11 ; avant, seulement avec un certificat d'Apple, que l'app n'a pas) :
+# sans lui, un autre programme pouvait entrer dans FL Shortcuts (DYLD_INSERT_LIBRARIES, bibliothèque plantée) et se
+# servir de ses autorisations (Accessibilité, Enregistrement de l'écran et audio du système) : clavier lu, écran filmé.
+# Autorisations : Resources/FLShortcut.entitlements (audio-input seule ; jamais disable-library-validation,
+# allow-dyld-environment-variables ni get-task-allow, SEC-08). Pas de --deep : l'app ne contient qu'un exécutable.
+# Les autorisations de macOS sont gardées : elles suivent le certificat, pas ces options.
+ENTITLEMENTS="Resources/FLShortcut.entitlements"
+plutil -lint -s "$ENTITLEMENTS"
+RUNTIME=(--options runtime --entitlements "$ENTITLEMENTS")
+
+require_runtime() {
+  local info granted re='flags=0x[0-9a-f]+\([^)]*runtime'   # « flags=0x10000(runtime) », « flags=0x10002(adhoc,runtime) »
+  info=$(codesign --display --verbose=2 "$APP" 2>&1)
+  [[ "$info" =~ $re ]] || { echo "✗ Hardened Runtime absent" >&2; exit 1; }
+  granted=$(codesign --display --entitlements - --xml "$APP" 2>/dev/null || true)
+  if [[ "$granted" == *disable-library-validation* || "$granted" == *allow-dyld-environment-variables* \
+        || "$granted" == *get-task-allow* || "$granted" == *allow-unsigned-executable-memory* ]]; then
+    echo "✗ autorisation interdite dans la signature" >&2; exit 1
+  fi
+  [[ "$granted" == *com.apple.security.device.audio-input* ]] || { echo "✗ audio-input absente (écoute de l'Organiser)" >&2; exit 1; }
+  echo "  Hardened Runtime : oui"
+}
+
 if [[ -n "${SIGN_IDENTITY:-}" ]]; then
   echo "▸ Signature Developer ID + Hardened Runtime"
-  # Aucun entitlement : pas de disable-library-validation ni d'allow-dyld-environment-variables (SEC-08).
-  # Pas de --deep : l'app ne contient qu'un exécutable, signé explicitement.
-  codesign --force --timestamp --options runtime --sign "$SIGN_IDENTITY" "$APP/Contents/MacOS/$EXE"
-  codesign --force --timestamp --options runtime --sign "$SIGN_IDENTITY" "$APP"
+  codesign --force --timestamp "${RUNTIME[@]}" --sign "$SIGN_IDENTITY" "$APP/Contents/MacOS/$EXE"
+  codesign --force --timestamp "${RUNTIME[@]}" --sign "$SIGN_IDENTITY" "$APP"
   codesign --verify --strict --verbose=2 "$APP"
-  codesign --display --verbose=2 "$APP" 2>&1 | grep -q "flags=0x10000(runtime)" \
-    || { echo "✗ Hardened Runtime absent" >&2; exit 1; }
 elif [[ -n "${FLS_SELF_SIGN_ID:-}" && -n "${FLS_SELF_SIGN_KC:-}" ]]; then
   # Certificat stable de la CI (secret MAC_SELF_CERT_P12, 19/11) : toutes les versions ont la même signature, macOS
   # garde les autorisations (Accessibilité, écran) d'une mise à jour à l'autre, et AutoUpdate n'accepte qu'une
   # version signée du même certificat.
-  echo "▸ Signature par le certificat stable de FL Shortcuts"
-  codesign --force --keychain "$FLS_SELF_SIGN_KC" --sign "$FLS_SELF_SIGN_ID" "$APP/Contents/MacOS/$EXE"
-  codesign --force --keychain "$FLS_SELF_SIGN_KC" --sign "$FLS_SELF_SIGN_ID" "$APP"
+  echo "▸ Signature par le certificat stable de FL Shortcuts + Hardened Runtime"
+  codesign --force "${RUNTIME[@]}" --keychain "$FLS_SELF_SIGN_KC" --sign "$FLS_SELF_SIGN_ID" "$APP/Contents/MacOS/$EXE"
+  codesign --force "${RUNTIME[@]}" --keychain "$FLS_SELF_SIGN_KC" --sign "$FLS_SELF_SIGN_ID" "$APP"
   codesign --verify --strict --verbose=2 "$APP"
 elif [[ "${FLS_NATIVE:-}" == "1" ]] && dev_identity; then
   # Compilation locale : identité de développement stable. macOS garde alors la permission Accessibilité
   # d'une compilation à l'autre (avec une signature ad hoc, chaque compilation est une « nouvelle » app).
-  echo "▸ Signature de développement locale (FL Shortcut Dev)"
-  codesign --force --keychain "$DEV_KC" --sign "$DEV_ID" "$APP" \
-    || { echo "  (refusée : signature ad hoc)"; codesign --force --sign - "$APP"; }
+  echo "▸ Signature de développement locale (FL Shortcut Dev) + Hardened Runtime"
+  codesign --force "${RUNTIME[@]}" --keychain "$DEV_KC" --sign "$DEV_ID" "$APP" \
+    || { echo "  (refusée : signature ad hoc)"; codesign --force "${RUNTIME[@]}" --sign - "$APP"; }
 else
-  echo "▸ Signature ad hoc (développement uniquement — ne pas distribuer)"
-  codesign --force --sign - "$APP"
+  echo "▸ Signature ad hoc + Hardened Runtime (développement uniquement — ne pas distribuer)"
+  codesign --force "${RUNTIME[@]}" --sign - "$APP"
 fi
+require_runtime
 
 echo "▸ Image disque"
 STAGE=$(mktemp -d)
