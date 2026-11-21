@@ -838,18 +838,45 @@ final class OrganizerApplier {
         // 21/11 : FL répond vite mais pas avec le bon nombre de sons pendant `mismatchLimit` s : il a fini de charger,
         // ce n'est pas la même copie ; arrêt tout de suite (avant : 2 min 30 d'attente).
         var mismatchSince: Date?
+        // 21/11 (diagnostic : 612 sons, `réponses=24 lente=58ds sons=612/612`, « FL ne répond plus assez vite ») : la
+        // liste des sons d'un gros projet met 5 à 6 s à passer par le lien, même FL au repos. FL est donc jugé au repos
+        // sur une demande courte (la page devant) ; la liste ne sert qu'à compter. Script trop ancien pour la page :
+        // la liste comme avant.
+        var probe = true
+        var slowestList: TimeInterval = 0
         for check in 0..<Self.calmChecks {
             wait(0.5)
             answerDialogs(&trace)
-            let asked = Date()
-            let listed = try? link.listChannels()
-            let took = Date().timeIntervalSince(asked)
+            var awake = false
+            var took: TimeInterval = 0
+            var listed: [ChannelInfo]?
+            if probe {
+                let asked = Date()
+                do {
+                    _ = try link.page()
+                    awake = true
+                } catch OrganizerError.outdatedScript {
+                    probe = false
+                } catch {}
+                took = Date().timeIntervalSince(asked)
+                if awake {
+                    let listAsked = Date()
+                    listed = try? link.listChannels()
+                    slowestList = max(slowestList, Date().timeIntervalSince(listAsked))
+                }
+            }
+            if !probe {
+                let asked = Date()
+                listed = try? link.listChannels()
+                took = Date().timeIntervalSince(asked)
+                awake = listed != nil
+            }
+            if awake { slowest = max(slowest, took) }
             if let listed {
                 answers += 1
-                slowest = max(slowest, took)
                 count = listed.count
             }
-            calm = listed != nil && took < Self.calmAnswer ? calm + 1 : 0
+            calm = awake && listed != nil && took < Self.calmAnswer ? calm + 1 : 0
             if calm >= 2, count != expected { mismatchSince = mismatchSince ?? Date() } else { mismatchSince = nil }
             if let since = mismatchSince, Date().timeIntervalSince(since) > Self.mismatchLimit { break }
             if (calm >= 2 && count == expected) || Date().timeIntervalSince(started) > Self.calmLimit { break }
@@ -865,7 +892,8 @@ final class OrganizerApplier {
                 }
             }
         }
-        trace.append("réponses=\(answers) lente=\(Int((slowest * 10).rounded()))ds sons=\(count)/\(expected)")
+        trace.append("réponses=\(answers) lente=\(Int((slowest * 10).rounded()))ds sons=\(count)/\(expected) "
+                     + (probe ? "sonde=page liste=\(Int((slowestList * 10).rounded()))ds" : "sonde=liste"))
         guard calm >= 2 else {
             throw OrganizerError.failed(String(localized: "FL ne répond plus assez vite depuis l'ouverture de la copie rangée. Elle est ouverte dans FL avec sa Playlist rangée : relance l'Organiser dessus pour finir le reste. Ton projet d'origine n'a pas bougé."))
         }

@@ -1032,8 +1032,12 @@
   des étapes (sous le nom, plus à sa hauteur), trait de 1, lignes de 50, texte 16, numéros 12 (CI : glisser depuis la
   boîte à y 271) ; Aide : 5 questions (Mac 1, 3, 13, 7, 8 ; Windows 1, 16, 3, 13, 8), une seule réponse ouverte à la
   fois, rien d'ouvert au départ, plus « Revoir le guide ». Organiser : arrêt au bout de 20 s si FL répond vite avec un
-  autre nombre de sons que l'analyse (`mismatchLimit`, avant 2 min 30). Cause du blocage chez lui : PAS ENCORE CONNUE,
-  son diagnostic demandé.
+  autre nombre de sons que l'analyse (`mismatchLimit`, avant 2 min 30). CAUSE TROUVÉE (son diagnostic du 21/11 :
+  `canaux=612 … inutilisés=587 … ouverture=marque 1 s ; réponses=24 lente=58ds sons=612/612`) : un projet de 612 sons,
+  la liste des sons met 5 à 6 s à passer par le lien même FL au repos, et l'attente voulait 2 réponses de moins de 3 s
+  → jamais. Maintenant (Mac et Windows) FL est jugé au repos sur une demande courte (la page devant, opération 9), la
+  liste ne sert qu'à compter (`waitUntilCalm`/`WaitUntilCalm`, script sans la page : la liste comme avant) ; diagnostic
+  `sonde=page liste=NNds` ; essais `SlowSoundListOfABigProjectDoesNotBlockTheCopy` (Mac et Windows, `slowLists`).
 
 - **Fenêtre « plus lisible »** (16/11, maquette PDF/HTML « FL Shortcuts — plus lisible », 8 écrans, commencée par une
   autre session sans rien pousser) : barre de gauche en parties (`ReadableSidebar` : Trouver un raccourci, Raccourcis ▸

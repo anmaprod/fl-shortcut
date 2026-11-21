@@ -43,9 +43,19 @@ public sealed class FakeOrganizerLink : IOrganizerLink
 
     public FlWindow Page() => Window;
 
+    /// Gros projet (21/11 : 612 sons, 5 à 6 s par liste) : les `SlowLists` prochaines listes prennent `ListDelay`
+    /// secondes, FL au repos.
+    public int SlowLists;
+    public double ListDelay = 3.2;
+
     public List<ChannelInfo> ListChannels()
     {
         Log.Add("list");
+        if (SlowLists > 0)
+        {
+            SlowLists--;
+            Thread.Sleep(TimeSpan.FromSeconds(ListDelay));
+        }
         if (_pendingDeletes.Count > 0)
         {
             // FL supprime lentement : un son de plus à chaque relecture.

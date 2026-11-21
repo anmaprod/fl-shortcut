@@ -947,6 +947,22 @@ public class OrganizerApplyTests
         Assert.True(back.Snapshot.IsEmpty);
     }
 
+    /// 21/11 (diagnostic : 612 sons, chaque liste 5 à 6 s, « FL ne répond plus assez vite ») : une liste lente ne veut
+    /// pas dire FL occupé ; la page (demande courte) dit s'il est au repos, et deux listes complètes suffisent.
+    [Fact]
+    public void SlowSoundListOfABigProjectDoesNotBlockTheCopy()
+    {
+        var disk = new FakeDisk();
+        var (link, result) = FileProject(disk);
+        link.SlowLists = 2;
+        var outcome = new OrganizerApplier(link, link.MoveSelectedUp, wait: _ => { }, listen: 0, files: disk.Access)
+            .Apply(Plan(result, options: FileOptions), result, Initial());
+        Assert.Null(outcome.Error);
+        var line = Assert.Single(outcome.Trace, t => t.StartsWith("réponses=", StringComparison.Ordinal));
+        Assert.StartsWith("réponses=2 ", line);                  // avant : 2 listes lentes ne comptaient pas
+        Assert.Contains("sonde=page", line);
+    }
+
     /// En ouvrant la copie, FL demande « Invalid project data folder » : la boîte est répondue, puis les sons sont
     /// comptés une fois tous là ; sans réponse possible, le message le dit.
     [Fact]

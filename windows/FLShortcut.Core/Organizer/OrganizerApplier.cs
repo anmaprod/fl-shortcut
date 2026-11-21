@@ -416,21 +416,50 @@ public sealed class OrganizerApplier
         var started = DateTime.UtcNow;
         // 21/11 (comme le Mac) : FL répond vite mais pas avec le bon nombre de sons pendant MismatchLimit s : arrêt.
         DateTime? mismatchSince = null;
+        // 21/11 (comme le Mac ; diagnostic : 612 sons, `réponses=24 lente=58ds sons=612/612`) : la liste des sons d'un
+        // gros projet met 5 à 6 s à passer par le lien, même FL au repos ; FL est jugé au repos sur une demande courte
+        // (la page devant), la liste ne sert qu'à compter. Script trop ancien pour la page : la liste comme avant.
+        var probe = true;
+        var slowestList = 0.0;
         for (var check = 0; check < CalmChecks; check++)
         {
             _wait(0.5);
             AnswerDialogs(trace);
-            var asked = DateTime.UtcNow;
+            var awake = false;
+            var took = 0.0;
             List<ChannelInfo>? listed = null;
-            try { listed = _link.ListChannels(); } catch (OrganizerError) { }
-            var took = (DateTime.UtcNow - asked).TotalSeconds;
+            if (probe)
+            {
+                var asked = DateTime.UtcNow;
+                try
+                {
+                    _link.Page();
+                    awake = true;
+                }
+                catch (OrganizerError e) when (e.Is(OrganizerError.Kinds.OutdatedScript)) { probe = false; }
+                catch (OrganizerError) { }
+                took = (DateTime.UtcNow - asked).TotalSeconds;
+                if (awake)
+                {
+                    var listAsked = DateTime.UtcNow;
+                    try { listed = _link.ListChannels(); } catch (OrganizerError) { }
+                    slowestList = Math.Max(slowestList, (DateTime.UtcNow - listAsked).TotalSeconds);
+                }
+            }
+            if (!probe)
+            {
+                var asked = DateTime.UtcNow;
+                try { listed = _link.ListChannels(); } catch (OrganizerError) { }
+                took = (DateTime.UtcNow - asked).TotalSeconds;
+                awake = listed is not null;
+            }
+            if (awake) slowest = Math.Max(slowest, took);
             if (listed is not null)
             {
                 answers++;
-                slowest = Math.Max(slowest, took);
                 count = listed.Count;
             }
-            calm = listed is not null && took < CalmAnswer ? calm + 1 : 0;
+            calm = awake && listed is not null && took < CalmAnswer ? calm + 1 : 0;
             if (calm >= 2 && count != expected) mismatchSince ??= DateTime.UtcNow; else mismatchSince = null;
             if (mismatchSince is { } since && (DateTime.UtcNow - since).TotalSeconds > MismatchLimit) break;
             if ((calm >= 2 && count == expected) || (DateTime.UtcNow - started).TotalSeconds > CalmLimit) break;
@@ -444,7 +473,8 @@ public sealed class OrganizerApplier
                 else _report(Loc.F("FL charge les sons de la copie… %lld s", seconds));
             }
         }
-        trace.Add($"réponses={answers} lente={(int)Math.Round(slowest * 10, MidpointRounding.AwayFromZero)}ds sons={count}/{expected}");
+        trace.Add($"réponses={answers} lente={(int)Math.Round(slowest * 10, MidpointRounding.AwayFromZero)}ds sons={count}/{expected} "
+                  + (probe ? $"sonde=page liste={(int)Math.Round(slowestList * 10, MidpointRounding.AwayFromZero)}ds" : "sonde=liste"));
         if (calm < 2)
             throw OrganizerError.Failed(Loc.T("FL est trop lent : relance l'Organiser sur la copie."));
         // La copie montre tous les sons (« All ») : autant que l'analyse, sinon rien ne serait à sa place.

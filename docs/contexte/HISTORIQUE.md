@@ -1386,3 +1386,8 @@ entrée 1 ≈ 0,5 s.
   rendue à 1184 × 760 par Playwright, page par page, mise à côté des photos de la CI. Corrigé (voir CLAUDE.md). Pour
   l'Organiser, le chemin de la copie n'a pas changé depuis le 13/11 (seul MIDILink a changé) : sans son diagnostic,
   aucune cause sûre ; l'attente dit maintenant ce qui manque, et s'arrête vite si la copie n'a pas les mêmes sons.
+- 21/11 au soir : son diagnostic de l'Organiser (« FL ne répond plus assez vite… ») : 612 sons dans le projet de test
+  (587 sans note), copie ouverte en 1 s, 24 réponses de FL avec les 612 sons, la plus lente 5,8 s. Ce n'était ni le
+  lien ni FL occupé : la liste de 612 noms est longue à passer. Corrigé en jugeant FL au repos sur une demande courte
+  (la page devant). Menu de l'icône « un peu gros », puis « j'aurais voulu garder la taille d'avant » : tailles d'avant
+  le 20/11 remises, nouveau style gardé.

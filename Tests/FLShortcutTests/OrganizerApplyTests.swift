@@ -1120,6 +1120,21 @@ final class OrganizerApplyTests: XCTestCase {
     /// charger qu'une fois répondu ; l'Organiser comptait les sons pendant ce temps (« pas les mêmes sons »). La boîte
     /// est répondue par son choix par défaut, puis les sons sont comptés une fois tous là ; sans réponse possible, le
     /// message le dit toujours.
+    /// 21/11 (diagnostic : 612 sons, chaque liste 5 à 6 s, « FL ne répond plus assez vite ») : une liste lente ne veut
+    /// pas dire FL occupé ; la page (demande courte) dit s'il est au repos, et deux listes complètes suffisent.
+    func testSlowSoundListOfABigProjectDoesNotBlockTheCopy() throws {
+        let disk = FakeDisk()
+        let (link, result) = try fileProject(disk)
+        link.slowLists = 2
+        let outcome = OrganizerApplier(link: link, moveUp: link.moveSelectedUp, wait: { _ in }, listen: 0,
+                                       files: disk.access).apply(plan(result, options: fileOptions), result: result,
+                                                                 styles: FamilyStyles.initial)
+        XCTAssertNil(outcome.error)
+        let line = try XCTUnwrap(outcome.trace.first { $0.hasPrefix("réponses=") })
+        XCTAssertTrue(line.hasPrefix("réponses=2 "), "avant : 2 listes lentes ne comptaient pas (\(line))")
+        XCTAssertTrue(line.contains("sonde=page"))
+    }
+
     func testDataFolderDialogIsAnsweredBeforeCountingSounds() throws {
         let disk = FakeDisk()
         disk.asksDataFolder = true

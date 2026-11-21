@@ -52,8 +52,17 @@ final class FakeOrganizerLink: OrganizerLink {
     /// Channel rack sur un groupe : les rangs dans « All » des canaux qu'il montre ; nil : tous (« All »).
     var group: [Int]?
 
+    /// Gros projet (21/11 : 612 sons, 5 à 6 s par liste) : les `slowLists` prochaines listes prennent `listDelay`
+    /// secondes, FL au repos.
+    var slowLists = 0
+    var listDelay: TimeInterval = 3.2
+
     func listChannels() throws -> [ChannelInfo] {
         log.append("list")
+        if slowLists > 0 {
+            slowLists -= 1
+            Thread.sleep(forTimeInterval: listDelay)
+        }
         if !pendingDeletes.isEmpty {
             // FL supprime lentement : un son de plus à chaque relecture.
             let gone = pendingDeletes.removeFirst()
