@@ -80,6 +80,14 @@
     <PackageReference Include="Microsoft.Windows.CsWinRT" Version="2.2.0" />
     <CsWinRTInputs Include="..\ThirdParty\WindowsMidiServices\Windows.Devices.Midi2.winmd" />
   </ItemGroup>
+  <!-- 21/11 : la copie de l'API elle-même (Windows.Devices.Midi2.dll et son .pri, paquet de Microsoft), à côté de
+       l'exécutable ; sans elle, l'API n'était jamais trouvée. Téléchargée par la CI dans ThirdParty\WindowsMidiServices\
+       <win-x64|win-arm64>\ (jamais dans le dépôt) ; posée par l'installeur sur Windows 11 25H2 et plus récent seulement
+       (MidiServicesSupport). -->
+  <ItemGroup Condition="'$(OS)' == 'Windows_NT' and Exists('..\ThirdParty\WindowsMidiServices\$(RuntimeIdentifier)\Windows.Devices.Midi2.dll')">
+    <Content Include="..\ThirdParty\WindowsMidiServices\$(RuntimeIdentifier)\Windows.Devices.Midi2.dll" Link="Windows.Devices.Midi2.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\ThirdParty\WindowsMidiServices\$(RuntimeIdentifier)\Windows.Devices.Midi2.pri" Link="Windows.Devices.Midi2.pri" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 
   <!-- Polices de la direction A (17/11), les mêmes que le Mac : Inter et Inter Display (licence OFL), dans Fonts\ à
        côté de l'exécutable (MacLook.SwissFont, ms-appx:///Fonts/Inter-FLS.ttc). -->

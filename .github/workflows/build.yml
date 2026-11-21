@@ -69,6 +69,32 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Windows MIDI Services (copie de l'API de Microsoft, préversion 11, MIT)
+        # 21/11 : le port du lien fait par Windows 11 25H2 et plus récent a besoin de cette copie à côté de l'exécutable.
+        # Même paquet que windows/FLShortcut.Core/MidiServicesSupport.cs (essai MidiServicesSupportTests) ; gardé
+        # seulement si son empreinte est la bonne.
+        shell: pwsh
+        run: |
+          $url = 'https://github.com/microsoft/MIDI/releases/download/inbox-preview-11/Windows.Devices.Midi2.0.99.92-preview.11.nupkg'
+          $sha = '13afc6e6da2adac309ab8c174352f46f1c0ebe2d79e65475bd6274defb73df74'
+          $nupkg = Join-Path $env:RUNNER_TEMP 'midi2.nupkg'
+          Invoke-WebRequest -Uri $url -OutFile $nupkg
+          $got = (Get-FileHash $nupkg -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($got -ne $sha) { "::error::paquet Windows MIDI Services inattendu ($got)"; exit 1 }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [IO.Compression.ZipFile]::OpenRead($nupkg)
+          try {
+            foreach ($rid in 'win-x64', 'win-arm64') {
+              $dest = "windows/ThirdParty/WindowsMidiServices/$rid"
+              New-Item -ItemType Directory -Force -Path $dest | Out-Null
+              foreach ($ext in 'dll', 'pri') {
+                $entry = $zip.GetEntry("runtimes/$rid/native/Windows.Devices.Midi2.$ext")
+                if (-not $entry) { "::error::Windows.Devices.Midi2.$ext absent du paquet ($rid)"; exit 1 }
+                [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, (Join-Path $PWD "$dest/Windows.Devices.Midi2.$ext"), $true)
+              }
+            }
+          } finally { $zip.Dispose() }
+          Get-ChildItem windows/ThirdParty/WindowsMidiServices -Recurse -File | ForEach-Object { "$($_.FullName) $($_.Length)" }
       - name: Compilation x64 et ARM64
         shell: pwsh
         env:

@@ -545,8 +545,17 @@
   de pied de page (bon son, Écrire à l'équipe). Anglais écrit dans `lisezmoi_modeles.py` (FR/EN), modèles
   `modele-*-en.html` pris tels quels par lisezmoi.py (plus de traduction morceau par morceau, qui laissait du
   français). Windows : loopMIDI à l'étape 02 (proposé de le mettre dans « range ton projet », réponse attendue).
-- **Windows MIDI Services** (08/11, « on peut bosser sur ça ? ») : sur Windows 11 **25H2** à jour (API en boîte avec
-  la mise à jour de novembre 2026 ; 24H2 ne l'aura pas), l'app crée elle-même « FL Shortcuts » et « FL Shortcuts
+- **Windows MIDI Services** (21/11, « on va utiliser celui de win déjà pour essayer » ; avant, CE CHEMIN N'A JAMAIS PU
+  MARCHER : seules les métadonnées .winmd étaient livrées, l'API n'existe pas encore dans Windows) : le service et ses
+  ports « boucle » sont dans Windows 11 25H2 et plus récent (build ≥ 26200) ; l'API (Windows.Devices.Midi2.dll + .pri,
+  paquet inbox-preview-11 de Microsoft, MIT, signé) est téléchargée par la CI (empreinte vérifiée, `MidiServicesSupport`
+  du cœur, essai `MidiServicesSupportTests`), jamais dans le dépôt (.gitignore), posée par l'installeur seulement sur
+  25H2+ (`MidiServicesWindows` du .iss) et utilisée seulement là (`MidiServicesPorts.CheckAvailable` : version, fichier,
+  journal `MIDI` avec le code d'erreur). Accord « go-live » de Microsoft (NOTICE.md) : prévenir les gens que c'est une
+  préversion (PAS ENCORE FAIT : mode d'emploi), retirer la copie quand l'API sera dans Windows. Sur 25H2+, l'installeur ne
+  propose plus loopMIDI (l'accueil garde « Installer loopMIDI » en secours). Pilote de loopMIDI appelé directement
+  (`VirtualMidiPorts`) : son auteur interdit de distribuer sans son accord (page du SDK) → lui écrire avant une sortie
+  publique. Pas encore vu sur un vrai PC 25H2. Avant (08/11, « on peut bosser sur ça ? ») : l'app crée elle-même « FL Shortcuts » et « FL Shortcuts
   Retour » comme loopMIDI : ports « boucle » MIDI 1.0 transitoires (Basic Loopback), vus par FL (WinMM) ; créés au
   lancement (`AppController.Start`, en arrière-plan) et à la demande (`MidiLink.PortsReady`), retirés à la sortie ;
   sinon loopMIDI comme avant (`Services/MidiServicesPorts.cs`, jamais d'exception). API pas dans le SDK Windows : son

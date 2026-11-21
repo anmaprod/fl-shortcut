@@ -1,6 +1,9 @@
-// Port MIDI du lien créé par l'appli (08/11, « on peut bosser sur ça ? ») : sur Windows 11 25H2 à jour (Windows MIDI
-// Services, arrivé avec la mise à jour de novembre 2026), un port « boucle » de MIDI 1.0 (Basic Loopback) que FL voit
-// dans MIDI Settings ; sinon, le pilote installé avec loopMIDI (VirtualMidiPorts). MidiLink l'ouvre par WinMM.
+// Port MIDI du lien créé par l'appli (08/11, « on peut bosser sur ça ? ») : sur Windows 11 25H2 et plus récent (Windows
+// MIDI Services, déjà dans Windows), un port « boucle » de MIDI 1.0 (Basic Loopback) que FL voit dans MIDI Settings ;
+// sinon, le pilote installé avec loopMIDI (VirtualMidiPorts). MidiLink l'ouvre par WinMM.
+// 21/11 (« on va utiliser celui de win déjà pour essayer ») : l'API de ce service n'est pas encore dans Windows ; sa
+// copie (Windows.Devices.Midi2.dll, paquet de Microsoft) est posée par l'installeur à côté de l'exécutable, sur 25H2 et
+// plus récent seulement (MidiServicesSupport). Avant, elle manquait : l'appli passait toujours par loopMIDI.
 // UN SEUL port, « FL Shortcuts », dans les deux sens (09/11 : avec un second port « FL Shortcuts Retour », FL répondait
 // sur la sortie « FL Shortcuts » appariée à son entrée, l'appli écoutait l'autre : lien muet ; et l'entrée « Retour »
 // allumée en « generic controller » passait les messages du script au son choisi). Sur ce port boucle, l'appli et le
@@ -47,14 +50,30 @@ internal static class MidiServicesPorts
     public static bool CheckAvailable()
     {
         if (_available is { } known) return known;
+        // Avant Windows 11 25H2, ou sans la copie de l'API posée par l'installeur : jamais l'API (accord de Microsoft
+        // pour sa préversion, MidiServicesSupport).
+        var build = Environment.OSVersion.Version.Build;
+        if (!MidiServicesSupport.Supported(build))
+        {
+            AppLog.Write("MIDI", $"Windows MIDI Services : Windows trop ancien ({build})");
+            _available = false;
+            return false;
+        }
+        if (!File.Exists(Path.Combine(AppContext.BaseDirectory, MidiServicesSupport.ApiFile)))
+        {
+            AppLog.Write("MIDI", "Windows MIDI Services : copie de l'API absente");
+            _available = false;
+            return false;
+        }
 #if MIDI_SERVICES
         try
         {
             _available = MidiApi.EnsureServiceAvailable() && MidiBasicLoopbackManager.IsTransportAvailable;
+            AppLog.Write("MIDI", _available == true ? $"Windows MIDI Services prêt ({build})" : "Windows MIDI Services : service ou ports boucle absents");
         }
         catch (Exception e)
         {
-            AppLog.Write("MIDI", "Windows MIDI Services indisponible (" + e.GetType().Name + ")");
+            AppLog.Write("MIDI", $"Windows MIDI Services indisponible ({e.GetType().Name} 0x{e.HResult:X8})");
             _available = false;
         }
 #else
@@ -125,7 +144,7 @@ internal static class MidiServicesPorts
             if (DateTime.UtcNow - _lastFailure < TimeSpan.FromSeconds(60) && !driverArrived) return false;
             var ok = false;
 #if MIDI_SERVICES
-            if (_available != false)
+            if (CheckAvailable())
             {
                 try
                 {
@@ -133,8 +152,8 @@ internal static class MidiServicesPorts
                 }
                 catch (Exception e)
                 {
-                    // Classe absente de ce Windows (pas encore 25H2 à jour), service arrêté… : le pilote de loopMIDI.
-                    AppLog.Write("MIDI", "Windows MIDI Services indisponible (" + e.GetType().Name + ")");
+                    // Classe introuvable (copie de l'API refusée), service arrêté… : le pilote de loopMIDI.
+                    AppLog.Write("MIDI", $"Windows MIDI Services indisponible ({e.GetType().Name} 0x{e.HResult:X8})");
                     _available = false;
                 }
             }
