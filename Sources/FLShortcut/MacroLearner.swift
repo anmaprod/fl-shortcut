@@ -38,7 +38,7 @@ final class MacroLearner: ObservableObject {
     func begin(_ phase: Phase, completion: @escaping ([String: ClickSpot]) -> Void) {
         cancel()
         guard let flPID = EventTap.shared.currentConfig.flPIDs.first else {
-            message = "Ouvre FL Studio, puis recommence."
+            message = String(localized: "Ouvre FL Studio, puis recommence.")
             return
         }
         pid = flPID
@@ -51,7 +51,8 @@ final class MacroLearner: ObservableObject {
         message = nil
         instruction = prompt()
         monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            self?.handle(isRight: event.type == .rightMouseDown)
+            // Position portée par l'événement (pas le curseur relu plus tard), comme ClickRecorder.
+            self?.handle(isRight: event.type == .rightMouseDown, at: event.cgEvent?.location ?? FLWindows.cursor())
         }
     }
 
@@ -72,36 +73,38 @@ final class MacroLearner: ObservableObject {
     private func prompt() -> String {
         switch phase {
         case .menu:
-            if reference == nil { return "Dans FL : clic droit sur une piste du Mixer." }
-            return captured.isEmpty ? "Clique sur « File »." : "Clique sur « Open mixer track state… » (Échap pour fermer la boîte)."
+            if reference == nil { return String(localized: "Dans FL : clic droit sur une piste du Mixer.") }
+            return captured.isEmpty ? String(localized: "Clique sur « File ».")
+                                    : String(localized: "Clique sur « Open mixer track state… » (Échap pour fermer la boîte).")
         case .armInput:
-            if reference == nil { return "Dans FL : clique sur ta piste du Mixer (la souris sera là quand tu utiliseras le raccourci)." }
+            if reference == nil {
+                return String(localized: "Dans FL : clique sur ta piste du Mixer (la souris sera là quand tu utiliseras le raccourci).")
+            }
             switch captured.count {
-            case 0: return "Clique sur le bouton d'armement de la piste (enregistrement)."
-            case 1: return "Clique sur le sélecteur d'entrée audio (panneau de droite du Mixer)."
-            default: return "Clique sur la première entrée de la liste qui s'est ouverte."
+            case 0: return String(localized: "Clique sur le bouton d'armement de la piste (enregistrement).")
+            case 1: return String(localized: "Clique sur le sélecteur d'entrée audio (panneau de droite du Mixer).")
+            default: return String(localized: "Clique sur la première entrée de la liste qui s'est ouverte.")
             }
         }
     }
 
-    private func handle(isRight: Bool) {
+    private func handle(isRight: Bool, at p: CGPoint) {
         guard isActive else { return }
-        let p = FLWindows.cursor()
         guard FLWindows.contains(p, pid: pid) else {
-            message = "Clique dans la fenêtre de FL."
+            message = String(localized: "Clique dans la fenêtre de FL.")
             return
         }
         message = nil
         if reference == nil {
             switch phase {
-            case .menu: guard isRight else { message = "Commence par un clic droit."; return }
-            case .armInput: guard !isRight else { message = "Fais un clic gauche."; return }
+            case .menu: guard isRight else { message = String(localized: "Commence par un clic droit."); return }
+            case .armInput: guard !isRight else { message = String(localized: "Fais un clic gauche."); return }
             }
             reference = p
             referenceFrame = FLWindows.frame(containing: p, pid: pid)
             if phase == .armInput, referenceFrame == nil {
                 reference = nil
-                message = "Clique dans la fenêtre du Mixer."
+                message = String(localized: "Clique dans la fenêtre du Mixer.")
                 return
             }
             instruction = prompt()

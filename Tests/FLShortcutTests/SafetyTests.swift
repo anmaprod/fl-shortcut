@@ -17,6 +17,10 @@ final class SafetyTests: XCTestCase {
         XCTAssertTrue(f.isForbidden(KeyCombo(keyCode: 48, command: true)))                         // ⌘⇥
         XCTAssertFalse(f.isForbidden(KeyCombo(keyCode: 1, command: true)))                         // ⌘S
         XCTAssertFalse(f.isForbidden(KeyCombo(keyCode: 12)))                                       // Q seul
+        // ⌥⌘Q : « Quantize rapide » de FL (07/11) ; ⌥⇧⌘Q (fermer la session) reste refusé.
+        XCTAssertFalse(f.isForbidden(KeyCombo(keyCode: 12, command: true, option: true)))
+        XCTAssertTrue(f.isForbidden(KeyCombo(keyCode: 12, command: true, option: true, shift: true)))
+        XCTAssertTrue(f.isForbidden(KeyCombo(keyCode: 12, command: true, option: true, control: true)))
         XCTAssertFalse(f.isForbidden(KeyCombo(keyCode: 53, option: true)))                         // ⌥Échap
     }
 

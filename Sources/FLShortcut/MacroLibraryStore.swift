@@ -1,4 +1,4 @@
-// Bibliothèque des macros en blocs : `Application Support/FL Shortcut/macros.json`, à part du profil.
+// Bibliothèque des macros en blocs : `Application Support/FL Shortcuts/macros.json`, à part du profil.
 // - Pourquoi à part : une ancienne version de l'app qui relit le profil y verrait une macro inconnue et la perdrait à
 //   la réécriture ; elle ne touche jamais ce fichier. Le raccourci garde seulement une référence (`Remap.macroRef`,
 //   doublée d'un lien caché dans `unknownAction` que les anciennes versions conservent).
@@ -97,8 +97,8 @@ enum MacroLibraryCodec {
 
         var errorDescription: String? {
             switch self {
-            case .unreadable: return "Format de bibliothèque illisible."
-            case .tooMany: return "Trop de macros (\(MacroLibraryCodec.maxMacros) au plus)."
+            case .unreadable: return String(localized: "Format de bibliothèque illisible.")
+            case .tooMany: return String(localized: "Trop de macros (\(MacroLibraryCodec.maxMacros) au plus).")
             }
         }
     }
@@ -126,9 +126,10 @@ enum MacroLibraryCodec {
         return Decoded(macros: macros, version: file.version ?? currentVersion, dropped: file.macros.count - macros.count)
     }
 
-    static func encode(_ macros: [MacroDoc]) throws -> Data {
+    /// `pretty` : lisible dans un éditeur (le fichier) ; sans : plus court (sauvegarde en ligne).
+    static func encode(_ macros: [MacroDoc], pretty: Bool = true) throws -> Data {
         let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.outputFormatting = pretty ? [.prettyPrinted, .sortedKeys] : [.sortedKeys]
         return try encoder.encode(FileOut(version: currentVersion, macros: macros))
     }
 }
@@ -140,8 +141,9 @@ final class MacroLibraryStore: ObservableObject {
     static let previousLabel = "precedente"
 
     @Published private(set) var macros: [MacroDoc] = []
-    @Published var loadWarning: String?
-    @Published private(set) var saveError: String?
+    // Chaque avertissement et chaque erreur d'enregistrement rejoint les derniers problèmes (message d'aide).
+    @Published var loadWarning: String? { didSet { if let v = loadWarning, v != oldValue { ProblemLog.shared.add(v) } } }
+    @Published private(set) var saveError: String? { didSet { if let v = saveError, v != oldValue { ProblemLog.shared.add(v) } } }
     /// Appelé après chaque changement (Store.recompute : index du tap, besoins des macros).
     var onChange: (() -> Void)?
 
@@ -153,10 +155,13 @@ final class MacroLibraryStore: ObservableObject {
     private let previousContent = Locked<Data?>(nil)
     /// Fichier présent mais inaccessible (droits, lien symbolique…), ou copie de secours impossible : jamais réécrit.
     @Published private(set) var writesDisabled = false
+    /// Bibliothèque illisible, inaccessible, en partie illisible ou plus récente au lancement : jamais envoyée à la
+    /// place de la sauvegarde du compte (AccountBackup) tant qu'elle n'a pas été remplacée.
+    private(set) var loadIncomplete = false
     private var programCache: [UUID: MacroProgram] = [:]
     private var cacheForbidden: ForbiddenTargets?
 
-    static let writesDisabledMessage = "Tes macros ne peuvent pas être enregistrées : le fichier n'a pas pu être copié avant d'être remplacé."
+    static let writesDisabledMessage = String(localized: "Tes macros ne peuvent pas être enregistrées : le fichier n'a pas pu être copié avant d'être remplacé.")
 
     /// Ce que l'utilisateur doit savoir (menu, page Macros même vide, créateur) : jamais de macro perdue sans prévenir.
     var problem: String? {
@@ -175,31 +180,43 @@ final class MacroLibraryStore: ObservableObject {
             stored = try storage.read()
         } catch {
             writesDisabled = true
-            loadWarning = "Bibliothèque de macros inaccessible (\(error.localizedDescription)) : elle n'est pas modifiée."
+            loadIncomplete = true
+            loadWarning = String(localized: "Bibliothèque de macros inaccessible (\(error.localizedDescription)) : elle n'est pas modifiée.")
             return
         }
         guard let data = stored else { return }                       // aucune macro encore
         do {
             let decoded = try MacroLibraryCodec.decode(data)
             macros = decoded.macros
+            // « Tout organiser » s'appelle « Organiser » (retour de l'utilisateur) : la macro faite avec le modèle aussi.
+            let renamed = String(localized: "Organiser")
+            for i in macros.indices where macros[i].origin == .template(MacroTemplates.organizeID)
+                && ["Tout organiser", "Organize everything"].contains(macros[i].name)
+                && !macros.contains(where: { $0.name == renamed }) {
+                macros[i].name = renamed
+            }
             previousContent.withLock { $0 = data }
             var notes: [String] = []
+            loadIncomplete = decoded.dropped > 0 || decoded.version > MacroLibraryCodec.currentVersion
             if decoded.version > MacroLibraryCodec.currentVersion {
                 let name = keepCopy(data, label: "plus-recente")
-                notes.append("Bibliothèque d'une version plus récente de FL Shortcut"
-                             + (name.map { " (copie : \($0))." } ?? ", copie impossible : elle n'est pas modifiée."))
+                notes.append(String(localized: "Bibliothèque d'une version plus récente de FL Shortcuts")
+                             + (name.map { String(localized: " (copie : \($0)).") }
+                                ?? String(localized: ", copie impossible : elle n'est pas modifiée.")))
             }
             if decoded.dropped > 0 {
                 let name = keepCopy(data, label: "partielle")
-                notes.append("\(decoded.dropped) macro(s) illisible(s) ignorée(s)"
-                             + (name.map { " (copie : \($0))." } ?? ", copie impossible : le fichier n'est pas modifié."))
+                notes.append(String(localized: "\(decoded.dropped) macro(s) illisible(s) ignorée(s)")
+                             + (name.map { String(localized: " (copie : \($0)).") }
+                                ?? String(localized: ", copie impossible : le fichier n'est pas modifié.")))
             }
             if !notes.isEmpty { loadWarning = notes.joined(separator: " ") }
         } catch {
+            loadIncomplete = true
             if let name = keepCopy(data, label: "illisible") {
-                loadWarning = "Le fichier des macros était illisible : une copie datée a été gardée dans Application Support › FL Shortcut (\(name))."
+                loadWarning = String(localized: "Le fichier des macros était illisible : une copie datée a été gardée dans Application Support › FL Shortcuts (\(name)).")
             } else {
-                loadWarning = "Le fichier des macros est illisible et n'a pas pu être copié : il n'est pas modifié, tes nouvelles macros ne seront pas enregistrées."
+                loadWarning = String(localized: "Le fichier des macros est illisible et n'a pas pu être copié : il n'est pas modifié, tes nouvelles macros ne seront pas enregistrées.")
             }
         }
     }
@@ -219,7 +236,7 @@ final class MacroLibraryStore: ObservableObject {
     func uniqueName(_ base: String) -> String {
         let root = String(base.prefix(MacroValidation.maxNameLength - 4)).trimmingCharacters(in: .whitespaces)
         let taken = Set(macros.map(\.name))
-        guard taken.contains(root) else { return root.isEmpty ? "Macro" : root }
+        guard taken.contains(root) else { return root.isEmpty ? String(localized: "Macro") : root }
         var n = 2
         while taken.contains("\(root) \(n)") { n += 1 }
         return "\(root) \(n)"
@@ -282,6 +299,19 @@ final class MacroLibraryStore: ObservableObject {
         return (doc, i)
     }
 
+    /// Remplace toute la bibliothèque (sauvegarde du compte reprise, déconnexion : Store.replaceAll).
+    func replaceAll(_ docs: [MacroDoc]) {
+        loadIncomplete = false
+        macros = docs
+        changed()
+    }
+
+    /// Copie datée de la bibliothèque (avant de la remplacer par la sauvegarde du compte).
+    @discardableResult
+    func keepCurrentCopy(label: String) -> String? {
+        (try? MacroLibraryCodec.encode(macros)).flatMap { try? storage.backup($0, label: label) }
+    }
+
     static func sameContent(_ a: MacroDoc, _ b: MacroDoc) -> Bool {
         a.name == b.name && a.blocks == b.blocks && a.variables == b.variables && a.origin == b.origin && a.format == b.format
     }
@@ -329,12 +359,12 @@ final class MacroLibraryStore: ObservableObject {
         case .saved:
             message = nil
         case .failed(let why):
-            message = "Tes macros ne peuvent pas être enregistrées : \(why)"
+            message = String(localized: "Tes macros ne peuvent pas être enregistrées : \(why)")
         case .backupFailed(let why):
             writesDisabled = true
             pendingSave?.cancel()
             pendingSave = nil
-            message = "Tes macros ne peuvent pas être enregistrées : la copie de secours du fichier a échoué (\(why)). Le fichier n'est pas remplacé."
+            message = String(localized: "Tes macros ne peuvent pas être enregistrées : la copie de secours du fichier a échoué (\(why)). Le fichier n'est pas remplacé.")
         }
         if saveError != message { saveError = message }
     }

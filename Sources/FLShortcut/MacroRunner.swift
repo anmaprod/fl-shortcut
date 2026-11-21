@@ -96,9 +96,12 @@ final class MacroRunner {
                 case .doneWithWarning: break                       // la fenêtre du larsen suffit
                 default: NSSound.beep()
                 }
+                if !ok { ProblemLog.shared.add("Macro : " + outcome.text) }   // message d'aide : derniers problèmes
                 completion?(outcome)
+                // Larsen seul : sa fenêtre suffit (comparé à l'avertissement lui-même, pas au texte affiché).
+                let feedbackOnly = outcome == .doneWithWarning(MacroEffectsMac.feedbackWarning)
                 NotificationCenter.default.post(name: .macroFinished, object: nil,
-                                                userInfo: ["ok": ok, "text": outcome.text])
+                                                userInfo: ["ok": ok, "text": outcome.text, "feedbackOnly": feedbackOnly])
             }
         }
         return .started
@@ -115,6 +118,8 @@ final class MacroRunner {
         // Effets neufs à chaque passage : rien de l'état d'un passage ne survit au suivant.
         let outcome = MacroInterpreter(effects: MacroEffectsMac(pid: pid), observer: observer).run(program)
         MacroLog.shared.endRun(outcome.text)
+        // Fin de la macro, réussie ou non : le lien qu'elle a ouvert est retiré tout de suite (08/11).
+        MIDILink.shared.macroEnded()
         return outcome
     }
 

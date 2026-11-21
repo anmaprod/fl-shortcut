@@ -1,22 +1,22 @@
-# FL Shortcut pour Windows
+# FL Shortcuts pour Windows
 
-Même fonctionnement que la version Mac : FL Shortcut vit dans la zone de notification, et quand FL Studio est au premier plan il transforme tes raccourcis en **actions dans FL** (via un script MIDI authentifié) ou en **touches de FL**.
+Même fonctionnement que la version Mac : FL Shortcuts vit dans la zone de notification, et quand FL Studio est au premier plan il transforme tes raccourcis en **actions dans FL** (via un script MIDI authentifié) ou en **touches de FL**.
 
 ## Installation (utilisateurs)
 
-1. Télécharge **`FLShortcut-Windows-Setup.exe`** (page des versions du projet) et double-clique dessus. Aucun droit administrateur, x64 et ARM dans le même fichier.
-2. FL Shortcut se lance et se range dans la zone de notification. Il démarre avec Windows (décochable).
-3. **Ne lance pas FL Studio en administrateur** : Windows empêcherait FL Shortcut d'agir (l'appli te prévient).
+1. Télécharge **`FLShortcuts-Windows-Setup.exe`** (page des versions du projet) et double-clique dessus. Aucun droit administrateur, x64 et ARM dans le même fichier.
+2. FL Shortcuts se lance et se range dans la zone de notification. Il démarre avec Windows (décochable).
+3. **Ne lance pas FL Studio en administrateur** : Windows empêcherait FL Shortcuts d'agir (l'appli te prévient).
 
-Rien à faire dans FL Studio : en **mode léger** (par défaut), FL Shortcut n'envoie que les touches d'origine de FL. Les actions sans touche dans FL (mute / solo de piste, volume, rétablir…) sont grisées.
+Rien à faire dans FL Studio : en **mode léger** (par défaut), FL Shortcuts n'envoie que les touches d'origine de FL. Les actions sans touche dans FL (mute / solo de piste, volume, rétablir…) sont grisées.
 
-`Ctrl+Alt+Maj+F` (dans FL Studio) ou le menu de l'icône met FL Shortcut en pause.
+`Ctrl+Alt+Maj+F` (dans FL Studio) ou le menu de l'icône met FL Shortcuts en pause.
 
 ### Mode MIDI (facultatif)
 
-Pour les 40 actions, mets `"MidiActions": true` dans `%LOCALAPPDATA%\FL Shortcut\settings.json`, relance l'appli, puis :
-1. installe [loopMIDI](https://www.tobias-erichsen.de/software/loopmidi.html) et crée deux ports nommés exactement `FL Shortcut` et `FL Shortcut Retour` ;
-2. clique sur « Installer le lien » ; dans FL Studio, *Options › MIDI Settings* : *Input* `FL Shortcut` → **Enable**, *Controller type* **FL Shortcut** ; *Output* `FL Shortcut Retour` → même numéro de port.
+Pour les 40 actions, mets `"MidiActions": true` dans `%LOCALAPPDATA%\FL Shortcuts\settings.json`, relance l'appli, puis :
+1. installe [loopMIDI](https://www.tobias-erichsen.de/software/loopmidi.html) et crée deux ports nommés exactement `FL Shortcuts` et `FL Shortcuts Retour` ;
+2. clique sur « Installer le lien » ; dans FL Studio, *Options › MIDI Settings* : *Input* `FL Shortcuts` → **Enable**, *Controller type* **FL Shortcuts** ; *Output* `FL Shortcuts Retour` → même numéro de port.
 
 ### Profil recommandé (rien n'écrase FL)
 

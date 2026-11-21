@@ -119,14 +119,16 @@ struct VariableDecl: Codable, Equatable {
     var initial = 0
 }
 
-/// D'où vient une macro : modèle développé, import, enregistrement, ancienne macro reprise.
+/// D'où vient une macro : modèle développé, import, enregistrement, ancienne macro reprise, ou ajoutée depuis la
+/// Communauté (19/11 : son partage, pour « Supprimer de mes macros » ; une version d'avant lit l'origine comme absente).
 enum Origin: Codable, Equatable {
     case template(String)
     case imported
     case recorded
     case legacy
+    case community(UUID)
 
-    private enum CodingKeys: String, CodingKey { case kind, name }
+    private enum CodingKeys: String, CodingKey { case kind, name, share }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -135,6 +137,7 @@ enum Origin: Codable, Equatable {
         case "imported": self = .imported
         case "recorded": self = .recorded
         case "legacy": self = .legacy
+        case "community": self = .community(try c.decode(UUID.self, forKey: .share))
         default: throw DecodingError.dataCorruptedError(forKey: .kind, in: c, debugDescription: "origine inconnue")
         }
     }
@@ -148,6 +151,9 @@ enum Origin: Codable, Equatable {
         case .imported: try c.encode("imported", forKey: .kind)
         case .recorded: try c.encode("recorded", forKey: .kind)
         case .legacy: try c.encode("legacy", forKey: .kind)
+        case .community(let share):
+            try c.encode("community", forKey: .kind)
+            try c.encode(share.uuidString.lowercased(), forKey: .share)
         }
     }
 }
@@ -236,6 +242,11 @@ indirect enum BlockBody: Equatable {
     case menuKey(MenuKey, times: Int)                       // ↑ ↓ ← → Entrée Échap, seulement dans un menu ouvert
     // Souris
     case click(ClickTarget, button: MouseButton)
+    /// Appui à `from`, glissé jusqu'à `to`, relâché (MacroEffectsMac.drag).
+    case drag(from: ClickTarget, to: ClickTarget)
+    /// « Clic de souris » (05/11) : un clic là où est la souris au moment du bloc, bouton gauche, droit ou du milieu,
+    /// simple ou double ; seulement dans FL (MacroEffectsMac.mouseClick).
+    case mouseClick(button: PointerButton, double: Bool)
     // Fenêtres et attentes
     case delay(ms: Int)
     case waitWindow(WindowKind, timeoutMs: Int)             // .dialog | .menu
@@ -256,6 +267,12 @@ indirect enum BlockBody: Equatable {
     case soundCard
     /// Ouvre l'Organiser (OrganizerWindow.swift) sur la page de FL devant ; le bloc se termine aussitôt.
     case organize
+    /// Met devant une page de FL (Playlist, Channel Rack, Mixer…), seulement si elle n'y est pas déjà
+    /// (MacroPages.swift). nil : page encore à choisir (la macro ne tourne pas).
+    case openPage(FLPage?)
+    /// « Cliquer sur… » : une option de la page ouverte au-dessus (« mixer.armon »…) ; `name` : le plugin à ajouter.
+    /// nil : option encore à choisir.
+    case pageOption(id: String?, name: String)
     /// Élément d'un menu de FL dans la barre des menus de macOS (titre du menu, puis des éléments), par l'Accessibilité.
     case menuBar(titles: [String])
     /// Ancienne étape `menu` (titres d'accessibilité, clics de secours) : reprise des anciennes macros, hors palette.
@@ -278,6 +295,8 @@ indirect enum BlockBody: Equatable {
         case .menuLetters: return .menuLetters
         case .menuKey: return .menuKey
         case .click: return .click
+        case .drag: return .drag
+        case .mouseClick: return .mouseClick
         case .delay: return .delay
         case .waitWindow: return .waitWindow
         case .waitWindowClose: return .waitWindowClose
@@ -291,6 +310,8 @@ indirect enum BlockBody: Equatable {
         case .nameColor: return .nameColor
         case .soundCard: return .soundCard
         case .organize: return .organize
+        case .openPage: return .openPage
+        case .pageOption: return .pageOption
         case .menuBar: return .menuBar
         case .menuAX: return .menuAX
         case .ifElse: return .ifElse
@@ -333,6 +354,10 @@ indirect enum BlockBody: Equatable {
             return ["menuKey": .string(key.rawValue), "times": .num(times)]
         case .click(let target, let button):
             return ["target": target.json, "button": .string(button.rawValue)]
+        case .drag(let from, let to):
+            return ["from": from.json, "to": to.json]
+        case .mouseClick(let button, let double):
+            return ["button": .string(button.rawValue), "double": .bool(double)]
         case .delay(let ms):
             return ["ms": .num(ms)]
         case .waitWindow(let kind, let timeout), .waitWindowClose(let kind, let timeout):
@@ -350,6 +375,12 @@ indirect enum BlockBody: Equatable {
             return ["learned": ref.json]
         case .feedbackCheck, .soundCard, .organize:
             return [:]
+        case .openPage(let page):
+            return page.map { ["page": .string($0.rawValue)] } ?? [:]
+        case .pageOption(let id, let name):
+            var p: [String: JSONValue] = ["name": .string(name)]
+            if let id { p["option"] = .string(id) }
+            return p
         case .nameColor(let name, let color, let fade, let icon):
             var p: [String: JSONValue] = [:]
             if let name { p["name"] = .string(name) }
@@ -402,6 +433,12 @@ indirect enum BlockBody: Equatable {
             guard let t = ClickTarget(json: j["target"]),
                   let button = MouseButton(rawValue: j["button"]?.string ?? "left") else { return nil }
             return .click(t, button: button)
+        case .drag:
+            guard let from = ClickTarget(json: j["from"]), let to = ClickTarget(json: j["to"]) else { return nil }
+            return .drag(from: from, to: to)
+        case .mouseClick:
+            guard let button = PointerButton(rawValue: j["button"]?.string ?? "left") else { return nil }
+            return .mouseClick(button: button, double: j["double"]?.bool ?? false)
         case .delay:
             guard let ms = j["ms"]?.int else { return nil }
             return .delay(ms: ms)
@@ -432,6 +469,13 @@ indirect enum BlockBody: Equatable {
             return .soundCard
         case .organize:
             return .organize
+        case .openPage:
+            guard let v = j["page"] else { return .openPage(nil) }
+            guard let page = v.string.flatMap({ FLPage(rawValue: $0) }) else { return nil }
+            return .openPage(page)
+        case .pageOption:
+            if j["option"] != nil && j["option"]?.string == nil { return nil }
+            return .pageOption(id: j["option"]?.string, name: j["name"]?.string ?? "")
         case .nameColor:
             // Clé présente mais illisible (nom non texte, couleur hors format) : bloc illisible, conservé et bloquant.
             if j["name"] != nil && j["name"]?.string == nil { return nil }
@@ -579,13 +623,57 @@ enum MenuKey: String, CaseIterable {
         case .down: return "↓"
         case .left: return "←"
         case .right: return "→"
-        case .enter: return "Entrée"
-        case .escape: return "Échap"
+        case .enter: return String(localized: "Entrée")
+        case .escape: return String(localized: "Échap")
         }
     }
 }
 
 enum MouseButton: String { case left, right }
+
+/// Bouton du bloc « Clic de souris » : n'importe quel bouton de la souris (05/11 : « appuyez sur le bouton que vous
+/// voulez… si la personne a 5 boutons »). `number` : le numéro de macOS (0 gauche, 1 droit, 2 milieu, 3 et plus : les
+/// boutons du côté). JSON comme Windows : « left », « right », « middle », puis « 4 », « 5 »… (le numéro sur la souris).
+struct PointerButton: Hashable, RawRepresentable {
+    let number: Int
+
+    static let left = PointerButton(number: 0)
+    static let right = PointerButton(number: 1)
+    static let middle = PointerButton(number: 2)
+    /// Les numéros que macOS donne aux boutons d'une souris (comme KeyCombo.mouseButton).
+    static let numbers = 0...31
+
+    init(number: Int) { self.number = number }
+
+    init?(rawValue: String) {
+        switch rawValue {
+        case "left": number = 0
+        case "right": number = 1
+        case "middle": number = 2
+        default:
+            guard let n = Int(rawValue), Self.numbers.contains(n - 1), n >= 4 else { return nil }
+            number = n - 1
+        }
+    }
+
+    var rawValue: String {
+        switch number {
+        case 0: return "left"
+        case 1: return "right"
+        case 2: return "middle"
+        default: return String(number + 1)
+        }
+    }
+
+    var title: String {
+        switch number {
+        case 0: return String(localized: "Gauche")
+        case 1: return String(localized: "Droit")
+        case 2: return String(localized: "Milieu")
+        default: return String(localized: "Bouton \(number + 1)")
+        }
+    }
+}
 
 enum WindowKind: String { case dialog, menu }
 
@@ -772,10 +860,21 @@ enum Corner: String, CaseIterable { case topLeft, topRight, bottomLeft, bottomRi
 /// Où cliquer, retrouvé à chaque exécution (jamais un point absolu de l'écran).
 enum ClickTarget: Equatable {
     /// Coin d'une fenêtre de FL. Taille retenue : la fenêtre de cette taille (refus si aucune) ; sans taille : celle
-    /// qui est sous le curseur au démarrage (ancien repère `window`).
-    case flWindow(corner: Corner, dx: Double, dy: Double, size: CGSize?)
+    /// qui est sous le curseur au démarrage (ancien repère `window`). Titre : fenêtre d'un plugin (Serum, Vital…),
+    /// reconnue à son nom (Accessibilité) parmi plusieurs fenêtres de la même taille, où qu'elle soit.
+    /// `look` : image du bouton sous le clic, retenue avec sa place, qui ne sert qu'à le retrouver dans le FL d'un autre
+    /// ordinateur quand la macro est partagée. `loose` : venu d'une macro partagée, fenêtre d'un plugin (titre) d'une autre
+    /// taille : point à la même proportion de la fenêtre.
+    case flWindow(corner: Corner, dx: Double, dy: Double, size: CGSize?, title: String? = nil, look: ButtonLook? = nil,
+                  loose: Bool = false)
     /// Relatif au dernier menu de FL ouvert (résiste au décalage du menu).
     case openMenu(MacroSpots.PopupHop)
+    /// Bouton de FL qui peut bouger (« + » du Channel rack) : cherché à son image dans sa fenêtre au moment du clic,
+    /// sur demande de l'utilisateur pour ce clic (MacroVisual.swift).
+    case button(VisualSpot)
+    /// Bouton de FL qui porte un nom (« FILE », « Insert 1 ») : cherché par ce nom dans sa fenêtre au moment du clic,
+    /// où qu'il soit ; sans lecture de l'écran, sa place apprise (MacroVisual.swift).
+    case named(NamedSpot)
     /// Depuis la piste visée (TrackMemory).
     case track(dx: Double, dy: Double)
     case lastClick(dx: Double, dy: Double)
@@ -795,17 +894,25 @@ enum ClickTarget: Equatable {
         }
     }
 
-    /// Décalages finis et bornés (±5000), taille plausible.
+    /// Longueur maximale du titre d'une fenêtre de plugin retenu.
+    static let maxTitle = 120
+
+    /// Décalages finis et bornés (±5000), taille plausible, titre court.
     var isFinite: Bool {
         func ok(_ v: Double) -> Bool { v.isFinite && abs(v) <= 5000 }
         switch self {
-        case .flWindow(_, let dx, let dy, let size):
+        case .flWindow(_, let dx, let dy, let size, let title, let look, let loose):
             let sizeOK = size.map { $0.width.isFinite && $0.height.isFinite && $0.width > 0 && $0.height > 0
                 && $0.width <= 10_000 && $0.height <= 10_000 } ?? true
-            return ok(dx) && ok(dy) && sizeOK
+            let titleOK = title.map { !$0.isEmpty && $0.count <= ClickTarget.maxTitle && size != nil } ?? true
+            return ok(dx) && ok(dy) && sizeOK && titleOK && (look?.isValid ?? true) && (!loose || (size != nil && title != nil))
         case .openMenu(let hop):
             return ok(Double(hop.offset.dx)) && ok(Double(hop.offset.dy)) && hop.size.width.isFinite && hop.size.height.isFinite
                 && (16...2000).contains(hop.size.width) && (16...4000).contains(hop.size.height)
+        case .button(let spot):
+            return spot.isValid
+        case .named(let spot):
+            return spot.isValid
         case .track(let dx, let dy), .lastClick(let dx, let dy), .startCursor(let dx, let dy), .cursorXWindowY(let dx, let dy):
             return ok(dx) && ok(dy)
         case .toLearn:
@@ -816,8 +923,49 @@ enum ClickTarget: Equatable {
     /// Position apprise en montrant le clic dans FL (retirée à l'export : propre à cette machine).
     var isLearnedPosition: Bool {
         switch self {
-        case .flWindow, .openMenu, .cursorXWindowY: return true
+        case .flWindow, .openMenu, .button, .named, .cursorXWindowY: return true
         case .track, .lastClick, .startCursor, .toLearn: return false
+        }
+    }
+
+    /// Relatif à la piste visée (la macro demande une piste cliquée avant le raccourci).
+    var isTrack: Bool {
+        if case .track = self { return true }
+        return false
+    }
+
+    /// Venu d'une macro partagée, retrouvé par son nom, son image ou sa fenêtre de plugin (pas à montrer de nouveau).
+    var isLoose: Bool {
+        switch self {
+        case .named(let spot): return spot.loose
+        case .button(let spot): return spot.loose
+        case .flWindow(_, _, _, _, _, _, let loose): return loose
+        default: return false
+        }
+    }
+
+    /// Ce qu'une macro partagée garde d'un clic pour le refaire dans le FL d'un autre ordinateur (Mac ou PC) : un bouton
+    /// par son nom, un bouton par son image (montrée ou retenue avec sa place), un point d'une fenêtre de plugin (titre) en
+    /// proportion. Le reste (endroit d'une fenêtre de FL, décalage depuis la souris ou la piste, menu) : à montrer une fois.
+    /// Miroir de ClickTarget.Portable (Windows), même format de fichier.
+    var portable: ClickTarget {
+        switch self {
+        case .named(var spot):
+            spot.loose = true
+            return .named(spot)
+        case .button(var spot):
+            spot.loose = true
+            return .button(spot)
+        case .flWindow(let corner, let dx, let dy, let size?, let title, let look?, _):
+            var spot = VisualSpot(corner: corner, dx: dx, dy: dy, size: size, title: title, side: look.side, pixels: look.pixels)
+            spot.loose = true
+            if spot.isValid { return .button(spot) }
+            if let title { return .flWindow(corner: corner, dx: dx, dy: dy, size: size, title: title, look: nil, loose: true) }
+            return .toLearn
+        case .flWindow(let corner, let dx, let dy, let size?, let title?, .none, _):
+            return .flWindow(corner: corner, dx: dx, dy: dy, size: size, title: title, look: nil, loose: true)
+        default:
+            return .toLearn
         }
     }
 
@@ -833,10 +981,34 @@ enum ClickTarget: Equatable {
             guard let corner = json["corner"]?.string.flatMap({ Corner(rawValue: $0) }) else { return nil }
             let parsed = size(json["size"])
             if let s = json["size"], s != .null, parsed == nil { return nil }
-            self = .flWindow(corner: corner, dx: dx, dy: dy, size: parsed)
+            let title = json["title"]?.string
+            if let t = json["title"], t != .null, title == nil { return nil }
+            let look = ButtonLook(json: json["look"])
+            if let l = json["look"], l != .null, look == nil { return nil }
+            self = .flWindow(corner: corner, dx: dx, dy: dy, size: parsed, title: title, look: look,
+                             loose: json["loose"]?.bool == true)
         case "openMenu":
             guard let offset = size(json["offset"]), let s = size(json["size"]) else { return nil }
             self = .openMenu(MacroSpots.PopupHop(offset: CGVector(dx: offset.width, dy: offset.height), size: s))
+        case "button":
+            guard let corner = json["corner"]?.string.flatMap({ Corner(rawValue: $0) }), let s = size(json["size"]),
+                  let side = json["side"]?.int, VisualSpot.sides.contains(side),
+                  let encoded = json["pixels"]?.string, let data = Data(base64Encoded: encoded) else { return nil }
+            let title = json["title"]?.string
+            if let t = json["title"], t != .null, title == nil { return nil }
+            var spot = VisualSpot(corner: corner, dx: dx, dy: dy, size: s, title: title, side: side, pixels: [UInt8](data))
+            spot.loose = json["loose"]?.bool == true
+            guard spot.isValid else { return nil }
+            self = .button(spot)
+        case "named":
+            guard let label = json["label"]?.string, let corner = json["corner"]?.string.flatMap({ Corner(rawValue: $0) }),
+                  let s = size(json["size"]), let px = json["px"]?.double, let py = json["py"]?.double else { return nil }
+            let title = json["title"]?.string
+            if let t = json["title"], t != .null, title == nil { return nil }
+            var spot = NamedSpot(label: label, dx: dx, dy: dy, corner: corner, px: px, py: py, size: s, title: title)
+            spot.loose = json["loose"]?.bool == true
+            guard spot.isValid else { return nil }
+            self = .named(spot)
         case "track": self = .track(dx: dx, dy: dy)
         case "lastClick": self = .lastClick(dx: dx, dy: dy)
         case "startCursor": self = .startCursor(dx: dx, dy: dy)
@@ -852,14 +1024,34 @@ enum ClickTarget: Equatable {
             .object(["anchor": .string(anchor), "dx": .number(dx), "dy": .number(dy)])
         }
         switch self {
-        case .flWindow(let corner, let dx, let dy, let size):
+        case .flWindow(let corner, let dx, let dy, let size, let title, let look, let loose):
             var o: [String: JSONValue] = ["anchor": .string("flWindow"), "corner": .string(corner.rawValue),
                                           "dx": .number(dx), "dy": .number(dy)]
             if let size { o["size"] = pair(size.width, size.height) }
+            if let title { o["title"] = .string(title) }
+            if let look { o["look"] = look.json }
+            if loose { o["loose"] = .bool(true) }
             return .object(o)
         case .openMenu(let hop):
             return .object(["anchor": .string("openMenu"), "offset": pair(hop.offset.dx, hop.offset.dy),
                             "size": pair(hop.size.width, hop.size.height)])
+        case .button(let spot):
+            var o: [String: JSONValue] = ["anchor": .string("button"), "corner": .string(spot.corner.rawValue),
+                                          "dx": .number(spot.dx), "dy": .number(spot.dy),
+                                          "size": pair(spot.size.width, spot.size.height),
+                                          "side": .number(Double(spot.side)),
+                                          "pixels": .string(Data(spot.pixels).base64EncodedString())]
+            if let title = spot.title { o["title"] = .string(title) }
+            if spot.loose { o["loose"] = .bool(true) }
+            return .object(o)
+        case .named(let spot):
+            var o: [String: JSONValue] = ["anchor": .string("named"), "label": .string(spot.label),
+                                          "dx": .number(spot.dx), "dy": .number(spot.dy),
+                                          "corner": .string(spot.corner.rawValue), "px": .number(spot.px),
+                                          "py": .number(spot.py), "size": pair(spot.size.width, spot.size.height)]
+            if let title = spot.title { o["title"] = .string(title) }
+            if spot.loose { o["loose"] = .bool(true) }
+            return .object(o)
         case .track(let dx, let dy): return offset("track", dx, dy)
         case .lastClick(let dx, let dy): return offset("lastClick", dx, dy)
         case .startCursor(let dx, let dy): return offset("startCursor", dx, dy)

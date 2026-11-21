@@ -18,7 +18,11 @@ enum PresetDrop {
 
     /// Fil de la macro, jamais le fil principal (la session de glisser y tourne). `p` : point de la piste (repère
     /// CoreGraphics, origine en haut à gauche de l'écran principal).
-    static func drop(path: String, at p: CGPoint, source: CGEventSource?,
+    /// `endWait` : temps laissé à FL pour finir de recevoir le fichier. `slowIsTaken` (plugin, 13/11) : FL encore occupé
+    /// au bout de ce temps = il charge le plugin déposé (un VST peut mettre plus de 2 s) : pris, jamais rouvert par le
+    /// menu (sinon deux fois le même plugin).
+    static func drop(path: String, at p: CGPoint, source: CGEventSource?, endWait: TimeInterval = 2,
+                     slowIsTaken: Bool = false,
                      log: (String) -> Void = { MacroLog.shared.write("DROP", $0) }) -> Outcome {
         let started = DispatchSemaphore(value: 0)
         let ended = DispatchSemaphore(value: 0)
@@ -28,7 +32,18 @@ enum PresetDrop {
             s.show()
             return s
         }
-        defer { DispatchQueue.main.async { dragSource.close() } }
+        // La source reste en vie tant que FL n'a pas fini de recevoir le fichier (refermée après, jamais pendant).
+        var stillLoading = false
+        defer {
+            if stillLoading {
+                DispatchQueue.global().async {
+                    _ = ended.wait(timeout: .now() + 120)
+                    DispatchQueue.main.async { dragSource.close() }
+                }
+            } else {
+                DispatchQueue.main.async { dragSource.close() }
+            }
+        }
 
         func post(_ type: CGEventType, _ q: CGPoint) {
             guard let e = CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: q, mouseButton: .left) else { return }
@@ -46,7 +61,7 @@ enum PresetDrop {
         guard started.wait(timeout: .now() + 0.8) == .success else {
             post(.leftMouseUp, p)
             log("drag not started · \(ms()) ms")
-            return .failed("le glisser du preset n'a pas démarré (une fenêtre couvre la piste ?)")
+            return .failed(String(localized: "le glisser du preset n'a pas démarré (une fenêtre couvre la piste ?)"))
         }
         // Quelques pixels à droite puis retour : FL voit le fichier entrer sur la piste, puis le reçoit au point visé.
         for dx in [4.0, 8, 12, 8, 4, 0] {
@@ -55,13 +70,22 @@ enum PresetDrop {
         }
         usleep(30_000)
         post(.leftMouseUp, p)
-        guard ended.wait(timeout: .now() + 2) == .success else {
+        guard ended.wait(timeout: .now() + endWait) == .success else {
+            if slowIsTaken {
+                // 13/11 (« les plugins ça fonctionne, c'est les VST qui ne fonctionnent pas ») : FL charge le VST
+                // pendant qu'il reçoit le fichier ; avant, 2 s plus tard, le dépôt passait pour raté et le menu Add
+                // repartait.
+                stillLoading = true
+                log("drag still in FL after \(ms()) ms: taken, still loading")
+                return .done
+            }
             log("drag not ended · \(ms()) ms")
-            return .failed("FL n'a pas répondu au dépôt du preset")
+            return .failed(String(localized: "FL n'a pas répondu au dépôt du preset"))
         }
         let op = operation.value ?? []
         log("drag ended · operation 0x\(String(op.rawValue, radix: 16)) · \(ms()) ms")
-        return op.isEmpty ? .failed("FL n'a pas pris le preset : clique d'abord au milieu de la tranche de ta piste") : .done
+        return op.isEmpty ? .failed(String(localized: "FL n'a pas pris le preset : clique d'abord au milieu de la tranche de ta piste"))
+                           : .done
     }
 }
 

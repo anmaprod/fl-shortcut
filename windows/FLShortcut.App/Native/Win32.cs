@@ -128,7 +128,7 @@ internal static class Win32
 
     // ---------- Injection de frappes ----------
     public const uint INPUT_KEYBOARD = 1;
-    public const uint KEYEVENTF_EXTENDEDKEY = 0x0001, KEYEVENTF_KEYUP = 0x0002;
+    public const uint KEYEVENTF_EXTENDEDKEY = 0x0001, KEYEVENTF_KEYUP = 0x0002, KEYEVENTF_UNICODE = 0x0004;
 
     [StructLayout(LayoutKind.Sequential)]
     public struct MOUSEINPUT
@@ -226,7 +226,7 @@ internal static class Win32
 
     // ---------- Zone de notification ----------
     public const uint NIM_ADD = 0, NIM_MODIFY = 1, NIM_DELETE = 2;
-    public const uint NIF_MESSAGE = 0x01, NIF_ICON = 0x02, NIF_TIP = 0x04;
+    public const uint NIF_MESSAGE = 0x01, NIF_ICON = 0x02, NIF_TIP = 0x04, NIF_INFO = 0x10, NIIF_INFO = 0x01;
     public const uint WM_LBUTTONUP = 0x0202, WM_RBUTTONUP = 0x0205, WM_CONTEXTMENU = 0x007B;
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -292,4 +292,231 @@ internal static class Win32
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool GetCursorPos(out POINT lpPoint);
+
+    // ---------- Coins arrondis d'une fenêtre (Windows 11 ; sans effet ailleurs) : le menu de l'icône ----------
+    public const int DWMWA_WINDOW_CORNER_PREFERENCE = 33, DWMWCP_DONOTROUND = 1, DWMWCP_ROUND = 2;
+    [DllImport("dwmapi.dll")]
+    public static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
+
+    // ---------- Fenêtres de FL (titres, premier plan) : l'Organiser ----------
+    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+    public const int SW_RESTORE = 9;
+    public const uint GW_OWNER = 4;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT { public int Left, Top, Right, Bottom; }
+
+    /// Fil d'interface d'un programme : fenêtre active, focus, curseur de saisie, menu ouvert (TypingGuard).
+    [StructLayout(LayoutKind.Sequential)]
+    public struct GUITHREADINFO
+    {
+        public int cbSize;
+        public uint flags;
+        public IntPtr hwndActive, hwndFocus, hwndCapture, hwndMenuOwner, hwndMoveSize, hwndCaret;
+        public RECT rcCaret;
+    }
+    public const uint GUI_CARETBLINKING = 0x1, GUI_INMENUMODE = 0x4, GUI_POPUPMENUMODE = 0x10;
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool GetGUIThreadInfo(uint idThread, ref GUITHREADINFO lpgui);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetWindowTextW(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+    [DllImport("user32.dll")] public static extern int GetWindowTextLengthW(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool IsWindowVisible(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool IsIconic(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+    [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr hWnd, uint uCmd);
+    [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int vKey);
+    [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr hwnd);
+
+    // ---------- Macros : menus et boîtes de dialogue de FL reconnus par leur classe et leur style (jamais le titre) ----------
+    public const int GWL_STYLE = -16, GWL_EXSTYLE = -20;
+    public const long WS_POPUP = 0x80000000L, WS_CAPTION = 0x00C00000L, WS_THICKFRAME = 0x00040000L, WS_CHILD = 0x40000000L;
+    public const long WS_EX_TOPMOST = 0x00000008L, WS_EX_TOOLWINDOW = 0x00000080L;
+    public const uint MB_ICONWARNING = 0x30;
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetClassNameW(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+    public static extern IntPtr GetWindowLongPtrW(IntPtr hWnd, int nIndex);
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool ReleaseCapture();
+    [DllImport("user32.dll", EntryPoint = "SendMessageW")]
+    public static extern IntPtr SendMessageW(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
+    public static extern IntPtr SetWindowLongPtrW(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+    public const long WS_EX_NOACTIVATE = 0x08000000L;
+    public static readonly IntPtr HWND_TOPMOST = new(-1);
+    public const uint SWP_NOSIZE = 0x0001, SWP_NOMOVE = 0x0002, SWP_NOACTIVATE = 0x0010, SWP_SHOWWINDOW = 0x0040;
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool MessageBeep(uint uType);
+
+    // ---------- Macros : souris (clics appris, Menu de FL) ----------
+    public const uint INPUT_MOUSE = 0;
+    public const uint MOUSEEVENTF_MOVE = 0x0001, MOUSEEVENTF_LEFTDOWN = 0x0002, MOUSEEVENTF_LEFTUP = 0x0004,
+        MOUSEEVENTF_RIGHTDOWN = 0x0008, MOUSEEVENTF_RIGHTUP = 0x0010, MOUSEEVENTF_MIDDLEDOWN = 0x0020,
+        MOUSEEVENTF_MIDDLEUP = 0x0040, MOUSEEVENTF_WHEEL = 0x0800,
+        MOUSEEVENTF_XDOWN = 0x0080, MOUSEEVENTF_XUP = 0x0100;
+    public const int WHEEL_DELTA = 120;
+    /// Boutons du côté (mouseData d'un MOUSEEVENTF_XDOWN / XUP).
+    public const int XBUTTON1 = 1, XBUTTON2 = 2;
+    public const uint GA_ROOT = 2;
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetCursorPos(int x, int y);
+    [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT point);
+    [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr hwnd, uint gaFlags);
+
+    // ---------- Macros : menus standard de Windows (lus sans l'écran : titres, place, grisé) ----------
+    public const uint MF_BYPOSITION = 0x0400, MF_DISABLED = 0x0002, MF_POPUP = 0x0010;
+    public const uint MN_GETHMENU = 0x01E1, WM_CANCELMODE = 0x001F;
+
+    [DllImport("user32.dll")] public static extern IntPtr GetMenu(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern int GetMenuItemCount(IntPtr hMenu);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetMenuStringW(IntPtr hMenu, uint uIDItem, StringBuilder lpString, int cchMax, uint flags);
+    [DllImport("user32.dll")] public static extern uint GetMenuState(IntPtr hMenu, uint uId, uint uFlags);
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool GetMenuItemRect(IntPtr hWnd, IntPtr hMenu, uint uItem, out RECT lprcItem);
+    [DllImport("user32.dll", EntryPoint = "SendMessageTimeoutW")]
+    public static extern IntPtr SendMessageTimeoutW(IntPtr hWnd, uint msg, UIntPtr wParam, IntPtr lParam, uint fuFlags,
+        uint uTimeout, out UIntPtr lpdwResult);
+    public const uint SMTO_ABORTIFHUNG = 0x0002;
+    [DllImport("user32.dll", EntryPoint = "PostMessageW")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool PostMessageW(IntPtr hWnd, uint msg, UIntPtr wParam, IntPtr lParam);
+
+    // ---------- Macros : piste visée (dernier clic de l'utilisateur dans FL, crochet souris seulement si besoin) ----------
+    public const int WH_MOUSE_LL = 14, WM_LBUTTONDOWN = 0x0201, WM_MBUTTONDOWN = 0x0207, WM_MBUTTONUP = 0x0208,
+        WM_XBUTTONDOWN = 0x020B, WM_XBUTTONUP = 0x020C;
+    public const uint LLMHF_INJECTED = 0x01;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MSLLHOOKSTRUCT
+    {
+        public POINT pt;
+        public uint mouseData;
+        public uint flags;
+        public uint time;
+        public UIntPtr dwExtraInfo;
+    }
+
+    public delegate IntPtr LowLevelMouseProc(int nCode, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll", SetLastError = true, EntryPoint = "SetWindowsHookExW")]
+    public static extern IntPtr SetWindowsHookExMouse(int idHook, LowLevelMouseProc lpfn, IntPtr hMod, uint dwThreadId);
+
+    // ---------- Macros : boîte « Open » de FL (chemin du preset écrit dans son champ, puis Ouvrir) ----------
+    public const uint WM_SETTEXT = 0x000C, WM_COMMAND = 0x0111;
+    public delegate bool EnumChildProc(IntPtr hWnd, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool EnumChildWindows(IntPtr hWndParent, EnumChildProc lpEnumFunc, IntPtr lParam);
+    [DllImport("user32.dll")] public static extern int GetDlgCtrlID(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool IsWindow(IntPtr hWnd);
+    [DllImport("user32.dll", EntryPoint = "SendMessageTimeoutW", CharSet = CharSet.Unicode)]
+    public static extern IntPtr SendMessageTimeoutText(IntPtr hWnd, uint msg, UIntPtr wParam, string lParam, uint fuFlags,
+        uint uTimeout, out UIntPtr lpdwResult);
+
+    // ---------- Macros : image d'une zone de l'écran (texte d'un bouton ou d'un menu de FL, au moment du clic) ----------
+    public const uint SRCCOPY = 0x00CC0020, CAPTUREBLT = 0x40000000, DIB_RGB_COLORS = 0;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct BITMAPINFOHEADER
+    {
+        public uint biSize;
+        public int biWidth;
+        public int biHeight;
+        public ushort biPlanes;
+        public ushort biBitCount;
+        public uint biCompression;
+        public uint biSizeImage;
+        public int biXPelsPerMeter;
+        public int biYPelsPerMeter;
+        public uint biClrUsed;
+        public uint biClrImportant;
+    }
+
+    [DllImport("user32.dll")] public static extern IntPtr GetDC(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+    [DllImport("gdi32.dll")] public static extern IntPtr CreateCompatibleDC(IntPtr hdc);
+    [DllImport("gdi32.dll")] public static extern IntPtr CreateCompatibleBitmap(IntPtr hdc, int cx, int cy);
+    [DllImport("gdi32.dll")] public static extern IntPtr SelectObject(IntPtr hdc, IntPtr h);
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool BitBlt(IntPtr hdc, int x, int y, int cx, int cy, IntPtr hdcSrc, int x1, int y1, uint rop);
+    [DllImport("gdi32.dll")]
+    public static extern int GetDIBits(IntPtr hdc, IntPtr hbm, uint start, uint cLines, [Out] byte[] lpvBits,
+        ref BITMAPINFOHEADER lpbmi, uint usage);
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool DeleteObject(IntPtr ho);
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool DeleteDC(IntPtr hdc);
+}
+
+/// Disposition du clavier de ce PC (AZERTY, QWERTY…), pour le traducteur des raccourcis du Mac (PlatformKeys) : quelle
+/// touche est à quelle place. Celle de l'app au moment de la traduction ; illisible : le QWERTY américain.
+internal sealed class WindowsKeyLayout : FLShortcut.Core.IKeyLayout
+{
+    private const uint MapvkVkToVsc = 0, MapvkVscToVk = 1;
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint MapVirtualKeyExW(uint uCode, uint uMapType, IntPtr dwhkl);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr GetKeyboardLayout(uint idThread);
+
+    private readonly IntPtr _hkl;
+
+    private WindowsKeyLayout(IntPtr hkl) => _hkl = hkl;
+
+    public static FLShortcut.Core.IKeyLayout Current
+    {
+        get
+        {
+            try
+            {
+                var hkl = GetKeyboardLayout(0);
+                return hkl == IntPtr.Zero ? FLShortcut.Core.UsKeyLayout.Shared : new WindowsKeyLayout(hkl);
+            }
+            catch (Exception) { return FLShortcut.Core.UsKeyLayout.Shared; }
+        }
+    }
+
+    public ushort? VkForScan(ushort scan)
+    {
+        var vk = MapVirtualKeyExW(scan, MapvkVscToVk, _hkl);
+        return vk is > 0 and < 0xFF ? (ushort)vk : FLShortcut.Core.UsKeyLayout.Shared.VkForScan(scan);
+    }
+
+    public ushort? ScanForVk(ushort vk)
+    {
+        var scan = MapVirtualKeyExW(vk, MapvkVkToVsc, _hkl);
+        return scan is > 0 and < 0x80 ? (ushort)scan : FLShortcut.Core.UsKeyLayout.Shared.ScanForVk(vk);
+    }
 }

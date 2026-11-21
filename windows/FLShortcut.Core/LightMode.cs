@@ -1,4 +1,4 @@
-// Mode léger (par défaut) : FL Shortcut ne met RIEN dans FL Studio. Pas de script, pas de port MIDI, pas de loopMIDI.
+// Mode léger (par défaut) : FL Shortcuts ne met RIEN dans FL Studio. Pas de script, pas de port MIDI, pas de loopMIDI.
 // Il n'envoie que des touches d'origine de FL, seulement quand FL est au premier plan.
 // - Raccourcis d'origine déplacés : ta touche → la touche de FL (FL l'applique à sa fenêtre active).
 // - Actions qui ont un équivalent clavier dans FL : ta touche → cette touche de FL.
@@ -44,8 +44,12 @@ public static class LightMode
     }
 
     /// Disponibilité d'une action en mode léger : seulement celles qui ont une touche d'origine.
-    public static ActionAvailability Availability(int id) =>
-        !FlActions.IsKnown(id) ? new ActionAvailability.Unavailable("Action inconnue")
+    /// `linkInstalled` (07/11, comme le Mac) : lien installé, l'action marche dans une macro (le lien s'y ouvre le temps
+    /// du bloc), pas sur un raccourci.
+    public static ActionAvailability Availability(int id, bool linkInstalled = false) =>
+        !FlActions.IsKnown(id) ? new ActionAvailability.Unavailable(Loc.T("Action inconnue"))
         : NativeEquivalent(id) is not null ? new ActionAvailability.Available()
-        : new ActionAvailability.Unavailable("Demande le lien MIDI avec FL (désactivé en mode léger)");
+        : new ActionAvailability.Unavailable(linkInstalled
+            ? Loc.T("Seulement dans une macro : le lien avec FL s'y ouvre le temps du bloc.")
+            : Loc.T("Demande le lien avec FL (Organiser › Installer le lien)."));
 }

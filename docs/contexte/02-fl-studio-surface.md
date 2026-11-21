@@ -1,4 +1,4 @@
-# FL Studio automation surface for FL Shortcut's macro creator (FL 2024 → FL 2026, macOS)
+# FL Studio automation surface for FL Shortcuts's macro creator (FL 2024 → FL 2026, macOS)
 
 This covers what a helper app can drive in FL Studio: script actions and reads, keyboard shortcuts, menus, and a proposed set of macro blocks.
 
@@ -287,7 +287,7 @@ The manual's mapping: Ctrl → **Cmd**, Alt → **Opt**, Backspace → delete, D
 
 **Single-letter shortcuts** (R, L, S, P, B…) only work when "Typing keyboard to piano" (⌘T) is **off**, and FL cannot report that state. Prefer script actions or shortcuts with modifiers.
 
-**Keyboard layout (AZERTY).** Since FL 2025, shortcuts follow the layout's character (fix 19856), and menu accelerators work on non-US layouts (fixes 18718, 20467). FL Shortcut must turn the character into a key code for the current layout (TIS/UCKeyTranslate) and set the Unicode string on the CGEvent. Hard-coded QWERTY key codes will not work.
+**Keyboard layout (AZERTY).** Since FL 2025, shortcuts follow the layout's character (fix 19856), and menu accelerators work on non-US layouts (fixes 18718, 20467). FL Shortcuts must turn the character into a key code for the current layout (TIS/UCKeyTranslate) and set the Unicode string on the CGEvent. Hard-coded QWERTY key codes will not work.
 
 **Numpad.** Use keypad key codes even on a laptop: + 0x45, − 0x4E, digits 0x52–0x5C, * 0x43, / 0x4B. Numpad digits select patterns; the top-row digits mute channels.
 
@@ -683,7 +683,7 @@ All script reads except C9.
 
 ---
 
-## 6. Notes for FL Shortcut's implementation
+## 6. Notes for FL Shortcuts's implementation
 
 - **The protocol needs to grow.** Today a frame carries only an action id (1–42, §6), but blocks need parameters: track or channel name, BPM, dB, bar, tool, state ON/OFF.
   - Suggestion: an authenticated parameter frame (for example CC 112–116 for slot + a 14-bit value, and text as 7-bit ASCII), covered by the MAC.
