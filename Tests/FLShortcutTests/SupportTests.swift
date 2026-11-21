@@ -140,8 +140,8 @@ final class SupportTests: XCTestCase {
         XCTAssertEqual(ids(""), HelpContent.faq.map(\.id))
         XCTAssertTrue(ids("pause").contains(7))
         XCTAssertTrue(ids("RECU LE CODE").contains(8), "sans accents ni majuscules")
-        XCTAssertTrue(ids("touche origine").contains(14), "tous les mots")
-        XCTAssertEqual(HelpContent.faq.count, 7, "les 7 questions de la maquette « Minimal »")
+        XCTAssertTrue(ids("changer touche raccourci").contains(13), "tous les mots")
+        XCTAssertEqual(HelpContent.faq.count, 5, "5 questions : la page ne défile pas (21/11)")
         XCTAssertEqual(ids("zzzz"), [])
         XCTAssertEqual(Set(HelpContent.faq.map(\.id)).count, HelpContent.faq.count)
     }

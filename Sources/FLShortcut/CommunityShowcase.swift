@@ -10,8 +10,10 @@ import SwiftUI
 struct CommunityTabs: View {
     @ObservedObject var community: CommunityStore
 
+    /// Maquette « Minimal » (21/11, « Communauté, c'est pas le même ») : Les plus ajoutées, Abonnements, Les miens ;
+    /// « Pour toi » seulement sans le serveur du 11/11 (les deux premiers en ont besoin).
     private var tabs: [CommunityTab] {
-        CommunityTab.allCases.filter { community.social || !$0.needsSocial }
+        community.social ? [.mostAdded, .following, .mine] : [.forYou, .mine]
     }
 
     private var current: CommunityTab? {
@@ -19,7 +21,7 @@ struct CommunityTabs: View {
     }
 
     var body: some View {
-        HStack(spacing: 28) {
+        HStack(spacing: 24) {
             ForEach(tabs) { tab in
                 let on = current == tab
                 Button {
@@ -27,14 +29,14 @@ struct CommunityTabs: View {
                 } label: {
                     HStack(spacing: 7) {
                         Text(tab.title)
-                            .font(Swiss.font(11.5)).tracking(1.3).textCase(.uppercase)
+                            .font(Swiss.font(14, on ? .semibold : .regular))
                             .foregroundStyle(on ? Swiss.text : Swiss.gray)
                         if tab == .following, community.newFromFollowed > 0 {
                             Rectangle().fill(Swiss.red).frame(width: 6, height: 6)
                                 .accessibilityLabel(String(localized: "Nouveautés"))
                         }
                     }
-                    .frame(height: 44)
+                    .frame(height: 34)
                     .overlay(alignment: .bottom) {
                         if on { Rectangle().fill(Swiss.text).frame(height: 2) }
                     }
@@ -381,15 +383,15 @@ struct CommunityBigStats: View {
         HStack(alignment: .firstTextBaseline, spacing: 20) {
             if let value = share.rating {
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Text(verbatim: "★").font(.system(size: 19)).foregroundStyle(Swiss.red)
-                    Text(verbatim: CommunityStats.rating(value)).font(Swiss.font(22)).monospacedDigit()
+                    Text(verbatim: "★").font(.system(size: 20)).foregroundStyle(Swiss.red)
+                    Text(verbatim: CommunityStats.rating(value)).font(Swiss.font(21, .semibold)).monospacedDigit()
                         .foregroundStyle(Swiss.text)
                     Text("sur 5").font(.system(size: 13)).foregroundStyle(Swiss.gray)
                 }
             }
             if let adds = CommunityStats.adds(share) {
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Text(verbatim: adds.number).font(Swiss.font(22)).monospacedDigit().foregroundStyle(Swiss.text)
+                    Text(verbatim: adds.number).font(Swiss.font(21, .semibold)).monospacedDigit().foregroundStyle(Swiss.text)
                     Text(verbatim: adds.word).font(.system(size: 13)).foregroundStyle(Swiss.gray)
                 }
             }

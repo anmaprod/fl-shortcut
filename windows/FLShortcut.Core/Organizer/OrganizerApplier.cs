@@ -405,6 +405,7 @@ public sealed class OrganizerApplier
     public const int CalmChecks = 150;
     public const double CalmAnswer = 3;
     public const double CalmLimit = 150;
+    public const double MismatchLimit = 20;
 
     private void WaitUntilCalm(int expected, List<string> trace)
     {
@@ -413,6 +414,8 @@ public sealed class OrganizerApplier
         var answers = 0;
         var slowest = 0.0;
         var started = DateTime.UtcNow;
+        // 21/11 (comme le Mac) : FL répond vite mais pas avec le bon nombre de sons pendant MismatchLimit s : arrêt.
+        DateTime? mismatchSince = null;
         for (var check = 0; check < CalmChecks; check++)
         {
             _wait(0.5);
@@ -428,6 +431,8 @@ public sealed class OrganizerApplier
                 count = listed.Count;
             }
             calm = listed is not null && took < CalmAnswer ? calm + 1 : 0;
+            if (calm >= 2 && count != expected) mismatchSince ??= DateTime.UtcNow; else mismatchSince = null;
+            if (mismatchSince is { } since && (DateTime.UtcNow - since).TotalSeconds > MismatchLimit) break;
             if ((calm >= 2 && count == expected) || (DateTime.UtcNow - started).TotalSeconds > CalmLimit) break;
             if (check % 4 == 3)
             {

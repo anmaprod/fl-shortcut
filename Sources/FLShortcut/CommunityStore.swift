@@ -68,7 +68,8 @@ final class CommunityStore: ObservableObject {
     @Published var editingProfile = false
 
     // Communauté du 11/11 (communaute-suivre.sql, CommunitySocial.swift) : onglets, abonnements, ajouts, étoiles.
-    @Published var tab: CommunityTab = .forYou
+    /// Maquette « Minimal » : « Les plus ajoutées » d'abord (retombe sur « Pour toi » sans le serveur du 11/11).
+    @Published var tab: CommunityTab = .mostAdded
     /// Le serveur a communaute-suivre.sql (faux : la Communauté d'avant, ni Suivre ni étoiles, sans erreur).
     @Published var social = true
     /// Vitrine (« Pour toi ») : les derniers partages des gens suivis, les plus ajoutés, les créateurs à suivre.
@@ -567,8 +568,9 @@ final class CommunityStore: ObservableObject {
         author = nil
         search = ""
         editingProfile = false
-        // Communauté du 11/11 : vitrine d'exemple (abonné à leo.beats et sarah.mix, deux nouveautés).
-        tab = .forYou
+        // Communauté du 11/11 : exemple (abonné à leo.beats et sarah.mix, deux nouveautés) ; « Les plus ajoutées »
+        // d'abord, comme la maquette « Minimal ».
+        tab = .mostAdded
         social = true
         personFollowers = nil
         following = signedIn && !empty ? [Self.demoID(201), Self.demoID(202)] : []

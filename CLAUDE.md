@@ -1019,6 +1019,19 @@
   devant, un raccourci de l'utilisateur sur la même touche passe avant ; touche FIXE pour l'instant (la maquette montrait
   « Changer » dans Mes raccourcis : pas encore fait). Essais `CtrlAltO_OpensTheOrganizer…`,
   `testCommandOptionOOpensTheOrganizerOnlyInFL`. Pas encore vu sur un PC (la CI ne clique pas la barre des tâches).
+  Retours du 21/11 (« Trouver ça clignote toujours pas… Communauté pas la même… nouvelle macro décalé… Aide… je veux
+  pas qu'on scrolle ») : maquette rendue par Playwright et comparée aux photos de la CI. Mac et Windows : barre qui
+  clignote par une minuterie (`Timer.publish` en mode common à la place de TimelineView ; Windows `Blink` démarre aussi
+  si déjà affiché), photos CI `trouver-clignote-1…4` ; Communauté = 3 onglets Les plus ajoutées / Abonnements / Les
+  miens en mots de 14 (« Pour toi » seulement sans le serveur du 11/11 ; « Les plus ajoutées » par défaut), « Chercher »
+  sur un seul trait, trait d'encre sous les onglets, cases sans cadre sur 2 colonnes à 31 d'écart (trait du bas seul),
+  rond d'encre pour l'initiale, titre 19 moyen, chiffres 21 demi-gras, « Ajouter » bordé en 13 (Mac
+  `MinimalOutlineButtonStyle`, Windows `MinimalButton(small:)`) ; créateur : « Ajouter une étape » commence au trait
+  des étapes (sous le nom, plus à sa hauteur), trait de 1, lignes de 50, texte 16, numéros 12 (CI : glisser depuis la
+  boîte à y 271) ; Aide : 5 questions (Mac 1, 3, 13, 7, 8 ; Windows 1, 16, 3, 13, 8), une seule réponse ouverte à la
+  fois, rien d'ouvert au départ, plus « Revoir le guide ». Organiser : arrêt au bout de 20 s si FL répond vite avec un
+  autre nombre de sons que l'analyse (`mismatchLimit`, avant 2 min 30). Cause du blocage chez lui : PAS ENCORE CONNUE,
+  son diagnostic demandé.
 
 - **Fenêtre « plus lisible »** (16/11, maquette PDF/HTML « FL Shortcuts — plus lisible », 8 écrans, commencée par une
   autre session sans rien pousser) : barre de gauche en parties (`ReadableSidebar` : Trouver un raccourci, Raccourcis ▸

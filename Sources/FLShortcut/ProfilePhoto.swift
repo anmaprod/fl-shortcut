@@ -105,6 +105,8 @@ struct AvatarView: View {
     let photo: NSImage?
     let username: String
     var size: CGFloat = 32
+    /// Sans photo : rond d'encre et initiale au fond du thème (maquette « Minimal » des cases de la Communauté).
+    var ink = false
 
     var body: some View {
         ZStack {
@@ -114,7 +116,7 @@ struct AvatarView: View {
                     .interpolation(.high)
                     .aspectRatio(contentMode: .fill)
             } else {
-                Rectangle().fill(ProfilePhoto.initialColors[ProfilePhoto.colorIndex(username)])
+                Rectangle().fill(ink ? Swiss.text : ProfilePhoto.initialColors[ProfilePhoto.colorIndex(username)])
                 Text(ProfilePhoto.initial(username))
                     .font(Swiss.font(size * 0.46))
                     .foregroundStyle(Swiss.background)

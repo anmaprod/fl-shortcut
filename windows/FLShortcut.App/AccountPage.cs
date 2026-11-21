@@ -1195,7 +1195,8 @@ internal sealed class AccountPage
     // ---------- Pièces ----------
 
     /// Photo d'un membre dans un carré ; sans photo, l'initiale de son pseudo sur sa couleur (AvatarView du Mac).
-    public static FrameworkElement Avatar(byte[]? jpeg, string username, double size)
+    /// `ink` : sans photo, rond d'encre et initiale au fond du thème (cases de la Communauté, maquette « Minimal »).
+    public static FrameworkElement Avatar(byte[]? jpeg, string username, double size, bool ink = false)
     {
         // Rond, comme le Mac et les maquettes du 05/11 : l'initiale sur sa couleur, la photo dans un cercle par-dessus.
         var grid = new Grid
@@ -1203,9 +1204,9 @@ internal sealed class AccountPage
             Width = size,
             Height = size,
             CornerRadius = new CornerRadius(size / 2),
-            Background = Brush(InitialColors[AccountRules.InitialColorIndex(username)]),
+            Background = Brush(ink ? Text : InitialColors[AccountRules.InitialColorIndex(username)]),
         };
-        var initial = Label(AccountRules.Initial(username), size * 0.46, Colors.Black, bold: true);
+        var initial = Label(AccountRules.Initial(username), size * 0.46, ink ? MacLook.WindowColor : Colors.Black, bold: true);
         initial.FontFamily = SwissFont;
         initial.HorizontalAlignment = HorizontalAlignment.Center;
         initial.VerticalAlignment = VerticalAlignment.Center;

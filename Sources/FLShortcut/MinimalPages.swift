@@ -299,6 +299,32 @@ struct MinimalButton: View {
     }
 }
 
+/// Petit bouton bordé de la maquette (« Ajouter », « Utiliser » des cases de la Communauté) : le mot tel quel, trait
+/// d'encre de 2 ; plein d'encre au survol.
+struct MinimalOutlineButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        MinimalOutlineBody(configuration: configuration)
+    }
+
+    private struct MinimalOutlineBody: View {
+        let configuration: ButtonStyleConfiguration
+        @State private var hovering = false
+
+        var body: some View {
+            configuration.label
+                .font(Swiss.font(13, .semibold))
+                .foregroundStyle(hovering ? Swiss.background : Swiss.text)
+                .padding(.horizontal, 13)
+                .frame(height: 34)
+                .background(Rectangle().fill(hovering ? Swiss.text : Color.clear))
+                .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 2))
+                .opacity(configuration.isPressed ? 0.7 : 1)
+                .contentShape(Rectangle())
+                .onHover { hovering = $0 }
+        }
+    }
+}
+
 /// Lien souligné de la maquette (« Annuler », « Annuler le changement »).
 struct MinimalLink: View {
     let title: String

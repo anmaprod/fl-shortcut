@@ -44,7 +44,7 @@ internal sealed partial class CommunityPage
     public string? PersonName => IsPersonPage ? _author!.Value.Name : null;
 
     /// Retour de la page d'une personne à la liste (← du titre, ou « Communauté » de la barre de gauche).
-    public void LeavePerson() => Choose(_tab == CommunityTab.Mine ? CommunityTab.ForYou : _tab);
+    public void LeavePerson() => Choose(_tab == CommunityTab.Mine ? (_social ? CommunityTab.MostAdded : CommunityTab.ForYou) : _tab);
     private bool Searching => CommunityRules.SearchPattern(_search).Length > 0;
     private bool Showcase => _social && _tab == CommunityTab.ForYou && _author is null && !Searching;
 
@@ -353,20 +353,22 @@ internal sealed partial class CommunityPage
 
     private static Rectangle RedDot() => new() { Width = 7, Height = 7, Fill = Brush(Red), VerticalAlignment = VerticalAlignment.Center };
 
-    /// Onglets (maquette « plus lisible » du 16/11, comme le Mac) : des mots en petites capitales, le choisi à l'encre et
-    /// souligné, les autres en gris ; « Abonnements » porte le point rouge.
+    /// Onglets (21/11, maquette « Minimal », comme le Mac) : Les plus ajoutées, Abonnements, Les miens, en mots de 14 ;
+    /// le choisi à l'encre en demi-gras et souligné ; « Pour toi » seulement sans le serveur du 11/11.
     private FrameworkElement Tabs()
     {
-        var tabs = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 28, VerticalAlignment = VerticalAlignment.Center };
-        foreach (var tab in Enum.GetValues<CommunityTab>())
+        var tabs = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 24, VerticalAlignment = VerticalAlignment.Bottom };
+        var shown = _social
+            ? new[] { CommunityTab.MostAdded, CommunityTab.Following, CommunityTab.Mine }
+            : new[] { CommunityTab.ForYou, CommunityTab.Mine };
+        foreach (var tab in shown)
         {
-            if (!_social && tab.NeedsSocial()) continue;
             var t = tab;
             var on = _tab == t && _author is null && !Searching;
             var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7, VerticalAlignment = VerticalAlignment.Center };
-            content.Children.Add(SwissLabel(t.Title(), 11, on ? Text : Secondary));
+            content.Children.Add(Label(t.Title(), 14, on ? Text : Secondary, semibold: on));
             if (t == CommunityTab.Following && _newFromFollowed > 0) content.Children.Add(RedDot());
-            var cell = new Grid { Height = 44, Children = { content } };
+            var cell = new Grid { Height = 34, Children = { content } };
             if (on)
                 cell.Children.Add(new Rectangle { Height = 2, Fill = Brush(Text), VerticalAlignment = VerticalAlignment.Bottom, IsHitTestVisible = false });
             var chip = new Button { Style = PlainButton, Content = cell, Padding = new Thickness(0) };
@@ -723,12 +725,10 @@ internal sealed partial class CommunityPage
         }
         TextBlock Big(string text)
         {
-            var big = Label(text, 22, Text, bold: true);
-            big.FontFamily = TitleFont;
-            return big;
+            return Label(text, 21, Text, semibold: true);       // maquette « Minimal » : Inter demi-gras
         }
         if (share.Rating is { } value)
-            row.Children.Add(Part(Label("★", 19, MacLook.Red), Big(CommunityStats.Rating(value)), Label(Loc.T("sur 5"), 13, Secondary)));
+            row.Children.Add(Part(Label("★", 20, MacLook.Red), Big(CommunityStats.Rating(value)), Label(Loc.T("sur 5"), 13, Secondary)));
         if (CommunityStats.Adds(share) is { } adds)
             row.Children.Add(Part(Big(adds.Number), Label(adds.Word, 13, Secondary)));
         return row.Children.Count == 0 ? null : row;
@@ -771,7 +771,7 @@ internal sealed partial class CommunityPage
     private void DemoSocial()
     {
         _social = true;
-        _tab = CommunityTab.ForYou;
+        _tab = CommunityTab.MostAdded;
         _following = new HashSet<Guid> { DemoLeo, DemoSarah };
         _followedPreview = DemoShares().Where(s => _following.Contains(s.AuthorId)).ToList();
         _topPreview = DemoShares().Where(s => (s.AddCount ?? 0) > 0).OrderByDescending(s => s.AddCount).Take(3).ToList();

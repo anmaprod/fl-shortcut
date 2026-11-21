@@ -102,6 +102,7 @@ internal static class MacLook
         var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(550) };
         timer.Tick += (_, _) => element.Opacity = element.Opacity > 0.5 ? 0 : 1;
         element.Loaded += (_, _) => timer.Start();
+        if (element.IsLoaded) timer.Start();                   // déjà affiché : le Loaded est passé
         element.Unloaded += (_, _) =>
         {
             timer.Stop();
@@ -642,14 +643,16 @@ internal static class MacLook
     }
 
     /// Bouton plein d'encre de la maquette (rouge au survol) ou bordé de 2 points.
-    public static Button MinimalButton(string text, Action action, bool outlined = false)
+    /// `small` (21/11) : le petit bouton bordé des cases de la Communauté (« Ajouter » en 13, 34 de haut), plein
+    /// d'encre au survol.
+    public static Button MinimalButton(string text, Action action, bool outlined = false, bool small = false)
     {
-        var label = Label(text, 14, outlined ? Text : WindowColor, semibold: true);
+        var label = Label(text, small ? 13 : 14, outlined ? Text : WindowColor, semibold: true);
         var border = new Border
         {
             Child = label,
-            Height = 44,
-            Padding = new Thickness(20, 0, 20, 0),
+            Height = small ? 34 : 44,
+            Padding = small ? new Thickness(13, 0, 13, 0) : new Thickness(20, 0, 20, 0),
             Background = Brush(outlined ? Colors.Transparent : Text),
             BorderBrush = Brush(Text),
             BorderThickness = new Thickness(outlined ? 2 : 0),
@@ -660,6 +663,11 @@ internal static class MacLook
         {
             button.PointerEntered += (_, _) => border.Background = Brush(Red);
             button.PointerExited += (_, _) => border.Background = Brush(Text);
+        }
+        else if (small)
+        {
+            button.PointerEntered += (_, _) => { border.Background = Brush(Text); label.Foreground = Brush(WindowColor); };
+            button.PointerExited += (_, _) => { border.Background = Brush(Colors.Transparent); label.Foreground = Brush(Text); };
         }
         button.Click += (_, _) => action();
         AutomationProperties.SetName(button, text);

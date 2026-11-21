@@ -252,6 +252,9 @@ run() {   # $1 : libellé (début du nom des captures)
   # nom ») : la case de texte n'existe qu'en ce mode, essayée là. Plus de cadre du compte en haut (header_test).
   "$POST" app.flshortcut.debug.select trouver; sleep 2
   screencapture -x "$OUT/trouver.png" 2>/dev/null || true
+  # 21/11 (« trouver, ça clignote toujours pas ») : la barre rouge photographiée 4 fois (0,3 s d'écart) : elle doit
+  # apparaître sur certaines et pas sur d'autres.
+  for i in 1 2 3 4; do sleep 0.3; screencapture -x "$OUT/trouver-clignote-$i.png" 2>/dev/null || true; done
   "$POST" app.flshortcut.debug.search ""; sleep 2
   screencapture -x "$OUT/trouver-nom.png" 2>/dev/null || true
   report "$label-trouver" >/dev/null
@@ -437,7 +440,7 @@ run() {   # $1 : libellé (début du nom des captures)
   fit+=" / $(fits "$label-createur-ouvert")"
   # Créateur en phrases (20/11) : une colonne d'étapes (01 à partir de y 205, lignes de 52 environ, la 1re sur deux
   # lignes), réglages du bloc 4 choisi ouverts sous sa ligne, boîte « Ajouter une étape » à droite (x 660 ;
-  # « Appuyer sur une touche » à y 216, plus de ligne « Enregistrer clics et touches »). Coordonnées relevées sur la photo de la CI de 43d5964.
+  # « Appuyer sur une touche » à y 271 depuis le 21/11 : la boîte commence au trait des étapes). Coordonnées relevées sur la photo de la CI de 43d5964.
   # Liste déroulante suisse (08/11) : « Entrée à la fin » du bloc 4 choisi, ouverte à vrais clics, photographiée, puis
   # refermée d'un clic dans le vide en haut de la page.
   click_in "$label-createur-ouvert" 513 579; sleep 1.5
@@ -445,7 +448,7 @@ run() {   # $1 : libellé (début du nom des captures)
   click_in "$label-createur-ouvert" 450 90; sleep 1
   # Vrai glisser-déposer à la souris : « Appuyer sur une touche » de la boîte, lâché sur la moitié basse du bloc 2 ;
   # la macro doit gagner un bloc.
-  drag "$label-createur-ouvert" 660 216 300 300; sleep 2
+  drag "$label-createur-ouvert" 660 271 300 300; sleep 2
   report "$label-createur-glisse" >/dev/null
   screencapture -x "$OUT/$label-createur-glisse.png" 2>/dev/null || true
   drop="$(rows "$label-createur-ouvert") → $(rows "$label-createur-glisse")"
@@ -458,7 +461,7 @@ run() {   # $1 : libellé (début du nom des captures)
   else moved="NON"; fi
   # Les mêmes gestes faits vite, comme une vraie main (appui puis départ aussitôt) : la liste doit encore gagner une
   # ligne, puis l'ordre changer. Résultat dans glisser-essai.txt.
-  drag "$label-createur-ouvert" 660 216 300 455 vite; sleep 2
+  drag "$label-createur-ouvert" 660 271 300 455 vite; sleep 2
   report "$label-createur-glisse-vite" >/dev/null
   screencapture -x "$OUT/$label-createur-glisse-vite.png" 2>/dev/null || true
   drag "$label-createur-ouvert" 300 291 300 510 vite; sleep 2

@@ -1381,3 +1381,8 @@ entrée 1 ≈ 0,5 s.
   menu du Mac encore un peu arrondis (macOS arrondit la fenêtre du MenuBarExtra ; le journal MENU ne montre que
   `MenuBarExtraHostingView < NSNextStepFrame`, aucun rayon à zéro à mettre) : refaire la fenêtre du menu nous-mêmes
   seulement s'il le demande.
+- 21/11 : « J'ai pas de lien… le dernier GitHub je l'ai téléchargé, ça fait toujours la même chose » (Organiser),
+  « trouver ça clignote toujours pas », Communauté, nouvelle macro « décalé », Aide qui défile. Méthode : la maquette
+  rendue à 1184 × 760 par Playwright, page par page, mise à côté des photos de la CI. Corrigé (voir CLAUDE.md). Pour
+  l'Organiser, le chemin de la copie n'a pas changé depuis le 13/11 (seul MIDILink a changé) : sans son diagnostic,
+  aucune cause sûre ; l'attente dit maintenant ce qui manque, et s'arrête vite si la copie n'a pas les mêmes sons.

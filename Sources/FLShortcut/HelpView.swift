@@ -145,9 +145,6 @@ struct HelpPage: View {
             } else {
                 faqList(entries, opened: $opened)
             }
-            Button("Revoir le guide") { showGuide() }
-                .buttonStyle(SwissLinkButtonStyle())
-                .font(.system(size: 13))
         }
         .padding(.top, 24)
     }
@@ -180,8 +177,9 @@ struct HelpPage: View {
     private func faqList(_ list: [HelpEntry], opened: Binding<Set<Int>>) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(list, id: \.id) { entry in
+                // Une seule réponse ouverte à la fois (21/11 : la page ne doit pas défiler).
                 HelpEntryRow(entry: entry, open: opened.wrappedValue.contains(entry.id)) {
-                    if opened.wrappedValue.contains(entry.id) { opened.wrappedValue.remove(entry.id) } else { opened.wrappedValue.insert(entry.id) }
+                    opened.wrappedValue = opened.wrappedValue.contains(entry.id) ? [] : [entry.id]
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 13)
@@ -573,7 +571,7 @@ struct HelpPage: View {
     /// Mode capture (mesure de la CI) : « aide », « recherche », « ecrire », « envoye », « messages » ou « fil ».
     private func showCapture(_ screen: String) {
         query = screen == "recherche" ? "macro" : ""
-        opened = screen == "aide" ? [1] : []
+        opened = []                                  // comme la maquette : aucune réponse ouverte
         failure = nil
         sentReference = nil
         if ["ecrire", "envoye", "messages", "fil"].contains(screen) {

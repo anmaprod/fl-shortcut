@@ -277,7 +277,8 @@ private struct CommunityBrowse: View {
                 } else {
                     // Maquette du 16/11 : deux colonnes de cases qui partagent leurs traits (plus de numéro ni de
                     // sorte en haut : « enlève toutes les fioritures », 16/11).
-                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 0, alignment: .top),
+                    // Maquette « Minimal » (21/11) : deux colonnes à 32 points d'écart, chaque case sur son seul trait du bas.
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 31, alignment: .top),
                                         GridItem(.flexible(), spacing: 0, alignment: .top)], spacing: 0) {
                         ForEach(community.shares) { share in
                             CommunityShareCard(share: share, photo: community.photos[share.authorID],
@@ -290,14 +291,7 @@ private struct CommunityBrowse: View {
                                                open: { open(share) }, report: { report(share) }, delete: { delete(share) })
                         }
                     }
-                    .overlay(alignment: .topLeading) {
-                        // Les traits du haut et de gauche de la grille (chaque case trace sa droite et son bas).
-                        ZStack(alignment: .topLeading) {
-                            Rectangle().fill(Swiss.line).frame(height: 1)
-                            Rectangle().fill(Swiss.line).frame(width: 1)
-                        }
-                        .allowsHitTesting(false)
-                    }
+
                 }
             }
             .frame(maxWidth: ReadableLayout.maxWidth, alignment: .leading)
@@ -340,16 +334,13 @@ private struct CommunityBrowse: View {
                              title: community.following.isEmpty ? String(localized: "Tu ne suis personne.")
                                  : String(localized: "Rien de nouveau."),
                              text: "",
-                             button: String(localized: "Pour toi")) {
-                Task { await community.choose(.forYou) }
+                             button: String(localized: "Les plus ajoutées")) {
+                Task { await community.choose(.mostAdded) }
             }
         } else if community.author == nil, community.tab == .mostAdded {
             CommunityMessage(symbol: "star",
                              title: String(localized: "Rien d'ajouté pour l'instant."),
-                             text: "",
-                             button: String(localized: "Pour toi")) {
-                Task { await community.choose(.forYou) }
-            }
+                             text: "")
         } else if let author = community.author {
             CommunityMessage(symbol: "person.crop.circle",
                              title: String(localized: "Aucun partage de @\(author.username.displaySafe(max: 24))"),
@@ -406,16 +397,15 @@ private struct CommunityFilters: View {
     @ObservedObject var community: CommunityStore
     @State private var searchTask: Task<Void, Never>?
 
-    /// Maquette du 16/11 : les onglets à gauche, la recherche à droite (« Chercher »), un trait fin dessous.
+    /// Maquette « Minimal » (21/11) : les onglets à gauche, « Chercher » à droite sur un seul trait, puis le trait
+    /// d'encre au-dessus des cases.
     var body: some View {
-        HStack(alignment: .center, spacing: 16) {
+        HStack(alignment: .bottom, spacing: 16) {
             CommunityTabs(community: community)
             Spacer(minLength: 12)
             HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass").foregroundStyle(Swiss.gray)
-                // Texte d'aide à l'encre (05/11 : « sous Orange… que ce soit écrit en noir »).
                 TextField("Chercher", text: $community.search,
-                          prompt: Text("Chercher").foregroundColor(Swiss.text.opacity(0.6)))
+                          prompt: Text("Chercher").foregroundColor(Swiss.faintText))
                     .textFieldStyle(.plain)
                     .onSubmit { Task { await community.reload() } }
                     .onChange(of: community.search) { _ in
@@ -427,12 +417,12 @@ private struct CommunityFilters: View {
                         }
                     }
             }
-            .font(.system(size: 14))
-            .padding(.horizontal, 12)
-            .frame(width: 230, height: 38)
-            .background(Rectangle().fill(Swiss.background))
-            .overlay(Rectangle().strokeBorder(Swiss.keyLine, lineWidth: 1))
+            .font(Swiss.font(15, .regular))
+            .frame(width: 233, height: 34)
+            .overlay(alignment: .bottom) { Rectangle().fill(Swiss.keyLine).frame(height: 1) }
         }
+        .padding(.bottom, 14)
+        .overlay(alignment: .bottom) { Rectangle().fill(Swiss.text).frame(height: 1) }
         .disabled(community.busy)
     }
 }
@@ -463,9 +453,9 @@ private struct CommunityShareCard: View {
                     showAuthor?()
                 } label: {
                     HStack(spacing: 8) {
-                        AvatarView(photo: photo, username: share.authorName, size: 20)
+                        AvatarView(photo: photo, username: share.authorName, size: 20, ink: true)
                         Text(verbatim: share.authorName.displaySafe(max: 24))
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(Swiss.font(13, .semibold))
                             .foregroundStyle(Swiss.text)
                             .lineLimit(1)
                     }
@@ -475,7 +465,7 @@ private struct CommunityShareCard: View {
                 .help("Voir tout ce que @\(share.authorName.displaySafe(max: 24)) a publié")
             }
             Text(share.title.displaySafe(max: 80))
-                .font(Swiss.title(20)).tracking(-0.4)
+                .font(Swiss.font(19, .medium)).tracking(-0.2)
                 .foregroundStyle(Swiss.text)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
@@ -484,23 +474,22 @@ private struct CommunityShareCard: View {
                 CommunityBigStats(share: share)
                 Spacer(minLength: 8)
                 if added {
-                    Text("Ajoutée ✓").font(.system(size: 14, weight: .semibold)).foregroundStyle(Swiss.text).fixedSize()
+                    Text("Ajoutée ✓").font(Swiss.font(13, .semibold)).foregroundStyle(Swiss.text).fixedSize()
                 } else if !mine {
+                    // Maquette « Minimal » : le mot tel quel (pas en capitales), bordé d'encre ; plein au survol.
                     Button(share.kind == .macro ? String(localized: "Ajouter") : String(localized: "Utiliser"), action: open)
-                        .secondaryButton()
-                        .controlSize(.small)
+                        .buttonStyle(MinimalOutlineButtonStyle())
                         .fixedSize()
                         .help("Lire la fiche, puis l'ajouter")
                 }
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 18)
-        .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
-        .background(Rectangle().fill(hovering ? Swiss.faint : Swiss.background))
-        .overlay(alignment: .trailing) { Rectangle().fill(Swiss.line).frame(width: 1).allowsHitTesting(false) }
-        .overlay(alignment: .bottom) { Rectangle().fill(Swiss.line).frame(height: 1).allowsHitTesting(false) }
-        .swissCard()
+        .padding(.horizontal, 11)
+        .padding(.top, 16)
+        .padding(.bottom, 16)
+        .frame(maxWidth: .infinity, minHeight: 152, alignment: .topLeading)
+        .background(Rectangle().fill(hovering ? Swiss.faint : Color.clear))
+        .overlay(alignment: .bottom) { Rectangle().fill(Swiss.keyLine).frame(height: 1).allowsHitTesting(false) }
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
         .onTapGesture(perform: open)

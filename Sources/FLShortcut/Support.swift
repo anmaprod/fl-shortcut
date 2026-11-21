@@ -217,8 +217,8 @@ struct HelpEntry: Identifiable {
 }
 
 enum HelpContent {
-    /// Les 7 questions de la maquette « Minimal » (vidéo du 20/11 : « je ne veux pas qu'on ait à scroller, quitte à
-    /// enlever les questions les plus débiles »).
+    /// 5 questions (21/11 : « je veux juste qu'on n'ait pas à scroller… c'est les gens qui vont nous poser des
+    /// questions ») : le carré rouge de l'icône et « Revenir à la touche d'origine » (le lien « Remettre ») retirés.
     static let faq: [HelpEntry] = [
         HelpEntry(id: 1, question: String(localized: "Mes raccourcis ne font rien dans FL"),
                   answer: String(localized: """
@@ -226,12 +226,6 @@ enum HelpContent {
                       ⌃⌥⌘F. 3. Autorise le clavier : Réglages Système › Confidentialité et sécurité › Accessibilité.
                       """),
                   keywords: "marche pas fonctionne touche inactif rien"),
-        HelpEntry(id: 2, question: String(localized: "Un carré rouge apparaît sur l'icône en haut de l'écran"),
-                  answer: String(localized: """
-                      Le clavier n'est plus autorisé. Dans Accessibilité, retire FL Shortcuts avec −, puis ajoute-le \
-                      avec +.
-                      """),
-                  keywords: "alerte autorisation accessibilite icone carre rouge barre des menus"),
         HelpEntry(id: 3, question: String(localized: "Comment créer une macro ?"),
                   answer: String(localized: """
                       1. Macros › Nouvelle macro. 2. Clique sa touche, puis appuie sur celle que tu veux. 3. Ajoute ses \
@@ -243,9 +237,6 @@ enum HelpContent {
                       1. Raccourcis, puis la page de FL à gauche. 2. Clique la touche, puis appuie sur la nouvelle.
                       """),
                   keywords: "changer modifier touche raccourci"),
-        HelpEntry(id: 14, question: String(localized: "Revenir à la touche d'origine"),
-                  answer: String(localized: "Clique « Remettre » à côté de la touche changée."),
-                  keywords: "reinitialiser origine remettre defaut"),
         HelpEntry(id: 7, question: String(localized: "Mettre en pause ou reprendre"),
                   answer: String(localized: "⌃⌥⌘F, n'importe où."),
                   keywords: "pause reprendre arreter desactiver"),

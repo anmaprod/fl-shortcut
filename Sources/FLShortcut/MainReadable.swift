@@ -690,10 +690,15 @@ struct PaperGrid: View {
 
 /// Clignote comme le curseur de la maquette (1,1 s : allumé puis éteint), seulement à l'écran.
 struct Blinking: ViewModifier {
+    /// 21/11 (« trouver, ça clignote toujours pas ») : une minuterie de la boucle principale, mode « common » (elle
+    /// tourne aussi pendant un clic ou un menu ouvert), plutôt que TimelineView, qui pouvait ne pas se redessiner.
+    @State private var on = true
+    private let tick = Timer.publish(every: 0.55, on: .main, in: .common).autoconnect()
+
     func body(content: Content) -> some View {
-        TimelineView(.periodic(from: .now, by: 0.55)) { context in
-            content.opacity(Int(context.date.timeIntervalSinceReferenceDate / 0.55) % 2 == 0 ? 1 : 0)
-        }
+        content
+            .opacity(on ? 1 : 0)
+            .onReceive(tick) { _ in on.toggle() }
     }
 }
 

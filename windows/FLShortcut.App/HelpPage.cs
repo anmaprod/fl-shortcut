@@ -125,7 +125,7 @@ internal sealed class HelpPage
                 break;
             case "messages": _screen = Screen.Messages; break;
             case "fil": _screen = Screen.Thread; _thread = _threads[0].Id; break;
-            default: _screen = Screen.Questions; _open = 1; break;
+            default: _screen = Screen.Questions; _open = null; break;          // comme la maquette : rien d'ouvert
         }
     }
 
@@ -219,9 +219,8 @@ internal sealed class HelpPage
             _open = _open == id ? null : id;
             _render();
         }));
-        var guide = new HyperlinkButton { Content = Label(Loc.T("Revoir le guide"), 13, Text), Padding = new Thickness(0) };
-        guide.Click += (_, _) => ShowGuide?.Invoke();
-        stack.Children.Add(guide);
+        // 21/11 (comme le Mac) : plus de « Revoir le guide » sous les questions (la maquette n'en a pas ; la page ne
+        // défile pas).
         return stack;
     }
 

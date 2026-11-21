@@ -126,7 +126,7 @@ struct MinimalCreatorPage: View {
                         .help("Enregistrer et revenir aux macros (⌘S)")
                 }
                 .padding(.top, 24)
-                // Colonnes de la grille de la maquette : étapes 1 à 8, « Ajouter une étape » 9 à 12.
+                // Le nom et la touche au-dessus des étapes, sur les colonnes 1 à 8 seulement.
                 HStack(alignment: .top, spacing: 24) {
                     VStack(alignment: .leading, spacing: 0) {
                         head
@@ -135,7 +135,15 @@ struct MinimalCreatorPage: View {
                                 .fixedSize(horizontal: false, vertical: true)
                                 .padding(.top, 8)
                         }
-                        steps.padding(.top, 32)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Color.clear.frame(width: 347, height: 1)
+                }
+                // 21/11 (« c'est décalé, pas le même que la maquette ») : « Ajouter une étape » commence au même trait
+                // que les étapes (colonnes 1 à 8 | 9 à 12), plus à la hauteur du nom.
+                HStack(alignment: .top, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        steps
                         if let notice = model.notice {
                             Text(verbatim: notice).font(Swiss.font(13, .regular)).foregroundStyle(Swiss.gray).padding(.top, 16)
                         }
@@ -147,8 +155,8 @@ struct MinimalCreatorPage: View {
                         if let id = model.selection { openRow = id }
                     }
                     .frame(width: 347)
-                    .padding(.top, 36)
                 }
+                .padding(.top, 32)
             }
             .frame(maxWidth: 1088, alignment: .leading)
             .padding(.horizontal, ReadableLayout.inset)
@@ -216,11 +224,11 @@ struct MinimalCreatorPage: View {
     private var steps: some View {
         let rows = model.rows
         return VStack(alignment: .leading, spacing: 0) {
-            Rectangle().fill(Swiss.text).frame(height: 2)
+            Rectangle().fill(Swiss.text).frame(height: 1)
             if rows.isEmpty {
                 Text("Choisis une étape à droite.")
-                    .font(Swiss.font(16, .regular)).foregroundStyle(Swiss.gray)
-                    .padding(.horizontal, 12).padding(.vertical, 16)
+                    .font(Swiss.font(13, .regular)).foregroundStyle(Swiss.gray)
+                    .padding(.horizontal, 11).padding(.vertical, 16)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
                     .onDrop(of: [.plainText], isTargeted: $zoneTargeted) { providers in
@@ -387,9 +395,9 @@ private struct MinimalStepRow: View {
     private var blockRow: some View {
         HStack(alignment: .center, spacing: 16) {
             Text(String(format: "%02d", index + 1))
-                .font(Swiss.font(13, .regular).monospacedDigit())
+                .font(Swiss.font(12, .regular).monospacedDigit())
                 .foregroundStyle(current ? Swiss.red : Swiss.gray)
-                .frame(width: 32, alignment: .leading)
+                .frame(width: 31, alignment: .leading)
             VStack(alignment: .leading, spacing: 4) {
                 sentence
                 if let reason = failure {
@@ -399,9 +407,9 @@ private struct MinimalStepRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.leading, CGFloat(row.depth) * 24)
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 11)
         .padding(.vertical, 8)
-        .frame(minHeight: 52)
+        .frame(minHeight: 50)
         .opacity(row.enabled ? 1 : 0.45)
         .background(Rectangle().fill(hovering || open ? Swiss.text.opacity(0.06) : Color.clear))
         // Photo de la CI du 20/11 : cachés mais à leur place, ils serraient la phrase (retour à la ligne trop tôt) ;
@@ -429,7 +437,7 @@ private struct MinimalStepRow: View {
     /// droite) : elle revient à la ligne ; un clic sur la ligne ouvre les réglages.
     private var sentence: some View {
         sentenceText
-            .font(Swiss.font(17, .regular))
+            .font(Swiss.font(16, .regular))
             .foregroundStyle(Swiss.text)
             .fixedSize(horizontal: false, vertical: true)
             .help("Réglages de cette étape")
@@ -519,7 +527,7 @@ private struct AddStepBox: View {
             ForEach(StepSentence.groups(items)) { group in
                 Text(verbatim: group.title)
                     .font(Swiss.font(12, .regular)).foregroundStyle(Swiss.gray)
-                    .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 2)
+                    .padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 2)
                 ForEach(group.items) { item in
                     AddStepLine(title: StepSentence.addLabel(item), action: { add(item) })
                         .onDrag { PaletteDrag.provider(item) }
@@ -544,8 +552,8 @@ private struct AddStepLine: View {
             Text(verbatim: title)
                 .font(Swiss.font(16, .regular))
                 .foregroundStyle(hovering ? Swiss.background : red ? Swiss.red : Swiss.text)
-                .padding(.horizontal, 16).padding(.vertical, 5)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16)
+                .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading)
                 .background(Rectangle().fill(hovering ? Swiss.text : Color.clear))
                 .padding(.horizontal, 2)
                 .contentShape(Rectangle())

@@ -41,7 +41,8 @@ internal sealed partial class CommunityPage
     private readonly Func<string, string, string, bool, Task<bool>> _confirm;
 
     // Liste.
-    private CommunityTab _tab = CommunityTab.ForYou;
+    /// Maquette « Minimal » : « Les plus ajoutées » d'abord (retombe sur « Pour toi » sans le serveur du 11/11).
+    private CommunityTab _tab = CommunityTab.MostAdded;
     private string _search = "";
     private (Guid Id, string Name)? _author;
     private List<Share>? _shares;
@@ -236,28 +237,25 @@ internal sealed partial class CommunityPage
 
         // Maquette « plus lisible » du 16/11 (comme le Mac) : les onglets à gauche, « Chercher » à droite, un trait
         // fin dessous ; « Partager » est dans l'en-tête.
-        var top = new Grid { ColumnSpacing = 16 };
+        // 21/11 (maquette « Minimal », comme le Mac) : « Chercher » sur un seul trait, sans loupe ni cadre.
+        var top = new Grid { ColumnSpacing = 16, Padding = new Thickness(0, 0, 0, 14) };
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(230) });
+        top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(233) });
         var search = new TextBox
         {
             Text = _search,
             PlaceholderText = Loc.T("Chercher"),
-            PlaceholderForeground = Brush(WithOpacity(Text, 0.6)),
+            PlaceholderForeground = Brush(FaintText),
             FontFamily = SwissFont,
-            FontSize = 14,
-            MinHeight = 38,
-            Background = Brush(MacLook.WindowColor),
+            FontSize = 15,
+            MinHeight = 34,
+            Background = Brush(Colors.Transparent),
             BorderBrush = Brush(Tertiary),
-            BorderThickness = new Thickness(1),
+            BorderThickness = new Thickness(0, 0, 0, 1),
             CornerRadius = new CornerRadius(0),
-            Padding = new Thickness(36, 8, 10, 8),
-            VerticalAlignment = VerticalAlignment.Center,
+            Padding = new Thickness(0, 6, 0, 6),
+            VerticalAlignment = VerticalAlignment.Bottom,
         };
-        var loupe = Icon("search", 14, Secondary);
-        loupe.HorizontalAlignment = HorizontalAlignment.Left;
-        loupe.VerticalAlignment = VerticalAlignment.Center;
-        loupe.Margin = new Thickness(12, 0, 0, 0);
         AutomationProperties.SetName(search, Loc.T("Chercher"));
         search.TextChanged += (_, _) => _search = search.Text;
         search.KeyDown += (_, e) =>
@@ -266,10 +264,10 @@ internal sealed partial class CommunityPage
         };
         // 11/11 : les onglets Pour toi / Abonnements / Les plus ajoutées / Les miens (CommunityPageSocial.cs).
         top.Children.Add(Tabs());
-        var box = new Grid { Children = { search, loupe } };
+        var box = new Grid { Children = { search } };
         Grid.SetColumn(box, 1);
         top.Children.Add(box);
-        var head = new StackPanel { Spacing = 0, Children = { top, Rule(LineColor) } };
+        var head = new StackPanel { Spacing = 0, Children = { top, Rule(Text) } };
         page.Children.Add(IsPersonPage ? PersonHeader() : head);
         if (_notice is not null) page.Children.Add(Paragraph(_notice, 12.5, Text));
 
@@ -290,9 +288,9 @@ internal sealed partial class CommunityPage
             page.Children.Add(Empty());
             return Wrap(page);
         }
-        // Deux colonnes de cases qui partagent leurs traits, numérotées (chaque case trace sa droite et son bas ; la
-        // grille, son haut et sa gauche).
-        var grid = new Grid { BorderBrush = Brush(LineColor), BorderThickness = new Thickness(1, 1, 0, 0) };
+        // 21/11 (maquette « Minimal », comme le Mac) : deux colonnes à 31 points d'écart, chaque case sur son seul trait du
+        // bas, sans cadre.
+        var grid = new Grid { ColumnSpacing = 31 };
         for (var c = 0; c < 2; c++) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         for (var i = 0; i < shares.Count; i++)
         {
@@ -331,13 +329,12 @@ internal sealed partial class CommunityPage
         if (_author is { } author)
             return Message(Loc.F("Aucun partage de @%@", DisplayText.Safe(author.Name, 24)),
                 "",
-                Loc.T("Voir tout le monde"), () => Choose(CommunityTab.ForYou));
+                Loc.T("Voir tout le monde"), () => Choose(_social ? CommunityTab.MostAdded : CommunityTab.ForYou));
         if (_tab == CommunityTab.Following)
             return Message(_following.Count == 0 ? Loc.T("Tu ne suis personne.") : Loc.T("Rien de nouveau."),
-                "", Loc.T("Pour toi"), () => Choose(CommunityTab.ForYou));
+                "", Loc.T("Les plus ajoutées"), () => Choose(CommunityTab.MostAdded));
         if (_tab == CommunityTab.MostAdded)
-            return Message(Loc.T("Rien d'ajouté pour l'instant."), "",
-                Loc.T("Pour toi"), () => Choose(CommunityTab.ForYou));
+            return Message(Loc.T("Rien d'ajouté pour l'instant."), "", null, null);
         return Message(Loc.T("Encore aucun partage"),
             "",
             Loc.T("Partager une macro…"), StartComposing);
@@ -360,7 +357,7 @@ internal sealed partial class CommunityPage
         if (showAuthor || !mine)
         {
             var who = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-            var avatar = AccountPage.Avatar(_photos.GetValueOrDefault(share.AuthorId), share.AuthorName, 20);
+            var avatar = AccountPage.Avatar(_photos.GetValueOrDefault(share.AuthorId), share.AuthorName, 20, ink: true);
             avatar.VerticalAlignment = VerticalAlignment.Center;
             who.Children.Add(avatar);
             var pseudo = Label(DisplayText.Safe(share.AuthorName, 24), 13, Text, semibold: true);
@@ -373,11 +370,10 @@ internal sealed partial class CommunityPage
             grid.Children.Add(authorButton);
         }
 
-        var title = Label(DisplayText.Safe(share.Title, 80), 20, Text, bold: true);
-        title.FontFamily = TitleFont;
+        var title = Label(DisplayText.Safe(share.Title, 80), 19, Text);
+        title.FontWeight = Microsoft.UI.Text.FontWeights.Medium;
         title.TextWrapping = TextWrapping.Wrap;
         title.MaxLines = 2;
-        title.CharacterSpacing = -20;
         Grid.SetRow(title, 1);
         grid.Children.Add(title);
 
@@ -397,13 +393,15 @@ internal sealed partial class CommunityPage
         FrameworkElement? action = null;
         if (InMyMacros(share) is not null)
         {
-            var done = Label(Loc.T("Ajoutée ✓"), 14, Text, semibold: true);
+            var done = Label(Loc.T("Ajoutée ✓"), 13, Text, semibold: true);
             done.VerticalAlignment = VerticalAlignment.Center;
             action = done;
         }
         else if (!mine)
         {
-            var add = Small(Soft(share.IsMacro ? Loc.T("Ajouter") : Loc.T("Utiliser"), () => Open(share)));
+            // Maquette « Minimal » : le mot tel quel, bordé d'encre ; plein au survol.
+            var add = MinimalButton(share.IsMacro ? Loc.T("Ajouter") : Loc.T("Utiliser"), () => Open(share), outlined: true, small: true);
+            add.VerticalAlignment = VerticalAlignment.Center;
             ToolTipService.SetToolTip(add, Loc.T("Lire la fiche, puis l'ajouter"));
             action = add;
         }
@@ -418,14 +416,14 @@ internal sealed partial class CommunityPage
         var border = new Border
         {
             Child = grid,
-            Padding = new Thickness(20, 18, 20, 18),
-            MinHeight = 150,
-            Background = Brush(MacLook.WindowColor),
-            BorderBrush = Brush(LineColor),
-            BorderThickness = new Thickness(0, 0, 1, 1),
+            Padding = new Thickness(11, 16, 11, 16),
+            MinHeight = 152,
+            Background = Brush(Colors.Transparent),
+            BorderBrush = Brush(Tertiary),
+            BorderThickness = new Thickness(0, 0, 0, 1),
             VerticalAlignment = VerticalAlignment.Stretch,
         };
-        Color paper = MacLook.WindowColor, hover = Faint;
+        Color paper = Colors.Transparent, hover = Faint;
         border.PointerEntered += (_, _) => border.Background = Brush(hover);
         border.PointerExited += (_, _) => border.Background = Brush(paper);
         // Un clic n'importe où sur la case ouvre la fiche (sauf sur ses boutons, qui font le leur).
@@ -995,7 +993,7 @@ internal sealed partial class CommunityPage
             }
             AppLog.Write("COMMUNITY", doc is not null ? "macro partagée" : "raccourcis partagés");
             _composing = false;
-            _tab = CommunityTab.ForYou;
+            _tab = _social ? CommunityTab.MostAdded : CommunityTab.ForYou;
             _author = null;
             _shares = null;
             _notice = Loc.T("Partage publié.");

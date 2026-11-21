@@ -216,9 +216,8 @@ public static class HelpContent
 {
     private static IReadOnlyList<HelpEntry>? _faq;
 
-    /// Les 7 questions de la maquette « Minimal » (vidéo du 20/11 : « je ne veux pas qu'on ait à scroller, quitte à
-    /// enlever les questions les plus débiles »), comme le Mac ; sur Windows, « FL ne répond pas au lien » (16) à la
-    /// place du carré rouge de l'icône (2, Mac seulement).
+    /// 5 questions (21/11 : « je veux juste qu'on n'ait pas à scroller… c'est les gens qui vont nous poser des
+    /// questions »), comme le Mac ; sur Windows, « FL ne répond pas au lien » (16) à la place de la pause (7).
     public static IReadOnlyList<HelpEntry> Faq => _faq ??= new List<HelpEntry>
     {
         new(1, Loc.T("Mes raccourcis ne font rien dans FL"),
@@ -233,12 +232,6 @@ public static class HelpContent
         new(13, Loc.T("Comment changer la touche d'un raccourci ?"),
             Loc.T("1. Raccourcis, puis la page de FL à gauche. 2. Clique la touche, puis appuie sur la nouvelle."),
             "changer modifier touche raccourci"),
-        new(14, Loc.T("Revenir à la touche d'origine"),
-            Loc.T("Clique « Remettre » à côté de la touche changée."),
-            "reinitialiser origine remettre defaut"),
-        new(7, Loc.T("Mettre en pause ou reprendre"),
-            Loc.T("Ctrl+Alt+Maj+F, n'importe où."),
-            "pause reprendre arreter desactiver"),
         new(8, Loc.T("Je n'ai pas reçu le code par mail"),
             Loc.T("Regarde dans les courriers indésirables. Sinon, « Renvoyer le code »."),
             "compte inscription confirmation code mail spam connexion mot de passe oublie"),

@@ -827,6 +827,7 @@ final class OrganizerApplier {
     static let calmChecks = 150
     static let calmAnswer: TimeInterval = 3
     static let calmLimit: TimeInterval = 150
+    static let mismatchLimit: TimeInterval = 20
 
     private func waitUntilCalm(channels expected: Int, trace: inout [String]) throws {
         var calm = 0
@@ -834,6 +835,9 @@ final class OrganizerApplier {
         var answers = 0
         var slowest: TimeInterval = 0
         let started = Date()
+        // 21/11 : FL répond vite mais pas avec le bon nombre de sons pendant `mismatchLimit` s : il a fini de charger,
+        // ce n'est pas la même copie ; arrêt tout de suite (avant : 2 min 30 d'attente).
+        var mismatchSince: Date?
         for check in 0..<Self.calmChecks {
             wait(0.5)
             answerDialogs(&trace)
@@ -846,6 +850,8 @@ final class OrganizerApplier {
                 count = listed.count
             }
             calm = listed != nil && took < Self.calmAnswer ? calm + 1 : 0
+            if calm >= 2, count != expected { mismatchSince = mismatchSince ?? Date() } else { mismatchSince = nil }
+            if let since = mismatchSince, Date().timeIntervalSince(since) > Self.mismatchLimit { break }
             if (calm >= 2 && count == expected) || Date().timeIntervalSince(started) > Self.calmLimit { break }
             if check % 4 == 3 {
                 // 20/11 : ce qui manque se voit (des nombres seulement) : FL muet, ou pas encore tous les sons.

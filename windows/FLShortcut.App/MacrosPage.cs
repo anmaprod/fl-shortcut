@@ -106,6 +106,8 @@ internal sealed class MacrosPage
     private readonly ScrollViewer _stepsScroll = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
     /// Colonne de gauche du créateur (nom, touche, étapes, « Supprimer la macro »), redessinée à chaque changement.
     private readonly StackPanel _left = new();
+    /// Le nom, la touche et les avertissements, au-dessus des étapes (colonnes 1 à 8 seulement).
+    private readonly StackPanel _headHost = new();
     /// « Supprimer la macro » demandé dans la page (maquette « Minimal »).
     private bool _confirmMacroDelete;
     private Guid? _editing;
@@ -608,15 +610,22 @@ internal sealed class MacrosPage
         ToolTipService.SetToolTip(done, Loc.T("Enregistrer et revenir aux macros"));
         Grid.SetColumn(done, 1);
         top.Children.Add(done);
-        // Colonnes de la grille de la maquette : étapes 1 à 8, « Ajouter une étape » 9 à 12.
+        // Colonnes de la grille de la maquette : étapes 1 à 8, « Ajouter une étape » 9 à 12. 21/11 (« c'est décalé, pas
+        // le même que la maquette », comme le Mac) : la boîte commence au même trait que les étapes, sous le nom.
         var body = new Grid { ColumnSpacing = 24 };
         body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 360 });
         body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(347) });
+        body.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        body.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        body.Children.Add(_headHost);
+        _left.Margin = new Thickness(0, 32, 0, 0);
+        Grid.SetRow(_left, 1);
         body.Children.Add(_left);
         var box = AddStepBox();
-        box.Margin = new Thickness(0, 36, 0, 0);
+        box.Margin = new Thickness(0, 32, 0, 0);
         box.VerticalAlignment = VerticalAlignment.Top;
         Grid.SetColumn(box, 1);
+        Grid.SetRow(box, 1);
         body.Children.Add(box);
         // Toute la largeur jusqu'à 1 088, collée à gauche (photo de la CI : la page prenait la largeur de son contenu).
         var page = new StackPanel { Children = { top, body } };
@@ -641,7 +650,7 @@ internal sealed class MacrosPage
         foreach (var (category, entries) in StepSentence.Groups(_palette))
         {
             var label = Label(category, 12, Secondary);
-            label.Margin = new Thickness(16, 8, 16, 2);
+            label.Margin = new Thickness(16, 10, 16, 2);
             stack.Children.Add(label);
             foreach (var entry in entries) stack.Children.Add(AddStepLine(StepSentence.AddLabel(entry), () => Insert(entry, before: null), entry: entry, help: entry.Help));
         }
@@ -656,7 +665,8 @@ internal sealed class MacrosPage
         var row = new Border
         {
             Child = label,
-            Padding = new Thickness(16, 5, 16, 5),
+            Padding = new Thickness(16, 6, 16, 6),
+            MinHeight = 36,
             Margin = new Thickness(2, 0, 2, 0),
             Background = Brush(Colors.Transparent),
             CanDrag = entry is not null,
@@ -719,23 +729,22 @@ internal sealed class MacrosPage
             return;
         }
         if (SelectedIndex(doc) is null) _selected = null;
+        _headHost.Children.Clear();
         _left.Children.Clear();
-        _left.Children.Add(Head(doc));
+        _headHost.Children.Add(Head(doc));
         if (_notice is { } notice)
         {
             var warn = Paragraph(notice, 13, Red);
             warn.Margin = new Thickness(0, 8, 0, 0);
-            _left.Children.Add(warn);
+            _headHost.Children.Add(warn);
         }
         if (_recording == doc.Id)
         {
             var banner = RecordingBanner();
             banner.Margin = new Thickness(0, 24, 0, 0);
-            _left.Children.Add(banner);
+            _headHost.Children.Add(banner);
         }
-        var steps = Steps(doc);
-        steps.Margin = new Thickness(0, 32, 0, 0);
-        _left.Children.Add(steps);
+        _left.Children.Add(Steps(doc));
         var delete = DeleteArea(doc);
         delete.Margin = new Thickness(0, 48, 0, 0);
         _left.Children.Add(delete);
@@ -1018,11 +1027,11 @@ internal sealed class MacrosPage
     private StackPanel Steps(MacroDoc doc)
     {
         var list = new StackPanel();
-        list.Children.Add(new Rectangle { Height = 2, Fill = Brush(Text) });
+        list.Children.Add(new Rectangle { Height = 1, Fill = Brush(Text) });          // maquette : trait d'encre de 1
         if (doc.Blocks.Count == 0)
         {
-            var empty = new Border { Background = Brush(Colors.Transparent), AllowDrop = true, Padding = new Thickness(12, 16, 12, 16) };
-            empty.Child = Label(Loc.T("Choisis une étape à droite."), 16, Secondary);
+            var empty = new Border { Background = Brush(Colors.Transparent), AllowDrop = true, Padding = new Thickness(11, 16, 11, 16) };
+            empty.Child = Label(Loc.T("Choisis une étape à droite."), 13, Secondary);
             AcceptDrops(empty, 0, null);
             list.Children.Add(empty);
             return list;
@@ -1041,14 +1050,14 @@ internal sealed class MacrosPage
         var spec = body.Type is { } type ? BlockRegistry.Spec(type) : null;
         var open = block.Id == _selected;
 
-        var grid = new Grid { ColumnSpacing = 16, MinHeight = 52, Padding = new Thickness(12, 8, 12, 8), Background = Brush(Colors.Transparent) };
+        var grid = new Grid { ColumnSpacing = 16, MinHeight = 50, Padding = new Thickness(11, 8, 11, 8), Background = Brush(Colors.Transparent) };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var number = Label((index + 1).ToString("00", System.Globalization.CultureInfo.InvariantCulture), 13, Secondary);
+        var number = Label((index + 1).ToString("00", System.Globalization.CultureInfo.InvariantCulture), 12, Secondary);
         number.VerticalAlignment = VerticalAlignment.Center;
         grid.Children.Add(number);
 
-        var sentence = new TextBlock { FontFamily = SwissFont, FontSize = 17, Foreground = Brush(Text), TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+        var sentence = new TextBlock { FontFamily = SwissFont, FontSize = 16, Foreground = Brush(Text), TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
         if (body is BlockBody.Comment comment)
         {
             sentence.Text = comment.Text;

@@ -302,7 +302,7 @@ extension CommunityStore {
 
     /// Retour de la page d'une personne à la liste (← du titre, ou « Communauté » de la barre de gauche).
     func leavePerson() async {
-        await choose(tab == .mine ? .forYou : tab)
+        await choose(tab == .mine ? (social ? .mostAdded : .forYou) : tab)
     }
 
     /// Partages de l'onglet, d'une recherche ou de la page d'une personne ; avec leurs nombres tant que le serveur
