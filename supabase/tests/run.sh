@@ -19,7 +19,8 @@ for f in supabase-stubs.sql supabase-stubs-mail.sql ../schema.sql ../inscription
          profil.sql regles-sauvegarde.sql inscription.sql corrections-ia.sql messages-par-mail.sql "$MAIL" \
          messages-par-mail-recolle.sql ../mes-messages.sql ../mes-messages.sql "$MAIL" mes-messages.sql \
          communaute-suivre-11-11.sql communaute-suivre.sql ../communaute-suivre.sql \
-         ../communaute-suivre.sql communaute-relations.sql communaute-suivre-recolle.sql communaute-demi-etoiles.sql; do
+         ../communaute-suivre.sql communaute-relations.sql communaute-suivre-recolle.sql communaute-demi-etoiles.sql \
+         ../protection.sql ../protection.sql protection.sql; do
   psql "$@" -d "$DB" -X -q -v ON_ERROR_STOP=1 -f "$f"
 done
 # Ci-dessus, la base du propriétaire : communaute-suivre.sql collé le 11/11 (copie communaute-suivre-11-11.sql), ses

@@ -37,6 +37,21 @@ jobs:
       - name: Tests du script FL
         run: python3 -m unittest discover -s Tests/python -v
 
+  workflows:
+    name: Contrôle des workflows (zizmor)
+    # 21/11 : chaque changement des workflows vérifié (droits, actions épinglées, injections, secrets) : un workflow
+    # mal réglé peut donner le dépôt, ses secrets (clé des mises à jour, certificats) ou les versions publiées.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: zizmor
+        run: |
+          python3 -m venv "$RUNNER_TEMP/zizmor"
+          "$RUNNER_TEMP/zizmor/bin/pip" install --quiet zizmor==1.32.0
+          "$RUNNER_TEMP/zizmor/bin/zizmor" --offline --format=github .github/workflows
+
   communaute-sql:
     name: Serveur de la Communauté (règles d'accès)
     runs-on: ubuntu-24.04
