@@ -1,4 +1,4 @@
-// Menu de l'icône (zone de notification) comme celui du Mac (20/11, « ça c'est vraiment pas beau du tout ») : comme
+// Menu du logo (barre des tâches depuis le 21/11 : plus d'icône sous la flèche) comme celui du Mac (20/11, « ça c'est vraiment pas beau du tout ») : comme
 // les menus de la maquette « Minimal » (`.menu`) : carte carrée au fond du thème, trait d'encre de 2, lignes de 16 en
 // texte normal, survol plein d'encre ; « Ouvrir FL Shortcuts » et « Quitter » en lignes, « Désinstaller » à part en
 // gris. Se ferme dès qu'on clique ailleurs ; une fenêtre à la fois. Construit en code.
@@ -214,14 +214,14 @@ internal sealed class TrayMenu
         _window.ResizeClient(new Windows.Graphics.SizeInt32((int)Math.Ceiling(MenuWidth * scale), (int)Math.Ceiling(height * scale)));
     }
 
-    /// Au-dessus et à gauche du pointeur, toujours dans la zone de travail de l'écran (barre des tâches en bas, en
-    /// haut ou sur le côté).
+    /// Au-dessus du pointeur et centré sur lui (21/11 : juste au-dessus du logo cliqué dans la barre des tâches),
+    /// toujours dans la zone de travail de l'écran (barre des tâches en bas, en haut ou sur le côté).
     private void Place()
     {
         Win32.GetCursorPos(out var pt);
         var size = _window.Size;
         var area = DisplayArea.GetFromPoint(new Windows.Graphics.PointInt32(pt.X, pt.Y), DisplayAreaFallback.Nearest).WorkArea;
-        var x = Math.Clamp(pt.X - size.Width, area.X, Math.Max(area.X, area.X + area.Width - size.Width));
+        var x = Math.Clamp(pt.X - size.Width / 2, area.X, Math.Max(area.X, area.X + area.Width - size.Width));
         var y = Math.Clamp(pt.Y - size.Height, area.Y, Math.Max(area.Y, area.Y + area.Height - size.Height));
         _window.Move(new Windows.Graphics.PointInt32(x, y));
     }

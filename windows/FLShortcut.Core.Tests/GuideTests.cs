@@ -40,12 +40,13 @@ public sealed class GuideTests
         for (var i = 0; i < 3; i++) Assert.Equal(mac[i].Steps, win[i].Steps);
     }
 
-    /// « Au quotidien » : l'icône près de l'horloge, la touche de pause de Windows ; aucune touche ni mot du Mac.
+    /// « Au quotidien » : le logo de la barre des tâches (21/11), la touche de pause de Windows ; aucune touche ni mot du
+    /// Mac.
     [Fact]
     public void DayToDaySpeaksOfWindows()
     {
         var day = GuideContent.Pages[3];
-        Assert.Contains("horloge", day.Steps[0]);
+        Assert.Contains("barre des tâches", day.Steps[0]);
         Assert.Contains("Ctrl+Alt+Maj+F", day.Steps[1]);
         Assert.Equal(new KeyCombo(Vk.Letter('F'), Ctrl: true, Alt: true, Shift: true), ProfilePresets.Toggle);
         foreach (var step in GuideContent.Pages.SelectMany(p => p.Steps))

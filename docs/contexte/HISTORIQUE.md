@@ -1372,3 +1372,12 @@ entrée 1 ≈ 0,5 s.
   comme avant ») avant de toucher à quoi que ce soit. Le propriétaire peut voir FL ramer pendant l'aperçu : à lui de
   dire si c'est gênant. Menu de l'icône refait au style des menus de la maquette (capture « vraiment pas beau du
   tout ») ; proposition demandée pour Windows (« tout accessible via la flèche en bas à droite… une vraie galère »).
+- 20-21/11 : Windows sans la flèche. Maquettes d'abord (« fais-moi d'abord des maquettes en preuve »), artefact
+  `VrTZDYsdhHrsdyfj9q7UxX` ; sa précision : « je veux pas deux logos différents dans la barre… juste un seul logo…
+  quand tu cliques dessus, ça te fait modifier, organiser et tout » ; logo du menu = le rond, aux couleurs du thème
+  (déjà le cas dans l'app). Accord (« oui ») : fait (voir CLAUDE.md « Fenêtre « Minimal » »). Choix technique : une
+  fenêtre réduite garde son bouton dans la barre des tâches ; Windows demande de la restaurer au clic (SC_RESTORE), on
+  montre le menu à la place. Mac : rien ne change (déjà un seul logo et son menu), sauf ⌘⌥O pour l'Organiser. Coins du
+  menu du Mac encore un peu arrondis (macOS arrondit la fenêtre du MenuBarExtra ; le journal MENU ne montre que
+  `MenuBarExtraHostingView < NSNextStepFrame`, aucun rayon à zéro à mettre) : refaire la fenêtre du menu nous-mêmes
+  seulement s'il le demande.

@@ -62,7 +62,7 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
             () => OrganizerWindow.Show(this));
         _runner.Finished += OnMacroFinished;
         _hook = new KeyboardHook(_midi.SendAction, () => OnUi(Toggle), fl => OnUi(() => OnForeground(fl)),
-            program => OnUi(() => RunMacro(program)));
+            program => OnUi(() => RunMacro(program)), () => OnUi(() => OrganizerWindow.Show(this)));
     }
 
     /// Mode photos de la CI : les pages de raccourcis seulement (ni hook clavier, ni port MIDI).

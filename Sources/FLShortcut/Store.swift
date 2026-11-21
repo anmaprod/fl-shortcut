@@ -66,6 +66,8 @@ final class Store: ObservableObject {
     @Published var loadWarning: String? = nil { didSet { if let v = loadWarning, v != oldValue { ProblemLog.shared.add(v) } } }
     @Published private(set) var saveError: String? = nil { didSet { if let v = saveError, v != oldValue { ProblemLog.shared.add(v) } } }
     @Published private(set) var toggleCombo = KeyCombo(keyCode: 3, command: true, option: true, control: true)
+    /// ⌘⌥O dans FL : l'Organiser (21/11), sur la touche O de la disposition du clavier.
+    private(set) var organizerCombo = KeyCombo(keyCode: 31, command: true, option: true)
     /// Dernier état avant un remplacement (profil, import) : permet d'annuler.
     @Published private(set) var undoSnapshot: [Remap]? = nil
 
@@ -276,6 +278,7 @@ final class Store: ObservableObject {
         catalogCache = nil
         toggleCombo = KeyCombo(keyCode: KeyNames.keyCode(for: "f", layout: layout) ?? 3,
                                command: true, option: true, control: true)
+        organizerCombo = KeyCombo(keyCode: KeyNames.keyCode(for: "o", layout: layout) ?? 31, command: true, option: true)
         forbidden = ForbiddenTargets.make(layout: layout)
         conflicts = ConflictTable.make(layout: layout, systemHotKeys: systemHotKeys())
         recompute()
@@ -286,10 +289,12 @@ final class Store: ObservableObject {
         let snapshot = (enabled, index, toggleCombo, forbidden, recording)
         let natives = AppMode.actionNatives(layout: layout)
         let light = AppMode.light
+        let organizer = organizerCombo
         EventTap.shared.updateConfig {
             $0.enabled = snapshot.0
             $0.index = snapshot.1
             $0.toggle = snapshot.2
+            $0.organizer = organizer
             $0.forbidden = snapshot.3
             $0.recording = snapshot.4
             $0.actionNatives = natives

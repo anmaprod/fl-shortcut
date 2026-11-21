@@ -69,6 +69,9 @@ struct TapConfig: Equatable {
     var enabled = true
     var index = ShortcutIndex()
     var toggle = KeyCombo(keyCode: 3, command: true, option: true, control: true)
+    /// L'Organiser depuis FL (21/11, comme Ctrl+Alt+O sur Windows) : ⌘⌥O, FL devant ; un raccourci de l'utilisateur sur
+    /// la même touche passe avant. FL ne s'en sert pas (⌥O = outil LFO du Piano roll).
+    var organizer = KeyCombo(keyCode: 31, command: true, option: true)
     var forbidden = ForbiddenTargets.physical
     var recording = false
     var flPIDs: Set<Int32> = []
@@ -96,6 +99,7 @@ enum RouterEffect: Equatable {
     case post(KeyCombo)
     case runMacro(MacroProgram)
     case toggleEnabled
+    case openOrganizer
 }
 
 struct RouterDecision: Equatable {
@@ -112,6 +116,7 @@ struct KeyRouter {
         case action(Int)
         case keystroke(KeyCombo)
         case macro
+        case organizer
     }
 
     /// keyCode → propriétaire de l'appui en cours. Au plus 158 entrées (codes de touche et boutons de souris bornés).
@@ -143,7 +148,7 @@ struct KeyRouter {
             case .keystroke(let target):
                 guard e.targetIsFL, config.enabled, !config.forbidden.isForbidden(target) else { return .swallowOnly }
                 return RouterDecision(swallow: true, effects: [.post(target)])
-            case .toggle, .action, .macro:
+            case .toggle, .action, .macro, .organizer:
                 return .swallowOnly                   // jamais de bascule, d'action ni de macro répétées
             }
         }
@@ -159,9 +164,13 @@ struct KeyRouter {
         // Touche seule (sans ⌘ ⌃ ⌥) pendant que FL s'en sert (saisie de texte, menu, clavier-piano) : elle va à FL.
         if e.typingInFL, e.combo.isTypingKey { return .pass }
 
-        guard config.enabled, e.targetIsFL,
-              let entry = config.index.lookup(e.combo, window: link.knownWindow, anyContext: config.anyContext)
-        else { return .pass }
+        guard config.enabled, e.targetIsFL else { return .pass }
+        guard let entry = config.index.lookup(e.combo, window: link.knownWindow, anyContext: config.anyContext) else {
+            // ⌘⌥O (21/11) : l'Organiser, seulement si aucun raccourci de l'utilisateur n'a pris la touche.
+            guard e.combo == config.organizer else { return .pass }
+            owned[code] = .organizer
+            return RouterDecision(swallow: true, effects: [.openOrganizer])
+        }
 
         switch entry.action {
         case .flAction(let id):

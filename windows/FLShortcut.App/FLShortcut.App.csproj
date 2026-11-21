@@ -100,10 +100,6 @@
     <EmbeddedResource Include="..\..\Resources\MIDISettings.png" LogicalName="MIDISettings.png" />
     <!-- Icônes de FL de l'Organiser (14/11) : la planche du Mac, cases de 88 pixels. -->
     <EmbeddedResource Include="..\..\Resources\FLIcons.png" LogicalName="FLIcons.png" />
-    <!-- Logo « A » de la zone de notification (04/11, scripts/icone.py, option tray) : cercle blanc sur une barre des
-         tâches sombre, noir sur une claire ; le rond toujours rouge (TrayIcon). -->
-    <EmbeddedResource Include="Assets\TraySombre.ico" LogicalName="TraySombre.ico" />
-    <EmbeddedResource Include="Assets\TrayClaire.ico" LogicalName="TrayClaire.ico" />
   </ItemGroup>
 
 </Project>

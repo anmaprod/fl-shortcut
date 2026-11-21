@@ -1007,8 +1007,17 @@
   maquettes d'abord (« fais-moi d'abord des maquettes en preuve »), artefact privé `VrTZDYsdhHrsdyfj9q7UxX` ; sa
   précision : UN SEUL logo, le vrai « fl. », dans la barre des tâches (plus d'icône sous la flèche) ; un clic dessus
   = le menu de l'icône (Modifier les raccourcis → la page s'ouvre, Macros, Organiser…) ; + Ctrl+Alt+O depuis FL pour
-  l'Organiser (FL ne s'en sert pas : Alt+O = outil LFO du Piano roll). Piste technique : fenêtre réduite gardée dans la
-  barre des tâches, son « restaurer » (clic sur le logo) intercepté pour montrer le menu. À coder après son accord.
+  l'Organiser (FL ne s'en sert pas : Alt+O = outil LFO du Piano roll). Accord le 21/11 (« oui »), FAIT : Windows, plus
+  d'icône de la zone de notification (`TrayIcon.cs` retiré) ; la croix range la fenêtre RÉDUITE dans la barre des
+  tâches (`MainShell.Park`, logo de l'exe posé par `SetTaskbarIcon`) ; clic sur le logo, fenêtre « fermée » :
+  WM_SYSCOMMAND SC_RESTORE intercepté (`TaskbarProc`), le menu s'ouvre au-dessus du logo (`TrayMenu.Place` centré sur
+  la souris), secours si Windows la restaure autrement (`AppWindow.Changed` : re-réduite + menu) ; fenêtre ouverte :
+  comportement normal ; lancé à la main hors 1er lancement : réduite + menu ; `--tray` : réduite seule ; 2e lancement :
+  menu ou fenêtre (`Summon`) ; « Modifier les raccourcis… » ouvre la page des raccourcis. Ctrl+Alt+O (Windows,
+  `ProfilePresets.Organizer`, `RouterEffect.OpenOrganizer`) / ⌘⌥O (Mac, `TapConfig.organizer`, `.openOrganizer`), FL
+  devant, un raccourci de l'utilisateur sur la même touche passe avant ; touche FIXE pour l'instant (la maquette montrait
+  « Changer » dans Mes raccourcis : pas encore fait). Essais `CtrlAltO_OpensTheOrganizer…`,
+  `testCommandOptionOOpensTheOrganizerOnlyInFL`. Pas encore vu sur un PC (la CI ne clique pas la barre des tâches).
 
 - **Fenêtre « plus lisible »** (16/11, maquette PDF/HTML « FL Shortcuts — plus lisible », 8 écrans, commencée par une
   autre session sans rien pousser) : barre de gauche en parties (`ReadableSidebar` : Trouver un raccourci, Raccourcis ▸

@@ -1,7 +1,7 @@
 // Guide de FL Shortcuts, le même que le Mac (Guide.swift, demande du 10/11 : « la page de guide après l'installation,
 // le même que sur Mac… adapter les touches ou les autres choses qui diffèrent ») : « Bienvenue », une ligne par partie,
 // puis une page par partie en trois étapes d'une ligne. Mêmes textes que le Mac ; seule la partie « Au quotidien »
-// parle de Windows (l'icône près de l'horloge, Ctrl+Alt+Maj+F, le menu qui dit ce qui cloche : pas d'autorisation
+// parle de Windows (le logo de la barre des tâches, Ctrl+Alt+Maj+F, le menu qui dit ce qui cloche : pas d'autorisation
 // du clavier à donner ici). Pur : la fenêtre du guide (GuideView de l'appli) ne fait que dessiner ceci.
 namespace FLShortcut.Core;
 
@@ -33,7 +33,7 @@ public static class GuideContent
         }),
         new GuidePage(4, Loc.T("Au quotidien"), new[]
         {
-            Loc.T("L'icône près de l'horloge ouvre le menu."),
+            Loc.T("Le logo dans la barre des tâches ouvre le menu."),
             Loc.T("Ctrl+Alt+Maj+F met en pause ou reprend."),
             Loc.T("Un souci ? Le menu de l'icône le dit."),
         }),

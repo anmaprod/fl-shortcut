@@ -336,6 +336,28 @@ public class RouterTests
     }
 
     [Fact]
+    public void CtrlAltO_OpensTheOrganizer_OnlyInFl_AndYieldsToAUserShortcut()
+    {
+        // 21/11 (maquette « un seul logo ») : Ctrl+Alt+O dans FL ouvre l'Organiser ; ailleurs, en pause ou pris par un
+        // raccourci de l'utilisateur, rien de plus.
+        var (cfg, link) = Setup();
+        var r = new KeyRouter();
+        var d = r.Route(Down(ProfilePresets.Organizer), cfg, link);
+        Assert.True(d.Swallow);
+        Assert.IsType<RouterEffect.OpenOrganizer>(Assert.Single(d.Effects));
+        Assert.True(r.Route(Down(ProfilePresets.Organizer, repeat: true), cfg, link).Swallow);
+        Assert.Empty(r.Route(Down(ProfilePresets.Organizer, repeat: true), cfg, link).Effects);
+        Assert.True(r.Route(Up(ProfilePresets.Organizer), cfg, link).Swallow);
+        Assert.False(r.Route(new RouterInput(RouterInput.Kinds.Down, ProfilePresets.Organizer, TargetIsFl: false), cfg, link).Swallow);
+        Assert.False(r.Route(Down(ProfilePresets.Organizer), cfg with { Enabled = false }, link).Swallow);
+        var mine = cfg with
+        {
+            Index = new ShortcutIndex(new List<Shortcut> { Shortcut.Action(ProfilePresets.Organizer, 21) }, new HashSet<Guid>()),
+        };
+        Assert.IsType<RouterEffect.SendAction>(Assert.Single(r.Route(Down(ProfilePresets.Organizer), mine, link).Effects));
+    }
+
+    [Fact]
     public void Toggle_WorksEvenWhenPaused_AndReleaseFreesKey()
     {
         var (cfg, link) = Setup();

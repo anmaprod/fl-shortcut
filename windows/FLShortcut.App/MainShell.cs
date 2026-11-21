@@ -36,7 +36,12 @@ internal sealed partial class MainShell
     private readonly Window _window;
     private readonly Grid _root;
     private readonly AppController _app;
-    private readonly TrayIcon? _tray;
+    /// 21/11 (maquette « un seul logo » validée) : la fenêtre « fermée » reste réduite dans la barre des tâches, son logo
+    /// « fl. » toujours là ; un clic dessus montre le menu au lieu de la rouvrir (`TaskbarProc`).
+    private bool _parked;
+    private Native.Win32.SubclassProc? _taskbarProc;
+    private const uint WmSysCommand = 0x0112;
+    private const int ScRestore = 0xF120, SwMinimize = 6, SwShowMinNoActive = 7;
     private readonly IntPtr _hwnd;
     private readonly bool _photos;
     private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _poll;
@@ -153,18 +158,28 @@ internal sealed partial class MainShell
             {
                 case nameof(AppController.Catalog): RenderPage(); break;
                 case nameof(AppController.StatusTitle):
-                case nameof(AppController.Enabled): RenderNotices(); UpdateTooltip(); break;
+                case nameof(AppController.Enabled): RenderNotices(); break;
                 case nameof(AppController.Onboarded): ShowScreen(); break;
             }
         };
 
         if (!photos)
         {
-            _tray = new TrayIcon(_hwnd, "FL Shortcuts");
-            _tray.OpenRequested += () => window.DispatcherQueue.TryEnqueue(() => ShowFromTray(ask: true));
-            _tray.MenuRequested += () => window.DispatcherQueue.TryEnqueue(ShowTrayMenu);
-            // FL Shortcuts relancé alors qu'il tourne déjà (App.OnLaunched) : la bulle montre où est son icône.
-            ShowSignal.Listen(() => window.DispatcherQueue.TryEnqueue(() => TrayTip(alreadyRunning: true)));
+            // 21/11 (« je veux pas deux logos différents dans la barre… juste un seul logo ») : plus d'icône sous la
+            // flèche en bas à droite. Le logo de la barre des tâches est la porte d'entrée, comme l'icône du Mac.
+            _taskbarProc = TaskbarProc;
+            Native.Win32.SetWindowSubclass(_hwnd, _taskbarProc, new UIntPtr(0x464C42), UIntPtr.Zero);
+            SetTaskbarIcon(window);
+            // Secours : rouverte autrement que par le message de Windows attendu, pendant qu'elle est « fermée » : elle
+            // repart dans la barre des tâches et le menu s'ouvre.
+            window.AppWindow.Changed += (sender, _) =>
+            {
+                if (!_parked || _quitting || Native.Win32.IsIconic(_hwnd) || !sender.IsVisible) return;
+                Native.Win32.ShowWindow(_hwnd, SwMinimize);
+                ShowTrayMenu();
+            };
+            // FL Shortcuts relancé alors qu'il tourne déjà (App.OnLaunched) : son menu, ou sa fenêtre si elle est ouverte.
+            ShowSignal.Listen(() => window.DispatcherQueue.TryEnqueue(Summon));
         }
 
         _poll = window.DispatcherQueue.CreateTimer();
@@ -304,13 +319,14 @@ internal sealed partial class MainShell
         };
     }
 
-    // ---------- Fenêtre et zone de notification ----------
+    // ---------- Fenêtre et logo de la barre des tâches ----------
 
-    /// Comme le Mac (03/11) : la fenêtre au premier lancement (ou tant que l'accueil n'est pas fini), ensuite l'icône
-    /// seule près de l'horloge ; la fenêtre s'ouvre d'un clic sur l'icône.
+    /// La fenêtre au premier lancement (ou tant que l'accueil n'est pas fini) ; ensuite le logo seul dans la barre des
+    /// tâches, dont le clic montre le menu.
     internal bool ShowAtLaunch => !_app.Settings.WindowShownAtLaunch || !_app.Onboarded;
 
-    /// Après le lancement : fenêtre montrée (retenu pour les prochaines fois), sinon la bulle qui montre l'icône.
+    /// Après le lancement : fenêtre montrée (retenu pour les prochaines fois), sinon le logo seul dans la barre des
+    /// tâches ; lancé à la main (pas au démarrage de Windows, « --tray ») : son menu tout de suite, là où l'on a cliqué.
     internal void Launched(bool windowShown)
     {
         if (windowShown)
@@ -318,38 +334,68 @@ internal sealed partial class MainShell
             if (_app.Settings.WindowShownAtLaunch) return;
             _app.Settings.WindowShownAtLaunch = true;
             _app.Settings.Save();
+            return;
         }
-        else if (!Environment.GetCommandLineArgs().Any(a => string.Equals(a, "--tray", StringComparison.OrdinalIgnoreCase)))
-        {
-            _tipShown = true;
-            TrayTip(alreadyRunning: false);          // lancé à la main : dire où il est (pas au démarrage de Windows)
-        }
+        Park(activate: false);
+        if (!Environment.GetCommandLineArgs().Any(a => string.Equals(a, "--tray", StringComparison.OrdinalIgnoreCase)))
+            ShowTrayMenu();
     }
 
-    private bool _tipShown;
-
-    private void TrayTip(bool alreadyRunning) => _tray?.Notify(
-        alreadyRunning ? Loc.T("FL Shortcuts est déjà ouvert") : Loc.T("FL Shortcuts est prêt"),
-        Loc.T("Son icône est près de l'horloge. Clic : la fenêtre. Clic droit : le menu."));
-
+    /// La croix : la fenêtre se range dans la barre des tâches, FL Shortcuts continue (raccourcis, macros). « Quitter »
+    /// du menu l'arrête vraiment.
     private void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)
     {
         if (_quitting || _photos) return;
-        args.Cancel = true;          // la croix cache la fenêtre : FL Shortcuts continue dans la zone de notification
-        sender.Hide();
-        if (_tipShown) return;
-        _tipShown = true;            // la première fois : la bulle montre où il est resté
-        TrayTip(alreadyRunning: false);
+        args.Cancel = true;
+        Park(activate: true);
+    }
+
+    /// « Fermée » : réduite, son logo reste dans la barre des tâches ; un clic dessus montre le menu.
+    private void Park(bool activate)
+    {
+        _parked = true;
+        Native.Win32.ShowWindow(_hwnd, activate ? SwMinimize : SwShowMinNoActive);
+    }
+
+    /// Clic sur le logo de la barre des tâches, fenêtre « fermée » : Windows demande de la restaurer ; elle reste réduite
+    /// et le menu s'ouvre au-dessus du logo (sous la souris). Fenêtre ouverte : Windows fait comme d'habitude.
+    private IntPtr TaskbarProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, UIntPtr id, UIntPtr data)
+    {
+        if (msg == WmSysCommand && _parked && ((int)wParam.ToInt64() & 0xFFF0) == ScRestore)
+        {
+            _window.DispatcherQueue.TryEnqueue(ShowTrayMenu);
+            return IntPtr.Zero;
+        }
+        return Native.Win32.DefSubclassProc(hWnd, msg, wParam, lParam);
+    }
+
+    /// Le logo « fl. » de l'appli (icône de l'exécutable) sur la fenêtre et dans la barre des tâches.
+    private static void SetTaskbarIcon(Window window)
+    {
+        var exe = Environment.ProcessPath;
+        var large = new IntPtr[1];
+        if (exe is null || Native.Win32.ExtractIconExW(exe, 0, large, null, 1) == 0 || large[0] == IntPtr.Zero) return;
+        window.AppWindow.SetIcon(Microsoft.UI.Win32Interop.GetIconIdFromIcon(large[0]));
+    }
+
+    /// FL Shortcuts relancé alors qu'il tourne : son menu (fenêtre « fermée »), sinon sa fenêtre devant.
+    private void Summon()
+    {
+        if (_parked) ShowTrayMenu();
+        else ShowFromTray(ask: false);
     }
 
     private void ShowFromTray(bool ask)
     {
+        _parked = false;
+        if (Native.Win32.IsIconic(_hwnd)) Native.Win32.ShowWindow(_hwnd, Native.Win32.SW_RESTORE);
         _window.AppWindow.Show();
         _window.Activate();
         if (ask) CopyApprovalPrompt.Ask(_root.XamlRoot, _app, force: false);
     }
 
-    /// Le menu de l'icône, noir comme celui du Mac : l'état, les fenêtres de l'appli, « Ouvrir FL Shortcuts », « Quitter ».
+    /// Le menu du logo (21/11 : clic sur le logo de la barre des tâches), comme celui du Mac : l'état, les fenêtres de
+    /// l'appli, « Ouvrir FL Shortcuts », « Quitter ».
     private void ShowTrayMenu()
     {
         var entries = new List<TrayMenu.Entry>();
@@ -362,7 +408,13 @@ internal sealed partial class MainShell
                 _lastFailure = null;
                 Choose(PageKind.Help, _section);
             }));
-        entries.Add(new("keyboard", Blue, Loc.T("Modifier les raccourcis…"), () => ShowFromTray(ask: false)));
+        // Comme le Mac (ShortcutsLink) : la fenêtre sur les raccourcis, jamais laissée sur Macros, Communauté ou le créateur.
+        entries.Add(new("keyboard", Blue, Loc.T("Modifier les raccourcis…"), () =>
+        {
+            ShowFromTray(ask: false);
+            _macros.Back();
+            if (_app.Onboarded) Choose(_lastShortcutsCustom ? PageKind.Custom : PageKind.Section, _section);
+        }));
         if (_app.Approval.Pending.Count > 0)
             entries.Add(new("check", Green, Loc.T("Valider la version organisée…"), () =>
             {
@@ -470,14 +522,10 @@ internal sealed partial class MainShell
     {
         _quitting = true;
         _poll.Stop();
-        _tray?.Dispose();
         _app.Dispose();
         _window.Close();
         Application.Current.Exit();
     }
-
-    private void UpdateTooltip() =>
-        _tray?.SetTooltip(_app.Enabled ? $"FL Shortcuts — {Loc.T(_app.StatusTitle)}" : "FL Shortcuts — " + Loc.T("En pause"));
 
     /// Accueil (ports MIDI, lien avec FL) tant qu'il n'est pas fait ; sinon la fenêtre des raccourcis.
     private void ShowScreen()
@@ -491,7 +539,6 @@ internal sealed partial class MainShell
             RenderSidebar();
             RenderPage();
             RenderNotices();
-            UpdateTooltip();
             ShowGuideIfNeverSeen();
         }
         else

@@ -116,7 +116,6 @@
 "Pas dans mes favoris" = "Not in my favorites";
 "Choisis un état de piste du Mixer" = "Choose a Mixer track state";
 "Clique dans FL à l'endroit voulu. Échap annule." = "Click in FL where you want. Esc cancels.";
-"Son icône est près de l'horloge. Clic : la fenêtre. Clic droit : le menu." = "Its icon is near the clock. Click: the window. Right-click: the menu.";
 "Tes raccourcis changés et créés." = "Your changed and created shortcuts.";
 "et %lld autres" = "and %lld more";
 "Dans loopMIDI : crée « FL Shortcuts » et « FL Shortcuts Retour »." = "In loopMIDI: create “FL Shortcuts” and “FL Shortcuts Retour”.";
@@ -388,7 +387,7 @@
 "Glisse ce son dans une autre famille." = "Drag this sound into another family.";
 "Input : clique « FL Shortcuts », puis allume Enable." = "Input: click “FL Shortcuts”, then turn on Enable.";
 "Touche seule : laissée à FL quand tu tapes du texte, qu'un menu ou une boîte de FL est ouvert." = "Single key: left to FL while you type text or while an FL menu or box is open.";
-"L'icône près de l'horloge ouvre le menu." = "The icon near the clock opens the menu.";
+"Le logo dans la barre des tâches ouvre le menu." = "The logo in the taskbar opens the menu.";
 "Ctrl+Alt+Maj+F met en pause ou reprend." = "Ctrl+Alt+Shift+F pauses or resumes.";
 "Un souci ? Le menu de l'icône le dit." = "A problem? The icon's menu tells you.";
 "Fermer le guide : tu le retrouves dans la page Aide." = "Close the guide: you'll find it again on the Help page.";

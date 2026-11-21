@@ -251,6 +251,8 @@ final class EventTap {
                 }
             case .toggleEnabled:
                 DispatchQueue.main.async { Store.shared.enabled.toggle() }
+            case .openOrganizer:
+                DispatchQueue.main.async { OrganizerWindow.open() }
             }
         }
         return swallow ? nil : pass

@@ -62,6 +62,8 @@ public sealed record HookConfig(bool Enabled, ShortcutIndex Index, KeyCombo Togg
 
     public IReadOnlyDictionary<int, KeyCombo> ActionNatives { get; init; } = new Dictionary<int, KeyCombo>();
     public bool AnyContext { get; init; }
+    /// Touche qui ouvre l'Organiser, FL devant (ProfilePresets.Organizer).
+    public KeyCombo Organizer { get; init; } = ProfilePresets.Organizer;
 }
 
 /// Événement clavier réduit à ce qui sert à la décision.
@@ -77,6 +79,7 @@ public abstract record RouterEffect
     public sealed record Post(KeyCombo Combo) : RouterEffect;
     public sealed record ToggleEnabled : RouterEffect;
     public sealed record RunMacro(MacroProgram Program) : RouterEffect;
+    public sealed record OpenOrganizer : RouterEffect;
 }
 
 public sealed record RouterDecision(bool Swallow, IReadOnlyList<RouterEffect> Effects)
@@ -94,6 +97,7 @@ public sealed class KeyRouter
         public sealed record Action(int Id) : Owner;
         public sealed record Keystroke(KeyCombo Target) : Owner;
         public sealed record Macro : Owner;
+        public sealed record Organizer : Owner;
     }
 
     /// Code VK → propriétaire de l'appui en cours. Au plus 256 entrées (codes bornés).
@@ -140,7 +144,13 @@ public sealed class KeyRouter
         // comme sur le Mac (TypingGuard ; 09/11, « que ça soit encore utilisable pour écrire dans FL »).
         if (e.TypingInFl && e.Combo.IsTypingKey) return RouterDecision.Pass;
         if (!config.Enabled || !e.TargetIsFl) return RouterDecision.Pass;
-        if (config.Index.Lookup(e.Combo, link.KnownWindow, config.AnyContext) is not { } entry) return RouterDecision.Pass;
+        if (config.Index.Lookup(e.Combo, link.KnownWindow, config.AnyContext) is not { } entry)
+        {
+            // Ctrl+Alt+O (21/11) : l'Organiser, seulement si aucun raccourci de l'utilisateur n'a pris la touche.
+            if (e.Combo != config.Organizer) return RouterDecision.Pass;
+            _owned[vk] = new Owner.Organizer();
+            return RouterDecision.Do(new RouterEffect.OpenOrganizer());
+        }
 
         switch (entry.Action)
         {

@@ -86,7 +86,7 @@ public partial class App : Application
         }
         if (!created)
         {
-            // Une autre instance tourne déjà : on ne crée ni hook ni port en double ; elle montre où est son icône.
+            // Une autre instance tourne déjà : on ne crée ni hook ni port en double ; elle montre son menu.
             ShowSignal.Raise();
             Exit();
             return;
@@ -98,9 +98,9 @@ public partial class App : Application
                                                            Services.AccountStore.Load() is not null);
         MacLook.ApplyTextFieldLook(Resources);
         _window = new MainWindow();
-        // Comme le Mac (03/11) : FL Shortcuts vit dans la zone de notification ; la fenêtre au premier lancement
-        // seulement. « --tray » (démarrage de Windows) : jamais de fenêtre ni de bulle. Relancée pour le thème : sur
-        // Mon compte, là où il a été choisi.
+        // 21/11 : FL Shortcuts vit dans la barre des tâches (son logo seul, un clic : son menu) ; la fenêtre au
+        // premier lancement seulement. « --tray » (démarrage de Windows) : ni fenêtre ni menu. Relancée pour le thème :
+        // sur Mon compte, là où il a été choisi.
         var startHidden = !relaunch
                           && (Environment.GetCommandLineArgs().Any(a => string.Equals(a, "--tray", StringComparison.OrdinalIgnoreCase))
                               || !_window.ShowAtLaunch);
@@ -110,7 +110,7 @@ public partial class App : Application
     }
 }
 
-/// FL Shortcuts relancé alors qu'il tourne déjà : la 2e copie le dit à la première (bulle de son icône), puis se ferme.
+/// FL Shortcuts relancé alors qu'il tourne déjà : la 2e copie le dit à la première (son menu, ou sa fenêtre), puis se ferme.
 internal static class ShowSignal
 {
     private const string Name = @"Local\FLShortcut.Show";

@@ -443,6 +443,9 @@ public static class ProfilePresets
 {
     /// Pause globale : trois modificateurs, rare et difficile à taper par accident (audit 05).
     public static readonly KeyCombo Toggle = new(Vk.Letter('F'), Ctrl: true, Alt: true, Shift: true);
+    /// Organiser depuis FL (21/11, maquette « un seul logo » validée) : Ctrl+Alt+O, FL devant. FL ne s'en sert pas (Alt+O
+    /// = outil LFO du Piano roll) ; un raccourci de l'utilisateur sur la même touche passe avant.
+    public static readonly KeyCombo Organizer = new(Vk.Letter('O'), Ctrl: true, Alt: true);
 
     public static string Label(this ProfilePreset p) => p switch
     {

@@ -32,6 +32,7 @@ internal sealed class KeyboardHook : IDisposable
     private readonly Action _onToggle;
     private readonly Action<FlProcessInfo?> _onForegroundChanged;
     private readonly Action<MacroProgram> _onMacro;
+    private readonly Action _onOrganizer;
     private int _escapes;
 
     private readonly KeyRouter _router = new();
@@ -60,13 +61,15 @@ internal sealed class KeyboardHook : IDisposable
 
     /// <param name="sendAction">Envoie une action FL (trame signée) ; faux si impossible.</param>
     /// <param name="onMacro">Lance une macro (appel rapide : la macro tourne sur son propre fil).</param>
+    /// <param name="onOrganizer">Ctrl+Alt+O dans FL (21/11) : ouvre l'Organiser (appel rapide, posté au fil de l'interface).</param>
     public KeyboardHook(Func<int, bool> sendAction, Action onToggle, Action<FlProcessInfo?> onForegroundChanged,
-                        Action<MacroProgram> onMacro)
+                        Action<MacroProgram> onMacro, Action onOrganizer)
     {
         _sendAction = sendAction;
         _onToggle = onToggle;
         _onForegroundChanged = onForegroundChanged;
         _onMacro = onMacro;
+        _onOrganizer = onOrganizer;
     }
 
     /// Appuis sur Échap (de l'utilisateur) vus pendant que FL est devant : une macro en cours s'arrête.
@@ -302,6 +305,9 @@ internal sealed class KeyboardHook : IDisposable
                     break;
                 case RouterEffect.RunMacro m:
                     try { _onMacro(m.Program); } catch { }
+                    break;
+                case RouterEffect.OpenOrganizer:
+                    try { _onOrganizer(); } catch { }
                     break;
             }
         }
