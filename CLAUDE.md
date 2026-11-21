@@ -5,7 +5,8 @@
 - Branche la plus récente : **`claude/great-hopper-qihaiy`** (en avance de 138 commits sur `claude/relaxed-mayer-ndguzv`).
   Pas de nouvelle PR sans demande (anmaprod/fl-shortcut#1 existe). Un push lance la CI ; ne pas la relancer à la main
   sans demande. Derniers tests Mac verts : commit 1843b87 (502 tests, lancés par le propriétaire sur son Mac) ; CI
-  entièrement verte sur 2d904b7 (20/11 au soir : toute la maquette « Minimal », menus dans la barre de titre, créateur
+  entièrement verte sur 4777821 (21/11 : Organiser au lien gardé pendant l'aperçu, menu de l'icône refait, Windows à un
+  seul logo dans la barre des tâches, Ctrl+Alt+O / ⌘⌥O), avant sur 2d904b7 (20/11 au soir : toute la maquette « Minimal », menus dans la barre de titre, créateur
   en phrases ; essais du créateur à vrais clics : bloc glissé de la boîte, bloc rangé, clic sur une ligne, tous bons),
   avant sur 20749c1 (20/11 : Communauté, Aide et fenêtre « Minimal », Mac et Windows) ; avant, sur 222b2d6 (16/11 : fenêtre « plus lisible », Mac et Windows ; photos `trouver*.png`) ; avant, sur 109babf (13/11 : 680 essais Mac, 483 Windows ; guide, touches échangées) puis 39eb10a (679 Mac,
   482 Windows ; Channel rack rangé dans la copie) ; avant, sur 40ce8e1 (12/11 : 671 essais Mac, 475 Windows) puis 8ba1b2c (665 essais Mac) puis a82dee2 (04/11 : 617 essais Mac, 384 Windows, logo A, clic intelligent Windows ; Mac macOS 26
