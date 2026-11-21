@@ -761,28 +761,29 @@ struct MenuContent: View {
             // En tête (maquette du 05/11, « juste… pas actif… le point à la fin ») : le rond de la barre des menus et
             // « fl shortcuts. », sans état ; dessous, seulement ce qui cloche (en pause, clavier non autorisé…).
             // 20/11 (capture : « ça c'est vraiment pas beau du tout ») : comme les menus de la maquette « Minimal »
-            // (`.menu`) : carte carrée bordée d'encre, lignes de 16 en texte normal, survol plein d'encre.
-            HStack(spacing: 8) {
+            // (`.menu`) : carte carrée bordée d'encre, texte normal, survol plein d'encre. 21/11 (« un peu gros… garder
+            // la taille d'avant ») : les tailles d'avant le 20/11 (280 de large, lignes de 34, texte 13,5, logo 24).
+            HStack(spacing: 10) {
                 Image(nsImage: MenuBarIcon.image(.normal))
                     .renderingMode(.template)
                     .resizable()
-                    .frame(width: 16, height: 16)
+                    .frame(width: 24, height: 24)
                     .foregroundStyle(Swiss.text)
                     .accessibilityHidden(true)
                 Text(verbatim: "FL Shortcuts")
-                    .font(Swiss.font(15, .semibold))
+                    .font(Swiss.font(17, .semibold))
                     .foregroundStyle(Swiss.text)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 10)
+            .padding(.horizontal, 14)
+            .padding(.top, 14)
+            .padding(.bottom, 12)
             if let line = statusLine {
                 HStack(spacing: 6) {
                     Rectangle().fill(dotColor).frame(width: 7, height: 7)
                     Text(line).foregroundStyle(Swiss.gray).lineLimit(1)
                 }
-                .font(Swiss.font(13, .regular))
-                .padding(.horizontal, 16)
+                .font(Swiss.font(11.5, .regular))
+                .padding(.horizontal, 14)
                 .padding(.bottom, 8)
                 .accessibilityElement(children: .combine)
             }
@@ -793,8 +794,8 @@ struct MenuContent: View {
                     SwissWarningMark(size: 7).alignmentGuide(.firstTextBaseline) { d in d[.bottom] }
                     Text(macro.text).foregroundStyle(Swiss.gray).fixedSize(horizontal: false, vertical: true)
                 }
-                .font(Swiss.font(13, .regular))
-                .padding(.horizontal, 16)
+                .font(Swiss.font(11.5, .regular))
+                .padding(.horizontal, 14)
                 .padding(.bottom, 8)
                 // La page Aide, le formulaire prêt avec ce message d'erreur et le journal de la macro.
                 PanelItem(symbol: "exclamationmark.bubble", title: String(localized: "Signaler ce problème…"), tint: .orange, order: 1) {
@@ -809,8 +810,8 @@ struct MenuContent: View {
                     SwissWarningMark(size: 7).alignmentGuide(.firstTextBaseline) { d in d[.bottom] }
                     Text(text).foregroundStyle(Swiss.gray).fixedSize(horizontal: false, vertical: true)
                 }
-                .font(Swiss.font(13, .regular))
-                .padding(.horizontal, 16)
+                .font(Swiss.font(11.5, .regular))
+                .padding(.horizontal, 14)
                 .padding(.bottom, 8)
             }
 
@@ -869,7 +870,7 @@ struct MenuContent: View {
             }
         }
         .padding(.bottom, 6)
-        .frame(width: 260)
+        .frame(width: 280)
         // La carte de la maquette : fond de la page, trait d'encre de 2 PAR-DESSUS (les filets et le survol ne le
         // coupent plus), coins carrés ; elle remplit la fenêtre (photo de la CI du 20/11 : avec une marge, la bulle
         // arrondie de macOS se voyait autour ; ses coins sont mis carrés par `MenuPanel.attach`).
@@ -930,7 +931,7 @@ private struct MenuSeparator: View {
         Rectangle()
             .fill(Swiss.faint)
             .frame(height: 1)
-            .padding(.vertical, 6)
+            .padding(.vertical, 5)
     }
 }
 
@@ -964,10 +965,10 @@ private struct PanelPlainRow: View {
             MenuPanel.shared.close()
         } label: {
             Text(title)
-                .font(Swiss.font(14, .regular))
+                .font(Swiss.font(12, .regular))
                 .hoverTint(Swiss.gray)
-                .padding(.horizontal, 16)
-                .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading)
+                .padding(.horizontal, 14)
+                .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -1007,13 +1008,13 @@ private struct PanelItem: View {
                 Text(title)
                 Spacer(minLength: 12)
                 if let shortcut {
-                    Text(shortcut).font(Swiss.font(13, .regular)).hoverTint(Swiss.gray)
+                    Text(shortcut).font(Swiss.font(11, .regular)).hoverTint(Swiss.gray)
                 }
             }
-            .font(Swiss.font(16, .regular))
+            .font(Swiss.font(13.5, .regular))
             .lineLimit(1)
-            .padding(.horizontal, 16)
-            .frame(height: 40)
+            .padding(.horizontal, 14)
+            .frame(height: 34)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

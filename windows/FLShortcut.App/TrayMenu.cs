@@ -28,7 +28,7 @@ internal sealed class TrayMenu
 
     /// Le fond du thème, comme la carte du menu du Mac (MenuBackground).
     private static Color MenuColor => WindowColor;
-    private const double MenuWidth = 260;              // comme le Mac
+    private const double MenuWidth = 250;              // 21/11 : la taille d'avant (« garder la taille d'avant »)
     private const uint WM_ACTIVATE = 0x0006;
     private static readonly UIntPtr SubclassId = new(0x464D);
 
@@ -81,17 +81,17 @@ internal sealed class TrayMenu
         var stack = new StackPanel();
         // En tête (comme le Mac) : le rond de la zone de notification et « FL Shortcuts », sans état ; dessous,
         // seulement ce qui cloche.
-        var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(16, 12, 16, 10) };
-        head.Children.Add(Round(16, Text, MenuColor));
-        var name = Label("FL Shortcuts", 15, Text, semibold: true);
+        var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(12, 12, 12, 10) };
+        head.Children.Add(Round(24, Text, MenuColor));
+        var name = Label("FL Shortcuts", 17, Text, semibold: true);
         name.VerticalAlignment = VerticalAlignment.Center;
         head.Children.Add(name);
         stack.Children.Add(head);
         if (!ok)
         {
-            var state = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(16, 0, 16, 8) };
+            var state = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(12, 0, 12, 8) };
             state.Children.Add(new Rectangle { Width = 7, Height = 7, Fill = Brush(Red), VerticalAlignment = VerticalAlignment.Center });
-            state.Children.Add(Label(status, 13, Secondary));
+            state.Children.Add(Label(status, 11.5, Secondary));
             stack.Children.Add(state);
         }
         stack.Children.Add(Separator());
@@ -103,7 +103,7 @@ internal sealed class TrayMenu
         foreach (var entry in entries.Where(e => e.Icon == "trash"))
         {
             stack.Children.Add(Separator());
-            stack.Children.Add(Row(entry.Title, () => Run(entry.Run), size: 14, color: Secondary, height: 36));
+            stack.Children.Add(Row(entry.Title, () => Run(entry.Run), size: 12.5, color: Secondary, height: 30));
         }
 
         _panel = new Border
@@ -180,12 +180,12 @@ internal sealed class TrayMenu
 
     /// Une ligne (20/11, comme `.menu button` de la maquette) : 16 en texte normal, 16 sur les côtés, toute la largeur ;
     /// survolée, pleine d'encre, texte au fond du thème. Son action après la fermeture du menu.
-    private static Button Row(string text, Action click, double size = 16, Color? color = null, double height = 40)
+    private static Button Row(string text, Action click, double size = 13, Color? color = null, double height = 34)
     {
         var label = Label(text, size, color ?? Text);
         label.VerticalAlignment = VerticalAlignment.Center;
         label.TextTrimming = TextTrimming.CharacterEllipsis;
-        var row = Option(label, click, minHeight: height, padding: new Thickness(16, 0, 16, 0),
+        var row = Option(label, click, minHeight: height, padding: new Thickness(12, 0, 12, 0),
                          hover: on => label.Foreground = Brush(on ? WindowColor : color ?? Text));
         row.HorizontalAlignment = HorizontalAlignment.Stretch;
         row.HorizontalContentAlignment = HorizontalAlignment.Left;
@@ -202,7 +202,7 @@ internal sealed class TrayMenu
     /// Trait fin entre deux groupes, comme `.menu .other` de la maquette.
     private static Rectangle Separator() => new()
     {
-        Height = 1, Fill = Brush(Faint), Margin = new Thickness(0, 6, 0, 6), IsHitTestVisible = false,
+        Height = 1, Fill = Brush(Faint), Margin = new Thickness(0, 4, 0, 4), IsHitTestVisible = false,
     };
 
     /// La taille de la fenêtre : celle du panneau.

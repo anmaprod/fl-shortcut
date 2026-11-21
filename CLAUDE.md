@@ -1000,7 +1000,8 @@
   (`awaitLink` / `AwaitLink` : PING jusqu'au HELLO 12 s ; Mac : appareil recréé une fois puis 12 s encore ; sinon
   « FL ne répond pas », rien d'écrit) ; l'attente dit ce qui manque (« FL ne répond pas encore… », « … 12/14 · 30 s »),
   diagnostic `sons=vus/attendus`. Menu de l'icône (capture : « vraiment pas beau du tout ») : comme `.menu` de la
-  maquette, carte carrée au fond du thème, trait d'encre de 2, lignes de 16 en texte normal, survol plein d'encre,
+  maquette, carte carrée au fond du thème, trait d'encre de 2, texte normal (21/11 : « un peu gros… garder la taille
+  d'avant » → tailles d'avant le 20/11 : 280 de large sur Mac, 250 sur Windows, lignes de 34, texte 13,5, logo 24), survol plein d'encre,
   « Ouvrir FL Shortcuts » / « Quitter ⌘Q » en lignes, « Désinstaller » gris à part ; Windows `TrayMenu.Row` (photo CI
   bonne). Mac : une marge transparente laissait voir la bulle arrondie de macOS (photo CI de b080a04) → la carte
   remplit la fenêtre, trait posé PAR-DESSUS (les filets le coupaient), coins des vues qui portent le menu mis carrés
