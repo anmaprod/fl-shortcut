@@ -69,6 +69,12 @@ end;
 $$;
 revoke all on function public.purge_old_captures() from public, anon, authenticated;
 
+-- 4. « Supprimer mon compte » efface aussi ses messages à l'équipe et leurs réponses : depuis le 20/11, le mail du
+--    compte y est joint tout seul ; il ne doit pas rester après la suppression (avant : messages gardés, sans lien).
+alter table public.support_requests drop constraint if exists support_requests_user_id_fkey;
+alter table public.support_requests add constraint support_requests_user_id_fkey
+  foreign key (user_id) references auth.users (id) on delete cascade;
+
 do $$
 begin
   if exists (select 1 from pg_available_extensions where name = 'pg_cron') then

@@ -113,7 +113,8 @@ et l'étape 7 (modèles des mails avec le code).
    captures chaque nuit) ; puis **SQL Editor › New query**, colle tout `supabase/protection.sql`, puis **Run**.
    Ensuite, « Écrire à l'équipe » demande un compte (l'app le fait déjà), une seule personne ne peut plus remplir la
    base gratuite (captures, corrections de l'IA : tailles plafonnées, 10 captures par jour et par compte) et les
-   captures sont effacées 180 jours après le message (le message reste). À recoller après un recollage de
+   captures sont effacées 180 jours après le message (le message reste) ; « Supprimer mon compte » efface aussi ses
+   messages à l'équipe et leurs réponses (le mail du compte y est joint). À recoller après un recollage de
    `schema.sql`. Peut être recollé sans risque.
 15. **Deux cases dans le tableau de bord** (21/11, rien à coller) :
    - **Authentication › Attack Protection › Enable Captcha protection** : PAS ENCORE (l'app ne sait pas encore

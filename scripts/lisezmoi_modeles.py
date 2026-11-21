@@ -399,20 +399,22 @@ win = {
         "installe": "<li>Lance <b>FLShortcuts-Windows-Setup.exe</b>.</li>"
                     "<li>Bloqué ? Informations complémentaires › <b>Exécuter quand même</b>.</li>"
                     "<li>Ton antivirus râle ? Autorise FL Shortcuts : il n'y a aucun virus.</li>"
-                    "<li><b>loopMIDI</b> s'installe avec : clique <b>Oui</b> si Windows le demande.</li>",
-        "debut_titre": "deux ports midi",
-        "debut": "<li>Ouvre <b>FL Shortcuts</b>, puis FL Studio.</li><li>Les ports MIDI se créent tout seuls.</li>",
-        "debut_panel": accueil("loopMIDI", [("FL Shortcuts", OK.format("Prêt"))]),
+                    "<li>Windows 11 à jour : rien d'autre à installer. Sinon, <b>loopMIDI</b> s'installe avec : clique <b>Oui</b> si Windows le demande.</li>",
+        "debut_titre": "le port midi",
+        "debut": "<li>Ouvre <b>FL Shortcuts</b>, puis FL Studio.</li><li>Le port MIDI se crée tout seul.</li>"
+                 "<li>Sur Windows 11 à jour, il passe par Windows MIDI Services, une préversion de Microsoft.</li>",
+        "debut_panel": accueil("Ports MIDI", [("FL Shortcuts", OK.format("Prêt"))]),
         "espace": "Espace", "ctrl": "Ctrl", "alt": "Alt", "shift": "Maj", "meta": "Win",
     },
     "en": {
         "installe": "<li>Run <b>FLShortcuts-Windows-Setup.exe</b>.</li>"
                     "<li>Blocked? More info › <b>Run anyway</b>.</li>"
                     "<li>Antivirus complaining? Allow FL Shortcuts: there is no virus.</li>"
-                    "<li><b>loopMIDI</b> comes with it: click <b>Yes</b> if Windows asks.</li>",
-        "debut_titre": "two midi ports",
-        "debut": "<li>Open <b>FL Shortcuts</b>, then FL Studio.</li><li>The MIDI ports create themselves.</li>",
-        "debut_panel": accueil("loopMIDI", [("FL Shortcuts", OK.format("Ready"))]),
+                    "<li>Up-to-date Windows 11: nothing else to install. Otherwise <b>loopMIDI</b> comes with it: click <b>Yes</b> if Windows asks.</li>",
+        "debut_titre": "the midi port",
+        "debut": "<li>Open <b>FL Shortcuts</b>, then FL Studio.</li><li>The MIDI port creates itself.</li>"
+                 "<li>On up-to-date Windows 11, it uses Windows MIDI Services, a Microsoft preview.</li>",
+        "debut_panel": accueil("MIDI ports", [("FL Shortcuts", OK.format("Ready"))]),
         "espace": "Space", "ctrl": "Ctrl", "alt": "Alt", "shift": "Shift", "meta": "Win",
     },
 }

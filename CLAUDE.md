@@ -43,6 +43,27 @@
 - Essais sur un projet de test seulement. Jamais de clé secrète Supabase ni de clé privée dans le dépôt. Pas
   d'identifiant de modèle dans les commits. Le bouton s'appelle « Organiser » (pas « Tout organiser »).
 
+## Sécurité du 21/11 (« rends ce logiciel très sécurisé », sources lues : Trail of Bits, OWASP, Supabase splinter,
+zizmor, conférences macOS ; à garder)
+- Mac : Hardened Runtime sur TOUTES les signatures (build.sh, `require_runtime` arrête la compilation sinon) ; une
+  seule autorisation, `Resources/FLShortcut.entitlements` (audio-input, écoute de l'Organiser). JAMAIS
+  disable-library-validation, allow-dyld-environment-variables, get-task-allow. Pas encore vu sur son Mac (écoute de
+  l'Organiser à revérifier).
+- Tout JSON venu d'ailleurs passe par `UntrustedJson` (Windows ; JSONDecoder du Mac lit tout d'un coup) ;
+  `RobustnessTests` (Mac et Windows) : des milliers de macros, raccourcis et .flp abîmés, jamais de chute
+  (FLS_ROBUST_SEED / FLS_ROBUST_SCALE pour chercher plus loin). Images des autres : JPEG seulement.
+- Serveur : `supabase/protection.sql` (étape 14, À COLLER PAR LE PROPRIÉTAIRE) ; sauvegarde chiffrée chaque nuit
+  (`.github/workflows/sauvegarde.yml`, secrets SUPABASE_DB_URL et BACKUP_PASSPHRASE à ajouter par lui) ; l'app a déjà
+  la clé « sb_publishable_ ». CI : job zizmor (workflows). gitleaks : aucun secret dans l'historique ; mais son mail et
+  le nom de son Mac (avec un prénom) sont dans des commits → nouveau dépôt propre avant de le rendre public.
+- Licences : Windows livre `windows/LICENCES-TIERS.txt` + `Licences\` (le Mac livrait déjà les crédits de l'IA).
+  Site : faux « n'utilise pas le réseau » retiré, `site/confidentialite.html` (RGPD + mentions légales), CSP en meta
+  (empreinte du script de index.html à refaire s'il change).
+- À régler par le propriétaire (droit) : accord de l'auteur de loopMIDI (le SDK interdit de distribuer sans lui),
+  licences de SES packs de batterie (beaucoup interdisent l'apprentissage d'une IA), icônes et capture de FL
+  (`FLIcons.png`, `MIDISettings.png` : dessins d'Image-Line), nom « FL » (avocat). Ce qui a été appris, sources et
+  risques : `docs/contexte/SECURITE-2026-11-21.md`.
+
 ## Sécurité (audit du 25/10, à garder)
 - Un autre programme du Mac peut écrire les réglages de l'app (`defaults`) et envoyer des notifications distribuées :
   rien de sensible ne doit en dépendre. L'adresse du serveur du compte vient de l'Info.plist (les réglages seulement

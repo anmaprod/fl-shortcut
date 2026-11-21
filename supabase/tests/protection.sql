@@ -91,4 +91,25 @@ exception when insufficient_privilege then null;
 end $$;
 reset role;
 
+-- 4. Compte supprimé : ses messages et leurs réponses partent avec lui ; ceux des autres restent.
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-0000000000e3', 'parti@exemple.fr', '{"username":"parti_essai"}')
+  on conflict (id) do nothing;
+insert into public.support_requests (id, user_id, kind, message, email) values
+  ('00000000-0000-0000-0000-00000000e3a1', '00000000-0000-0000-0000-0000000000e3', 'question', 'Un message avant de partir.', 'parti@exemple.fr');
+insert into public.support_replies (request_id, team, message) values ('00000000-0000-0000-0000-00000000e3a1', true, 'Réponse.');
+delete from auth.users where id = '00000000-0000-0000-0000-0000000000e3';
+do $$
+begin
+  if exists (select 1 from public.support_requests where id = '00000000-0000-0000-0000-00000000e3a1') then
+    raise exception 'message gardé après la suppression du compte';
+  end if;
+  if exists (select 1 from public.support_replies where request_id = '00000000-0000-0000-0000-00000000e3a1') then
+    raise exception 'réponse gardée après la suppression du compte';
+  end if;
+  if not exists (select 1 from public.support_requests where user_id = '00000000-0000-0000-0000-0000000000e1') then
+    raise exception 'messages des autres effacés';
+  end if;
+end $$;
+
 select 'protection : tout est conforme' as resultat;

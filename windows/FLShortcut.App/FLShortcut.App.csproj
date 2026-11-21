@@ -96,6 +96,17 @@
     <Content Include="..\..\Resources\Fonts\LICENCE-Inter.txt" Link="Fonts\LICENCE-Inter.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- Licences des autres auteurs (21/11), comme le Mac (build.sh : crédits de l'IA, licence de YAMNet) : la liste à
+       côté de l'exécutable, les textes dans Licences\. -->
+  <ItemGroup>
+    <Content Include="..\LICENCES-TIERS.txt" Link="LICENCES-TIERS.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\Resources\Fonts\LICENCE-Inter.txt" Link="Licences\Inter-OFL.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\ia\modele\LICENCE-YAMNET.txt" Link="Licences\YAMNet-Apache-2.0.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\ia\modele\CREDITS.md" Link="Licences\IA-credits.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\ThirdParty\WindowsMidiServices\NOTICE.md" Link="Licences\WindowsMidiServices.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(NuGetPackageRoot)microsoft.ml.onnxruntime\1.20.1\LICENSE" Link="Licences\OnnxRuntime-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('$(NuGetPackageRoot)microsoft.ml.onnxruntime\1.20.1\LICENSE')" />
+  </ItemGroup>
+
   <!-- L'IA intégrée de l'Organiser (YAMNet + têtes apprises), à côté de l'exécutable (ClasseurSons.Partage). -->
   <ItemGroup>
     <None Include="..\..\ia\modele\classeur_sons.onnx" Link="classeur_sons.onnx" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
