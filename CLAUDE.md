@@ -985,7 +985,8 @@
   `.blinking()`, Windows `MacLook.Blink`) ; pages sur la grille de la maquette : 48 points du bord, 1 088 de large au
   plus (Mac `ReadableLayout.inset` 40 + 8 / `maxWidth` 1088 ; Windows `ReadableInset` 40), colonne des pages de FL sur
   les colonnes 1 à 3 ; thème Papier : traits fins #E2DFD8 au bord de chaque colonne (12 colonnes, gouttières de 24 ;
-  Mac `PaperGrid`, Windows `MacLook.PaperGridLines`, Noir et Orange sans) ; créateur : PLUS « Enregistrer clics et
+  Mac `PaperGrid`, Windows `MacLook.PaperGridLines`, Noir et Orange sans ; 22/11, « trait blanc pour noir et orange » :
+  sur Mac la grille restait après un changement de thème, elle suit maintenant `ThemeWatch` ; Windows relance l'appli) ; créateur : PLUS « Enregistrer clics et
   touches » (demande : « doit être supprimé »), « Ajouter une étape » = les 9 étapes de la maquette seulement (Appuyer
   sur une touche ; Choisir dans un menu de FL, Ouvrir une fenêtre, Cliquer sur un bouton, Faire une action, Ouvrir un
   preset, Renommer la piste ; Faire un clic de souris ; Attendre), boîte sur les colonnes 9 à 12, sans défiler (les

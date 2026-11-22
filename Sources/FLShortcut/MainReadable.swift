@@ -260,9 +260,10 @@ struct KeyBox: View {
     var changed = false
     var placeholder = "—"
     @State private var hovering = false
+    @ObservedObject private var watch = ThemeWatch.shared
 
     var body: some View {
-        let onRed = AppTheme.current == .orange ? Swiss.background : Color.white
+        let onRed = watch.theme == .orange ? Swiss.background : Color.white
         return Text(combo?.display ?? placeholder)
             .font(.custom(Swiss.titleFontName, size: 15).weight(.semibold))
             .foregroundStyle(changed ? onRed : (combo == nil ? Swiss.gray : Swiss.text))
@@ -660,10 +661,12 @@ struct FindSteps: View {
 /// Rien dans les thèmes Noir et Orange.
 struct PaperGrid: View {
     static let color = Color(red: 0xE2 / 255, green: 0xDF / 255, blue: 0xD8 / 255)
+    /// 22/11 : suivi, sinon la grille restait après un passage du Papier à Noir ou Orange (Mon compte › Thème).
+    @ObservedObject private var watch = ThemeWatch.shared
 
     var body: some View {
-        if AppTheme.current == .papier {
-            GeometryReader { proxy in
+        GeometryReader { proxy in
+            if watch.theme == .papier {
                 Path { path in
                     for x in PaperGrid.lines(width: proxy.size.width) {
                         path.addRect(CGRect(x: x, y: 0, width: 1, height: proxy.size.height))
@@ -671,9 +674,9 @@ struct PaperGrid: View {
                 }
                 .fill(PaperGrid.color)
             }
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
         }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     /// Pur : abscisses des traits pour une fenêtre de `width` points (bords gauche et droit de chaque colonne).

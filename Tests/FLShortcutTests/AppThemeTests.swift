@@ -103,4 +103,22 @@ final class AppThemeTests: XCTestCase {
         XCTAssertLessThan(light.greenComponent, 0.4, "fond orange")
         XCTAssertLessThan(dark.redComponent + dark.greenComponent + dark.blueComponent, 0.2, "partie noire")
     }
+
+    /// 22/11 (« trait blanc pour noir et orange alors que ça doit être que dans le blanc ») : la grille du Papier lit
+    /// le thème suivi, qui change avec le thème montré (Papier → Noir, et Papier → Orange, même apparence de macOS).
+    @MainActor func testPaperGridFollowsTheThemeShown() async throws {
+        let watch = ThemeWatch.shared
+        AppTheme.use(.noir)
+        AppTheme.choose(.papier, save: false)
+        try await Task.sleep(nanoseconds: 400_000_000)
+        XCTAssertEqual(watch.theme, .papier)
+        AppTheme.choose(.noir, save: false)
+        try await Task.sleep(nanoseconds: 400_000_000)
+        XCTAssertEqual(watch.theme, .noir, "plus de grille sous Noir")
+        AppTheme.choose(.papier, save: false)
+        try await Task.sleep(nanoseconds: 400_000_000)
+        AppTheme.choose(.orange, save: false)
+        try await Task.sleep(nanoseconds: 400_000_000)
+        XCTAssertEqual(watch.theme, .orange, "plus de grille sous Orange")
+    }
 }

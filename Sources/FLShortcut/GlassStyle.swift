@@ -906,9 +906,10 @@ private struct KeyLikeButtonBody<Label: View>: View {
     let pressed: Bool
     @State private var hovering = false
     @Environment(\.isEnabled) private var enabled
+    @ObservedObject private var watch = ThemeWatch.shared
 
     var body: some View {
-        let theme = AppTheme.current
+        let theme = watch.theme
         // 06/11 : sa couleur au repos, sans ombre ; au survol, il se soulève sur son ombre nette (effet Gumroad).
         let lifted = hovering && enabled && !pressed
         // Papier (direction A, 17/11) : le papier et l'encre du thème ; blanc et noir seulement sur le fond orange.

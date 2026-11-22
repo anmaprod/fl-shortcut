@@ -1391,3 +1391,9 @@ entrée 1 ≈ 0,5 s.
   lien ni FL occupé : la liste de 612 noms est longue à passer. Corrigé en jugeant FL au repos sur une demande courte
   (la page devant). Menu de l'icône « un peu gros », puis « j'aurais voulu garder la taille d'avant » : tailles d'avant
   le 20/11 remises, nouveau style gardé.
+- 22/11 : capture de Mon compte en Noir avec les traits de la grille (« trait blanc pour noir et orange alors que ça
+  doit être que dans le blanc pour faire un aspect papier »). Mac : la grille lisait le thème une seule fois ; après
+  un passage du Papier à Noir ou Orange, rien ne la redessinait (la photo `theme-noir-compte.png` de la CI la montrait
+  aussi, ratée à la relecture). Maintenant `ThemeWatch` (suivi du thème pour SwiftUI) : la grille, la touche changée,
+  le rond de l'accueil et « Enregistrer » du créateur se redessinent au changement. Windows : rien à changer (thème
+  changé = appli relancée, grille posée seulement en Papier ; photo de la CI sans traits).

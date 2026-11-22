@@ -10,6 +10,7 @@
 // (sombre pour Noir, claire pour Papier et Orange) : rien à reconstruire, la fenêtre se redessine quand l'apparence
 // change. Une partie sombre sous Orange (barre de gauche, cartes, petites fenêtres) prend les couleurs « inversées ».
 import AppKit
+import Combine
 import SwiftUI
 
 enum AppTheme: String, CaseIterable, Identifiable {
@@ -123,6 +124,20 @@ enum AppTheme: String, CaseIterable, Identifiable {
 
     /// Le thème a changé : les fenêtres d'AppKit qui gardent une apparence la reprennent.
     static let changed = Notification.Name("FLShortcuts.themeChanged")
+}
+
+/// Thème affiché, suivi par SwiftUI : une vue qui le lit par `ThemeWatch.shared` est redessinée quand il change.
+/// `AppTheme.current` seul ne prévient pas SwiftUI : 22/11, la grille du Papier restait derrière Noir et Orange
+/// (« trait blanc pour noir et orange alors que ça doit être que dans le blanc »).
+@MainActor final class ThemeWatch: ObservableObject {
+    static let shared = ThemeWatch()
+    @Published private(set) var theme = AppTheme.current
+    private var watching: AnyCancellable?
+
+    private init() {
+        watching = NotificationCenter.default.publisher(for: AppTheme.changed)
+            .sink { [weak self] _ in Task { @MainActor in self?.theme = AppTheme.current } }
+    }
 }
 
 /// Couleurs du style suisse dans un thème, en sRGB (0xRRGGBB).

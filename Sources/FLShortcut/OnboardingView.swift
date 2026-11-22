@@ -528,10 +528,12 @@ private struct StepRow: View {
 /// rond rouge (le rond de la barre des menus, en couleurs) ; sous Orange, un trait noir autour du rond et son ombre
 /// noire décalée, comme les boutons. Dessiné sur une toile de 1024 ramenée à la taille donnée.
 struct BrandRound: View {
+    @ObservedObject private var watch = ThemeWatch.shared
+
     var body: some View {
         let ink = Swiss.text
         let background = Swiss.background
-        let orange = AppTheme.current == .orange
+        let orange = watch.theme == .orange
         Canvas { ctx, size in
             let k = min(size.width, size.height) / 1024
             func circle(_ cx: CGFloat, _ cy: CGFloat, _ r: CGFloat) -> Path {
