@@ -5,7 +5,8 @@
 - Branche la plus récente : **`claude/great-hopper-qihaiy`** (en avance de 138 commits sur `claude/relaxed-mayer-ndguzv`).
   Pas de nouvelle PR sans demande (anmaprod/fl-shortcut#1 existe). Un push lance la CI ; ne pas la relancer à la main
   sans demande. Derniers tests Mac verts : commit 1843b87 (502 tests, lancés par le propriétaire sur son Mac) ; CI
-  entièrement verte sur 1041173 (22/11 : sécurité ; 710 essais Mac dont RobustnessTests, « Hardened Runtime : oui »
+  entièrement verte sur 04ac432 (22/11 : grille du Papier seulement en Papier, photos `theme-noir/orange-*` sans traits),
+  avant sur 1041173 (22/11 : sécurité ; 710 essais Mac dont RobustnessTests, « Hardened Runtime : oui »
   avec le certificat stable, donc les secrets du 19/11 sont collés ; Windows : copie de MIDI Services dans la sortie,
   « Windows trop ancien (26100) » sur la CI comme prévu, macros PASS, désinstallation PASS ; zizmor ; SQL protection),
   avant sur ef10a28 (21/11 : Trouver qui clignote, vu sur les photos `trouver-clignote-*` ; Communauté,
