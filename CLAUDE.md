@@ -5,7 +5,10 @@
 - Branche la plus récente : **`claude/great-hopper-qihaiy`** (en avance de 138 commits sur `claude/relaxed-mayer-ndguzv`).
   Pas de nouvelle PR sans demande (anmaprod/fl-shortcut#1 existe). Un push lance la CI ; ne pas la relancer à la main
   sans demande. Derniers tests Mac verts : commit 1843b87 (502 tests, lancés par le propriétaire sur son Mac) ; CI
-  entièrement verte sur ef10a28 (21/11 : Trouver qui clignote, vu sur les photos `trouver-clignote-*` ; Communauté,
+  entièrement verte sur 1041173 (22/11 : sécurité ; 710 essais Mac dont RobustnessTests, « Hardened Runtime : oui »
+  avec le certificat stable, donc les secrets du 19/11 sont collés ; Windows : copie de MIDI Services dans la sortie,
+  « Windows trop ancien (26100) » sur la CI comme prévu, macros PASS, désinstallation PASS ; zizmor ; SQL protection),
+  avant sur ef10a28 (21/11 : Trouver qui clignote, vu sur les photos `trouver-clignote-*` ; Communauté,
   créateur et Aide comme la maquette), avant sur 4777821 (21/11 : Organiser au lien gardé pendant l'aperçu, menu de l'icône refait, Windows à un
   seul logo dans la barre des tâches, Ctrl+Alt+O / ⌘⌥O), avant sur 2d904b7 (20/11 au soir : toute la maquette « Minimal », menus dans la barre de titre, créateur
   en phrases ; essais du créateur à vrais clics : bloc glissé de la boîte, bloc rangé, clic sur une ligne, tous bons),
