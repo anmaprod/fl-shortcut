@@ -109,6 +109,20 @@ et l'étape 7 (modèles des mails avec le code).
    `select public.repondre('FLS-3F9A2C', $$Merci ! C'est corrigé.$$);` puis **Run**. La personne la voit dans Aide ›
    Mes messages, et sa réponse t'arrive par mail. Sans cette étape, l'app envoie les messages comme avant et
    « Mes messages » dit qu'il n'est pas encore ouvert. Peut être recollé sans risque.
+14. **Protection du serveur** (21/11) : d'abord **Integrations › Cron › Enable** (pour effacer les vieilles
+   captures chaque nuit) ; puis **SQL Editor › New query**, colle tout `supabase/protection.sql`, puis **Run**.
+   Ensuite, « Écrire à l'équipe » demande un compte (l'app le fait déjà), une seule personne ne peut plus remplir la
+   base gratuite (captures, corrections de l'IA : tailles plafonnées, 10 captures par jour et par compte) et les
+   captures sont effacées 180 jours après le message (le message reste) ; « Supprimer mon compte » efface aussi ses
+   messages à l'équipe et leurs réponses (le mail du compte y est joint). À recoller après un recollage de
+   `schema.sql`. Peut être recollé sans risque.
+15. **Deux cases dans le tableau de bord** (21/11, rien à coller) :
+   - **Authentication › Attack Protection › Enable Captcha protection** : PAS ENCORE (l'app ne sait pas encore
+     montrer un captcha ; le cocher empêcherait toute inscription).
+   - **Authentication › Providers › Email › Prevent use of leaked passwords** : coche-la (refuse les mots de passe
+     déjà volés ailleurs). Si la case n'est pas proposée sur le plan gratuit, laisse-la.
+   - **Advisors › Security Advisor** : clique **Rerun** après chaque fichier collé ; rien ne doit être en rouge
+     (« ERROR »). Envoie-moi la liste s'il reste quelque chose.
 
 ## 2. Compiler l'app reliée au serveur (rien à faire)
 
@@ -123,6 +137,19 @@ FLS_SUPABASE_URL="https://xxxx.supabase.co" FLS_SUPABASE_ANON_KEY="sb_publishabl
 Pour la CI : **GitHub › Settings › Secrets and variables › Actions › New repository secret**, deux secrets
 `FLS_SUPABASE_URL` et `FLS_SUPABASE_ANON_KEY` ; la CI les passe déjà à `./build.sh` (ils remplacent ceux du
 fichier).
+
+## Sauvegarde (21/11)
+
+Le plan gratuit de Supabase ne garde aucune copie et met le projet en pause après 7 jours sans activité. Le workflow
+`.github/workflows/sauvegarde.yml` copie toute la base chaque nuit, chiffrée, et la garde 7 jours (onglet **Actions** ›
+« Sauvegarde de la base » › une exécution › **Artifacts**). À régler une fois : les secrets `SUPABASE_DB_URL` et
+`BACKUP_PASSPHRASE` (voir le haut du workflow). Range aussi la phrase secrète ailleurs que dans GitHub.
+
+Restaurer (sur un ordinateur avec PostgreSQL 17 et gpg) :
+1. Télécharge l'artefact, décompresse-le : `fls-base-AAAA-MM-JJ.dump.gpg`.
+2. `gpg --decrypt fls-base-AAAA-MM-JJ.dump.gpg > base.dump` (la phrase secrète est demandée).
+3. `pg_restore --no-owner --no-privileges --clean --if-exists -d "<adresse Session pooler>" base.dump`, sur un projet
+   neuf de préférence, puis recolle les fichiers SQL des étapes 3 à 14 (règles et fonctions).
 
 ## Vérifier les règles sans Supabase
 

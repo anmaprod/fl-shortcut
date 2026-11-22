@@ -1,0 +1,60 @@
+# Sauvegarde de la base Supabase (21/11) : le plan gratuit n'en fait aucune. Chaque nuit, toute la base (comptes,
+# partages, macros sauvegardées, messages) est copiée, CHIFFRÉE (AES-256, phrase secrète), puis gardée 7 jours comme
+# artefact de ce workflow. Le fichier n'est lisible qu'avec la phrase secrète, même si le dépôt devient public.
+#
+# À faire une fois (propriétaire) : GitHub › le dépôt › Settings › Secrets and variables › Actions › New repository
+# secret, deux fois :
+#   SUPABASE_DB_URL     Supabase › Connect › « Session pooler » (postgresql://postgres.<projet>:<mot de passe>@…:5432/postgres)
+#   BACKUP_PASSPHRASE   une phrase longue que toi seul connais (gardée aussi hors de GitHub : sans elle, la copie est perdue)
+# Sans ces deux secrets, le workflow ne fait rien. Restaurer : supabase/README.md, « Sauvegarde ».
+name: Sauvegarde de la base
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sauvegarde
+  cancel-in-progress: false
+
+jobs:
+  sauvegarde:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Copier et chiffrer la base
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SUPABASE_DB_URL:-}" || -z "${BACKUP_PASSPHRASE:-}" ]]; then
+            echo "::notice::Sauvegarde pas encore réglée (secrets SUPABASE_DB_URL et BACKUP_PASSPHRASE)."
+            exit 0
+          fi
+          # pg_dump de la même version que Supabase (PostgreSQL 17) : dépôt officiel de PostgreSQL.
+          sudo apt-get install -y -qq postgresql-common >/dev/null
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y >/dev/null
+          sudo apt-get install -y -qq postgresql-client-17 >/dev/null
+          umask 077
+          out="$GITHUB_WORKSPACE/sauvegarde"
+          mkdir -p "$out"
+          stamp=$(date -u +%Y-%m-%d)
+          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" --format=custom --no-owner --no-privileges \
+            --schema=public --schema=auth --file="$RUNNER_TEMP/base.dump"
+          printf '%s' "$BACKUP_PASSPHRASE" > "$RUNNER_TEMP/phrase"
+          gpg --batch --yes --quiet --pinentry-mode loopback --passphrase-file "$RUNNER_TEMP/phrase" \
+            --symmetric --cipher-algo AES256 --output "$out/fls-base-$stamp.dump.gpg" "$RUNNER_TEMP/base.dump"
+          shred -u "$RUNNER_TEMP/base.dump" "$RUNNER_TEMP/phrase"
+          ls -l "$out"
+      - name: Garder la copie chiffrée (7 jours)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sauvegarde-chiffree
+          path: sauvegarde/*.gpg
+          retention-days: 7
+          if-no-files-found: ignore

@@ -141,8 +141,8 @@ public static class ProfileCodec
     {
         if (json.Length > MaxBytes) throw new FormatException("Fichier trop volumineux pour un profil.");
         JsonNode? root;
-        try { root = JsonNode.Parse(json, documentOptions: new JsonDocumentOptions { MaxDepth = 16 }); }
-        catch (JsonException e) { throw new FormatException(Loc.T("Profil illisible."), e); }
+        try { root = UntrustedJson.Parse(json, new JsonDocumentOptions { MaxDepth = 16 }); }
+        catch (FormatException e) { throw new FormatException(Loc.T("Profil illisible."), e); }
 
         var items = root switch
         {

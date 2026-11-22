@@ -149,7 +149,9 @@ public sealed class FlpFile
         var headerExtra = reader.Take(headerSize - 6);
         if (!reader.Take(4).AsSpan().SequenceEqual("FLdt"u8)) throw FlpException.Damaged();
         var size = reader.Int(4);
-        if (size > bytes.Length - reader.Offset) throw FlpException.Damaged();
+        // Taille lue comme un nombre négatif (octet de poids fort à 1) : abîmé aussi (21/11, RobustnessTests : la fin
+        // tombait avant le début et la lecture plantait).
+        if (size < 0 || size > bytes.Length - reader.Offset) throw FlpException.Damaged();
         var end = reader.Offset + size;
         var dataStart = reader.Offset;
         var events = new List<FlpEvent>();

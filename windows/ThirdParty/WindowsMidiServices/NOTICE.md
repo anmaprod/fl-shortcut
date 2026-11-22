@@ -6,6 +6,20 @@ https://github.com/microsoft/MIDI/releases (le paquet n'est pas sur nuget.org). 
 l'appli en tire une projection C# (CsWinRT) à la compilation sous Windows ; l'implémentation est celle de Windows
 (Windows 11 25H2 et plus récent, avec la mise à jour de novembre 2026). Sans elle, l'appli garde loopMIDI.
 
+Depuis le 21/11, l'appli porte aussi la copie de l'API elle-même (`Windows.Devices.Midi2.dll` et `.pri`, dossiers
+`runtimes/win-x64` et `runtimes/win-arm64/native` du même paquet, signés par Microsoft) : l'API n'est pas encore dans
+Windows, seuls le service MIDI et ses ports « boucle » y sont (Windows 11 25H2 et plus récent). Ces fichiers ne sont
+pas dans le dépôt : la CI télécharge le paquet
+(https://github.com/microsoft/MIDI/releases/download/inbox-preview-11/Windows.Devices.Midi2.0.99.92-preview.11.nupkg,
+SHA-256 13afc6e6da2adac309ab8c174352f46f1c0ebe2d79e65475bd6274defb73df74) et les range dans `win-x64/` et
+`win-arm64/` ici.
+
+Accord de Microsoft pour livrer cette préversion (« Developer Go-live agreement », release inbox-preview-11) : la
+retirer quand l'API sera dans Windows et suivre les préversions ; dire aux gens que l'appli utilise une API en
+préversion ; jamais sur Windows plus ancien que 11 25H2 (l'installeur ne la pose que là, l'appli ne s'en sert que là :
+`MidiServicesSupport`) ; signaler les bugs sur GitHub ; prévenir les gens quand une version faite pour l'API de
+Windows sort.
+
 Licence : MIT.
 
 Copyright (c) Microsoft Corporation.

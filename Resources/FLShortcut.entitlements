@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Autorisations de l'app signée avec le Hardened Runtime (21/11, build.sh : toutes les signatures, plus seulement celle
+  d'Apple). Le Hardened Runtime empêche un autre programme d'entrer dans FL Shortcuts (DYLD_INSERT_LIBRARIES, bibliothèque
+  plantée) pour profiter de ses autorisations (Accessibilité, Enregistrement de l'écran et audio du système).
+
+  JAMAIS ici : disable-library-validation, allow-dyld-environment-variables, allow-unsigned-executable-memory,
+  get-task-allow (ils rouvriraient cette porte, SEC-08 de audit/01_securite_mac.md).
+
+  audio-input : l'écoute de l'Organiser (FLAudioTap, tap Core Audio du seul processus de FL). Sous Hardened Runtime,
+  l'entrée audio est fermée sans elle ; AudioCap (insidegui, l'exemple de référence des taps) la déclare aussi. Le micro
+  n'est jamais ouvert.
+-->
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
+</dict>
+</plist>

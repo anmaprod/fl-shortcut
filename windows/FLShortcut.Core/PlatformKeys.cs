@@ -131,19 +131,19 @@ public static class MacProfile
     {
         try
         {
-            var root = JsonNode.Parse(json, documentOptions: new JsonDocumentOptions { MaxDepth = 16 });
+            var root = UntrustedJson.Parse(json, new JsonDocumentOptions { MaxDepth = 16 });
             if (root is JsonObject obj) return obj["remaps"] is JsonArray;
             return root is JsonArray a && a.OfType<JsonObject>().Any(r => r["trigger"] is JsonObject t && t["keyCode"] is not null);
         }
-        catch (JsonException) { return false; }
+        catch (FormatException) { return false; }
     }
 
     public static Translated FromMac(string json, IKeyLayout layout)
     {
         if (json.Length > ProfileCodec.MaxBytes) throw new FormatException("Fichier trop volumineux pour un profil.");
         JsonNode? root;
-        try { root = JsonNode.Parse(json, documentOptions: new JsonDocumentOptions { MaxDepth = 16 }); }
-        catch (JsonException e) { throw new FormatException(Loc.T("Profil illisible."), e); }
+        try { root = UntrustedJson.Parse(json, new JsonDocumentOptions { MaxDepth = 16 }); }
+        catch (FormatException e) { throw new FormatException(Loc.T("Profil illisible."), e); }
         var items = root switch
         {
             JsonObject o when o["remaps"] is JsonArray a => a,

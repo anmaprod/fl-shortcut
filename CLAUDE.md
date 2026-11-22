@@ -5,7 +5,10 @@
 - Branche la plus récente : **`claude/great-hopper-qihaiy`** (en avance de 138 commits sur `claude/relaxed-mayer-ndguzv`).
   Pas de nouvelle PR sans demande (anmaprod/fl-shortcut#1 existe). Un push lance la CI ; ne pas la relancer à la main
   sans demande. Derniers tests Mac verts : commit 1843b87 (502 tests, lancés par le propriétaire sur son Mac) ; CI
-  entièrement verte sur ef10a28 (21/11 : Trouver qui clignote, vu sur les photos `trouver-clignote-*` ; Communauté,
+  entièrement verte sur 1041173 (22/11 : sécurité ; 710 essais Mac dont RobustnessTests, « Hardened Runtime : oui »
+  avec le certificat stable, donc les secrets du 19/11 sont collés ; Windows : copie de MIDI Services dans la sortie,
+  « Windows trop ancien (26100) » sur la CI comme prévu, macros PASS, désinstallation PASS ; zizmor ; SQL protection),
+  avant sur ef10a28 (21/11 : Trouver qui clignote, vu sur les photos `trouver-clignote-*` ; Communauté,
   créateur et Aide comme la maquette), avant sur 4777821 (21/11 : Organiser au lien gardé pendant l'aperçu, menu de l'icône refait, Windows à un
   seul logo dans la barre des tâches, Ctrl+Alt+O / ⌘⌥O), avant sur 2d904b7 (20/11 au soir : toute la maquette « Minimal », menus dans la barre de titre, créateur
   en phrases ; essais du créateur à vrais clics : bloc glissé de la boîte, bloc rangé, clic sur une ligne, tous bons),
@@ -42,6 +45,27 @@
 - Jamais son prénom dans les exemples (démo, champs, essais) : « flshortcuts », flshortcuts@exemple.fr (01/11).
 - Essais sur un projet de test seulement. Jamais de clé secrète Supabase ni de clé privée dans le dépôt. Pas
   d'identifiant de modèle dans les commits. Le bouton s'appelle « Organiser » (pas « Tout organiser »).
+
+## Sécurité du 21/11 (« rends ce logiciel très sécurisé », sources lues : Trail of Bits, OWASP, Supabase splinter,
+zizmor, conférences macOS ; à garder)
+- Mac : Hardened Runtime sur TOUTES les signatures (build.sh, `require_runtime` arrête la compilation sinon) ; une
+  seule autorisation, `Resources/FLShortcut.entitlements` (audio-input, écoute de l'Organiser). JAMAIS
+  disable-library-validation, allow-dyld-environment-variables, get-task-allow. Pas encore vu sur son Mac (écoute de
+  l'Organiser à revérifier).
+- Tout JSON venu d'ailleurs passe par `UntrustedJson` (Windows ; JSONDecoder du Mac lit tout d'un coup) ;
+  `RobustnessTests` (Mac et Windows) : des milliers de macros, raccourcis et .flp abîmés, jamais de chute
+  (FLS_ROBUST_SEED / FLS_ROBUST_SCALE pour chercher plus loin). Images des autres : JPEG seulement.
+- Serveur : `supabase/protection.sql` (étape 14, À COLLER PAR LE PROPRIÉTAIRE) ; sauvegarde chiffrée chaque nuit
+  (`.github/workflows/sauvegarde.yml`, secrets SUPABASE_DB_URL et BACKUP_PASSPHRASE à ajouter par lui) ; l'app a déjà
+  la clé « sb_publishable_ ». CI : job zizmor (workflows). gitleaks : aucun secret dans l'historique ; mais son mail et
+  le nom de son Mac (avec un prénom) sont dans des commits → nouveau dépôt propre avant de le rendre public.
+- Licences : Windows livre `windows/LICENCES-TIERS.txt` + `Licences\` (le Mac livrait déjà les crédits de l'IA).
+  Site : faux « n'utilise pas le réseau » retiré, `site/confidentialite.html` (RGPD + mentions légales), CSP en meta
+  (empreinte du script de index.html à refaire s'il change).
+- À régler par le propriétaire (droit) : accord de l'auteur de loopMIDI (le SDK interdit de distribuer sans lui),
+  licences de SES packs de batterie (beaucoup interdisent l'apprentissage d'une IA), icônes et capture de FL
+  (`FLIcons.png`, `MIDISettings.png` : dessins d'Image-Line), nom « FL » (avocat). Ce qui a été appris, sources et
+  risques : `docs/contexte/SECURITE-2026-11-21.md`.
 
 ## Sécurité (audit du 25/10, à garder)
 - Un autre programme du Mac peut écrire les réglages de l'app (`defaults`) et envoyer des notifications distribuées :
@@ -545,8 +569,17 @@
   de pied de page (bon son, Écrire à l'équipe). Anglais écrit dans `lisezmoi_modeles.py` (FR/EN), modèles
   `modele-*-en.html` pris tels quels par lisezmoi.py (plus de traduction morceau par morceau, qui laissait du
   français). Windows : loopMIDI à l'étape 02 (proposé de le mettre dans « range ton projet », réponse attendue).
-- **Windows MIDI Services** (08/11, « on peut bosser sur ça ? ») : sur Windows 11 **25H2** à jour (API en boîte avec
-  la mise à jour de novembre 2026 ; 24H2 ne l'aura pas), l'app crée elle-même « FL Shortcuts » et « FL Shortcuts
+- **Windows MIDI Services** (21/11, « on va utiliser celui de win déjà pour essayer » ; avant, CE CHEMIN N'A JAMAIS PU
+  MARCHER : seules les métadonnées .winmd étaient livrées, l'API n'existe pas encore dans Windows) : le service et ses
+  ports « boucle » sont dans Windows 11 25H2 et plus récent (build ≥ 26200) ; l'API (Windows.Devices.Midi2.dll + .pri,
+  paquet inbox-preview-11 de Microsoft, MIT, signé) est téléchargée par la CI (empreinte vérifiée, `MidiServicesSupport`
+  du cœur, essai `MidiServicesSupportTests`), jamais dans le dépôt (.gitignore), posée par l'installeur seulement sur
+  25H2+ (`MidiServicesWindows` du .iss) et utilisée seulement là (`MidiServicesPorts.CheckAvailable` : version, fichier,
+  journal `MIDI` avec le code d'erreur). Accord « go-live » de Microsoft (NOTICE.md) : prévenir les gens que c'est une
+  préversion (PAS ENCORE FAIT : mode d'emploi), retirer la copie quand l'API sera dans Windows. Sur 25H2+, l'installeur ne
+  propose plus loopMIDI (l'accueil garde « Installer loopMIDI » en secours). Pilote de loopMIDI appelé directement
+  (`VirtualMidiPorts`) : son auteur interdit de distribuer sans son accord (page du SDK) → lui écrire avant une sortie
+  publique. Pas encore vu sur un vrai PC 25H2. Avant (08/11, « on peut bosser sur ça ? ») : l'app crée elle-même « FL Shortcuts » et « FL Shortcuts
   Retour » comme loopMIDI : ports « boucle » MIDI 1.0 transitoires (Basic Loopback), vus par FL (WinMM) ; créés au
   lancement (`AppController.Start`, en arrière-plan) et à la demande (`MidiLink.PortsReady`), retirés à la sortie ;
   sinon loopMIDI comme avant (`Services/MidiServicesPorts.cs`, jamais d'exception). API pas dans le SDK Windows : son

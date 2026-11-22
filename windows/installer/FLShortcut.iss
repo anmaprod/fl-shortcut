@@ -95,8 +95,13 @@ Name: "desktop"; Description: "{cm:DesktopTask}"; Flags: unchecked
 Name: "loopmidi"; Description: "{cm:LoopMidiTask}"; Check: LoopMidiMissing
 
 [Files]
-Source: "{#DistDir}\win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Check: not IsArm64
-Source: "{#DistDir}\win-arm64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Check: IsArm64
+Source: "{#DistDir}\win-x64\*"; Excludes: "Windows.Devices.Midi2.dll,Windows.Devices.Midi2.pri"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Check: not IsArm64
+Source: "{#DistDir}\win-arm64\*"; Excludes: "Windows.Devices.Midi2.dll,Windows.Devices.Midi2.pri"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Check: IsArm64
+; Copie de l'API de Windows MIDI Services (21/11) : seulement sur Windows 11 25H2 et plus récent (MidiServicesWindows).
+Source: "{#DistDir}\win-x64\Windows.Devices.Midi2.dll"; DestDir: "{app}"; Flags: ignoreversion; Check: (not IsArm64) and MidiServicesWindows
+Source: "{#DistDir}\win-x64\Windows.Devices.Midi2.pri"; DestDir: "{app}"; Flags: ignoreversion; Check: (not IsArm64) and MidiServicesWindows
+Source: "{#DistDir}\win-arm64\Windows.Devices.Midi2.dll"; DestDir: "{app}"; Flags: ignoreversion; Check: IsArm64 and MidiServicesWindows
+Source: "{#DistDir}\win-arm64\Windows.Devices.Midi2.pri"; DestDir: "{app}"; Flags: ignoreversion; Check: IsArm64 and MidiServicesWindows
 
 [InstallDelete]
 ; Une mise à jour remplace l'appli entière (fichiers d'une ancienne version du runtime retirés).
@@ -139,13 +144,27 @@ var
   LoopMidiPage: TDownloadWizardPage;
   LoopMidiDownloaded: Boolean;
 
+// Windows MIDI Services (21/11, « on va utiliser celui de win déjà pour essayer ») : Windows 11 25H2 ou plus récent a
+// le service MIDI et ses ports « boucle » ; l'appli y crée elle-même son port, avec sa copie de l'API (posée seulement
+// là, comme le demande l'accord de Microsoft pour sa préversion). Même limite que MidiServicesSupport.MinBuild (essai
+// MidiServicesSupportTests).
+function MidiServicesWindows: Boolean;
+var
+  Version: TWindowsVersion;
+begin
+  GetWindowsVersionEx(Version);
+  Result := Version.Build >= 26200;
+end;
+
 // Le pilote de loopMIDI manque (il n'existe qu'en x64 : l'appli ARM64 ne s'en sert pas). Lu dans le vrai System32.
+// Sur Windows 11 25H2 et plus récent, loopMIDI n'est plus proposé : Windows fait le port (l'accueil de l'appli
+// propose encore « Installer loopMIDI » si ça ne marche pas).
 function LoopMidiMissing: Boolean;
 var
   Previous: Boolean;
 begin
   Result := False;
-  if IsArm64 then
+  if IsArm64 or MidiServicesWindows then
     Exit;
   Previous := EnableFsRedirection(False);
   try

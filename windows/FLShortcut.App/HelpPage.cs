@@ -1054,7 +1054,10 @@ internal static class SupportCaptureWin
     {
         try
         {
-            using var stream = await ProfilePhotoWin.Stream(Convert.FromBase64String(base64));
+            // Seulement un JPEG (comme le serveur) : aucun autre format n'est décodé (21/11).
+            var bytes = Convert.FromBase64String(base64);
+            if (bytes.Length < 4 || bytes[0] != 0xFF || bytes[1] != 0xD8 || bytes[2] != 0xFF) return null;
+            using var stream = await ProfilePhotoWin.Stream(bytes);
             var image = new BitmapImage();
             await image.SetSourceAsync(stream);
             return image;

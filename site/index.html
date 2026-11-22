@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 21/11 : GitHub Pages n'envoie pas d'en-têtes de sécurité : la règle est ici. Seul le script de cette page (son
+     empreinte ci-dessous, à refaire s'il change) peut tourner ; aucun script ni style venu d'ailleurs. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; script-src 'sha256-/3JM52WQITcJjmzFnZQfTOqTyO74Nw9T61priu08BDs='; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
 <title>FL Shortcuts</title>
 <meta name="description" content="Tes propres raccourcis clavier pour FL Studio, sur Mac et Windows. Gratuit, rien à installer dans FL.">
 <link rel="icon" href="icon.png">
@@ -67,8 +71,8 @@
     <img src="icon.png" alt="" width="64" height="64">
     <h1>FL Shortcuts</h1>
   </header>
-  <p class="lead">Tes propres raccourcis clavier pour FL Studio, sur Mac et Windows. Rien à installer dans FL : l'appli
-    envoie les touches d'origine de FL, seulement quand FL est au premier plan.</p>
+  <p class="lead">Tes propres raccourcis pour FL Studio, des macros, et ton projet rangé en un clic. Sur Mac et Windows,
+    gratuit.</p>
 
   <section class="primary" aria-label="Téléchargement">
     <a id="main-download" class="btn" href="#telecharger">Télécharger</a>
@@ -94,9 +98,9 @@
       <p class="sub">Windows 10 ou 11 · x64 et ARM</p>
       <a class="btn secondary" data-file="FLShortcuts-Windows-Setup.exe" href="#">FLShortcuts-Windows-Setup.exe</a>
       <ol style="margin-top:14px">
-        <li>Double-clique sur l'installeur, puis <b>Installer</b>. Aucun droit administrateur demandé.</li>
+        <li>Double-clique sur l'installeur, puis <b>Installer</b>.</li>
         <li>FL Shortcuts se lance et se range dans la zone de notification, à côté de l'horloge.</li>
-        <li>C'est tout : ouvre FL Studio et utilise tes raccourcis.</li>
+        <li>Ouvre FL Shortcuts, puis FL Studio, dans cet ordre.</li>
       </ol>
       <p class="note">Si Windows affiche « Windows a protégé votre ordinateur » : <b>Informations complémentaires</b>,
         puis <b>Exécuter quand même</b>. <a data-file="LISEZMOI-Windows.html" href="#">Mode d'emploi</a>.</p>
@@ -105,16 +109,18 @@
 
   <h3>Ce que ça fait</h3>
   <ul class="features">
-    <li><b>Tes raccourcis</b><span>Mixer, Playlist, Piano Roll, REC, métronome, patterns… sur les touches que tu veux.</span></li>
-    <li><b>Macros</b><span>Enregistrement rapide : preset de piste, armement, entrée et REC d'un seul raccourci (Mac, version de test).</span></li>
-    <li><b>Léger</b><span>Rien dans FL, pas de MIDI. Le clavier n'est écouté que quand FL est devant.</span></li>
+    <li><b>Tes raccourcis</b><span>Mixer, Playlist, Piano Roll, REC, patterns : sur les touches que tu veux.</span></li>
+    <li><b>Macros</b><span>Plusieurs actions de FL sur une seule touche. Tu les construis ou tu les enregistres.</span></li>
+    <li><b>Organiser</b><span>Channel rack, Mixer et Playlist rangés par famille, dans une copie. L'original ne bouge pas.</span></li>
+    <li><b>Communauté</b><span>Des macros et des raccourcis partagés par d'autres, avec un compte.</span></li>
     <li><b>Pause</b><span><kbd>⌃⌥⌘F</kbd> sur Mac, <kbd>Ctrl+Alt+Maj+F</kbd> sur Windows.</span></li>
   </ul>
 
   <footer>
     <p>Outil indépendant, gratuit, non affilié à Image-Line. « FL Studio » est une marque d'Image-Line.
-      Aucune frappe n'est enregistrée ni envoyée ; l'appli n'utilise pas le réseau.</p>
-    <p><a id="releases" href="#">Toutes les versions et empreintes SHA-256</a> · <a id="source" href="#">Code source</a></p>
+      Aucune frappe n'est gardée ni envoyée. Le réseau sert au compte, à la Communauté, à la sauvegarde, aux messages
+      à l'équipe et aux mises à jour.</p>
+    <p><a href="confidentialite.html">Confidentialité et mentions légales</a> · <a id="releases" href="#">Toutes les versions</a> · <a id="source" href="#">Code source</a></p>
   </footer>
 </main>
 <script>

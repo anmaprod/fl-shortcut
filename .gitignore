@@ -12,4 +12,6 @@ dist/
 .DS_Store
 bin/
 obj/
+# Copie de l'API de Windows MIDI Services, téléchargée par la CI (build.yml) : jamais dans le dépôt.
+windows/ThirdParty/WindowsMidiServices/win-*/
 .claude/worktrees/
