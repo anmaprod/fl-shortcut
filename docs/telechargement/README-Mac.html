@@ -82,7 +82,7 @@ ol.do li::before { content: counter(n); position: absolute; left: 0; font-weight
 .row span.name { flex: 1; }
 .row kbd { border-color: currentColor; }
 .row kbd.changed { background: #FF3B1F; border-color: #FF3B1F; color: #000; }
-.row .reset { border: 0; background: none; color: inherit; font-size: 16px; font-weight: 700; cursor: pointer; visibility: hidden; }
+.row .reset { border: 0; background: none; color: inherit; font: inherit; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; visibility: hidden; }
 .row.changed .reset { visibility: visible; }
 .row .wait { font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; }
 .row.still { cursor: default; }
@@ -181,13 +181,13 @@ details.full img { width: 100%; margin-top: 10px; border: 1px solid #333; }
     <div class="head">
       <span class="label num">03</span>
       <h2>change a key<span class="dot"></span></h2>
-      <ol class="do"><li>Click a shortcut.</li><li>Press your key.</li></ol>
+      <ol class="do"><li>In Find, press a key.</li><li>Click Change, then press the new one.</li></ol>
     </div>
     <div class="panel" aria-label="change a key">
       <span class="label">Playlist</span>
       <div id="rows">
-        <div class="row" tabindex="0" data-key="Space"><span class="name">Play / Stop</span><button class="reset" aria-label="Reset">↺</button><kbd>Space</kbd></div>
-        <div class="row" tabindex="0" data-key="C"><span class="name">Cut</span><button class="reset" aria-label="Reset">↺</button><kbd>C</kbd></div>
+        <div class="row" tabindex="0" data-key="Space"><span class="name">Play / Stop</span><button class="reset">Restore</button><kbd>Space</kbd></div>
+        <div class="row" tabindex="0" data-key="C"><span class="name">Cut</span><button class="reset">Restore</button><kbd>C</kbd></div>
       </div>
     </div>
   </section>
@@ -199,9 +199,9 @@ details.full img { width: 100%; margin-top: 10px; border: 1px solid #333; }
       <ol class="do"><li>Click Macros.</li></ol>
     </div>
     <div class="cards">
-      <div><span class="n">01</span><b>record a macro</b><small>Do it in FL, the app remembers it.</small></div>
-      <div><span class="n">02</span><b>empty macro</b><small>Place the blocks one by one.</small></div>
-      <div><span class="n">03</span><b>templates</b><small>Start from a ready-made macro.</small></div>
+      <div><span class="n">01</span><b>new macro</b><small>The creator opens.</small></div>
+      <div><span class="n">02</span><b>its steps</b><small>Add them on the right. They read like sentences.</small></div>
+      <div><span class="n">03</span><b>a key</b><small>It does it all at once, in FL.</small></div>
     </div>
   </section>
 
@@ -209,7 +209,7 @@ details.full img { width: 100%; margin-top: 10px; border: 1px solid #333; }
     <div class="head">
       <span class="label num">05</span>
       <h2>organize your project<span class="dot"></span></h2>
-      <ol class="do"><li>Open your project in FL.</li><li>Icon › Organize.</li><li>Follow the instructions.</li><li>Options › MIDI Settings: the 4 boxes.</li><li>Organize.</li></ol>
+      <ol class="do"><li>Open your project in FL.</li><li>Press <b>⌘⌥O</b> in FL.</li><li>The first time: Options › MIDI Settings, the 4 boxes.</li><li>Keep the organized version, or undo the changes.</li></ol>
     </div>
     <div class="panel">
       <div class="cases">
@@ -226,7 +226,7 @@ details.full img { width: 100%; margin-top: 10px; border: 1px solid #333; }
     <div class="head">
       <span class="label num">06</span>
       <h2>your way<span class="dot"></span></h2>
-      <p class="say">Three themes: Black, Paper, Orange. In My account.</p>
+      <p class="say">Three themes: Paper, Black, Orange. In Account.</p>
     </div>
     <div class="tiles" role="radiogroup" aria-label="Theme">
       <input class="theme-pick" type="radio" name="theme" id="t-noir" checked>
@@ -242,12 +242,12 @@ details.full img { width: 100%; margin-top: 10px; border: 1px solid #333; }
     <div class="head">
       <span class="label num">07</span>
       <h2>your account<span class="dot"></span></h2>
-      <p class="say">In My account.</p>
+      <p class="say">In Account.</p>
     </div>
     <ul class="three">
       <li><em>01</em><div><b>Backup</b><span>Your shortcuts and macros, online.</span></div></li>
       <li><em>02</em><div><b>All your computers</b><span>The same on your Mac and your PC.</span></div></li>
-      <li><em>03</em><div><b>Community</b><span>Share and get macros.</span></div></li>
+      <li><em>03</em><div><b>Community</b><span>Add other people's macros, share yours.</span></div></li>
     </ul>
   </section>
 </main>

@@ -28,7 +28,7 @@ public sealed class GuideTests
     {
         var mac = MacPages();
         var win = GuideContent.Pages;
-        Assert.Equal(4, mac.Count);
+        Assert.Equal(5, mac.Count);
         Assert.Equal(mac.Count, win.Count);
         for (var i = 0; i < win.Count; i++)
         {
@@ -37,7 +37,11 @@ public sealed class GuideTests
             Assert.Equal(3, win[i].Steps.Count);
         }
         // Raccourcis, macros, Communauté : mot pour mot les étapes du Mac.
-        for (var i = 0; i < 3; i++) Assert.Equal(mac[i].Steps, win[i].Steps);
+        foreach (var i in new[] { 0, 1, 3 }) Assert.Equal(mac[i].Steps, win[i].Steps);
+        // Organiser : les mêmes, avec la touche de Windows à la place de ⌘⌥O.
+        Assert.Equal(mac[2].Steps.Select(s => s.Replace("⌘⌥O", "Ctrl+Alt+O")), win[2].Steps);
+        Assert.Contains("Ctrl+Alt+O", win[2].Steps[1]);
+        Assert.Equal(new KeyCombo(Vk.Letter('O'), Ctrl: true, Alt: true), ProfilePresets.Organizer);
     }
 
     /// « Au quotidien » : le logo de la barre des tâches (21/11), la touche de pause de Windows ; aucune touche ni mot du
@@ -45,7 +49,7 @@ public sealed class GuideTests
     [Fact]
     public void DayToDaySpeaksOfWindows()
     {
-        var day = GuideContent.Pages[3];
+        var day = GuideContent.Pages[4];
         Assert.Contains("barre des tâches", day.Steps[0]);
         Assert.Contains("Ctrl+Alt+Maj+F", day.Steps[1]);
         Assert.Equal(new KeyCombo(Vk.Letter('F'), Ctrl: true, Alt: true, Shift: true), ProfilePresets.Toggle);
@@ -60,17 +64,17 @@ public sealed class GuideTests
     [Fact]
     public void WelcomeThenOnePagePerPart()
     {
-        Assert.Equal(5, GuideContent.Count);
+        Assert.Equal(6, GuideContent.Count);
         Assert.Null(GuideContent.Part(0));
         Assert.Equal(1, GuideContent.Part(1)!.Id);
-        Assert.Equal(4, GuideContent.Part(4)!.Id);
+        Assert.Equal(5, GuideContent.Part(5)!.Id);
         Assert.Equal(0, GuideContent.Clamp(-3));
-        Assert.Equal(4, GuideContent.Clamp(12));
-        Assert.False(GuideContent.IsLast(3));
-        Assert.True(GuideContent.IsLast(4));
+        Assert.Equal(5, GuideContent.Clamp(12));
+        Assert.False(GuideContent.IsLast(4));
+        Assert.True(GuideContent.IsLast(5));
         Assert.Equal("Découvrir", GuideContent.NextTitle(0));
         Assert.Equal("Suivant", GuideContent.NextTitle(2));
-        Assert.Equal("C'est parti", GuideContent.NextTitle(4));
+        Assert.Equal("C'est parti", GuideContent.NextTitle(5));
     }
 
     /// Un Windows en anglais ne voit aucune ligne du guide en français.

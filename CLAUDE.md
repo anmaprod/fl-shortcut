@@ -733,6 +733,26 @@ zizmor, conférences macOS ; à garder)
 - **Tuto** (29/10) : page `site/tuto.html` (7 étapes dessinées comme l'app ; images du README `docs/images/tuto-*.png`
   par `rendre-tuto.js`) ; tuto en images de l'Organiser : plus montré depuis le 05/11, son code et ses images RETIRÉS le
   14/11 (Mac et Windows ; dans git jusqu'à 7694271 si besoin).
+- **Tout remis en cohérence le 23/11** (« tout a à peu près changé, il faut que tout ait une cohérence » ; « on garde
+  FL Shortcuts ») : MÊMES MOTS partout (guide de l'app, tuto, README, modes d'emploi, site) : 1 installer, 2 autoriser
+  (le clavier, puis le son de FL ; Windows : loopMIDI), 3 raccourcis (« Dans Trouver, appuie sur une touche. / Clique
+  Changer, puis tape la nouvelle. / « Remettre » remet celle de FL. »), 4 macros (« Nouvelle macro », étapes à droite,
+  une touche), 5 Organiser (⌘⌥O / Ctrl+Alt+O, copie, Garder ou « Revenir comme avant »), 6 Communauté et compte
+  (« Partager », sauvegarde, 3 thèmes), 7 au quotidien (icône / logo de la barre des tâches, ⌃⌥⌘F / Ctrl+Alt+Maj+F,
+  mises à jour toutes seules). Guide de l'app : 5 parties (Organiser ajoutée, `GuideContent`, Windows `Guide.cs`,
+  essais `GuideTests`), photos CI Windows `guide-3`/`guide-5`. Tuto refait aux couleurs du site public (noir, blanc,
+  rouge, titres en minuscules à point rouge), l'app d'aujourd'hui dessinée en HTML d'après les photos de la CI (thème
+  Papier ; les photos de la CI sont en anglais), images du README refaites (`tuto-3-raccourcis` … `tuto-6-communaute`).
+  README réécrit. Modes d'emploi (`lisezmoi_modeles.py`) : Trouver, « Nouvelle macro », touche de l'Organiser, logo
+  Windows ; `lisezmoi.py` les recopie dans `web/public/mode-emploi-*.html`. Logo « fl. » (Resources/AppIcon-1024.png)
+  mis à la place du vieux clavier dans `site/icon.png` et `web/public/img/icone.png`.
+  **Site public** (`web/`, fait le 06/11 par une autre session sur `claude/nifty-mccarthy-s6i9kh` : Cloudflare
+  Workers, prix libre, SumUp, Brevo ; mode d'emploi `web/README.md`) ramené sur la branche le 23/11, même allure, textes
+  à jour ; VRAI BUG corrigé : ses téléchargements visaient `FLShortcut.dmg` / `FLShortcut-Windows-Setup.exe`
+  (introuvables) au lieu de `FLShortcuts.pkg` / `FLShortcuts-Windows-Setup.exe` (page, mail du worker, essais
+  `cd web && npm test`). Bas de page : Tuto, modes d'emploi Mac et Windows, Confidentialité (copie avec Cloudflare,
+  SumUp, Brevo). Pas encore en ligne. GitHub montre le README de la branche par défaut (`claude/relaxed-mayer-ndguzv`,
+  très vieux « FL Shortcut ») : le propriétaire doit mettre `claude/great-hopper-qihaiy` par défaut.
 - Créateur de macros (30/10, « le bouton enregistrer ne fonctionne plus ») : « Enregistrer » toujours actif (chaque
   changement s'enregistre seul 0,5 s après) ; il enregistre et revient aux macros (Mac et Windows). 03/11 (« pour
   enregistrer et ré-enregistrer il n'y a pas besoin de demande, c'est seulement pour supprimer que ça doit

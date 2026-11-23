@@ -82,7 +82,7 @@ ol.do li::before { content: counter(n); position: absolute; left: 0; font-weight
 .row span.name { flex: 1; }
 .row kbd { border-color: currentColor; }
 .row kbd.changed { background: #FF3B1F; border-color: #FF3B1F; color: #000; }
-.row .reset { border: 0; background: none; color: inherit; font-size: 16px; font-weight: 700; cursor: pointer; visibility: hidden; }
+.row .reset { border: 0; background: none; color: inherit; font: inherit; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; visibility: hidden; }
 .row.changed .reset { visibility: visible; }
 .row .wait { font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; }
 .row.still { cursor: default; }
@@ -181,13 +181,13 @@ details.full img { width: 100%; margin-top: 10px; border: 1px solid #333; }
     <div class="head">
       <span class="label num">03</span>
       <h2>change une touche<span class="dot"></span></h2>
-      <ol class="do"><li>Clique sur un raccourci.</li><li>Appuie sur ta touche.</li></ol>
+      <ol class="do"><li>Dans Trouver, appuie sur une touche.</li><li>Clique Changer, puis tape la nouvelle.</li></ol>
     </div>
     <div class="panel" aria-label="change une touche">
       <span class="label">Playlist</span>
       <div id="rows">
-        <div class="row" tabindex="0" data-key="Espace"><span class="name">Lecture / Stop</span><button class="reset" aria-label="Remettre">↺</button><kbd>Espace</kbd></div>
-        <div class="row" tabindex="0" data-key="C"><span class="name">Couper</span><button class="reset" aria-label="Remettre">↺</button><kbd>C</kbd></div>
+        <div class="row" tabindex="0" data-key="Espace"><span class="name">Lecture / Stop</span><button class="reset">Remettre</button><kbd>Espace</kbd></div>
+        <div class="row" tabindex="0" data-key="C"><span class="name">Couper</span><button class="reset">Remettre</button><kbd>C</kbd></div>
       </div>
     </div>
   </section>
@@ -199,9 +199,9 @@ details.full img { width: 100%; margin-top: 10px; border: 1px solid #333; }
       <ol class="do"><li>Clique sur Macros.</li></ol>
     </div>
     <div class="cards">
-      <div><span class="n">01</span><b>enregistrer une macro</b><small>Fais-le dans FL, l'app le retient.</small></div>
-      <div><span class="n">02</span><b>macro vide</b><small>Pose les blocs un par un.</small></div>
-      <div><span class="n">03</span><b>modèles</b><small>Pars d'une macro toute prête.</small></div>
+      <div><span class="n">01</span><b>nouvelle macro</b><small>Le créateur s'ouvre.</small></div>
+      <div><span class="n">02</span><b>ses étapes</b><small>Ajoute-les à droite. Elles se lisent comme des phrases.</small></div>
+      <div><span class="n">03</span><b>une touche</b><small>Elle fait tout d'un coup, dans FL.</small></div>
     </div>
   </section>
 
@@ -209,7 +209,7 @@ details.full img { width: 100%; margin-top: 10px; border: 1px solid #333; }
     <div class="head">
       <span class="label num">05</span>
       <h2>range ton projet<span class="dot"></span></h2>
-      <ol class="do"><li>Ouvre ton projet dans FL.</li><li>Icône › Organiser.</li><li>Suis les consignes.</li><li>Options › MIDI Settings : les 4 cases.</li><li>Organiser.</li></ol>
+      <ol class="do"><li>Ouvre ton projet dans FL.</li><li>Appuie sur <b>⌘⌥O</b> dans FL.</li><li>La première fois : Options › MIDI Settings, les 4 cases.</li><li>Garde la version rangée, ou reviens comme avant.</li></ol>
     </div>
     <div class="panel">
       <div class="cases">
@@ -226,7 +226,7 @@ details.full img { width: 100%; margin-top: 10px; border: 1px solid #333; }
     <div class="head">
       <span class="label num">06</span>
       <h2>à ton goût<span class="dot"></span></h2>
-      <p class="say">Trois thèmes : Noir, Papier, Orange. Dans Mon compte.</p>
+      <p class="say">Trois thèmes : Papier, Noir, Orange. Dans Compte.</p>
     </div>
     <div class="tiles" role="radiogroup" aria-label="Thème">
       <input class="theme-pick" type="radio" name="theme" id="t-noir" checked>
@@ -242,12 +242,12 @@ details.full img { width: 100%; margin-top: 10px; border: 1px solid #333; }
     <div class="head">
       <span class="label num">07</span>
       <h2>ton compte<span class="dot"></span></h2>
-      <p class="say">Dans Mon compte.</p>
+      <p class="say">Dans Compte.</p>
     </div>
     <ul class="three">
       <li><em>01</em><div><b>Sauvegarde</b><span>Tes raccourcis et tes macros, en ligne.</span></div></li>
       <li><em>02</em><div><b>Tous tes ordis</b><span>Les mêmes sur ton Mac et ton PC.</span></div></li>
-      <li><em>03</em><div><b>Communauté</b><span>Partage et récupère des macros.</span></div></li>
+      <li><em>03</em><div><b>Communauté</b><span>Ajoute les macros des autres, partage les tiennes.</span></div></li>
     </ul>
   </section>
 </main>

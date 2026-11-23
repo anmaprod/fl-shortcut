@@ -551,7 +551,7 @@ internal sealed partial class MainShell
     /// Mode photos de la CI : une page donnée (« general », « playlist », « custom », « recherche »…).
     public void ShowPage(string page)
     {
-        // « guide », « guide-1 »… « guide-4 » : le guide posé sur la page Général (« Bienvenue », puis une partie).
+        // « guide », « guide-1 »… « guide-5 » : le guide posé sur la page Général (« Bienvenue », puis une partie).
         CloseGuide();
         if (page.StartsWith("guide", StringComparison.Ordinal))
         {

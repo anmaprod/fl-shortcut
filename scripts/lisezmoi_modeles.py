@@ -87,7 +87,7 @@ ol.do li::before { content: counter(n); position: absolute; left: 0; font-weight
 .row span.name { flex: 1; }
 .row kbd { border-color: currentColor; }
 .row kbd.changed { background: #FF3B1F; border-color: #FF3B1F; color: #000; }
-.row .reset { border: 0; background: none; color: inherit; font-size: 16px; font-weight: 700; cursor: pointer; visibility: hidden; }
+.row .reset { border: 0; background: none; color: inherit; font: inherit; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; visibility: hidden; }
 .row.changed .reset { visibility: visible; }
 .row .wait { font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; }
 .row.still { cursor: default; }
@@ -195,8 +195,8 @@ def page(v, t):
     <div class="panel" aria-label="{t["touche"]}">
       <span class="label">Playlist</span>
       <div id="rows">
-        <div class="row" tabindex="0" data-key="{v["espace"]}"><span class="name">{t["lecture"]}</span><button class="reset" aria-label="{t["remettre"]}">↺</button><kbd>{v["espace"]}</kbd></div>
-        <div class="row" tabindex="0" data-key="C"><span class="name">{t["couper"]}</span><button class="reset" aria-label="{t["remettre"]}">↺</button><kbd>C</kbd></div>
+        <div class="row" tabindex="0" data-key="{v["espace"]}"><span class="name">{t["lecture"]}</span><button class="reset">{t["remettre"]}</button><kbd>{v["espace"]}</kbd></div>
+        <div class="row" tabindex="0" data-key="C"><span class="name">{t["couper"]}</span><button class="reset">{t["remettre"]}</button><kbd>C</kbd></div>
       </div>
     </div>
   </section>
@@ -218,7 +218,7 @@ def page(v, t):
     <div class="head">
       <span class="label num">05</span>
       <h2>{t["range"]}<span class="dot"></span></h2>
-      <ol class="do">{"".join(f"<li>{x}</li>" for x in t["range_lignes"])}</ol>
+      <ol class="do">{"".join(f"<li>{x}</li>" for x in t["range_lignes"]).replace("{touche}", v["organiser"])}</ol>
     </div>
     <div class="panel">
       <div class="cases">
@@ -325,45 +325,49 @@ FR = {
     "titre": "Lisez-moi FL Shortcuts",
     "merci": "merci", "merci_lead": "Merci d'avoir choisi la rapidité.", "commencer": "Commencer",
     "installe": "installe",
-    "touche": "change une touche", "touche_1": "Clique sur un raccourci.", "touche_2": "Appuie sur ta touche.",
+    "touche": "change une touche", "touche_1": "Dans Trouver, appuie sur une touche.",
+    "touche_2": "Clique Changer, puis tape la nouvelle.",
     "lecture": "Lecture / Stop", "couper": "Couper", "remettre": "Remettre", "attente": "Appuie sur une touche…",
     "macros_1": "Clique sur Macros.",
-    "carte1": "enregistrer une macro", "carte1_d": "Fais-le dans FL, l'app le retient.",
-    "carte2": "macro vide", "carte2_d": "Pose les blocs un par un.",
-    "carte3": "modèles", "carte3_d": "Pars d'une macro toute prête.",
+    "carte1": "nouvelle macro", "carte1_d": "Le créateur s'ouvre.",
+    "carte2": "ses étapes", "carte2_d": "Ajoute-les à droite. Elles se lisent comme des phrases.",
+    "carte3": "une touche", "carte3_d": "Elle fait tout d'un coup, dans FL.",
     "range": "range ton projet",
-    "range_lignes": ["Ouvre ton projet dans FL.", "Icône › Organiser.", "Suis les consignes.",
-                     "Options › MIDI Settings : les 4 cases.", "Organiser."],
+    "range_lignes": ["Ouvre ton projet dans FL.", "{touche} dans FL.",
+                     "La première fois : Options › MIDI Settings, les 4 cases.",
+                     "Garde la version rangée, ou reviens comme avant."],
     "case1": "1 · Port de sortie", "case2": "2 · Même Port en entrée", "case4": "4 · Controller type : FL Shortcuts",
     "fenetre": "Voir toute la fenêtre",
-    "gout": "à ton goût", "gout_d": "Trois thèmes : Noir, Papier, Orange. Dans Mon compte.", "theme": "Thème",
+    "gout": "à ton goût", "gout_d": "Trois thèmes : Papier, Noir, Orange. Dans Compte.", "theme": "Thème",
     "noir": "Noir", "papier": "Papier",
-    "compte": "ton compte", "compte_d": "Dans Mon compte.",
+    "compte": "ton compte", "compte_d": "Dans Compte.",
     "sauvegarde": "Sauvegarde", "sauvegarde_d": "Tes raccourcis et tes macros, en ligne.",
     "ordis": "Tous tes ordis", "ordis_d": "Les mêmes sur ton Mac et ton PC.",
-    "communaute": "Communauté", "communaute_d": "Partage et récupère des macros.",
+    "communaute": "Communauté", "communaute_d": "Ajoute les macros des autres, partage les tiennes.",
 }
 EN = {
     "titre": "FL Shortcuts README",
     "merci": "thanks", "merci_lead": "Thanks for choosing speed.", "commencer": "Get started",
     "installe": "install",
-    "touche": "change a key", "touche_1": "Click a shortcut.", "touche_2": "Press your key.",
-    "lecture": "Play / Stop", "couper": "Cut", "remettre": "Reset", "attente": "Press a key…",
+    "touche": "change a key", "touche_1": "In Find, press a key.",
+    "touche_2": "Click Change, then press the new one.",
+    "lecture": "Play / Stop", "couper": "Cut", "remettre": "Restore", "attente": "Press a key…",
     "macros_1": "Click Macros.",
-    "carte1": "record a macro", "carte1_d": "Do it in FL, the app remembers it.",
-    "carte2": "empty macro", "carte2_d": "Place the blocks one by one.",
-    "carte3": "templates", "carte3_d": "Start from a ready-made macro.",
+    "carte1": "new macro", "carte1_d": "The creator opens.",
+    "carte2": "its steps", "carte2_d": "Add them on the right. They read like sentences.",
+    "carte3": "a key", "carte3_d": "It does it all at once, in FL.",
     "range": "organize your project",
-    "range_lignes": ["Open your project in FL.", "Icon › Organize.", "Follow the instructions.",
-                     "Options › MIDI Settings: the 4 boxes.", "Organize."],
+    "range_lignes": ["Open your project in FL.", "{touche} in FL.",
+                     "The first time: Options › MIDI Settings, the 4 boxes.",
+                     "Keep the organized version, or undo the changes."],
     "case1": "1 · Output port", "case2": "2 · Same port as input", "case4": "4 · Controller type: FL Shortcuts",
     "fenetre": "See the whole window",
-    "gout": "your way", "gout_d": "Three themes: Black, Paper, Orange. In My account.", "theme": "Theme",
+    "gout": "your way", "gout_d": "Three themes: Paper, Black, Orange. In Account.", "theme": "Theme",
     "noir": "Black", "papier": "Paper",
-    "compte": "your account", "compte_d": "In My account.",
+    "compte": "your account", "compte_d": "In Account.",
     "sauvegarde": "Backup", "sauvegarde_d": "Your shortcuts and macros, online.",
     "ordis": "All your computers", "ordis_d": "The same on your Mac and your PC.",
-    "communaute": "Community", "communaute_d": "Share and get macros.",
+    "communaute": "Community", "communaute_d": "Add other people's macros, share yours.",
 }
 
 
@@ -383,7 +387,7 @@ mac = {
         "debut_titre": "autorise",
         "debut": "<li>Ouvre FL Shortcuts.</li><li>Autorise le <b>Clavier</b>, puis le <b>Son de FL</b>.</li>",
         "debut_panel": accueil("Accueil", [("Clavier", OK.format("Autorisé")), ("Son de FL", A_FAIRE.format("À autoriser"))]),
-        "espace": "Espace", "ctrl": "⌃", "alt": "⌥", "shift": "⇧", "meta": "⌘",
+        "espace": "Espace", "ctrl": "⌃", "alt": "⌥", "shift": "⇧", "meta": "⌘", "organiser": "Appuie sur <b>⌘⌥O</b>",
     },
     "en": {
         "installe": "<li>Open <b>FLShortcuts.pkg</b>.</li>"
@@ -391,7 +395,7 @@ mac = {
         "debut_titre": "allow",
         "debut": "<li>Open FL Shortcuts.</li><li>Allow <b>Keyboard</b>, then <b>FL sound</b>.</li>",
         "debut_panel": accueil("Welcome", [("Keyboard", OK.format("Allowed")), ("FL sound", A_FAIRE.format("To allow"))]),
-        "espace": "Space", "ctrl": "⌃", "alt": "⌥", "shift": "⇧", "meta": "⌘",
+        "espace": "Space", "ctrl": "⌃", "alt": "⌥", "shift": "⇧", "meta": "⌘", "organiser": "Press <b>⌘⌥O</b>",
     },
 }
 win = {
@@ -401,10 +405,11 @@ win = {
                     "<li>Ton antivirus râle ? Autorise FL Shortcuts : il n'y a aucun virus.</li>"
                     "<li>Windows 11 à jour : rien d'autre à installer. Sinon, <b>loopMIDI</b> s'installe avec : clique <b>Oui</b> si Windows le demande.</li>",
         "debut_titre": "le port midi",
-        "debut": "<li>Ouvre <b>FL Shortcuts</b>, puis FL Studio.</li><li>Le port MIDI se crée tout seul.</li>"
+        "debut": "<li>Ouvre <b>FL Shortcuts</b>, puis FL Studio.</li><li>Son logo reste dans la barre des tâches : un clic ouvre son menu.</li>"
+                 "<li>Le port MIDI se crée tout seul.</li>"
                  "<li>Sur Windows 11 à jour, il passe par Windows MIDI Services, une préversion de Microsoft.</li>",
         "debut_panel": accueil("Ports MIDI", [("FL Shortcuts", OK.format("Prêt"))]),
-        "espace": "Espace", "ctrl": "Ctrl", "alt": "Alt", "shift": "Maj", "meta": "Win",
+        "espace": "Espace", "ctrl": "Ctrl", "alt": "Alt", "shift": "Maj", "meta": "Win", "organiser": "Appuie sur <b>Ctrl+Alt+O</b>",
     },
     "en": {
         "installe": "<li>Run <b>FLShortcuts-Windows-Setup.exe</b>.</li>"
@@ -412,10 +417,11 @@ win = {
                     "<li>Antivirus complaining? Allow FL Shortcuts: there is no virus.</li>"
                     "<li>Up-to-date Windows 11: nothing else to install. Otherwise <b>loopMIDI</b> comes with it: click <b>Yes</b> if Windows asks.</li>",
         "debut_titre": "the midi port",
-        "debut": "<li>Open <b>FL Shortcuts</b>, then FL Studio.</li><li>The MIDI port creates itself.</li>"
+        "debut": "<li>Open <b>FL Shortcuts</b>, then FL Studio.</li><li>Its logo stays in the taskbar: one click opens its menu.</li>"
+                 "<li>The MIDI port creates itself.</li>"
                  "<li>On up-to-date Windows 11, it uses Windows MIDI Services, a Microsoft preview.</li>",
         "debut_panel": accueil("MIDI ports", [("FL Shortcuts", OK.format("Ready"))]),
-        "espace": "Space", "ctrl": "Ctrl", "alt": "Alt", "shift": "Shift", "meta": "Win",
+        "espace": "Space", "ctrl": "Ctrl", "alt": "Alt", "shift": "Shift", "meta": "Win", "organiser": "Press <b>Ctrl+Alt+O</b>",
     },
 }
 

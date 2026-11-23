@@ -409,3 +409,4 @@
 "Enregistrer et revenir aux macros" = "Save and go back to the macros";
 "Vérifie trois choses. 1. Mets FL Studio devant. 2. Vérifie que FL Shortcuts n'est pas en pause : Ctrl+Alt+Maj+F. 3. FL ne doit pas être lancé en administrateur." = "Check three things. 1. Bring FL Studio to the front. 2. Check that FL Shortcuts isn't paused: Ctrl+Alt+Shift+F. 3. FL must not run as administrator.";
 "Ctrl+Alt+Maj+F, n'importe où." = "Ctrl+Alt+Shift+F, anywhere.";
+"Appuie sur Ctrl+Alt+O dans FL." = "Press Ctrl+Alt+O in FL.";

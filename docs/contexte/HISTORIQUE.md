@@ -1401,3 +1401,10 @@ entrée 1 ≈ 0,5 s.
   seulement), tout est collé sauf `protection.sql` (étape 14). La sauvegarde de nuit n'a jamais tourné (tâche de nuit
   lancée par GitHub seulement depuis la branche par défaut, `claude/relaxed-mayer-ndguzv`, sans ce fichier). Le dépôt
   est déjà public (les notes disaient « avant de le rendre public ») : son prénom (nom du Mac) est dans 15 commits.
+- 23/11 : « on garde FL Shortcuts » ; README, site et guide à refaire (« tout a à peu près changé, il faut que tout
+  ait une cohérence ») ; « le README que tu as aujourd'hui, c'est pas du tout lui… regarde le dernier GitHub » : le
+  README affiché par GitHub est celui de la branche par défaut (« FL Shortcut », octobre), et le vrai site public est
+  le dossier `web/` de la branche du 06/11 (`claude/nifty-mccarthy-s6i9kh`), jamais ramené sur la branche de travail.
+  Tout refait avec les mêmes mots (voir CLAUDE.md « Tout remis en cohérence »). Ses sons à lui pour l'IA (« je veux
+  que personne y ait accès ») : oui s'il les a faits lui-même ; jamais dans le dépôt ni l'app, utilisés dans un dossier
+  temporaire puis effacés ; on réapprendrait alors sans les packs du commerce. Pas encore donnés.

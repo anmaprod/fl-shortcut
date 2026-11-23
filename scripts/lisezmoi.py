@@ -84,6 +84,12 @@ def main():
             with open(sortie, "w", encoding="utf-8") as f:
                 f.write(page)
             print(sortie, len(page) // 1024, "Ko")
+            # 23/11 : le site public (web/) montre les modes d'emploi en français (liens du bas de page).
+            if langue == "fr":
+                site = os.path.join(RACINE, "web", "public", f"mode-emploi-{nom}.html")
+                if os.path.isdir(os.path.dirname(site)):
+                    with open(site, "w", encoding="utf-8") as f:
+                        f.write(page)
 
 
 if __name__ == "__main__":

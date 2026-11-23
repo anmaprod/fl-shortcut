@@ -267,6 +267,7 @@
 "Appuie sur un bouton de ta souris…" = "Press a button on your mouse…";
 "Appuie sur un raccourci" = "Press a shortcut";
 "Appuie sur une touche" = "Press a key";
+"Appuie sur ⌘⌥O dans FL." = "Press ⌘⌥O in FL.";
 "Appuyer dans le menu sur" = "In the menu, press";
 "Appuyer dans un menu ouvert" = "Press in an open menu";
 "Appuyer sur" = "Press";
@@ -636,6 +637,7 @@
 "Clic à un endroit appris" = "Click on a learned spot";
 "Clics appris" = "Learned clicks";
 "Clics de secours" = "Backup clicks";
+"Clique Changer, puis tape la nouvelle." = "Click Change, then press the new one.";
 "Clique au milieu de la tranche d'une piste du Mixer, puis tape le raccourci : ton preset fixe est déposé sur la piste (sinon File › Open mixer track state pour le choisir), armement, REC, entrée 1, et le larsen vérifié en dernier. Ce qui est déjà allumé n'est pas touché." = "Click in the middle of a Mixer track strip, then press the shortcut: your fixed preset is dropped on the track (otherwise File › Open mixer track state to pick it), then arm, REC, input 1, and a feedback check last. Anything already on is left alone.";
 "Clique dans FL." = "Click in FL.";
 "Clique dans la fenêtre de FL." = "Click in the FL window.";
@@ -775,6 +777,7 @@
 "Dans FL, clique le bouton mute (le petit rond en haut) d'une piste, puis reclique-le pour remettre le son." = "In FL, click a track's mute button (the small circle at the top), then click it again to unmute.";
 "Dans MIDI Settings : Port de la sortie, Enable, Controller type FL Shortcuts et Port de l'entrée, le même numéro." = "In MIDI Settings: output Port, Enable, Controller type FL Shortcuts and input Port, the same number.";
 "Dans Output : « FL Shortcuts Link » sur ce même Port 7, et SEUL sur ce numéro. Clique ta carte son (SSL 2+…) et donne-lui un autre Port (8…) : FL répond à la première sortie du numéro. C'est bon quand « FL Shortcuts » s'affiche à côté de « FL Shortcuts Link » dans Output (pas à côté de ta carte son). Puis quitte et rouvre FL." = "In Output: “FL Shortcuts Link” on that same Port 7, and ALONE on that number. Click your sound card (SSL 2+…) and give it another Port (8…): FL replies to the first output with that number. It's right when “FL Shortcuts” shows next to “FL Shortcuts Link” in Output (not next to your sound card). Then quit and reopen FL.";
+"Dans Trouver, appuie sur une touche." = "In Find, press a key.";
 "Dans la fenêtre Accessibilité qui vient de s'ouvrir :" = "In the Accessibility window that just opened:";
 "Dans la fenêtre de macOS, clique « Autoriser »." = "In the macOS window, click “Allow”.";
 "Dans la fenêtre de macOS, clique « Ouvrir Réglages Système… » (pas de fenêtre ? « Ouvrir les réglages » ci-dessous)." = "In the macOS window, click “Open System Settings…” (no window? Use “Open Settings” below).";
@@ -804,6 +807,7 @@
 "Donne un nom et/ou une couleur à la piste ou au canal sélectionné dans la page de FL qui est devant (Mixer, Channel rack ou Playlist), par le lien avec FL, et une icône de FL par sa fenêtre (F2). Un seul élément doit être sélectionné." = "Gives a name and/or color to the track or channel selected in the FL page in front (Mixer, Channel rack or Playlist) through the FL link, and an FL icon through its window (F2). Only one item must be selected.";
 "Donne une valeur (nombre entier) à une variable de la macro." = "Sets a macro variable to a value (whole number).";
 "Donne-lui un raccourci." = "Give it a shortcut.";
+"Donne-lui une touche." = "Give it a key.";
 "Dossier incorrect" = "Wrong folder";
 "Double" = "Double";
 "Downlifter" = "Downlifter";
@@ -1123,6 +1127,7 @@
 "Format de profil illisible." = "Unreadable profile format.";
 "Format du son de FL inattendu : écoute impossible." = "Unexpected FL audio format: can't listen.";
 "Fruity Limiter, Pro-Q 3…" = "Fruity Limiter, Pro-Q 3…";
+"Garde la version rangée, ou reviens." = "Keep the organized version, or go back.";
 "Garder" = "Keep";
 "Garder ce Mac" = "Keep this Mac";
 "Garder mon compte" = "Keep my account";
@@ -1610,6 +1615,7 @@
 "Ouvre ton app de mail avec le message tout prêt, pour %@" = "Opens your mail app with the message ready, for %@";
 "Ouvre ton preset dans le Mixer." = "Opens your preset in the Mixer.";
 "Ouvre ton projet dans FL" = "Open your project in FL";
+"Ouvre ton projet dans FL." = "Open your project in FL.";
 "Ouvre un VST" = "Open a VST";
 "Ouvre un partage pour lire son explication et chaque étape, puis « Ajouter à mes macros »." = "Open a post to read its explanation and each step, then “Add to my macros”.";
 "Ouvre un projet vide dans FL (File › New), enregistre-le, puis recommence : l'apprentissage pose des icônes sur ses sons." = "Open an empty project in FL (File › New), save it, then try again: learning puts icons on its sounds.";
@@ -2329,6 +2335,7 @@
 "Un de ses blocs clique à un endroit qu'il faut montrer une fois sur ton PC (les positions ne sont jamais partagées). Ouvre la macro, choisis le bloc marqué, puis « Montrer dans FL… » et clique à l'endroit voulu." = "One of its blocks clicks a spot you need to show once on your PC (positions are never shared). Open the macro, pick the marked block, then “Show in FL…” and click the spot.";
 "Un endroit ou l'entrée 1 est à montrer dans FL." = "A spot or input 1 needs to be shown in FL.";
 "Un partage ou un membre (@nom)" = "A post or a member (@name)";
+"Un petit carré sur l'icône : autorise le clavier." = "A small square on the icon: allow the keyboard.";
 "Un petit lien avec FL, une seule fois" = "A small link with FL, just once";
 "Un problème" = "A problem";
 "Un son a le mauvais nom (Kick, Snare, Pad…)" = "A sound has the wrong name (Kick, Snare, Pad…)";
@@ -2812,7 +2819,9 @@
 "« File › Open mixer track state » s'ouvre tout seul, au clavier (lettres soulignées du menu de FL). La première fois, une bulle te demande seulement de cliquer sur « (none) » puis sur l'entrée « 1 »." = "“File › Open mixer track state” opens on its own, from the keyboard (underlined letters in FL's menu). The first time, a bubble just asks you to click “(none)” then input “1”.";
 "« Nouvelle macro », puis « Enregistrer clics et touches »." = "“New macro”, then “Record clicks and keys”.";
 "« Ouvrir une page de FL » ajouté juste au-dessus : choisis d'abord la page, puis l'option à cliquer dans cette page." = "“Open an FL page” added just above: first choose the page, then the option to click on that page.";
+"« Partager » envoie les tiennes." = "“Share” sends yours.";
 "« Partir d'un modèle… » propose des macros toutes faites, à adapter." = "“Start from a template…” offers ready-made macros you can adapt.";
+"« Remettre » remet celle de FL." = "“Restore” brings back FL's own.";
 "« Renommer » de FL (F2), le nom tapé, puis Entrée." = "“Rename” window (F2), the typed name, then Return.";
 "À apprendre" = "To learn";
 "À autoriser" = "To allow";

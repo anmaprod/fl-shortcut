@@ -1,5 +1,5 @@
 // Guide de FL Shortcuts (maquette validée le 28/10) : « Bienvenue », une ligne par partie, puis une page par partie
-// (raccourcis, macros, Communauté, au quotidien), chacune en trois étapes d'une ligne dans une seule carte en verre.
+// (raccourcis, macros, Organiser, Communauté, au quotidien), chacune en trois étapes d'une ligne.
 // « Passer » sur chaque page sauf la dernière. Montré une fois, à la première ouverture de la fenêtre principale ;
 // ensuite depuis la page Aide ou le menu de la barre des menus (« Guide de FL Shortcuts »). Fond plein, sans lueur de
 // couleur ; aucune animation continue.
@@ -27,22 +27,28 @@ struct GuidePage: Identifiable {
 
 enum GuideContent {
     static let pages: [GuidePage] = [
+        // 23/11 (« tout a à peu près changé, il faut que tout ait une cohérence ») : Trouver, l'Organiser et sa touche,
+        // « Partager » ; mêmes mots que le tuto du site, le README et les modes d'emploi.
         GuidePage(id: 1, symbol: "keyboard", tint: .blue, title: String(localized: "Tes raccourcis"),
-                  steps: [String(localized: "Choisis une page à gauche."),
-                          String(localized: "Clique une touche, puis tape la nouvelle."),
-                          String(localized: "↺ remet la touche de FL.")]),
+                  steps: [String(localized: "Dans Trouver, appuie sur une touche."),
+                          String(localized: "Clique Changer, puis tape la nouvelle."),
+                          String(localized: "« Remettre » remet celle de FL.")]),
         GuidePage(id: 2, symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint, title: String(localized: "Les macros"),
                   steps: [String(localized: "Clique « Nouvelle macro »."),
                           String(localized: "Ajoute ses étapes à droite."),
-                          String(localized: "Donne-lui un raccourci.")]),
-        GuidePage(id: 3, symbol: SidebarItem.community.symbol, tint: SidebarItem.community.tint, title: String(localized: "La Communauté"),
+                          String(localized: "Donne-lui une touche.")]),
+        GuidePage(id: 3, symbol: "square.stack.3d.up", tint: .orange, title: String(localized: "Organiser"),
+                  steps: [String(localized: "Ouvre ton projet dans FL."),
+                          String(localized: "Appuie sur ⌘⌥O dans FL."),
+                          String(localized: "Garde la version rangée, ou reviens.")]),
+        GuidePage(id: 4, symbol: SidebarItem.community.symbol, tint: SidebarItem.community.tint, title: String(localized: "La Communauté"),
                   steps: [String(localized: "Crée ton compte."),
                           String(localized: "Ajoute les macros des autres."),
-                          String(localized: "« + » partage les tiennes.")]),
-        GuidePage(id: 4, symbol: "menubar.rectangle", tint: .orange, title: String(localized: "Au quotidien"),
+                          String(localized: "« Partager » envoie les tiennes.")]),
+        GuidePage(id: 5, symbol: "menubar.rectangle", tint: .orange, title: String(localized: "Au quotidien"),
                   steps: [String(localized: "L'icône en haut de l'écran ouvre le menu."),
                           String(localized: "⌃⌥⌘F met en pause ou reprend."),
-                          String(localized: "Un « ! » sur l'icône : autorise le clavier.")]),
+                          String(localized: "Un petit carré sur l'icône : autorise le clavier.")]),
     ]
 
     /// « Bienvenue », puis une page par partie.
