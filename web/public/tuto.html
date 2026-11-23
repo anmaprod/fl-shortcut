@@ -51,13 +51,11 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 20px 64px; }
 
 /* ---------- L'app dessinée ---------- */
 .stage { position: relative; }
-.app { background: var(--a-bg); color: var(--a-ink); font-family: var(--a-font); border-radius: 10px; overflow: hidden;
-  box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 24px 60px rgba(0,0,0,.5); }
+.app { background: var(--a-bg); color: var(--a-ink); font-family: var(--a-font); overflow: hidden; }
 .bar { display: flex; align-items: center; gap: 18px; height: 40px; padding: 0 16px; font-size: 12.5px; color: var(--a-gray); }
-.lights { display: flex; gap: 7px; margin-right: 22px; }
-.lights i { width: 11px; height: 11px; border-radius: 50%; background: #FF5F57; }
-.lights i:nth-child(2) { background: #FEBC2E; } .lights i:nth-child(3) { background: #28C840; }
-.lights.off i { background: #CFCDC7; }
+.lights { display: flex; gap: 6px; margin-right: 22px; }
+.lights i { width: 9px; height: 9px; box-shadow: inset 0 0 0 1.5px var(--a-faint); }
+.lights.off i { box-shadow: inset 0 0 0 1.5px var(--a-line); }
 .bar .on { color: var(--a-ink); font-weight: 600; }
 .bar .dot::after { content: ""; display: inline-block; width: 5px; height: 5px; background: var(--red); margin-left: 5px; vertical-align: 2px; }
 .page { padding: 18px 28px 26px; }
@@ -73,26 +71,26 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 20px 64px; }
 .u { text-decoration: underline; text-underline-offset: 3px; }
 .rule { border-top: 1.5px solid var(--a-ink); }
 .cursor { position: absolute; width: 18px; height: 18px; pointer-events: none; }
-.cursor svg { display: block; filter: drop-shadow(0 1px 1px rgba(0,0,0,.35)); }
+.cursor svg { display: block; }
 
 /* 01 installer */
 .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .finder { padding: 26px 18px 22px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; font-size: 12.5px; }
 .tile { position: relative; display: inline-flex; align-items: flex-end; justify-content: center; width: 76px; height: 76px;
-  border-radius: 17px; background: #0D0D0D; box-shadow: 0 6px 14px rgba(0,0,0,.25); }
+  background: #0D0D0D; }
 .tile b { font: 800 38px/1 var(--text); letter-spacing: -0.07em; color: #fff; margin-bottom: 15px; }
 .tile i { width: 9px; height: 9px; background: var(--red); margin: 0 0 18px 3px; }
-.tile.small { width: 28px; height: 28px; border-radius: 7px; box-shadow: none; }
+.tile.small { width: 28px; height: 28px; }
 .tile.small b { font-size: 14px; margin-bottom: 6px; }
 .tile.small i { width: 4px; height: 4px; margin: 0 0 7px 1px; }
 .taskbar { margin-top: auto; width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; height: 46px; background: #EEF0F3; border-top: 1px solid #C9CDD3; }
 .taskbar .ic { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; }
-.taskbar .ic::after { content: ""; width: 5px; height: 3px; border-radius: 2px; background: #8A8F96; }
-.taskbar .ic.me { padding: 4px 6px 2px; background: #DDE1E6; border-radius: 6px; outline: 2px solid var(--red); outline-offset: 2px; }
+.taskbar .ic::after { content: ""; width: 5px; height: 3px; background: #8A8F96; }
+.taskbar .ic.me { padding: 4px 6px 2px; background: #DDE1E6; outline: 2px solid var(--red); outline-offset: 2px; }
 .taskbar .ic.me::after { width: 14px; background: #0067C0; }
 .win-logo { width: 22px; height: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
 .win-logo i { background: #0067C0; }
-.fl-ic { width: 28px; height: 28px; border-radius: 6px; background: #2D3136; color: #F2A33A; font: 700 11px/28px var(--text); text-align: center; }
+.fl-ic { width: 28px; height: 28px; background: #2D3136; color: #F2A33A; font: 700 11px/28px var(--text); text-align: center; }
 
 /* 02 autoriser */
 .welcome { padding: 26px 34px 26px; }
@@ -172,11 +170,11 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 20px 64px; }
 .stats .a-btn { margin-left: auto; height: 24px; padding: 0 10px; }
 
 /* 07 au quotidien */
-.desk { position: relative; height: 330px; border-radius: 10px; overflow: hidden; background: linear-gradient(160deg, #3B3A37, #1C1B19); box-shadow: 0 0 0 1px rgba(255,255,255,.08); }
+.desk { position: relative; height: 330px; overflow: hidden; background: var(--ink); border: 1px solid var(--line); }
 .menubar { display: flex; justify-content: flex-end; align-items: center; gap: 16px; height: 28px; padding: 0 14px; background: #E9E8E4; color: #111; font: 500 12px/1 var(--a-font); }
-.menubar .me { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 22px; border-radius: 5px; background: rgba(0,0,0,.12); }
+.menubar .me { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 22px; background: rgba(0,0,0,.12); }
 .menu { position: absolute; top: 34px; right: 18px; width: 280px; background: var(--a-bg); color: var(--a-ink); font-family: var(--a-font);
-  box-shadow: inset 0 0 0 2px var(--a-ink), 0 16px 40px rgba(0,0,0,.45); padding: 4px 0 6px; font-size: 13.5px; }
+  box-shadow: inset 0 0 0 2px var(--a-ink); padding: 4px 0 6px; font-size: 13.5px; }
 .menu .mh { display: flex; align-items: center; gap: 10px; padding: 10px 14px 9px; font-weight: 600; font-size: 16px; letter-spacing: -0.02em; }
 .menu .sep { height: 1px; background: var(--a-line); margin: 4px 0; }
 .menu .it { display: flex; justify-content: space-between; height: 34px; align-items: center; padding: 0 14px; margin: 0 2px; }

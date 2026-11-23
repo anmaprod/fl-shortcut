@@ -9,25 +9,29 @@
 <meta name="description" content="Ce que FL Shortcuts garde, pourquoi, combien de temps, et qui édite ce site.">
 <link rel="icon" href="img/icone.png">
 <style>
-  :root { --bg: #f6f6f8; --card: #ffffff; --text: #1d1d1f; --muted: #6e6e73; --line: #e2e2e7; --accent: #ff7a1a; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg: #111113; --card: #1c1c1f; --text: #f2f2f4; --muted: #a1a1a8; --line: #2e2e33; --accent: #ff8c3a; }
-  }
+  /* 23/11 : style suisse, comme le site public et l'app : fond noir, texte blanc, Helvetica Neue, titre en
+     minuscules avec un point rouge, coins carrés, traits fins, rouge seulement pour les puces. */
+  :root { --ink: #000000; --paper: #FFFFFF; --gray: #8C8C8C; --line: #2C2C2C; --red: #FF3B1F;
+    --text: "Helvetica Neue", Helvetica, Arial, sans-serif; }
   * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
-  }
-  main { max-width: 720px; margin: 0 auto; padding: 48px 16px 64px; }
-  h1 { font-size: 2rem; line-height: 1.15; margin: 0 0 4px; letter-spacing: -0.01em; }
-  h2 { font-size: 1.15rem; margin: 36px 0 8px; }
+  html, body { margin: 0; background: var(--ink); color: var(--paper); }
+  body { font: 16px/1.6 var(--text); -webkit-font-smoothing: antialiased; }
+  main { max-width: 760px; margin: 0 auto; padding: 0 20px 64px; }
+  main > p:first-child { display: flex; align-items: center; height: 64px; margin: 0 0 48px; border-bottom: 1px solid var(--line);
+    font-weight: 700; letter-spacing: -0.02em; }
+  main > p:first-child a { text-decoration: none; }
+  h1 { font: 700 clamp(48px, 9vw, 96px)/0.95 var(--text); letter-spacing: -0.05em; margin: 0 0 12px; text-transform: lowercase; }
+  h1::after { content: "."; color: var(--red); }
+  h2 { font: 700 11px/1.25 var(--text); letter-spacing: 1.4px; text-transform: uppercase; color: var(--gray);
+    margin: 40px 0 14px; padding-top: 18px; border-top: 1px solid var(--line); }
   p, li { max-width: 68ch; }
-  ul { padding-left: 1.2em; }
-  li { margin: 6px 0; }
-  .muted { color: var(--muted); }
-  a { color: inherit; }
-  a:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
-  footer { margin-top: 48px; color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--line); padding-top: 16px; }
+  ul { list-style: none; padding: 0; }
+  li { position: relative; padding-left: 22px; margin: 10px 0; }
+  li::before { content: ""; position: absolute; left: 0; top: 0.6em; width: 8px; height: 8px; background: var(--red); }
+  .muted { color: var(--gray); }
+  a { color: inherit; text-underline-offset: 3px; }
+  a:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+  footer { margin-top: 48px; color: var(--gray); font-size: 0.85rem; border-top: 1px solid var(--line); padding-top: 16px; }
 </style>
 </head>
 <body>

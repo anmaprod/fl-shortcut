@@ -745,7 +745,12 @@ zizmor, conférences macOS ; à garder)
   Papier ; les photos de la CI sont en anglais), images du README refaites (`tuto-3-raccourcis` … `tuto-6-communaute`).
   README réécrit. Modes d'emploi (`lisezmoi_modeles.py`) : Trouver, « Nouvelle macro », touche de l'Organiser, logo
   Windows ; `lisezmoi.py` les recopie dans `web/public/mode-emploi-*.html`. Logo « fl. » (Resources/AppIcon-1024.png)
-  mis à la place du vieux clavier dans `site/icon.png` et `web/public/img/icone.png`.
+  mis à la place du vieux clavier dans `site/icon.png` et `web/public/img/icone.png`. Puis (« tu me mets des trucs
+  liquide glace… on est dans le style suisse maintenant ») : dessins du tuto tout carrés et plats (plus de fenêtre
+  arrondie, d'ombre floue, de dégradé ni de feux de couleur), `site/confidentialite.html` (+ sa copie `web/public/`)
+  et l'ancienne page `site/index.html` au style suisse (empreinte du script de la CSP inchangée). NE PAS remettre
+  d'arrondi ni d'ombre floue sur les pages ; le « Liquid Glass » qu'il voit sur GitHub vient du vieux README de la
+  branche par défaut.
   **Site public** (`web/`, fait le 06/11 par une autre session sur `claude/nifty-mccarthy-s6i9kh` : Cloudflare
   Workers, prix libre, SumUp, Brevo ; mode d'emploi `web/README.md`) ramené sur la branche le 23/11, même allure, textes
   à jour ; VRAI BUG corrigé : ses téléchargements visaient `FLShortcut.dmg` / `FLShortcut-Windows-Setup.exe`
