@@ -56,10 +56,16 @@ zizmor, conférences macOS ; à garder)
 - Tout JSON venu d'ailleurs passe par `UntrustedJson` (Windows ; JSONDecoder du Mac lit tout d'un coup) ;
   `RobustnessTests` (Mac et Windows) : des milliers de macros, raccourcis et .flp abîmés, jamais de chute
   (FLS_ROBUST_SEED / FLS_ROBUST_SCALE pour chercher plus loin). Images des autres : JPEG seulement.
-- Serveur : `supabase/protection.sql` (étape 14, À COLLER PAR LE PROPRIÉTAIRE) ; sauvegarde chiffrée chaque nuit
-  (`.github/workflows/sauvegarde.yml`, secrets SUPABASE_DB_URL et BACKUP_PASSPHRASE à ajouter par lui) ; l'app a déjà
+- Serveur : `supabase/protection.sql` (étape 14, À COLLER PAR LE PROPRIÉTAIRE ; 23/11, lu sur le serveur avec la clé
+  publique : PAS ENCORE collé, `purge_old_captures` absente ; déjà en place : corrections_ia, support_replies,
+  creators_to_follow, ratings.half) ; sauvegarde chiffrée chaque nuit (`.github/workflows/sauvegarde.yml`, secrets
+  SUPABASE_DB_URL et BACKUP_PASSPHRASE à ajouter par lui) : NE TOURNE PAS (23/11) — GitHub ne lance une tâche de nuit
+  que depuis la branche par défaut, `claude/relaxed-mayer-ndguzv`, qui n'a pas ce fichier : à lui de mettre
+  `claude/great-hopper-qihaiy` par défaut (Settings › General), ou demander à pousser le fichier là-bas. L'app a déjà
   la clé « sb_publishable_ ». CI : job zizmor (workflows). gitleaks : aucun secret dans l'historique ; mais son mail et
-  le nom de son Mac (avec un prénom) sont dans des commits → nouveau dépôt propre avant de le rendre public.
+  le nom de son Mac (avec un prénom) sont dans des commits. 23/11 : le dépôt est DÉJÀ PUBLIC (API GitHub,
+  `visibility: public`), pas « à rendre public » : signalé au propriétaire, à lui de choisir (privé : minutes de Mac de
+  la CI comptées par GitHub ; ou nouveau dépôt propre).
 - Licences : Windows livre `windows/LICENCES-TIERS.txt` + `Licences\` (le Mac livrait déjà les crédits de l'IA).
   Site : faux « n'utilise pas le réseau » retiré, `site/confidentialite.html` (RGPD + mentions légales), CSP en meta
   (empreinte du script de index.html à refaire s'il change).
@@ -1073,6 +1079,7 @@ zizmor, conférences macOS ; à garder)
   → jamais. Maintenant (Mac et Windows) FL est jugé au repos sur une demande courte (la page devant, opération 9), la
   liste ne sert qu'à compter (`waitUntilCalm`/`WaitUntilCalm`, script sans la page : la liste comme avant) ; diagnostic
   `sonde=page liste=NNds` ; essais `SlowSoundListOfABigProjectDoesNotBlockTheCopy` (Mac et Windows, `slowLists`).
+  VU MARCHER chez lui le 23/11 (« organiser refonctionne », version de la CI 04ac432 ou proche).
 
 - **Fenêtre « plus lisible »** (16/11, maquette PDF/HTML « FL Shortcuts — plus lisible », 8 écrans, commencée par une
   autre session sans rien pousser) : barre de gauche en parties (`ReadableSidebar` : Trouver un raccourci, Raccourcis ▸

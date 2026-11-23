@@ -1397,3 +1397,7 @@ entrée 1 ≈ 0,5 s.
   aussi, ratée à la relecture). Maintenant `ThemeWatch` (suivi du thème pour SwiftUI) : la grille, la touche changée,
   le rond de l'accueil et « Enregistrer » du créateur se redessinent au changement. Windows : rien à changer (thème
   changé = appli relancée, grille posée seulement en Papier ; photo de la CI sans traits).
+- 23/11 : « organiser refonctionne », puis « il reste quoi à faire ? ». Relevé fait : sur le serveur (clé publique
+  seulement), tout est collé sauf `protection.sql` (étape 14). La sauvegarde de nuit n'a jamais tourné (tâche de nuit
+  lancée par GitHub seulement depuis la branche par défaut, `claude/relaxed-mayer-ndguzv`, sans ce fichier). Le dépôt
+  est déjà public (les notes disaient « avant de le rendre public ») : son prénom (nom du Mac) est dans 15 commits.
