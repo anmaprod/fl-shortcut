@@ -116,6 +116,10 @@ et l'étape 7 (modèles des mails avec le code).
    captures sont effacées 180 jours après le message (le message reste) ; « Supprimer mon compte » efface aussi ses
    messages à l'équipe et leurs réponses (le mail du compte y est joint). À recoller après un recollage de
    `schema.sql`. Peut être recollé sans risque.
+   **24/11 : recolle-le** : il suit aussi les conseils du **Security Advisor** (fonctions des déclencheurs fermées au
+   dehors, `pg_net` hors du schéma public). Après **Refresh**, restent 13 avertissements voulus : `is_admin` et
+   `username_available` (ouverts exprès), les fonctions que l'app appelle avec un compte (noter, ajouter, pseudo, photo,
+   supprimer son compte) et « Leaked Password Protection » (formule payante seulement).
 15. **Deux cases dans le tableau de bord** (21/11, rien à coller) :
    - **Authentication › Attack Protection › Enable Captcha protection** : PAS ENCORE (l'app ne sait pas encore
      montrer un captcha ; le cocher empêcherait toute inscription).

@@ -60,7 +60,12 @@ zizmor, conférences macOS ; à garder)
   (FLS_ROBUST_SEED / FLS_ROBUST_SCALE pour chercher plus loin). Images des autres : JPEG seulement.
 - Serveur : `supabase/protection.sql` (étape 14) COLLÉ le 24/11 par le propriétaire (Cron déjà installé ; vérifié avec
   la clé publique : `purge_old_captures` existe et refuse anon) ; déjà en place avant : corrections_ia,
-  support_replies, creators_to_follow, ratings.half. Restent à lui : étape 15 (mots de passe volés, Security Advisor),
+  support_replies, creators_to_follow, ratings.half. Security Advisor du 24/11 : 0 erreur, 33 avertissements →
+  `protection.sql` section 5 (fonctions des déclencheurs fermées à anon/authenticated : un déclencheur les lance sans
+  ce droit, vérifié sur PostgreSQL 16 ; creator_score à search_path fixe ; pg_net retiré puis remis dans
+  « extensions », bloc à part qui n'arrête rien s'il est refusé ; essai `tests/protection.sql`), à RECOLLER par lui ;
+  13 restent voulus (is_admin, username_available, RPC du compte, mots de passe volés = formule payante). Restent
+  aussi : étape 15 (mots de passe volés si proposée),
   étapes 6-7 (mail Gmail) si pas faites, `messages-par-mail.sql` recollé tel quel en cas de doute ; sauvegarde chiffrée chaque nuit (`.github/workflows/sauvegarde.yml`, secrets
   SUPABASE_DB_URL et BACKUP_PASSPHRASE à ajouter par lui) : NE TOURNE PAS (23/11) — GitHub ne lance une tâche de nuit
   que depuis la branche par défaut, `claude/relaxed-mayer-ndguzv`, qui n'a pas ce fichier : à lui de mettre

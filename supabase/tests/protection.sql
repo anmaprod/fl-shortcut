@@ -113,3 +113,34 @@ begin
 end $$;
 
 select 'protection : tout est conforme' as resultat;
+
+-- 5. Conseils du Security Advisor (24/11) : fonctions des déclencheurs fermées au dehors, creator_score à search_path
+--    fixe ; les déclencheurs marchent toujours (les messages ci-dessus sont passés par limit_support).
+do $$
+declare
+  f text;
+begin
+  foreach f in array array['public.count_adds()', 'public.count_follows()', 'public.count_ratings()',
+                           'public.handle_confirmed_user()', 'public.handle_new_user()', 'public.limit_corrections()',
+                           'public.limit_follows()', 'public.limit_shares()', 'public.limit_support()'] loop
+    if to_regprocedure(f) is null then raise exception '% absente', f; end if;
+    if has_function_privilege('anon', f, 'execute') or has_function_privilege('authenticated', f, 'execute') then
+      raise exception '% appelable de dehors', f;
+    end if;
+  end loop;
+  if not exists (select 1 from pg_proc where oid = 'public.creator_score(bigint, bigint)'::regprocedure
+                 and proconfig is not null) then
+    raise exception 'creator_score sans search_path fixe';
+  end if;
+  if not has_function_privilege('anon', 'public.username_available(text)', 'execute') then
+    raise exception 'username_available fermé par erreur';
+  end if;
+  if not has_function_privilege('authenticated', 'public.is_admin()', 'execute') then
+    raise exception 'is_admin fermé par erreur';
+  end if;
+end $$;
+set role authenticated;
+set request.jwt.claim.sub to '00000000-0000-0000-0000-0000000000e1';
+insert into public.support_requests (kind, message) values ('idee', 'Après la fermeture des déclencheurs.');
+reset role;
+select 'protection, conseils du Security Advisor : tout est conforme';

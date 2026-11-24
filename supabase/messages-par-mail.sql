@@ -18,7 +18,7 @@
 -- public.support_requests;`. La clé et l'adresse restent dans le coffre de Supabase (Vault), jamais dans l'app ni
 -- dans le dépôt. Si l'envoi du mail échoue, le message reste quand même dans la table (Table Editor › support_requests).
 
-create extension if not exists pg_net;
+create extension if not exists pg_net with schema extensions;
 
 -- Ta clé Resend et ton adresse, gardées dans le coffre de Supabase (mises à jour si ce fichier est recollé).
 do $$

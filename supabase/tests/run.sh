@@ -13,7 +13,7 @@ trap 'dropdb "$@" "$DB" >/dev/null 2>&1 || true' EXIT
 # remplace), collé deux fois (il doit pouvoir être recollé).
 MAIL="$(mktemp)"
 trap 'rm -f "$MAIL"; dropdb "$@" "$DB" >/dev/null 2>&1 || true' EXIT
-sed '/^create extension if not exists pg_net;/d' ../messages-par-mail.sql > "$MAIL"
+sed '/^create extension if not exists pg_net/d' ../messages-par-mail.sql > "$MAIL"
 for f in supabase-stubs.sql supabase-stubs-mail.sql ../schema.sql ../inscription.sql ../sauvegarde.sql \
          ../corrections-ia.sql ../corrections-ia.sql ../profil.sql ../profil.sql "$MAIL" "$MAIL" policies.sql \
          profil.sql regles-sauvegarde.sql inscription.sql corrections-ia.sql messages-par-mail.sql "$MAIL" \

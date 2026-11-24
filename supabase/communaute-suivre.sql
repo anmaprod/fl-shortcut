@@ -279,7 +279,7 @@ grant execute on function public.rate_share(uuid, integer) to authenticated;
 -- Note d'un créateur : moyenne bayésienne de toutes les notes de ses partages (3 notes « fantômes » à 3,5) : une seule
 -- note à 5 ★ ≈ 3,9 ; 1 000 notes à 4 ★ = 4,0. Personne n'est mis en avant pour une seule bonne note.
 create or replace function public.creator_score(p_sum bigint, p_count bigint) returns numeric
-language sql immutable as $$
+language sql immutable set search_path = '' as $$
   select round((3 * 3.5 + coalesce(p_sum, 0)) / (3 + coalesce(p_count, 0)), 3)
 $$;
 

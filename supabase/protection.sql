@@ -83,3 +83,40 @@ begin
     perform cron.schedule('fls-captures-180-jours', '23 3 * * *', 'select public.purge_old_captures()');
   end if;
 end $$;
+
+-- 5. Conseils du Security Advisor de Supabase (24/11, 33 avertissements, aucune erreur) :
+--    - les fonctions des déclencheurs ne s'appellent plus de dehors (/rest/v1/rpc/…) : un déclencheur les lance sans
+--      ce droit (vérifié sur PostgreSQL 16) ;
+--    - creator_score a un search_path fixe ;
+--    - pg_net quitte le schéma public (il ne se déplace pas : retiré puis remis dans « extensions » ; ses fonctions
+--      restent dans « net », le mail des messages à l'équipe continue de marcher).
+--    Gardés exprès : is_admin (lu par les règles d'accès), username_available (pseudo libre, avant de créer son
+--    compte), et les fonctions que l'app appelle avec un compte (noter, ajouter, pseudo, photo, supprimer son compte).
+do $$
+declare
+  f text;
+begin
+  foreach f in array array['public.count_adds()', 'public.count_follows()', 'public.count_ratings()',
+                           'public.handle_confirmed_user()', 'public.handle_new_user()', 'public.limit_corrections()',
+                           'public.limit_follows()', 'public.limit_shares()', 'public.limit_support()',
+                           'public.limit_support_size()', 'public.limit_corrections_size()', 'public.fill_rating_half()'] loop
+    if to_regprocedure(f) is not null then
+      execute format('revoke all on function %s from public, anon, authenticated', f);
+    end if;
+  end loop;
+  if to_regprocedure('public.creator_score(bigint, bigint)') is not null then
+    alter function public.creator_score(bigint, bigint) set search_path = '';
+  end if;
+end $$;
+
+-- pg_net à part : si Supabase refuse de le retirer (il ne le doit pas), tout le reste ci-dessus est déjà fait.
+do $$
+begin
+  if exists (select 1 from pg_extension where extname = 'pg_net' and extnamespace = 'public'::regnamespace)
+     and exists (select 1 from pg_namespace where nspname = 'extensions') then
+    drop extension pg_net;
+    create extension pg_net with schema extensions;
+  end if;
+exception when others then
+  raise notice 'pg_net laissé dans public (%), rien d''autre n''est touché', sqlerrm;
+end $$;
