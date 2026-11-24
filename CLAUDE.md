@@ -58,9 +58,10 @@ zizmor, conférences macOS ; à garder)
 - Tout JSON venu d'ailleurs passe par `UntrustedJson` (Windows ; JSONDecoder du Mac lit tout d'un coup) ;
   `RobustnessTests` (Mac et Windows) : des milliers de macros, raccourcis et .flp abîmés, jamais de chute
   (FLS_ROBUST_SEED / FLS_ROBUST_SCALE pour chercher plus loin). Images des autres : JPEG seulement.
-- Serveur : `supabase/protection.sql` (étape 14, À COLLER PAR LE PROPRIÉTAIRE ; 23/11, lu sur le serveur avec la clé
-  publique : PAS ENCORE collé, `purge_old_captures` absente ; déjà en place : corrections_ia, support_replies,
-  creators_to_follow, ratings.half) ; sauvegarde chiffrée chaque nuit (`.github/workflows/sauvegarde.yml`, secrets
+- Serveur : `supabase/protection.sql` (étape 14) COLLÉ le 24/11 par le propriétaire (Cron déjà installé ; vérifié avec
+  la clé publique : `purge_old_captures` existe et refuse anon) ; déjà en place avant : corrections_ia,
+  support_replies, creators_to_follow, ratings.half. Restent à lui : étape 15 (mots de passe volés, Security Advisor),
+  étapes 6-7 (mail Gmail) si pas faites, `messages-par-mail.sql` recollé tel quel en cas de doute ; sauvegarde chiffrée chaque nuit (`.github/workflows/sauvegarde.yml`, secrets
   SUPABASE_DB_URL et BACKUP_PASSPHRASE à ajouter par lui) : NE TOURNE PAS (23/11) — GitHub ne lance une tâche de nuit
   que depuis la branche par défaut, `claude/relaxed-mayer-ndguzv`, qui n'a pas ce fichier : à lui de mettre
   `claude/great-hopper-qihaiy` par défaut (Settings › General), ou demander à pousser le fichier là-bas. L'app a déjà
