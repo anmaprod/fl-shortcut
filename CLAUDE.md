@@ -65,7 +65,7 @@ zizmor, conférences macOS ; à garder)
   ce droit, vérifié sur PostgreSQL 16 ; creator_score à search_path fixe ; pg_net retiré puis remis dans
   « extensions », bloc à part qui n'arrête rien s'il est refusé ; essai `tests/protection.sql`), RECOLLÉ par lui le
   24/11 (13 avertissements restants, vérifié : les fonctions des déclencheurs ne sont plus vues par l'API) ; 13 voulus (is_admin, username_available, RPC du compte, mots de passe volés = formule payante). Restent
-  aussi : étape 15 (mots de passe volés si proposée),
+  aussi : étape 15 (mots de passe volés si proposée), mail du compte fait d'après lui (24/11),
   étapes 6-7 (mail Gmail) si pas faites, `messages-par-mail.sql` recollé tel quel en cas de doute ; sauvegarde chiffrée chaque nuit (`.github/workflows/sauvegarde.yml`, secrets
   SUPABASE_DB_URL et BACKUP_PASSPHRASE à ajouter par lui) : NE TOURNE PAS (23/11) — GitHub ne lance une tâche de nuit
   que depuis la branche par défaut, `claude/relaxed-mayer-ndguzv`, qui n'a pas ce fichier : à lui de mettre
@@ -994,7 +994,7 @@ zizmor, conférences macOS ; à garder)
   (`DropPageWait`, plus de 2e F6 qui la refermait), titre « Channel rack » lu même avec l'icône devant.
 - Une seule fenêtre pour « Enregistrement de l'écran » (13/11, « cette page n'a pas besoin de s'ouvrir vu que l'autre
   s'ouvre ») : `ScreenLook.askOneWindow()` (déjà dans la liste → Réglages seuls ; sinon la demande de macOS seule).
-- Mails du compte : 2 par heure (donc 2 inscriptions) tant que le propriétaire n'a pas fait l'étape 6 de
+- Mails du compte : étapes 6-7 FAITES d'après le propriétaire (24/11, « normalement c'était déjà fait »). Avant : 2 par heure (donc 2 inscriptions) tant que l'étape 6 de
   `supabase/README.md` (11/11 : Gmail rien que pour l'app, 60 par heure ; plus tard Brevo avec le domaine du site).
   Bêta limitée (1 000 comptes, un compte = un ordinateur) mise de côté le 11/11 : choix dans HISTORIQUE.
 - **Communauté « Minimal »** (19/11, maquette `docs/maquettes/fl-shortcuts-minimal.html`) : cases = auteur, nom en
