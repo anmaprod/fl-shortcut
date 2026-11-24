@@ -5,7 +5,8 @@
 - Branche la plus récente : **`claude/great-hopper-qihaiy`** (en avance de 138 commits sur `claude/relaxed-mayer-ndguzv`).
   Pas de nouvelle PR sans demande (anmaprod/fl-shortcut#1 existe). Un push lance la CI ; ne pas la relancer à la main
   sans demande. Derniers tests Mac verts : commit 1843b87 (502 tests, lancés par le propriétaire sur son Mac) ; CI
-  entièrement verte sur c25f7ae (23/11 : README, site web/, tuto, guide à 5 parties vu sur `guide-0` Mac et Windows,
+  entièrement verte sur 2290173 (24/11 : Supabase, conseils du Security Advisor dans protection.sql, essais SQL),
+  avant sur c25f7ae (23/11 : README, site web/, tuto, guide à 5 parties vu sur `guide-0` Mac et Windows,
   modes d'emploi, style suisse partout), avant sur 04ac432 (22/11 : grille du Papier seulement en Papier, photos
   `theme-noir/orange-*` sans traits),
   avant sur 1041173 (22/11 : sécurité ; 710 essais Mac dont RobustnessTests, « Hardened Runtime : oui »
