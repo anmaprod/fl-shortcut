@@ -67,9 +67,10 @@ zizmor, conférences macOS ; à garder)
   24/11 (13 avertissements restants, vérifié : les fonctions des déclencheurs ne sont plus vues par l'API) ; 13 voulus (is_admin, username_available, RPC du compte, mots de passe volés = formule payante). Restent
   aussi : étape 15 (mots de passe volés si proposée), mail du compte fait d'après lui (24/11),
   étapes 6-7 (mail Gmail) si pas faites, `messages-par-mail.sql` recollé tel quel en cas de doute ; sauvegarde chiffrée chaque nuit (`.github/workflows/sauvegarde.yml`, secrets
-  SUPABASE_DB_URL et BACKUP_PASSPHRASE à ajouter par lui) : NE TOURNE PAS (23/11) — GitHub ne lance une tâche de nuit
-  que depuis la branche par défaut, `claude/relaxed-mayer-ndguzv`, qui n'a pas ce fichier : à lui de mettre
-  `claude/great-hopper-qihaiy` par défaut (Settings › General), ou demander à pousser le fichier là-bas. L'app a déjà
+  SUPABASE_DB_URL et BACKUP_PASSPHRASE ajoutés par lui le 24/11) : 24/11, BRANCHE PAR DÉFAUT = `claude/great-hopper-qihaiy`
+  (changée par lui ; avant `claude/relaxed-mayer-ndguzv`, où la tâche de nuit ne pouvait pas tourner) ; « Sauvegarde de
+  la base » vue par GitHub, 1re nuit le 25/11 à 2 h 17 UTC : à vérifier (onglet Actions, artefact chiffré).
+  GitHub affiche maintenant le nouveau README. `pages.yml` ne part que d'une branche `main` (absente) : rien publié. L'app a déjà
   la clé « sb_publishable_ ». CI : job zizmor (workflows). gitleaks : aucun secret dans l'historique ; mais son mail et
   le nom de son Mac (avec un prénom) sont dans des commits. 23/11 : le dépôt est DÉJÀ PUBLIC (API GitHub,
   `visibility: public`), pas « à rendre public » : signalé au propriétaire, à lui de choisir (privé : minutes de Mac de
