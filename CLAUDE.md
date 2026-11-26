@@ -70,9 +70,9 @@ zizmor, conférences macOS ; à garder)
   étapes 6-7 (mail Gmail) si pas faites, `messages-par-mail.sql` recollé tel quel en cas de doute ; sauvegarde chiffrée chaque nuit (`.github/workflows/sauvegarde.yml`, secrets
   SUPABASE_DB_URL et BACKUP_PASSPHRASE ajoutés par lui le 24/11) : 24/11, BRANCHE PAR DÉFAUT = `claude/great-hopper-qihaiy`
   (changée par lui ; avant `claude/relaxed-mayer-ndguzv`, où la tâche de nuit ne pouvait pas tourner) ; « Sauvegarde de
-  la base » vue par GitHub, 1re nuit le 25/11 à 2 h 17 UTC : vérifié à 3 h 16 UTC, AUCUNE exécution (GitHub ne l'a
-  pas lancée ; seulement des [skip ci] poussés depuis le changement de branche). Proposé au propriétaire : « Run
-  workflow » à la main pour l'essayer (pas fait sans son accord) ; nouvelle vérification la nuit du 26/11.
+  la base » vue par GitHub ; MARCHE : 1re exécution programmée le 25/11 à 11 h 25 UTC (GitHub l'a lancée 9 h en
+  retard, rien vu à 3 h 16), RÉUSSIE (copie et chiffrement bons, artefact « sauvegarde-chiffree » de 81 Ko gardé 7
+  jours) ; vérifié le 26/11 à 3 h 16 UTC (celle du 26 pas encore partie : GitHub retarde les tâches programmées).
   GitHub affiche maintenant le nouveau README. `pages.yml` ne part que d'une branche `main` (absente) : rien publié. L'app a déjà
   la clé « sb_publishable_ ». CI : job zizmor (workflows). gitleaks : aucun secret dans l'historique ; mais son mail et
   le nom de son Mac (avec un prénom) sont dans des commits. 23/11 : le dépôt est DÉJÀ PUBLIC (API GitHub,
