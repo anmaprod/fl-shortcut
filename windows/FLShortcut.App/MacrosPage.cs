@@ -592,7 +592,8 @@ internal sealed class MacrosPage
 
     private void BuildCreator()
     {
-        Creator.Background = Brush(WindowColor);
+        // Papier : transparent, le quadrillé dessiné sous la page se voit (28/11) ; sinon le fond de la fenêtre.
+        Creator.Background = MacLook.Theme == AppTheme.Papier ? null : Brush(WindowColor);
         Creator.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(SidebarWidth) });
         Creator.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 280 });
         Creator.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(InspectorWidth) });

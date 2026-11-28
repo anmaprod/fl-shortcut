@@ -33,8 +33,11 @@
   maquette `36BY45nwBcKwX2wam5bzmb` (artefact privé « Papier, la grille » : 5 grilles, règles suisses à respecter /
   éviter, sources ; Pinterest refuse les robots) : carreaux de 24, trait plus marqué tous les 4 (colonnes de 72 +
   écarts de 24, marges de 48), traits « normaux » #E4E1DA / #D3CFC6, barre des menus nue, aucune boîte pleine qui
-  coupe la grille, lignes de 48, filets posés sur les traits ; à faire dans l'app (Mac `PaperGrid`, Windows
-  `MacLook.PaperGridLines`). Puis : sons libres de droit proches de ses packs ; Windows, clic gauche ou droit sur
+  coupe la grille, lignes de 48, filets posés sur les traits. FAIT le 28/11 dans l'app : quadrillé calé sur le bord de
+  la page (48) et sous la barre de titre (Mac `PaperGrid.lines`, essai `testPaperGridIsSquaredPaper` ; Windows
+  `MacLook.PaperGrid`), liste des raccourcis du Mac sans fond plein (`ClearScrollBackground`), créateur Windows
+  transparent en Papier ; les lignes de 44 ne sont PAS encore remises à 48 (à voir sur les photos de la CI). VU MARCHER
+  chez lui le 28/11 : ⌘⌥O dans FL ouvre l'Organiser, « Ouvre un VST » et « Export Stems ». Puis : sons libres de droit proches de ses packs ; Windows, clic gauche ou droit sur
   l'app = le menu de l'icône, plus rien sous la flèche (déjà fait le 21/11 d'après les notes : à revérifier).
 - **En cours (19-20/11)** : maquette « Minimal » (`docs/maquettes/fl-shortcuts-minimal.html`) mise dans l'app, tout
   fait le 20/11 au soir (voir « Fenêtre « Minimal » ») ; reste à relire les photos de la CI page par page ;

@@ -727,6 +727,7 @@ struct EditorView: View {
                 .padding(.top, 14)
                 .padding(.bottom, 80)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .background(ClearScrollBackground())     // le quadrillé du Papier passe sous la liste
         }
     }
 

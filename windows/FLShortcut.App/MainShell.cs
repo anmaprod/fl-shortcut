@@ -265,7 +265,8 @@ internal sealed partial class MainShell
             toast: ShowToast);
         // Touche d'une macro (liste du 16/11) : la fiche de son raccourci, comme les autres raccourcis.
         _macros.EditShortcut = EditCustomAsync;
-        // Thème Papier : les traits de la grille derrière toutes les pages (maquette « Minimal »).
+        // Thème Papier : le quadrillé derrière toutes les pages (28/11, maquette « Papier, la grille ») ; la barre de
+        // titre reste nue.
         if (MacLook.Theme == AppTheme.Papier)
         {
             var grid = new Microsoft.UI.Xaml.Controls.Canvas { IsHitTestVisible = false };
@@ -273,10 +274,20 @@ internal sealed partial class MainShell
             root.SizeChanged += (_, e) =>
             {
                 grid.Children.Clear();
-                foreach (var x in MacLook.PaperGridLines(e.NewSize.Width))
+                var height = Math.Max(0, e.NewSize.Height - TitleBarHeight);
+                foreach (var (x, major) in MacLook.PaperGrid(e.NewSize.Width))
                 {
-                    var line = new Rectangle { Width = 1, Height = e.NewSize.Height, Fill = Brush(MacLook.PaperGridColor) };
+                    var line = new Rectangle { Width = 1, Height = height, Fill = Brush(major ? MacLook.PaperGridMajor : MacLook.PaperGridMinor) };
                     Microsoft.UI.Xaml.Controls.Canvas.SetLeft(line, Math.Round(x));
+                    Microsoft.UI.Xaml.Controls.Canvas.SetTop(line, TitleBarHeight);
+                    Microsoft.UI.Xaml.Controls.Canvas.SetZIndex(line, major ? 1 : 0);
+                    grid.Children.Add(line);
+                }
+                foreach (var (y, major) in MacLook.PaperGrid(height))
+                {
+                    var line = new Rectangle { Width = e.NewSize.Width, Height = 1, Fill = Brush(major ? MacLook.PaperGridMajor : MacLook.PaperGridMinor) };
+                    Microsoft.UI.Xaml.Controls.Canvas.SetTop(line, Math.Round(TitleBarHeight + y));
+                    Microsoft.UI.Xaml.Controls.Canvas.SetZIndex(line, major ? 1 : 0);
                     grid.Children.Add(line);
                 }
             };

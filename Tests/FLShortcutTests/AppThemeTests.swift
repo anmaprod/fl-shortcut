@@ -121,4 +121,13 @@ final class AppThemeTests: XCTestCase {
         try await Task.sleep(nanoseconds: 400_000_000)
         XCTAssertEqual(watch.theme, .orange, "plus de grille sous Orange")
     }
+
+    /// 28/11 (« quadriller très bien je valide ») : carreaux de 24, un trait marqué tous les 4, dont un au bord de la
+    /// page (48) ; aussi avant lui (0, 24) et jusqu'au bout de la fenêtre.
+    func testPaperGridIsSquaredPaper() {
+        let lines = PaperGrid.lines(length: 200, origin: 48)
+        XCTAssertEqual(lines.map(\.at), [0, 24, 48, 72, 96, 120, 144, 168, 192])
+        XCTAssertEqual(lines.filter(\.major).map(\.at), [48, 144])
+        XCTAssertTrue(PaperGrid.lines(length: 0, origin: 48).isEmpty)
+    }
 }

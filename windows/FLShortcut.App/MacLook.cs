@@ -111,23 +111,20 @@ internal static class MacLook
         return element;
     }
 
-    /// Thème Papier (maquette « Minimal », 20/11 : « papier n'a pas les traits ») : abscisses des traits de la grille
-    /// suisse (12 colonnes, gouttières de 24, 48 points du bord), bords gauche et droit de chaque colonne, comme le Mac.
-    public static IEnumerable<double> PaperGridLines(double width, double margin = 48, double gutter = 24, int columns = 12)
+    /// Thème Papier (28/11, « quadriller très bien je valide », maquette « Papier, la grille ») : du papier à carreaux
+    /// de 24, un trait plus marqué tous les 4 carreaux (le pas des colonnes, 72 + 24), dont un au bord de la page
+    /// (`origin`) ; de 0 compris à `length` exclu. Le même calcul que `PaperGrid.lines` du Mac.
+    public static IEnumerable<(double At, bool Major)> PaperGrid(double length, double origin = 48, double step = 24, int every = 4)
     {
-        var content = Math.Min(width - 2 * margin, 1088);
-        var column = (content - (columns - 1) * gutter) / columns;
-        if (column <= 0) yield break;
-        for (var k = 0; k < columns; k++)
-        {
-            var x = margin + k * (column + gutter);
-            yield return x;
-            yield return x + column;
-        }
+        if (length <= 0 || step <= 0) yield break;
+        var first = (int)Math.Ceiling(-origin / step);
+        var last = (int)Math.Ceiling((length - origin) / step) - 1;
+        for (var k = first; k <= last; k++) yield return (origin + k * step, ((k % every) + every) % every == 0);
     }
 
-    /// Couleur des traits de la grille du thème Papier (#E2DFD8).
-    public static Color PaperGridColor => Rgb(0xE2, 0xDF, 0xD8);
+    /// Traits du quadrillé du Papier : fins (#E4E1DA) et marqués (#D3CFC6), comme le Mac.
+    public static Color PaperGridMinor => Rgb(0xE4, 0xE1, 0xDA);
+    public static Color PaperGridMajor => Rgb(0xD3, 0xCF, 0xC6);
 
     /// Gris clair des textes en attente (« Appuie sur une touche », étapes à venir), comme `Swiss.faintText` du Mac.
     public static Color FaintText => WithOpacity(Secondary, 0.65);

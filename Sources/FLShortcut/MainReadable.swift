@@ -4,6 +4,7 @@
 // en une seule liste (nom, touche dans son cadre, rouge plein si changée, ↺), rangés sous le nom de leur groupe à
 // gauche ; « appuie sur un raccourci » pour en trouver un par ses touches ou son nom. Pièces de EditorView ; rien n'y
 // est enregistré.
+import AppKit
 import SwiftUI
 
 /// Mise en page des pages lisibles (maquette : le titre et la liste partent du même bord, liste de 784 points au plus).
@@ -656,38 +657,82 @@ struct FindSteps: View {
 
 // MARK: - Grille du papier
 
-/// Thème Papier (maquette « Minimal », 20/11 : « papier n'a pas les traits ») : la grille suisse visible, un trait fin
-/// au bord de chaque colonne (12 colonnes, gouttières de 24, 48 points du bord de la fenêtre), couleur #E2DFD8.
-/// Rien dans les thèmes Noir et Orange.
+/// Thème Papier (maquette « Minimal », 20/11 : « papier n'a pas les traits ») : la grille visible derrière la page ;
+/// rien dans les thèmes Noir et Orange.
 struct PaperGrid: View {
-    static let color = Color(red: 0xE2 / 255, green: 0xDF / 255, blue: 0xD8 / 255)
+    /// 28/11 (« quadriller très bien je valide », maquette « Papier, la grille ») : du papier à carreaux de 24 points, un
+    /// trait plus marqué tous les 4 carreaux (le pas des colonnes, 72 + 24), calé sur le bord de la page (48 points) ;
+    /// la barre de titre reste nue. Traits « normaux » de la maquette, toujours plus clairs que le texte le plus pâle.
+    static let minor = Color(red: 0xE4 / 255, green: 0xE1 / 255, blue: 0xDA / 255)
+    static let major = Color(red: 0xD3 / 255, green: 0xCF / 255, blue: 0xC6 / 255)
+    static let step: CGFloat = 24
+    static let every = 4
+    /// Bord de la page (ReadableLayout : 8 + 40) : un trait marqué y passe, le texte part du trait.
+    static let origin: CGFloat = 48
     /// 22/11 : suivi, sinon la grille restait après un passage du Papier à Noir ou Orange (Mon compte › Thème).
     @ObservedObject private var watch = ThemeWatch.shared
 
     var body: some View {
         GeometryReader { proxy in
             if watch.theme == .papier {
-                Path { path in
-                    for x in PaperGrid.lines(width: proxy.size.width) {
-                        path.addRect(CGRect(x: x, y: 0, width: 1, height: proxy.size.height))
-                    }
+                let top = MainWindowChrome.titleBarHeight
+                let size = proxy.size
+                let across = PaperGrid.lines(length: size.width, origin: PaperGrid.origin)
+                let down = PaperGrid.lines(length: max(0, size.height - top), origin: PaperGrid.origin)
+                ZStack(alignment: .topLeading) {
+                    PaperGrid.path(across, down, major: false, top: top, size: size).fill(PaperGrid.minor)
+                    PaperGrid.path(across, down, major: true, top: top, size: size).fill(PaperGrid.major)
                 }
-                .fill(PaperGrid.color)
             }
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 
-    /// Pur : abscisses des traits pour une fenêtre de `width` points (bords gauche et droit de chaque colonne).
-    static func lines(width: CGFloat, margin: CGFloat = 48, gutter: CGFloat = 24, columns: Int = 12) -> [CGFloat] {
-        let content = min(width - 2 * margin, ReadableLayout.maxWidth)
-        let column = (content - CGFloat(columns - 1) * gutter) / CGFloat(columns)
-        guard column > 0 else { return [] }
-        return (0..<columns).flatMap { k -> [CGFloat] in
-            let x = margin + CGFloat(k) * (column + gutter)
-            return [x, x + column]
+    private static func path(_ across: [(at: CGFloat, major: Bool)], _ down: [(at: CGFloat, major: Bool)], major: Bool,
+                             top: CGFloat, size: CGSize) -> Path {
+        Path { path in
+            for line in across where line.major == major {
+                path.addRect(CGRect(x: line.at, y: top, width: 1, height: size.height - top))
+            }
+            for line in down where line.major == major {
+                path.addRect(CGRect(x: 0, y: top + line.at, width: size.width, height: 1))
+            }
         }
+    }
+
+    /// Pur : traits du quadrillé sur `length` points, tous les `step`, un marqué tous les `every` à partir d'`origin`
+    /// (qui en porte un) ; de 0 compris à `length` exclu.
+    static func lines(length: CGFloat, origin: CGFloat, step: CGFloat = PaperGrid.step,
+                      every: Int = PaperGrid.every) -> [(at: CGFloat, major: Bool)] {
+        guard length > 0, step > 0 else { return [] }
+        let first = Int((-origin / step).rounded(.up))
+        let last = Int(((length - origin) / step).rounded(.up)) - 1
+        guard first <= last else { return [] }
+        return (first...last).map { k in
+            let rest = ((k % every) + every) % every
+            return (at: origin + CGFloat(k) * step, major: rest == 0)
+        }
+    }
+}
+
+/// 28/11 : une page qui défile laisse voir le quadrillé du Papier (photo de la CI du 24/11 : la liste des raccourcis
+/// le cachait d'un fond plein) ; posé dans le contenu, il retire le fond de la vue qui défile autour.
+struct ClearScrollBackground: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async { Self.clear(from: view) }
+        return view
+    }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        DispatchQueue.main.async { Self.clear(from: view) }
+    }
+
+    private static func clear(from view: NSView) {
+        guard let scroll = view.enclosingScrollView else { return }
+        scroll.drawsBackground = false
+        scroll.contentView.drawsBackground = false
     }
 }
 
