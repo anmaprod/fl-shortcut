@@ -146,9 +146,12 @@ basicConstraints = critical,CA:false
 keyUsage = critical,digitalSignature
 extendedKeyUsage = critical,codeSigning
 CFG
-    openssl req -x509 -newkey rsa:2048 -nodes -days 3650 -config "$t/cfg" \
+    # L'OpenSSL de macOS (LibreSSL), comme GitHub : celui de Homebrew (3, 4…) chiffre le .p12 d'une façon que
+    # `security import` ne lit pas, et la signature retombait en ad hoc (28/11, Mac du propriétaire : autorisations de
+    # macOS perdues à chaque compilation).
+    /usr/bin/openssl req -x509 -newkey rsa:2048 -nodes -days 3650 -config "$t/cfg" \
       -keyout "$t/key.pem" -out "$t/cert.pem" >/dev/null 2>&1 \
-    && openssl pkcs12 -export -inkey "$t/key.pem" -in "$t/cert.pem" -name "FL Shortcut Dev" \
+    && /usr/bin/openssl pkcs12 -export -inkey "$t/key.pem" -in "$t/cert.pem" -name "FL Shortcut Dev" \
       -out "$t/id.p12" -passout pass:"$DEV_KC_PASS" >/dev/null 2>&1 \
     && security create-keychain -p "$DEV_KC_PASS" "$DEV_KC" \
     && security set-keychain-settings "$DEV_KC" \

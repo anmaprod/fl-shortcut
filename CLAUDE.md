@@ -46,7 +46,18 @@
   one » (ÉCHEC : menu lu vide, FL le dessine juste après l'ouverture de sa fenêtre → corrigé : attente 0,12 s puis
   lu 3 fois, `menuEntry` ; Windows : `MenuText.Find`) ; 1re macro après le lancement : 31 s pour lire le titre d'une page
   (chargement de la lecture de texte de macOS) → `TextLook.warmUp()` au lancement. Toujours regarder s'il y a une manip
-  à faire avant (⌘A…) quand une macro échoue. Puis : sons libres de droit proches de ses packs ; Windows, clic gauche ou droit sur
+  à faire avant (⌘A…) quand une macro échoue. Outil d'essai `/tmp/fls-essai/macros` (sur son Mac, hors bac à sable :
+  `dangerouslyDisableSandbox`, sinon ses touches n'arrivent pas) : les touches de SES macros sont ⌘⇧ + touche (profil
+  `trigger.shift`), modificateurs enfoncés puis relâchés comme une main (sinon « relâche les touches du raccourci ») ;
+  ⌘A par la disposition du clavier (AZERTY : jamais la touche 0, ce serait ⌘Q). Résultat (version installée) : plugin
+  OK, Export Stems OK, Arrangement échec (corrigé dans 97768d0, à vérifier). `swift test` sur son Mac : 712 essais, 0
+  échec. Compilation chez lui : clone à part `/tmp/fls-build` (son clone n'est pas touché), `FLS_NATIVE=1 ./build.sh`
+  hors bac à sable → `~/Applications/FL Shortcuts.app` ; VRAI BUG trouvé : l'OpenSSL 4 de Homebrew faisait un .p12
+  illisible pour `security import`, signature retombée en ad hoc (autorisations perdues à chaque compilation) →
+  `/usr/bin/openssl` dans build.sh, signature « FL Shortcut Dev » stable. Son Mac refuse mes commandes qui touchent
+  ~/Library/Keychains (règle à lui, NE PAS contourner). Autorisations remises à zéro (`tccutil reset` Accessibility /
+  ScreenCapture de app.flshortcut.FLShortcut) puis données une dernière fois pour la version « FL Shortcut Dev ». Il a
+  demandé PAS DE CI pour l'instant (« teste tout sur le mac ») : envois en [skip ci]. Puis : sons libres de droit proches de ses packs ; Windows, clic gauche ou droit sur
   l'app = le menu de l'icône, plus rien sous la flèche (déjà fait le 21/11 d'après les notes : à revérifier).
 - **En cours (19-20/11)** : maquette « Minimal » (`docs/maquettes/fl-shortcuts-minimal.html`) mise dans l'app, tout
   fait le 20/11 au soir (voir « Fenêtre « Minimal » ») ; reste à relire les photos de la CI page par page ;
