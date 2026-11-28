@@ -103,13 +103,10 @@ internal sealed class MacrosPage
     private readonly Action<string, Action?> _toast;
     private readonly IReadOnlyList<(BlockCategory Category, IReadOnlyList<PaletteEntry> Entries)> _palette;
 
+    private readonly Grid _stepsPane = new();
+    private readonly StackPanel _header = new() { Spacing = 10, Margin = new Thickness(22, TitleBarHeight, 22, 10) };
     private readonly ScrollViewer _stepsScroll = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
-    /// Colonne de gauche du créateur (nom, touche, étapes, « Supprimer la macro »), redessinée à chaque changement.
-    private readonly StackPanel _left = new();
-    /// Le nom, la touche et les avertissements, au-dessus des étapes (colonnes 1 à 8 seulement).
-    private readonly StackPanel _headHost = new();
-    /// « Supprimer la macro » demandé dans la page (maquette « Minimal »).
-    private bool _confirmMacroDelete;
+    private readonly ScrollViewer _inspector = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
     private Guid? _editing;
     private Guid? _selected;
     /// Touche en cours de capture : -1 = raccourci de la macro, sinon l'index du bloc « Touche ».
@@ -593,101 +590,96 @@ internal sealed class MacrosPage
 
     // ---------- Créateur ----------
 
-    /// Maquette « Minimal » (20/11, comme le Mac) : une seule colonne. En haut « ← Macros » et « Terminé » ; à gauche le
-    /// nom, la touche, les étapes en phrases ; à droite la boîte « Ajouter une étape » ; tout défile ensemble.
     private void BuildCreator()
     {
-        // Transparent : le fond et les traits du thème Papier, dessinés sous la page, se voient (maquette « Minimal »).
-        Creator.Background = Brush(Colors.Transparent);
-        Creator.Padding = new Thickness(0);
-        var top = new Grid { Margin = new Thickness(0, 24, 0, 0) };
-        top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var back = LinkButton("← " + Loc.T("Macros"), Secondary, Done);
-        back.VerticalAlignment = VerticalAlignment.Center;
-        top.Children.Add(back);
-        var done = MinimalButton(Loc.T("Terminé"), Done);
-        ToolTipService.SetToolTip(done, Loc.T("Enregistrer et revenir aux macros"));
-        Grid.SetColumn(done, 1);
-        top.Children.Add(done);
-        // Colonnes de la grille de la maquette : étapes 1 à 8, « Ajouter une étape » 9 à 12. 21/11 (« c'est décalé, pas
-        // le même que la maquette », comme le Mac) : la boîte commence au même trait que les étapes, sous le nom.
-        var body = new Grid { ColumnSpacing = 24 };
-        body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 360 });
-        body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(347) });
-        body.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        body.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        body.Children.Add(_headHost);
-        _left.Margin = new Thickness(0, 32, 0, 0);
-        Grid.SetRow(_left, 1);
-        body.Children.Add(_left);
-        var box = AddStepBox();
-        box.Margin = new Thickness(0, 32, 0, 0);
-        box.VerticalAlignment = VerticalAlignment.Top;
-        Grid.SetColumn(box, 1);
-        Grid.SetRow(box, 1);
-        body.Children.Add(box);
-        // Toute la largeur jusqu'à 1 088, collée à gauche (photo de la CI : la page prenait la largeur de son contenu).
-        var page = new StackPanel { Children = { top, body } };
-        var host = new Grid { Margin = new Thickness(48, TitleBarHeight - 8, 48, 32) };
-        host.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 1088 });
-        host.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        host.Children.Add(page);
-        _stepsScroll.Content = host;
-        Creator.Children.Add(_stepsScroll);
-    }
+        Creator.Background = Brush(WindowColor);
+        Creator.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(SidebarWidth) });
+        Creator.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 280 });
+        Creator.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(InspectorWidth) });
 
-    /// « Ajouter une étape » (maquette) : une boîte bordée d'encre, les blocs par catégorie (Clavier, FL Studio, Souris,
-    /// Temps) ; un clic ajoute le bloc sous l'étape choisie, on peut aussi le glisser. En tête, « Enregistrer clics et
-    /// touches ».
-    private Border AddStepBox()
-    {
-        var stack = new StackPanel { Padding = new Thickness(0, 0, 0, 8) };
-        var title = SwissLabel(Loc.T("Ajouter une étape"), 12, Secondary);
-        title.Margin = new Thickness(16, 10, 16, 4);
-        AutomationProperties.SetHeadingLevel(title, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2);
-        stack.Children.Add(title);
-        foreach (var (category, entries) in StepSentence.Groups(_palette))
+        // Comme le Mac : trois colonnes sans cadre, séparées d'un trait fin.
+        var palette = new Border
         {
-            var label = Label(category, 12, Secondary);
-            label.Margin = new Thickness(16, 10, 16, 2);
-            stack.Children.Add(label);
-            foreach (var entry in entries) stack.Children.Add(AddStepLine(StepSentence.AddLabel(entry), () => Insert(entry, before: null), entry: entry, help: entry.Help));
-        }
-        return new Border { Child = stack, BorderBrush = Brush(Text), BorderThickness = new Thickness(2) };
+            Child = new ScrollViewer
+            {
+                Content = PaletteView(),
+                VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            },
+            Padding = new Thickness(8, 14, 8, 16),
+            BorderBrush = Brush(LineColor),
+            BorderThickness = new Thickness(0, 0, 1, 0),
+        };
+        Creator.Children.Add(palette);
+
+        _stepsPane.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        _stepsPane.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        _stepsPane.Children.Add(_header);
+        Grid.SetRow(_stepsScroll, 1);
+        _stepsPane.Children.Add(_stepsScroll);
+        Grid.SetColumn(_stepsPane, 1);
+        Creator.Children.Add(_stepsPane);
+
+        var inspector = new Border { Child = _inspector, BorderBrush = Brush(LineColor), BorderThickness = new Thickness(1, 0, 0, 0) };
+        Grid.SetColumn(inspector, 2);
+        Creator.Children.Add(inspector);
     }
 
-    /// Une ligne de la boîte : pas un bouton (le glisser ne démarrerait pas) ; pleine d'encre au survol.
-    private Border AddStepLine(string text, Action action, bool red = false, PaletteEntry? entry = null, string? help = null)
+    /// La palette : par catégorie, sous son titre gris ; un clic ajoute le bloc, on peut aussi le glisser.
+    private StackPanel PaletteView()
     {
-        var label = Label(text, 16, red ? Red : Text);
-        label.TextWrapping = TextWrapping.Wrap;
+        var stack = new StackPanel { Spacing = 12 };
+        foreach (var (category, entries) in _palette)
+        {
+            var group = new StackPanel { Spacing = 1 };
+            var title = SwissLabel(category.Label(), 10.5, Secondary);
+            title.Margin = new Thickness(10, 0, 10, 4);
+            AutomationProperties.SetHeadingLevel(title, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2);
+            group.Children.Add(title);
+            foreach (var entry in entries) group.Children.Add(PaletteRow(entry));
+            stack.Children.Add(group);
+        }
+        return stack;
+    }
+
+    /// Une ligne de la palette : pas un bouton (un bouton garde l'appui de la souris et le glisser ne démarrerait
+    /// pas, comme sur le Mac) ; au survol, pleine de la couleur de sa catégorie.
+    private Border PaletteRow(PaletteEntry entry)
+    {
+        var tile = BlockSquare();
+        var label = Label(entry.Label, 13);
+        label.TextWrapping = TextWrapping.NoWrap;
+        label.TextTrimming = TextTrimming.CharacterEllipsis;
+        label.VerticalAlignment = VerticalAlignment.Center;
+        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+        content.Children.Add(tile);
+        content.Children.Add(label);
         var row = new Border
         {
-            Child = label,
-            Padding = new Thickness(16, 6, 16, 6),
-            MinHeight = 36,
-            Margin = new Thickness(2, 0, 2, 0),
+            Child = content,
+            MinHeight = 32,
+            Padding = new Thickness(10, 5, 10, 5),
+            CornerRadius = new CornerRadius(0),
             Background = Brush(Colors.Transparent),
-            CanDrag = entry is not null,
+            CanDrag = true,
         };
         void Hover(bool on)
         {
-            row.Background = Brush(on ? MacLook.Text : Colors.Transparent);
-            label.Foreground = Brush(on ? MacLook.WindowColor : red ? Red : Text);
+            row.Background = Brush(on ? MacLook.Text : Colors.Transparent);      // style suisse : blanc plein, texte noir
+            label.Foreground = Brush(on ? MacLook.WindowColor : Text);
+            SetBlockSquare(tile, selected: false, hovered: on);
         }
         row.PointerEntered += (_, _) => Hover(true);
         row.PointerExited += (_, _) => Hover(false);
         row.PointerCanceled += (_, _) => Hover(false);
-        row.Tapped += (_, _) => action();
-        if (entry is not null)
-            row.DragStarting += (_, e) =>
-            {
-                e.Data.SetText(BlockDrag + entry.Type);
-                e.Data.RequestedOperation = DataPackageOperation.Copy;
-            };
-        if (help is not null) ToolTipService.SetToolTip(row, help);
-        AutomationProperties.SetName(row, text);
+        row.Tapped += (_, _) => Insert(entry, before: null);
+        row.DragStarting += (_, e) =>
+        {
+            e.Data.SetText(BlockDrag + entry.Type);
+            e.Data.RequestedOperation = DataPackageOperation.Copy;
+        };
+        ToolTipService.SetToolTip(row, entry.Help);
+        AutomationProperties.SetName(row, entry.Label);
         return row;
     }
 
@@ -729,125 +721,121 @@ internal sealed class MacrosPage
             return;
         }
         if (SelectedIndex(doc) is null) _selected = null;
-        _headHost.Children.Clear();
-        _left.Children.Clear();
-        _headHost.Children.Add(Head(doc));
-        if (_notice is { } notice)
-        {
-            var warn = Paragraph(notice, 13, Red);
-            warn.Margin = new Thickness(0, 8, 0, 0);
-            _headHost.Children.Add(warn);
-        }
-        if (_recording == doc.Id)
-        {
-            var banner = RecordingBanner();
-            banner.Margin = new Thickness(0, 24, 0, 0);
-            _headHost.Children.Add(banner);
-        }
-        _left.Children.Add(Steps(doc));
-        var delete = DeleteArea(doc);
-        delete.Margin = new Thickness(0, 48, 0, 0);
-        _left.Children.Add(delete);
+        RenderHeader(doc);
+        _stepsScroll.Content = Steps(doc);
+        _inspector.Content = Inspector(doc);
     }
 
-    /// Le nom en grand, souligné (maquette), puis « Touche » et la touche de la macro.
-    private FrameworkElement Head(MacroDoc doc)
+    /// ← rond, le nom en grand (champ), les touches du raccourci (clic : en taper d'autres), « Enregistrer » en bleu ;
+    /// dessous, seulement ce qui demande d'agir (problème, raccourci refusé).
+    private void RenderHeader(MacroDoc doc)
     {
-        var head = new Grid { ColumnSpacing = 32, Margin = new Thickness(0, 16, 0, 0) };
-        head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        // La touche prend sa place, le nom garde le reste (fenêtre étroite : le nom était coupé sur le Mac).
-        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var name = NameField(doc);
-        name.FontSize = 32;
-        name.FontFamily = SwissFont;
-        name.FontWeight = FontWeights.SemiBold;
-        name.CharacterSpacing = -20;
-        name.Padding = new Thickness(0, 0, 0, 4);
-        name.PlaceholderText = Loc.T("Nouvelle macro");
-        name.VerticalAlignment = VerticalAlignment.Bottom;
-        name.BorderThickness = new Thickness(0, 0, 0, 2);
-        foreach (var key in new[] { "TextControlBorderThemeThickness", "TextControlBorderThemeThicknessFocused" })
-            name.Resources[key] = new Thickness(0, 0, 0, 2);
-        name.Resources["TextControlBorderBrush"] = Brush(Faint);
-        name.Resources["TextControlBorderBrushPointerOver"] = Brush(Secondary);
-        name.Resources["TextControlBorderBrushFocused"] = Brush(Text);
-        foreach (var key in new[] { "TextControlPlaceholderForeground", "TextControlPlaceholderForegroundPointerOver",
-                                    "TextControlPlaceholderForegroundFocused" })
-            name.Resources[key] = Brush(Secondary);
-        head.Children.Add(name);
-        var trigger = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, 6) };
-        var keyLabel = Label(Loc.T("Touche"), 15, Secondary);
-        keyLabel.VerticalAlignment = VerticalAlignment.Bottom;
-        keyLabel.Margin = new Thickness(0, 0, 0, 6);
-        trigger.Children.Add(keyLabel);
-        trigger.Children.Add(ShortcutEditor(doc));
-        Grid.SetColumn(trigger, 1);
-        head.Children.Add(trigger);
-        return head;
-    }
-
-    /// « Terminé » / « ← Macros » : un raccourci posé sur une macro pas prête est dit d'abord (06/11), puis retour.
-    private async void Done()
-    {
-        if (_editing is not { } id || _store.Doc(id) is not { } doc)
+        _header.Children.Clear();
+        var line = new Grid { ColumnSpacing = 10, MinHeight = 52 };
+        line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        line.Children.Add(BackButton());
+        var name = NameTitle(doc);
+        Grid.SetColumn(name, 1);
+        line.Children.Add(name);
+        var trigger = ShortcutEditor(doc);
+        Grid.SetColumn(trigger, 2);
+        line.Children.Add(trigger);
+        var save = SaveButton(doc);
+        Grid.SetColumn(save, 3);
+        line.Children.Add(save);
+        // Étroit (fenêtre de 1 000 points : « Save and expor » coupé, photo du 04/11) : les touches passent sous le nom,
+        // qui garde toute la ligne.
+        line.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        line.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        line.SizeChanged += (_, e) =>
         {
-            Back();
-            return;
-        }
-        if (!_demo && _app.MacroShortcut(doc.Id) is not null && Issue(doc) is { } problem
-            && !await AskAsync(Loc.T("Ce raccourci ne marchera pas encore"), problem,
-                               Loc.T("Enregistrer quand même"), Loc.T("Corriger")))
-            return;
-        if (!_demo) _app.SaveMacrosNow();
-        _dirty = false;
-        _confirmMacroDelete = false;
-        Back();
-    }
-
-    /// « Supprimer la macro » en rouge, qui demande dans la page (maquette).
-    private FrameworkElement DeleteArea(MacroDoc doc)
-    {
-        if (!_confirmMacroDelete)
-            return LinkButton(Loc.T("Supprimer la macro"), Red, () =>
-            {
-                _confirmMacroDelete = true;
-                RenderSoon();
-            });
-        var ask = new StackPanel { Spacing = 8 };
-        ask.Children.Add(Label(Loc.T("Supprimer cette macro ?"), 14, Text));
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
-        row.Children.Add(MinimalButton(Loc.T("Supprimer"), () =>
-        {
-            _confirmMacroDelete = false;
-            var name = DisplayText.Safe(doc.Name, 40);
-            _dirty = false;
-            if (_demo)
-            {
-                _store.Remove(doc.Id);
-                return;
-            }
-            var undo = _app.DeleteMacro(doc.Id);
-            Back();
-            _toast(Loc.F("« %@ » supprimée", name), undo);
-        }));
-        var cancel = LinkButton(Loc.T("Annuler"), Text, () =>
-        {
-            _confirmMacroDelete = false;
-            RenderSoon();
-        });
-        cancel.VerticalAlignment = VerticalAlignment.Center;
-        row.Children.Add(cancel);
-        ask.Children.Add(row);
-        return ask;
+            var narrow = e.NewSize.Width < 620;
+            Grid.SetRow(trigger, narrow ? 1 : 0);
+            Grid.SetColumn(trigger, narrow ? 1 : 2);
+            trigger.HorizontalAlignment = narrow ? HorizontalAlignment.Left : HorizontalAlignment.Stretch;
+        };
+        _header.Children.Add(line);
+        // 06/11 (comme le Mac, « tous ces messages-là, tu peux les enlever ») : plus le problème de la macro au-dessus
+        // d'« Enregistrer clics et touches » (il est dit à « Enregistrer ») ; seulement la réponse à ce qu'on vient de
+        // faire (nom refusé, clic à montrer dans FL…), en texte simple.
+        if (_notice is { } notice) _header.Children.Add(Warning(notice));
     }
 
     private static FrameworkElement Warning(string text) => Paragraph(text, 12, Secondary);
+
+    /// Nom de la macro au style des titres de page (06/11, comme le Mac) : en minuscules, suivi du point carré. 07/11
+    /// (« le texte se décale… pas la même police… le point orange tout le temps, même quand on écrit ») : un seul champ,
+    /// le même au repos et pendant la frappe (police, taille et resserrement du titre, en minuscules), le point carré
+    /// toujours derrière ; un clic dedans le renomme, Entrée ou un clic ailleurs le referme.
+    private FrameworkElement NameTitle(MacroDoc doc)
+    {
+        const double size = 30;
+        var box = NameField(doc, lower: true);
+        box.FontSize = size;
+        box.FontFamily = SwissFont;
+        box.FontWeight = FontWeights.Bold;
+        box.CharacterSpacing = -39;
+        box.CharacterCasing = CharacterCasing.Lower;
+        box.PlaceholderText = Loc.T("Nom de la macro").ToLower(System.Globalization.CultureInfo.CurrentCulture);
+        box.MinWidth = 0;
+        box.Padding = new Thickness(0);
+        box.VerticalAlignment = VerticalAlignment.Bottom;
+        foreach (var key in new[] { "TextControlBorderThemeThickness", "TextControlBorderThemeThicknessFocused" })
+            box.Resources[key] = new Thickness(0);
+        foreach (var key in new[] { "TextControlPlaceholderForeground", "TextControlPlaceholderForegroundPointerOver",
+                                    "TextControlPlaceholderForegroundFocused" })
+            box.Resources[key] = Brush(Secondary);
+        ToolTipService.SetToolTip(box, Loc.T("Clique pour renommer la macro"));
+        var side = Math.Round(size * 0.19);
+        var dot = new Microsoft.UI.Xaml.Shapes.Rectangle
+        {
+            Width = side,
+            Height = side,
+            Fill = Brush(Red),
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(size * 0.09, 0, 0, Math.Round(size * 0.24)),
+            IsHitTestVisible = false,
+        };
+        AutomationProperties.SetAccessibilityView(dot, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
+        return new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { box, dot },
+        };
+    }
 
     /// Question au style de l'app (comme `SwissDialog` du Mac) ; vrai si l'on choisit `primary`.
     private async Task<bool> AskAsync(string title, string text, string primary, string close, bool destructive = false)
     {
         if (_window.Content?.XamlRoot is not { } root) return false;
         return await SwissQuestion.AskAsync(root, title, text, new[] { primary, close }, destructive ? 0 : null) == 0;
+    }
+
+    private Button BackButton()
+    {
+        var button = new Button
+        {
+            Style = PlainButton,
+            Width = 36,
+            Height = 36,
+            CornerRadius = new CornerRadius(0),
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Content = Icon("back", 14, Text),
+            Background = Brush(MacLook.WindowColor),
+            BorderBrush = Brush(LineColor),
+            BorderThickness = new Thickness(1),
+        };
+        button.PointerEntered += (_, _) => button.Background = Brush(Accent);
+        button.PointerExited += (_, _) => button.Background = Brush(MacLook.WindowColor);
+        button.Click += (_, _) => Back();
+        ToolTipService.SetToolTip(button, Loc.T("Retour"));
+        AutomationProperties.SetName(button, Loc.T("Retour"));
+        return button;
     }
 
     /// Le nom de la macro, en grand, sans cadre : appliqué à la sortie du champ ou à Entrée.
@@ -888,57 +876,82 @@ internal sealed class MacrosPage
         return box;
     }
 
-    /// La touche de la macro (maquette) : en 24 demi-gras soulignée ; « Choisir » en rouge pointillé sans touche ; un
-    /// clic, puis la touche (Retour arrière seul : plus de touche ; Échap : rien ne change).
+    /// Toujours « Enregistrer » (30/10, « le bouton enregistrer ne fonctionne plus » : chaque changement s'enregistre
+    /// seul juste après, le bouton restait sur « Enregistrée » sans rien faire) : enregistre et revient aux macros.
+    private Button SaveButton(MacroDoc doc)
+    {
+        var save = Primary(Loc.T("Enregistrer"), async () =>
+        {
+            // Un raccourci posé sur une macro pas prête : on prévient avant de revenir (06/11, comme le Mac).
+            if (!_demo && _app.MacroShortcut(doc.Id) is not null && Issue(doc) is { } problem
+                && !await AskAsync(Loc.T("Ce raccourci ne marchera pas encore"), problem,
+                                   Loc.T("Enregistrer quand même"), Loc.T("Corriger")))
+                return;
+            if (!_demo) _app.SaveMacrosNow();
+            _dirty = false;
+            Back();
+        });
+        save.VerticalAlignment = VerticalAlignment.Center;
+        return save;
+    }
+
     private FrameworkElement ShortcutEditor(MacroDoc doc)
     {
         var shortcut = _demo ? null : _app.MacroShortcut(doc.Id);
-        return CaptureButton(-1, shortcut?.Trigger, Loc.T("Choisir"), mouse: true, minimal: true, done: combo =>
+        var capture = CaptureButton(-1, shortcut?.Trigger, Loc.T("Choisir un raccourci…"), mouse: true, done: combo =>
         {
             if (_demo) return;
-            if (combo.Vk == 0x08 && !combo.HasModifiers)
-            {
-                _app.RemoveMacroShortcut(doc.Id);
-                _notice = null;
-            }
-            else if (_app.SetMacroShortcut(doc.Id, combo) is { } why) _notice = Loc.F("Ce raccourci ne peut pas lancer la macro : %@", why);
+            if (_app.SetMacroShortcut(doc.Id, combo) is { } why) _notice = Loc.F("Ce raccourci ne peut pas lancer la macro : %@", why);
             else _notice = null;
             RenderSoon();
         });
+        if (shortcut is null) return capture;
+        var remove = new Button
+        {
+            Style = PlainButton, Width = 26, Height = 26, CornerRadius = new CornerRadius(0),
+            HorizontalContentAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+            Content = Icon("trash", 12, Secondary),
+        };
+        remove.Click += (_, _) =>
+        {
+            _app.RemoveMacroShortcut(doc.Id);
+            RenderSoon();
+        };
+        ToolTipService.SetToolTip(remove, Loc.T("Retirer le raccourci"));
+        AutomationProperties.SetName(remove, Loc.T("Retirer le raccourci"));
+        var line = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
+        line.Children.Add(capture);
+        line.Children.Add(remove);
+        return line;
     }
 
     /// Champ d'une combinaison (raccourci de la macro ou bloc « Touche ») : ses touches en petites plaques ; un clic,
     /// puis les touches appuyées la remplacent (Échap seul annule).
     /// `mouse` : un bouton de souris (molette, côtés) est accepté aussi (raccourci d'une macro, jamais une touche envoyée).
-    private Button CaptureButton(int slot, KeyCombo? combo, string prompt, Action<KeyCombo> done, bool mouse = false, bool minimal = false)
+    private Button CaptureButton(int slot, KeyCombo? combo, string prompt, Action<KeyCombo> done, bool mouse = false)
     {
         var recording = _capturing == slot;
-        UIElement content = minimal
-            ? MinimalKey(recording, combo, prompt)
-            : recording
+        UIElement content = recording
             ? Label(Loc.T("Appuie sur tes touches…"), 12, Text)
             : combo is { } c ? (UIElement)Keys(c) : Label(prompt, 12, Link);
         var button = new Button
         {
             Style = PlainButton,
             Content = content,
-            MinHeight = minimal ? 0 : 32,
-            Padding = minimal ? new Thickness(0) : new Thickness(8, 4, 8, 4),
+            MinHeight = 32,
+            Padding = new Thickness(8, 4, 8, 4),
             CornerRadius = new CornerRadius(0),
             HorizontalAlignment = HorizontalAlignment.Left,
-            VerticalAlignment = minimal ? VerticalAlignment.Bottom : VerticalAlignment.Center,
-            Background = Brush(minimal ? Colors.Transparent : MacLook.WindowColor),
-            BorderBrush = Brush(minimal ? Colors.Transparent : recording ? Accent : White(0.16)),
-            BorderThickness = new Thickness(minimal ? 0 : recording ? 2 : 1),
+            VerticalAlignment = VerticalAlignment.Center,
+            Background = Brush(MacLook.WindowColor),
+            BorderBrush = Brush(recording ? Accent : White(0.16)),
+            BorderThickness = new Thickness(recording ? 2 : 1),
         };
         AutomationProperties.SetName(button, combo?.ToString() ?? prompt);
         if (!recording)
         {
-            if (!minimal)
-            {
-                button.PointerEntered += (_, _) => button.Background = Brush(White(0.16));
-                button.PointerExited += (_, _) => button.Background = Brush(MacLook.WindowColor);
-            }
+            button.PointerEntered += (_, _) => button.Background = Brush(White(0.16));
+            button.PointerExited += (_, _) => button.Background = Brush(MacLook.WindowColor);
             button.Click += (_, _) =>
             {
                 StopCapture();
@@ -982,34 +995,6 @@ internal sealed class MacrosPage
         return button;
     }
 
-    /// La touche de la maquette : 24 demi-gras soulignée d'encre ; « Choisir » rouge pointillé ; pendant l'écoute,
-    /// « Appuie sur une touche » en rouge, souligné de rouge.
-    private static FrameworkElement MinimalKey(bool recording, KeyCombo? combo, string prompt)
-    {
-        var text = recording ? Loc.T("Appuie sur une touche") : combo?.ToString() ?? prompt;
-        var label = Label(text, recording || combo is null ? 17 : 24, recording || combo is null ? Red : Text, semibold: !recording && combo is not null);
-        label.TextWrapping = TextWrapping.NoWrap;
-        // Maquette (« val wait ») : pendant l'écoute, un curseur rouge qui clignote devant le texte.
-        FrameworkElement shown = label;
-        if (recording)
-            shown = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Spacing = 6,
-                Children = { Blink(new Rectangle { Width = 2, Height = 18, Fill = Brush(Red), VerticalAlignment = VerticalAlignment.Center }), label },
-            };
-        var line = new Rectangle { Height = 2, Fill = Brush(recording ? Red : Text), VerticalAlignment = VerticalAlignment.Bottom };
-        if (!recording && combo is null)
-        {
-            line.Fill = null;
-            line.Stroke = Brush(Red);
-            line.StrokeThickness = 2;
-            line.StrokeDashArray = new DoubleCollection { 1, 1.5 };
-            line.Height = 2;
-        }
-        return new StackPanel { Spacing = 4, Children = { shown, line } };
-    }
-
     private void StopCapture()
     {
         if (_capturing is null) return;
@@ -1022,116 +1007,118 @@ internal sealed class MacrosPage
 
     // ---------- Étapes ----------
 
-    /// Les étapes (maquette « Minimal ») sous un trait d'encre : une phrase numérotée par bloc ; sans étape, « Choisis
-    /// une étape à droite. » (on peut y lâcher un bloc).
+    /// Les étapes dans une plaque (un trait fin entre deux lignes), puis la zone en pointillés où lâcher un bloc.
     private StackPanel Steps(MacroDoc doc)
     {
-        var list = new StackPanel();
-        list.Children.Add(new Rectangle { Height = 1, Fill = Brush(Text) });          // maquette : trait d'encre de 1
-        if (doc.Blocks.Count == 0)
+        var page = new StackPanel { Spacing = 12, Padding = new Thickness(22, 4, 22, 24) };
+        // 20/11 (« Enregistrer clics et touches doit être supprimé ») : plus de barre d'enregistrement en haut.
+        if (_recording == doc.Id) page.Children.Add(RecordingBanner());
+        if (doc.Blocks.Count > 0)
         {
-            var empty = new Border { Background = Brush(Colors.Transparent), AllowDrop = true, Padding = new Thickness(11, 16, 11, 16) };
-            empty.Child = Label(Loc.T("Choisis une étape à droite."), 13, Secondary);
-            AcceptDrops(empty, 0, null);
-            list.Children.Add(empty);
-            return list;
+            var list = new StackPanel();
+            for (var i = 0; i < doc.Blocks.Count; i++) list.Children.Add(StepRow(doc, i));
+            page.Children.Add(list);
         }
-        for (var i = 0; i < doc.Blocks.Count; i++) list.Children.Add(StepRow(doc, i));
-        return list;
+        page.Children.Add(DropZone(doc));
+        return page;
     }
 
-    /// Une étape : son numéro (« 01 »), sa phrase avec la valeur soulignée (rouge tant qu'elle manque) ; un clic ouvre
-    /// ses réglages juste dessous ; au survol, « Monter », « Descendre », « Retirer » ; clic droit : activer /
-    /// désactiver ; on la glisse pour la ranger.
+    /// Une ligne : numéro, icône de couleur, la phrase (nom du bloc et sa valeur en pastille), l'interrupteur.
+    /// Un clic la choisit (réglages à droite) ; clic droit : activer / désactiver, supprimer ; on la glisse pour la ranger.
     private FrameworkElement StepRow(MacroDoc doc, int index)
     {
         var block = doc.Blocks[index];
         var body = block.Body;
         var spec = body.Type is { } type ? BlockRegistry.Spec(type) : null;
-        var open = block.Id == _selected;
+        var tint = spec is null ? Gray : CategoryTint;
+        var symbol = spec?.Symbol ?? "warning";
+        var selected = block.Id == _selected;
 
-        var grid = new Grid { ColumnSpacing = 16, MinHeight = 50, Padding = new Thickness(11, 8, 11, 8), Background = Brush(Colors.Transparent) };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var number = Label((index + 1).ToString("00", System.Globalization.CultureInfo.InvariantCulture), 12, Secondary);
+        var grid = new Grid { ColumnSpacing = 8 };
+        foreach (var width in new[] { GridLength.Auto, GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto, GridLength.Auto })
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
+        var number = Label((index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), 11, selected ? WithOpacity(MacLook.WindowColor, 0.6) : Secondary);
+        number.MinWidth = 24;
+        number.TextAlignment = TextAlignment.Right;
         number.VerticalAlignment = VerticalAlignment.Center;
         grid.Children.Add(number);
+        var tile = BlockSquare(selected);
+        tile.Margin = new Thickness(4, 0, 4, 0);
+        Grid.SetColumn(tile, 1);
+        grid.Children.Add(tile);
 
-        var sentence = new TextBlock { FontFamily = SwissFont, FontSize = 16, Foreground = Brush(Text), TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+        var sentence = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
         if (body is BlockBody.Comment comment)
         {
-            sentence.Text = comment.Text;
-            sentence.Foreground = Brush(Secondary);
-            sentence.FontStyle = Windows.UI.Text.FontStyle.Italic;
+            var note = Label(comment.Text, 13, selected ? Tertiary : Secondary);
+            note.FontStyle = Windows.UI.Text.FontStyle.Italic;
+            note.TextTrimming = TextTrimming.CharacterEllipsis;
+            sentence.Children.Add(note);
         }
         else
         {
-            var parts = StepSentence.For(body.Type, BlockRegistry.Label(body));
-            var value = spec?.Summary(body) is { Length: > 0 } summary ? summary : null;
-            // « Poser un marqueur » avec un nom (08/11) : le nom suit l'action.
-            if (value is not null && MarkerPayload.Of(block) is { } marker) value += " · " + DisplayText.Safe(marker, 40);
-            if (parts.Pre.Length > 0) sentence.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = parts.Pre + " " });
-            if (value is not null || parts.Placeholder.Length > 0)
-                sentence.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run
-                {
-                    Text = (value ?? parts.Placeholder) + " ▾",
-                    FontWeight = value is null ? FontWeights.Normal : FontWeights.SemiBold,
-                    Foreground = Brush(value is null ? Red : Text),
-                    TextDecorations = Windows.UI.Text.TextDecorations.Underline,
-                });
-            if (parts.Post.Length > 0) sentence.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = " " + parts.Post });
-            if (!block.Enabled) sentence.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = "  " + Loc.T("désactivée"), FontSize = 13, Foreground = Brush(Secondary) });
+            var verb = Label(BlockRegistry.Label(body), 13.5, selected ? MacLook.WindowColor : Text, bold: true);
+            verb.TextWrapping = TextWrapping.NoWrap;
+            verb.VerticalAlignment = VerticalAlignment.Center;
+            sentence.Children.Add(verb);
+            if (spec?.Summary(body) is { Length: > 0 } summary)
+            {
+                // « Poser un marqueur » avec un nom (08/11) : le nom suit l'action.
+                if (MarkerPayload.Of(doc.Blocks[index]) is { } marker) summary += " · " + DisplayText.Safe(marker, 40);
+                // Comme le Mac : la valeur en gris à côté du verbe, plus dans une pastille.
+                var value = Label(summary, 13, selected ? WithOpacity(MacLook.WindowColor, 0.6) : Secondary);
+                value.TextWrapping = TextWrapping.NoWrap;
+                value.TextTrimming = TextTrimming.CharacterEllipsis;
+                value.VerticalAlignment = VerticalAlignment.Center;
+                sentence.Children.Add(value);
+            }
         }
-        var middle = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center, Children = { sentence } };
-        if (MacroEffectsWindows.Unsupported(body) is { } missing) middle.Children.Add(Paragraph(missing, 13, Red));
-        Grid.SetColumn(middle, 1);
-        grid.Children.Add(middle);
-
-        // Comme le Mac (photo de la CI du 20/11) : par-dessus la fin de la ligne, au survol seulement ; cachés, ils ne
-        // prennent plus de place à la phrase.
-        var toolRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, VerticalAlignment = VerticalAlignment.Center };
-        if (index > 0) toolRow.Children.Add(LinkButton(Loc.T("Monter"), Secondary, () => MoveStep(doc, index, -1)));
-        if (index < doc.Blocks.Count - 1) toolRow.Children.Add(LinkButton(Loc.T("Descendre"), Secondary, () => MoveStep(doc, index, 1)));
-        toolRow.Children.Add(LinkButton(Loc.T("Retirer"), Secondary, () => Remove(doc, index)));
-        var hoverFill = Color.FromArgb(255, (byte)(WindowColor.R + (Text.R - WindowColor.R) * 0.06), (byte)(WindowColor.G + (Text.G - WindowColor.G) * 0.06),
-                                       (byte)(WindowColor.B + (Text.B - WindowColor.B) * 0.06));
-        var tools = new Border
+        Grid.SetColumn(sentence, 2);
+        grid.Children.Add(sentence);
+        if (MacroEffectsWindows.Unsupported(body) is { } missing)
         {
-            Child = toolRow,
-            Background = Brush(hoverFill),
-            Padding = new Thickness(16, 0, 0, 0),
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Stretch,
-            Visibility = open ? Visibility.Visible : Visibility.Collapsed,
-        };
-        Grid.SetColumn(tools, 1);
-        grid.Children.Add(tools);
-        foreach (var child in new UIElement[] { number, middle }) child.Opacity = block.Enabled ? 1 : 0.45;
+            var warn = Icon("warning", 13, Orange, WindowColor);
+            ToolTipService.SetToolTip(warn, missing);
+            warn.IsHitTestVisible = true;
+            Grid.SetColumn(warn, 3);
+            grid.Children.Add(warn);
+        }
+        var toggle = Switch(block.Enabled, on => Change(doc, d => d.Blocks[index].Enabled = on));
+        Grid.SetColumn(toggle, 4);
+        grid.Children.Add(toggle);
+        foreach (var child in new UIElement[] { number, tile, sentence }) child.Opacity = block.Enabled ? 1 : 0.45;
 
-        // Trait d'insertion pendant un dépôt sur cette ligne : rouge (comme le Mac).
-        var mark = new Rectangle { Height = 3, Fill = Brush(BrandRed), VerticalAlignment = VerticalAlignment.Top, Visibility = Visibility.Collapsed, IsHitTestVisible = false };
+        // Trait d'insertion pendant un dépôt sur cette ligne : orange (style suisse, comme le Mac).
+        var mark = new Rectangle { Height = 3, Fill = Brush(BrandRed), VerticalAlignment = VerticalAlignment.Top, Visibility = Visibility.Collapsed,
+                                   Margin = new Thickness(8, 0, 8, 0), IsHitTestVisible = false };
         var row = new Border
         {
             Child = grid,
-            BorderBrush = Brush(Faint),
-            BorderThickness = new Thickness(0, 0, 0, 1),
-            Background = Brush(open ? WithOpacity(Text, 0.06) : Colors.Transparent),
+            MinHeight = 40,
+            Padding = new Thickness(6, 4, 10, 4),
+            CornerRadius = new CornerRadius(0),
+            Background = Brush(selected ? MacLook.Text : Colors.Transparent),
+            // La ligne choisie, blanche, soulevée sur son encoche rouge (comme le Mac).
+            BorderBrush = Brush(selected ? BrandRed : Colors.Transparent),
+            BorderThickness = new Thickness(0, 0, selected ? 4 : 0, selected ? 4 : 0),
             CanDrag = true,
             AllowDrop = true,
         };
-        void Hover(bool on)
+        if (!selected)
         {
-            row.Background = Brush(on || open ? WithOpacity(Text, 0.06) : Colors.Transparent);
-            tools.Visibility = on || open ? Visibility.Visible : Visibility.Collapsed;
+            void Hover(bool on)
+            {
+                row.Background = Brush(on ? White(0.08) : Colors.Transparent);    // la ligne choisie, elle, est blanche
+                SetBlockSquare(tile, selected: false, hovered: on);
+            }
+            row.PointerEntered += (_, _) => Hover(true);
+            row.PointerExited += (_, _) => Hover(false);
+            row.PointerCanceled += (_, _) => Hover(false);
         }
-        row.PointerEntered += (_, _) => Hover(true);
-        row.PointerExited += (_, _) => Hover(false);
-        row.PointerCanceled += (_, _) => Hover(false);
-        row.Tapped += (_, e) =>
+        row.Tapped += (_, _) =>
         {
-            // « Monter », « Descendre », « Retirer » font le leur.
-            if (OnButton(e, row)) return;
-            _selected = _selected == block.Id ? null : block.Id;
+            if (_selected == block.Id) return;
+            _selected = block.Id;
             RenderSoon();
         };
         var menu = new MenuFlyout();
@@ -1139,7 +1126,7 @@ internal sealed class MacrosPage
         enable.Click += (_, _) => Change(doc, d => d.Blocks[index].Enabled = !block.Enabled);
         menu.Items.Add(enable);
         menu.Items.Add(new MenuFlyoutSeparator());
-        var delete = new MenuFlyoutItem { Text = Loc.T("Retirer") };
+        var delete = new MenuFlyoutItem { Text = Loc.T("Supprimer") };
         delete.Click += (_, _) => Remove(doc, index);
         menu.Items.Add(delete);
         row.ContextFlyout = SwissMenu(menu);
@@ -1154,24 +1141,10 @@ internal sealed class MacrosPage
         var cell = new Grid();
         cell.Children.Add(row);
         cell.Children.Add(mark);
-        if (!open) return cell;
-        // Réglages du bloc ouverts juste sous sa ligne, dans un cadre d'encre (comme le Mac).
-        var settings = new Border
-        {
-            Child = BlockSettings(doc, index),
-            BorderBrush = Brush(Text),
-            BorderThickness = new Thickness(2),
-            Margin = new Thickness(60, 8, 0, 8),
-            Padding = new Thickness(16),
-        };
-        return new StackPanel { Children = { cell, settings } };
-    }
-
-    private void MoveStep(MacroDoc doc, int index, int delta)
-    {
-        var block = doc.Blocks[index];
-        Change(doc, d => MacroDrafts.Move(d.Blocks, index, delta));
-        _selected = _selected == block.Id ? block.Id : _selected;
+        if (index > 0)
+            cell.Children.Add(new Rectangle { Height = 1, Fill = Brush(White(0.06)), VerticalAlignment = VerticalAlignment.Top,
+                                              Margin = new Thickness(10, 0, 10, 0), IsHitTestVisible = false });
+        return cell;
     }
 
     /// Interrupteur suisse (SwissSwitch du Mac) : rectangle bordé de blanc ; allumé, blanc plein et carré noir à
@@ -1255,6 +1228,30 @@ internal sealed class MacrosPage
         return button;
     }
 
+    /// Zone en pointillés sous les étapes : un bloc de la palette lâché ici va à la fin.
+    private FrameworkElement DropZone(MacroDoc doc)
+    {
+        var zone = new Grid { MinHeight = 52, AllowDrop = true, Background = Brush(Colors.Transparent) };
+        // Coins carrés et pointillés gris (direction A, comme le Mac).
+        var border = new Rectangle
+        {
+            Stroke = Brush(Tertiary),
+            StrokeThickness = 1,
+            StrokeDashArray = new DoubleCollection { 5, 4 },
+        };
+        zone.Children.Add(border);
+        var text = Paragraph(Loc.T("Glisse un bloc ici"), 13);
+        text.TextAlignment = TextAlignment.Center;
+        text.HorizontalAlignment = HorizontalAlignment.Center;
+        text.VerticalAlignment = VerticalAlignment.Center;
+        text.Margin = new Thickness(16, 10, 16, 10);
+        zone.Children.Add(text);
+        zone.DragEnter += (_, _) => border.Stroke = Brush(Accent);
+        zone.DragLeave += (_, _) => border.Stroke = Brush(Tertiary);
+        AcceptDrops(zone, doc.Blocks.Count, null);
+        return zone;
+    }
+
     /// Dépôt d'un bloc de la palette ou d'une ligne glissée, à la place `before`. `split` (une ligne, comme le Mac
     /// le 07/11) : moitié haute, au-dessus ; moitié basse, dessous ; le trait suit.
     /// `moving` : le contenu de la ligne, qui s'écarte en douceur du trait (08/11, « refais une animation… pour que les
@@ -1334,18 +1331,26 @@ internal sealed class MacrosPage
 
     // ---------- Réglages du bloc choisi ----------
 
-    /// Réglages d'un bloc, ouverts sous sa ligne (maquette « Minimal ») : son aide, puis ses réglages.
-    private FrameworkElement BlockSettings(MacroDoc doc, int index)
+    private FrameworkElement Inspector(MacroDoc doc)
     {
+        if (SelectedIndex(doc) is not { } index) return Hint();
         var block = doc.Blocks[index];
         var body = block.Body;
         var spec = body.Type is { } type ? BlockRegistry.Spec(type) : null;
-        var stack = new StackPanel { Spacing = 14 };
+        var stack = new StackPanel { Spacing = 14, Padding = new Thickness(16, TitleBarHeight, 16, 18) };
 
+        var header = new Grid { ColumnSpacing = 10 };
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var tile = Tile(spec is null ? Gray : CategoryTint, 28);
+        tile.VerticalAlignment = VerticalAlignment.Top;
+        header.Children.Add(tile);
         var titles = new StackPanel { Spacing = 3 };
         titles.Children.Add(Label(spec?.Label ?? Loc.T("Bloc inconnu"), 15, Text, semibold: true));
-        if (spec?.Help is { Length: > 0 } help) titles.Children.Add(Paragraph(help, 12));
-        stack.Children.Add(titles);
+        if (spec?.Help is { Length: > 0 } help) titles.Children.Add(Paragraph(help, 11));
+        Grid.SetColumn(titles, 1);
+        header.Children.Add(titles);
+        stack.Children.Add(header);
 
         if (spec is null)
             stack.Children.Add(Paragraph(Loc.T("Bloc d'une version plus récente : mets l'app à jour, ou supprime-le."), 12, Text));
@@ -1369,6 +1374,28 @@ internal sealed class MacrosPage
         else if (body is not BlockBody.Organize)
             stack.Children.Add(Paragraph(Loc.T("Bloc à régler sur le Mac pour l'instant."), 12));
 
+        var remove = new Button
+        {
+            Style = PlainButton,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Padding = new Thickness(4, 4, 4, 4),
+            Content = Label(Loc.T("Retirer ce bloc"), 13, Rgb(0xFF, 0x69, 0x61)),
+        };
+        remove.Click += (_, _) => Remove(doc, index);
+        AutomationProperties.SetName(remove, Loc.T("Retirer ce bloc"));
+        stack.Children.Add(remove);
+        return stack;
+    }
+
+    private static FrameworkElement Hint()
+    {
+        var stack = new StackPanel { Spacing = 8, Padding = new Thickness(24), Margin = new Thickness(0, 160, 0, 0) };
+        var icon = Icon("slider.horizontal.3", 26, Secondary);
+        icon.HorizontalAlignment = HorizontalAlignment.Center;
+        stack.Children.Add(icon);
+        var title = Label(Loc.T("Aucun bloc choisi"), 14, Text, semibold: true);
+        title.HorizontalAlignment = HorizontalAlignment.Center;
+        stack.Children.Add(title);
         return stack;
     }
 

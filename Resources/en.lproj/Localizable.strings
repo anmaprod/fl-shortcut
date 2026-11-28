@@ -585,6 +585,7 @@
 "Choisis la version à garder. Rien n'est envoyé ni remplacé avant ton choix." = "Choose the version to keep. Nothing is uploaded or replaced until you choose.";
 "Choisis le dossier de données de FL Studio (Options › File settings › User data folder dans FL), ou son dossier « Settings/Hardware »." = "Choose FL Studio's data folder (Options › File settings › User data folder in FL), or its “Settings/Hardware” folder.";
 "Choisis le fichier du projet ouvert dans FL Studio (.flp)." = "Choose the file of the project open in FL Studio (.flp).";
+"Choisis ses étapes à gauche." = "Pick its steps on the left.";
 "Choisis ta photo de profil : tu pourras la recadrer avant de l'enregistrer." = "Choose your profile photo: you can crop it before saving.";
 "Choisis un menu de FL, puis ce qu'il contient, jusqu'à l'élément voulu." = "Choose an FL menu, then what's inside, down to the item you want.";
 "Choisis un mot de passe différent de l'ancien." = "Choose a password different from your old one.";

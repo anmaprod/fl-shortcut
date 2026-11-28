@@ -146,8 +146,9 @@ drag() {   # $1 : rapport gardé (position de la fenêtre) ; $2..$5 : x1 y1 x2 y
   "$DRAG" $(( ox + $2 )) $(( oy + $3 )) $(( ox + $4 )) $(( oy + $5 )) ${6:-} >&2
 }
 
-rows() {   # $1 : rapport gardé ; nombre de blocs du créateur (20/11 : plus de liste de macOS, les étapes sont en phrases)
-  sed -n 's/^créateur : //p' "$OUT/$1-report.txt" 2>/dev/null | head -1 | awk -F' > ' 'NF { print NF }'
+rows() {   # $1 : rapport gardé ; lignes de la liste des blocs du créateur (la plus large des listes)
+  sed -nE 's/^  liste \(-?[0-9]+,-?[0-9]+ ([0-9]+)[^0-9]+[0-9]+\) · ([0-9]+) lignes.*/\1 \2/p' "$OUT/$1-report.txt" 2>/dev/null \
+    | sort -n | tail -1 | awk '{print $2}'
 }
 
 order() {   # $1 : rapport gardé ; ordre des blocs du créateur (genres seulement)
@@ -438,22 +439,23 @@ run() {   # $1 : libellé (début du nom des captures)
   screencapture -x "$OUT/$label-createur.png" 2>/dev/null || true
   report "$label-createur-ouvert" >/dev/null
   fit+=" / $(fits "$label-createur-ouvert")"
-  # Créateur en phrases (20/11) : une colonne d'étapes (01 à partir de y 205, lignes de 52 environ, la 1re sur deux
-  # lignes), réglages du bloc 4 choisi ouverts sous sa ligne, boîte « Ajouter une étape » à droite (x 660 ;
-  # « Appuyer sur une touche » à y 271 depuis le 21/11 : la boîte commence au trait des étapes). Coordonnées relevées sur la photo de la CI de 43d5964.
+  # 28/11 : le créateur en colonnes revient (palette, étapes, réglages), sans le bandeau « Enregistrer clics et
+  # touches » (retiré le 20/11) : les lignes des étapes sont 52 points plus haut qu'avant (lignes de 48, la 2e à y 204).
   # Liste déroulante suisse (08/11) : « Entrée à la fin » du bloc 4 choisi, ouverte à vrais clics, photographiée, puis
-  # refermée d'un clic dans le vide en haut de la page.
-  click_in "$label-createur-ouvert" 513 579; sleep 1.5
+  # refermée d'un clic dans le vide du panneau de droite.
+  click_in "$label-createur-ouvert" 918 238; sleep 1.5
   screencapture -x "$OUT/$label-createur-liste.png" 2>/dev/null || true
-  click_in "$label-createur-ouvert" 450 90; sleep 1
-  # Vrai glisser-déposer à la souris : « Appuyer sur une touche » de la boîte, lâché sur la moitié basse du bloc 2 ;
-  # la macro doit gagner un bloc.
-  drag "$label-createur-ouvert" 660 271 300 300; sleep 2
+  click_in "$label-createur-ouvert" 860 560; sleep 1
+  # Vrai glisser-déposer à la souris : « Touche ou raccourci » de la palette (1er bloc de Clavier, sous les 8 blocs
+  # de FL Studio ; 07/11 au soir : y 334, « Carte son branchée » retirée), lâché entre les blocs 4 et 5 de l'exemple ;
+  # la liste des blocs doit gagner une ligne.
+  drag "$label-createur-ouvert" 113 334 465 324; sleep 2
   report "$label-createur-glisse" >/dev/null
   screencapture -x "$OUT/$label-createur-glisse.png" 2>/dev/null || true
   drop="$(rows "$label-createur-ouvert") → $(rows "$label-createur-glisse")"
-  # Puis un bloc déplacé à la souris : le bloc 2 lâché sur la moitié basse du bloc 6 ; l'ordre doit changer.
-  drag "$label-createur-ouvert" 300 291 300 510; sleep 2
+  # Puis un bloc de la liste déplacé à la souris : « Clic droit » (2e ligne, sur son nom) lâché entre les lignes 6 et
+  # 7 ; l'ordre des blocs doit changer.
+  drag "$label-createur-ouvert" 400 204 400 420; sleep 2
   report "$label-createur-deplace" >/dev/null
   screencapture -x "$OUT/$label-createur-deplace.png" 2>/dev/null || true
   if [[ -z "$(order "$label-createur-glisse")" ]]; then moved="?"
@@ -461,10 +463,10 @@ run() {   # $1 : libellé (début du nom des captures)
   else moved="NON"; fi
   # Les mêmes gestes faits vite, comme une vraie main (appui puis départ aussitôt) : la liste doit encore gagner une
   # ligne, puis l'ordre changer. Résultat dans glisser-essai.txt.
-  drag "$label-createur-ouvert" 660 271 300 455 vite; sleep 2
+  drag "$label-createur-ouvert" 113 334 465 372 vite; sleep 2
   report "$label-createur-glisse-vite" >/dev/null
   screencapture -x "$OUT/$label-createur-glisse-vite.png" 2>/dev/null || true
-  drag "$label-createur-ouvert" 300 291 300 510 vite; sleep 2
+  drag "$label-createur-ouvert" 400 204 400 420 vite; sleep 2
   report "$label-createur-deplace-vite" >/dev/null
   { echo "$label : palette → liste lent $(rows "$label-createur-ouvert") → $(rows "$label-createur-glisse"), vite → $(rows "$label-createur-glisse-vite")"
     if [[ "$(order "$label-createur-glisse-vite")" != "$(order "$label-createur-deplace-vite")" ]]; then
@@ -475,10 +477,10 @@ run() {   # $1 : libellé (début du nom des captures)
   } >> "$OUT/glisser-essai.txt"
   # Un bloc du milieu rangé plusieurs fois de suite, vers le bas puis vers le haut (07/11 au soir : « quand je joue
   # avec un bloc du milieu ça fait crash ») : l'app doit être encore là, l'ordre avoir changé.
-  drag "$label-createur-ouvert" 300 395 300 500 vite; sleep 1
-  drag "$label-createur-ouvert" 300 500 300 343 vite; sleep 1
-  drag "$label-createur-ouvert" 300 343 300 447; sleep 1
-  drag "$label-createur-ouvert" 300 447 300 291 vite; sleep 2
+  drag "$label-createur-ouvert" 400 300 400 396 vite; sleep 1
+  drag "$label-createur-ouvert" 400 396 400 252 vite; sleep 1
+  drag "$label-createur-ouvert" 400 252 400 348; sleep 1
+  drag "$label-createur-ouvert" 400 348 400 208 vite; sleep 2
   report "$label-createur-joue" >/dev/null
   screencapture -x "$OUT/$label-createur-joue.png" 2>/dev/null || true
   if kill -0 "$p" 2>/dev/null; then
@@ -489,14 +491,12 @@ run() {   # $1 : libellé (début du nom des captures)
     echo "$label : bloc du milieu rangé 4 fois : APP TOMBÉE" >> "$OUT/glisser-essai.txt"
   fi
   # Clic sur une ligne posée : elle doit être choisie (le glisser à nous ne doit pas prendre le clic).
-  # 20/11 : les réglages du bloc choisi s'ouvrent sous sa ligne (et un 2e clic les referme) : on clique les lignes 2
-  # puis 1, au-dessus de tout cadre de réglages ouvert, à des places qui ne bougent pas.
-  click_in "$label-createur-ouvert" 300 287; sleep 1
+  click_in "$label-createur-ouvert" 420 397; sleep 1
   report "$label-createur-clic6" >/dev/null
-  click_in "$label-createur-ouvert" 300 232; sleep 1
+  click_in "$label-createur-ouvert" 420 252; sleep 1
   report "$label-createur-clic3" >/dev/null
   screencapture -x "$OUT/$label-createur-clic.png" 2>/dev/null || true
-  echo "$label : clic sur une ligne posée : $(chosen "$label-createur-clic6") puis $(chosen "$label-createur-clic3") (attendu 2 puis 1)" >> "$OUT/glisser-essai.txt"
+  echo "$label : clic sur une ligne posée : $(chosen "$label-createur-clic6") puis $(chosen "$label-createur-clic3") (attendu 6 puis 3)" >> "$OUT/glisser-essai.txt"
   rm -f "$HOME/Library/Caches/$DOMAIN/$label-createur-"*
   "$POST" app.flshortcut.debug.snapshot "$label-createur"; sleep 2
   cp "$HOME/Library/Caches/$DOMAIN/$label-createur-"*.png "$OUT/" 2>/dev/null || true

@@ -29,6 +29,13 @@
 - **Chaque changement demandé : sur Mac ET sur Windows** (demande du 04/11 : « a chaque fois que je fais des modifs fais
   les pour win aussi »), même s'il ne parle que d'un des deux.
 - Historique, décisions et échecs : `docs/contexte/HISTORIQUE.md` ; lien avec FL (script v16) : `PROTOCOL.md`.
+- **En cours (28/11)** : thème Papier en QUADRILLÉ, validé le 28/11 (« quadriller très bien je valide ») sur la
+  maquette `36BY45nwBcKwX2wam5bzmb` (artefact privé « Papier, la grille » : 5 grilles, règles suisses à respecter /
+  éviter, sources ; Pinterest refuse les robots) : carreaux de 24, trait plus marqué tous les 4 (colonnes de 72 +
+  écarts de 24, marges de 48), traits « normaux » #E4E1DA / #D3CFC6, barre des menus nue, aucune boîte pleine qui
+  coupe la grille, lignes de 48, filets posés sur les traits ; à faire dans l'app (Mac `PaperGrid`, Windows
+  `MacLook.PaperGridLines`). Puis : sons libres de droit proches de ses packs ; Windows, clic gauche ou droit sur
+  l'app = le menu de l'icône, plus rien sous la flèche (déjà fait le 21/11 d'après les notes : à revérifier).
 - **En cours (19-20/11)** : maquette « Minimal » (`docs/maquettes/fl-shortcuts-minimal.html`) mise dans l'app, tout
   fait le 20/11 au soir (voir « Fenêtre « Minimal » ») ; reste à relire les photos de la CI page par page ;
   état exact et reste à faire : `docs/contexte/RELAIS-2026-11-19.md` (à lire avant d'y toucher).
@@ -748,7 +755,7 @@ zizmor, conférences macOS ; à garder)
 - **Tout remis en cohérence le 23/11** (« tout a à peu près changé, il faut que tout ait une cohérence » ; « on garde
   FL Shortcuts ») : MÊMES MOTS partout (guide de l'app, tuto, README, modes d'emploi, site) : 1 installer, 2 autoriser
   (le clavier, puis le son de FL ; Windows : loopMIDI), 3 raccourcis (« Dans Trouver, appuie sur une touche. / Clique
-  Changer, puis tape la nouvelle. / « Remettre » remet celle de FL. »), 4 macros (« Nouvelle macro », étapes à droite,
+  Changer, puis tape la nouvelle. / « Remettre » remet celle de FL. »), 4 macros (« Nouvelle macro », étapes à gauche depuis le 28/11,
   une touche), 5 Organiser (⌘⌥O / Ctrl+Alt+O, copie, Garder ou « Revenir comme avant »), 6 Communauté et compte
   (« Partager », sauvegarde, 3 thèmes), 7 au quotidien (icône / logo de la barre des tâches, ⌃⌥⌘F / Ctrl+Alt+Maj+F,
   mises à jour toutes seules). Guide de l'app : 5 parties (Organiser ajoutée, `GuideContent`, Windows `Guide.cs`,
@@ -1046,7 +1053,13 @@ zizmor, conférences macOS ; à garder)
   48, Adresse mail / Mot de passe (cases bordées de 2), « Se connecter », liens « Créer un compte » / « Mot de passe
   oublié ? » ; créer / oublié : « Recevoir le code » ; code : « Valider », « Renvoyer le code », « J'ai déjà un
   compte » ; Communauté sans compte, sans titre : « Connecte-toi pour voir la Communauté. » + « Se connecter ».
-  **Créateur en phrases** (Mac `MacroCreatorMinimal.swift`, Windows `MacrosPage.cs` + cœur `StepSentence.cs`, essai
+  **Créateur en phrases : RETIRÉ le 28/11** (capture : « ça c'est pas du tout clair… il faut qu'on retourne au pattern
+  qu'on avait avant ») : le créateur en colonnes d'avant le 20/11 est revenu, Mac (`MacroEditorView.swift` de 801093a :
+  palette à gauche, étapes au milieu, réglages à droite) et Windows (`MacrosPage.cs`, créateur de 801093a ; page Macros
+  d'aujourd'hui gardée), SANS « Enregistrer clics et touches » (retiré le 20/11), macro vide = « Aucune étape » ;
+  `MacroCreatorMinimal.swift`, `StepSentence.cs` et leur essai retirés (dans git jusqu'à 55664c7) ; guide « Choisis ses
+  étapes à gauche. » ; essais à vrais clics du créateur remis (lignes 52 points plus haut, sans le bandeau). Ce qui
+  suit décrit l'ancien créateur en phrases (NE PAS le remettre) : Mac `MacroCreatorMinimal.swift`, Windows `MacrosPage.cs` + cœur `StepSentence.cs`, essai
   `AddStepBoxFollowsTheMockup`) : une colonne, « ← Macros » / « Terminé », nom en 32 souligné, « Touche » (« Choisir »
   rouge pointillé), étapes « 01 Choisir [File › Export ▾] dans le menu », un clic ouvre les réglages du bloc (ceux de
   l'inspecteur) SOUS sa ligne dans un cadre d'encre, « Monter / Descendre / Retirer » au survol, glisser gardé ;
@@ -1079,7 +1092,12 @@ zizmor, conférences macOS ; à garder)
   « FL ne répond pas », rien d'écrit) ; l'attente dit ce qui manque (« FL ne répond pas encore… », « … 12/14 · 30 s »),
   diagnostic `sons=vus/attendus`. Menu de l'icône (capture : « vraiment pas beau du tout ») : comme `.menu` de la
   maquette, carte carrée au fond du thème, trait d'encre de 2, texte normal (21/11 : « un peu gros… garder la taille
-  d'avant » → tailles d'avant le 20/11 : 280 de large sur Mac, 250 sur Windows, lignes de 34, texte 13,5, logo 24), survol plein d'encre,
+  d'avant » → tailles d'avant le 20/11 : 280 de large sur Mac, 250 sur Windows, lignes de 34, texte 13,5, logo 24 ;
+  28/11, « l'image est trop grosse… reprends la taille d'avant », réponse « tout le menu » : plus petit, près d'un vrai
+  menu du Mac, `MenuSize` : 236 de large sur Mac, 220 sur Windows, lignes de 26, texte 13, logo 18, titre 14,5 ;
+  « bug quand je passe au noir et orange aussi » : plus de trait d'encre par-dessus sur Mac, macOS arrondit les coins
+  de cette fenêtre malgré `squareCorners` (photos CI du 24/11 : trait coupé aux coins, liseré clair en Noir) ; Windows
+  garde son trait, ses coins sont carrés (DWM)), survol plein d'encre,
   « Ouvrir FL Shortcuts » / « Quitter ⌘Q » en lignes, « Désinstaller » gris à part ; Windows `TrayMenu.Row` (photo CI
   bonne). Mac : une marge transparente laissait voir la bulle arrondie de macOS (photo CI de b080a04) → la carte
   remplit la fenêtre, trait posé PAR-DESSUS (les filets le coupaient), coins des vues qui portent le menu mis carrés

@@ -35,7 +35,7 @@ enum GuideContent {
                           String(localized: "« Remettre » remet celle de FL.")]),
         GuidePage(id: 2, symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint, title: String(localized: "Les macros"),
                   steps: [String(localized: "Clique « Nouvelle macro »."),
-                          String(localized: "Ajoute ses étapes à droite."),
+                          String(localized: "Choisis ses étapes à gauche."),
                           String(localized: "Donne-lui une touche.")]),
         GuidePage(id: 3, symbol: "square.stack.3d.up", tint: .orange, title: String(localized: "Organiser"),
                   steps: [String(localized: "Ouvre ton projet dans FL."),

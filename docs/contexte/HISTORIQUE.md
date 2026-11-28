@@ -1408,3 +1408,14 @@ entrée 1 ≈ 0,5 s.
   Tout refait avec les mêmes mots (voir CLAUDE.md « Tout remis en cohérence »). Ses sons à lui pour l'IA (« je veux
   que personne y ait accès ») : oui s'il les a faits lui-même ; jamais dans le dépôt ni l'app, utilisés dans un dossier
   temporaire puis effacés ; on réapprendrait alors sans les packs du commerce. Pas encore donnés.
+- 28/11 : « je veux revoir la maquette du format papier… regarde sur Pinterest… les règles à respecter et à ne pas
+  respecter ». Pinterest ne montre rien aux robots (page vide) : lu à la place Müller-Brockmann, les affiches suisses de
+  Poster House, Smashing, IxDF, le guide de l'UE et le papier millimétré. Maquette « Papier, la grille » (5 grilles sur
+  Raccourcis, Trouver, Macros ; règles à respecter / à éviter ; ce que l'app fait mal aujourd'hui : traits doublés,
+  liste qui cache la grille, traits dans la barre, lignes de 44 sur un pas de 24). Choix : « quadriller très bien je
+  valide ».
+- 28/11 : menu de l'icône « trop gros » (« tout le menu ») puis « bug quand je passe au noir et orange aussi » : rendu
+  plus petit (Mac et Windows) ; sur Mac, plus de trait d'encre carré coupé par les coins arrondis que macOS impose à
+  cette fenêtre. Des coins vraiment carrés demanderaient de refaire la fenêtre du menu nous-mêmes (pas fait).
+- 28/11 : créateur de macros en phrases « pas du tout clair… retourner au pattern qu'on avait avant » : l'ancien
+  créateur en colonnes (palette, étapes, réglages) est revenu sur Mac et Windows, sans « Enregistrer clics et touches ».

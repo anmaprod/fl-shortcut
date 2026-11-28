@@ -22,7 +22,7 @@ public static class GuideContent
         new GuidePage(2, Loc.T("Les macros"), new[]
         {
             Loc.T("Clique « Nouvelle macro »."),
-            Loc.T("Ajoute ses étapes à droite."),
+            Loc.T("Choisis ses étapes à gauche."),
             Loc.T("Donne-lui une touche."),
         }),
         new GuidePage(3, Loc.T("Organiser"), new[]

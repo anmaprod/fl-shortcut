@@ -1746,9 +1746,6 @@ struct CaptureField: View {
     @Binding var combo: KeyCombo?
     /// En-tête du créateur (maquette) : les touches seules, sans cadre ; un clic, puis taper le nouveau raccourci.
     var compact = false
-    /// Créateur de la maquette « Minimal » (20/11) : la touche en 24 demi-gras soulignée ; « Choisir » en rouge
-    /// pointillé sans touche ; « Appuie sur une touche » en rouge pendant l'écoute.
-    var minimal = false
     @ObservedObject private var recorder = Recorder.shared
 
     private var recording: Bool { recorder.activeID == id }
@@ -1761,9 +1758,7 @@ struct CaptureField: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            if minimal {
-                minimalButton
-            } else if compact {
+            if compact {
                 compactButton
             } else {
                 fullButton
@@ -1791,41 +1786,6 @@ struct CaptureField: View {
             .font(.system(size: 13))
             .padding(.horizontal, 4)
             .frame(minHeight: 36)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help("Changer le raccourci de la macro")
-        .accessibilityLabel(String(localized: "Raccourci déclencheur"))
-        .accessibilityValue(recording ? String(localized: "Enregistrement en cours")
-                                      : (combo?.spoken ?? String(localized: "aucun")))
-    }
-
-    private var minimalButton: some View {
-        Button {
-            recording ? recorder.stop() : recorder.start(id, handler: accept)
-        } label: {
-            Group {
-                if recording {
-                    // Maquette (« val wait ») : un curseur rouge qui clignote devant, le texte rouge souligné de rouge ;
-                    // Échap annule.
-                    HStack(spacing: 6) {
-                        Rectangle().fill(Swiss.red).frame(width: 2, height: 17).blinking()
-                        Text("Appuie sur une touche").font(Swiss.font(17, .regular)).foregroundStyle(Swiss.red)
-                    }
-                    .overlay(alignment: .bottom) { Rectangle().fill(Swiss.red).frame(height: 2).offset(y: 4) }
-                    .help("Échap pour annuler")
-                } else if let combo {
-                    Text(verbatim: combo.display).font(Swiss.font(24, .semibold)).foregroundStyle(Swiss.text)
-                        .overlay(alignment: .bottom) { Rectangle().fill(Swiss.text).frame(height: 2).offset(y: 4) }
-                } else {
-                    Text("Choisir").font(Swiss.font(17, .regular)).foregroundStyle(Swiss.red)
-                        .overlay(alignment: .bottom) {
-                            DottedLine().stroke(Swiss.red, style: StrokeStyle(lineWidth: 2, dash: [2, 3])).frame(height: 2).offset(y: 4)
-                        }
-                }
-            }
-            .lineLimit(1)
-            .padding(.bottom, 4)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

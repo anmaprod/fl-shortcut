@@ -763,40 +763,42 @@ struct MenuContent: View {
             // 20/11 (capture : « ça c'est vraiment pas beau du tout ») : comme les menus de la maquette « Minimal »
             // (`.menu`) : carte carrée bordée d'encre, texte normal, survol plein d'encre. 21/11 (« un peu gros… garder
             // la taille d'avant ») : les tailles d'avant le 20/11 (280 de large, lignes de 34, texte 13,5, logo 24).
-            HStack(spacing: 10) {
+            // 28/11 (capture : « l'image est trop grosse… reprends la taille d'avant », réponse « tout le menu ») : plus
+            // petit, près d'un vrai menu du Mac (`MenuSize`).
+            HStack(spacing: 8) {
                 Image(nsImage: MenuBarIcon.image(.normal))
                     .renderingMode(.template)
                     .resizable()
-                    .frame(width: 24, height: 24)
+                    .frame(width: MenuSize.logo, height: MenuSize.logo)
                     .foregroundStyle(Swiss.text)
                     .accessibilityHidden(true)
                 Text(verbatim: "FL Shortcuts")
-                    .font(Swiss.font(17, .semibold))
+                    .font(Swiss.font(MenuSize.title, .semibold))
                     .foregroundStyle(Swiss.text)
             }
-            .padding(.horizontal, 14)
-            .padding(.top, 14)
-            .padding(.bottom, 12)
+            .padding(.horizontal, MenuSize.side)
+            .padding(.top, 11)
+            .padding(.bottom, 9)
             if let line = statusLine {
                 HStack(spacing: 6) {
-                    Rectangle().fill(dotColor).frame(width: 7, height: 7)
+                    Rectangle().fill(dotColor).frame(width: 6, height: 6)
                     Text(line).foregroundStyle(Swiss.gray).lineLimit(1)
                 }
-                .font(Swiss.font(11.5, .regular))
-                .padding(.horizontal, 14)
-                .padding(.bottom, 8)
+                .font(Swiss.font(MenuSize.note, .regular))
+                .padding(.horizontal, MenuSize.side)
+                .padding(.bottom, 7)
                 .accessibilityElement(children: .combine)
             }
 
             // Seulement un échec (« Macro terminée » retiré à la demande de l'utilisateur : rien à dire quand tout va bien).
             if let macro = status.lastMacro, !macro.ok {
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
-                    SwissWarningMark(size: 7).alignmentGuide(.firstTextBaseline) { d in d[.bottom] }
+                    SwissWarningMark(size: 6).alignmentGuide(.firstTextBaseline) { d in d[.bottom] }
                     Text(macro.text).foregroundStyle(Swiss.gray).fixedSize(horizontal: false, vertical: true)
                 }
-                .font(Swiss.font(11.5, .regular))
-                .padding(.horizontal, 14)
-                .padding(.bottom, 8)
+                .font(Swiss.font(MenuSize.note, .regular))
+                .padding(.horizontal, MenuSize.side)
+                .padding(.bottom, 7)
                 // La page Aide, le formulaire prêt avec ce message d'erreur et le journal de la macro.
                 PanelItem(symbol: "exclamationmark.bubble", title: String(localized: "Signaler ce problème…"), tint: .orange, order: 1) {
                     HelpLink.shared.report("Macro : " + macro.text)
@@ -807,12 +809,12 @@ struct MenuContent: View {
 
             ForEach(alerts, id: \.self) { text in
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
-                    SwissWarningMark(size: 7).alignmentGuide(.firstTextBaseline) { d in d[.bottom] }
+                    SwissWarningMark(size: 6).alignmentGuide(.firstTextBaseline) { d in d[.bottom] }
                     Text(text).foregroundStyle(Swiss.gray).fixedSize(horizontal: false, vertical: true)
                 }
-                .font(Swiss.font(11.5, .regular))
-                .padding(.horizontal, 14)
-                .padding(.bottom, 8)
+                .font(Swiss.font(MenuSize.note, .regular))
+                .padding(.horizontal, MenuSize.side)
+                .padding(.bottom, 7)
             }
 
             MenuSeparator()
@@ -869,13 +871,13 @@ struct MenuContent: View {
                 Uninstaller.confirmAndRun()
             }
         }
-        .padding(.bottom, 6)
-        .frame(width: 280)
-        // La carte de la maquette : fond de la page, trait d'encre de 2 PAR-DESSUS (les filets et le survol ne le
-        // coupent plus), coins carrés ; elle remplit la fenêtre (photo de la CI du 20/11 : avec une marge, la bulle
-        // arrondie de macOS se voyait autour ; ses coins sont mis carrés par `MenuPanel.attach`).
+        .padding(.bottom, 4)
+        .frame(width: MenuSize.width)
+        // Fond de la page ; il remplit la fenêtre (photo de la CI du 20/11 : avec une marge, la bulle arrondie de macOS
+        // se voyait autour). 28/11 (« bug quand je passe au noir et orange aussi ») : plus de trait d'encre par-dessus :
+        // macOS arrondit les coins de cette fenêtre malgré `MenuPanel.squareCorners` (photos de la CI du 24/11), le
+        // trait carré y était coupé aux quatre coins et laissait un liseré clair en Noir ; le bord est celui de macOS.
         .background(MenuBackground.color)
-        .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 2).allowsHitTesting(false))
         // Sort de l'icône à chaque ouverture ; se ferme au choix d'une ligne ou d'un clic ailleurs (MenuPanel).
         .menuReveal(panel.revealed)
         .background(WindowReader { MenuPanel.shared.attach($0) })
@@ -925,13 +927,28 @@ struct MenuContent: View {
     }
 }
 
-/// Filet entre deux groupes de lignes, comme `.menu .other` de la maquette (trait fin, 6 points au-dessus et dessous).
+/// Tailles du menu de l'icône (28/11, « trop grosse… reprends la taille d'avant ») : près d'un vrai menu du Mac. Les
+/// mêmes sur Windows (TrayMenu.cs).
+enum MenuSize {
+    static let width: CGFloat = 236
+    static let row: CGFloat = 26
+    static let text: CGFloat = 13
+    static let shortcut: CGFloat = 10.5
+    static let side: CGFloat = 12
+    static let logo: CGFloat = 18
+    static let title: CGFloat = 14.5
+    static let note: CGFloat = 11
+    static let plain: CGFloat = 11.5
+    static let plainRow: CGFloat = 24
+}
+
+/// Filet entre deux groupes de lignes, comme `.menu .other` de la maquette (trait fin, 4 points au-dessus et dessous).
 private struct MenuSeparator: View {
     var body: some View {
         Rectangle()
             .fill(Swiss.faint)
             .frame(height: 1)
-            .padding(.vertical, 5)
+            .padding(.vertical, 4)
     }
 }
 
@@ -965,10 +982,10 @@ private struct PanelPlainRow: View {
             MenuPanel.shared.close()
         } label: {
             Text(title)
-                .font(Swiss.font(12, .regular))
+                .font(Swiss.font(MenuSize.plain, .regular))
                 .hoverTint(Swiss.gray)
-                .padding(.horizontal, 14)
-                .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+                .padding(.horizontal, MenuSize.side)
+                .frame(maxWidth: .infinity, minHeight: MenuSize.plainRow, alignment: .leading)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -1004,17 +1021,17 @@ private struct PanelItem: View {
             // 05/11 : plus de couleur par ligne, le carré creux comme la barre de gauche ; survolée, il devient orange.
             // 20/11 : comme `.menu button` de la maquette (16 en texte normal, 10 × 16 autour) ; plus de carré ni de
             // trait sous chaque ligne.
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 Text(title)
-                Spacer(minLength: 12)
+                Spacer(minLength: 10)
                 if let shortcut {
-                    Text(shortcut).font(Swiss.font(11, .regular)).hoverTint(Swiss.gray)
+                    Text(shortcut).font(Swiss.font(MenuSize.shortcut, .regular)).hoverTint(Swiss.gray)
                 }
             }
-            .font(Swiss.font(13.5, .regular))
+            .font(Swiss.font(MenuSize.text, .regular))
             .lineLimit(1)
-            .padding(.horizontal, 14)
-            .frame(height: 34)
+            .padding(.horizontal, MenuSize.side)
+            .frame(height: MenuSize.row)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

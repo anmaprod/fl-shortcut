@@ -79,25 +79,30 @@ struct MacroCreatorView: View {
     @Environment(\.undoManager) private var undoManager
 
     var body: some View {
-        // Maquette « Minimal » (20/11) : une colonne de phrases et la boîte « Ajouter une étape » (MinimalCreatorPage).
-        Group {
-            if model.draft != nil {
-                VStack(spacing: 0) {
-                    LibraryProblemBanner(library: store.library)
-                    MinimalCreatorPage(model: model, monitor: model.monitor, paletteItems: model.paletteItems, onBack: onBack)
-                }
-            } else {
-                VStack(spacing: 10) {
-                    Text("Aucune macro ouverte").font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
-                    MinimalButton(title: String(localized: "Nouvelle macro")) { model.newMacro() }.fixedSize()
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .overlay(alignment: .topLeading) {
-                    CreatorBackButton(action: onBack)
-                        .padding(.leading, 22)
-                        .padding(.top, MainWindowChrome.contentTop)
-                }
+        HStack(spacing: 0) {
+            MacroPaletteView(items: model.paletteItems, insert: { [model] item in
+                withAnimation(MacroStepsPane.spring) { model.insert(item) }
+            })
+                .frame(width: EditorView.sidebarWidth)
+                .frame(maxHeight: .infinity, alignment: .top)
+                .background(MockPlate(cornerRadius: 19, top: 0.10, bottom: 0.04, border: 0.16))
+                .overlay(alignment: .trailing) { Rectangle().fill(Swiss.line).frame(width: 1) }
+            // Colonne des étapes jamais sous `stepsMinWidth` (03/11, capture « quand on rétrécit trop, ça fait
+            // chelou » : à 280 points, le nom de la macro disparaissait et « Commencer l'enregistrement » débordait) ;
+            // la fenêtre ne descend pas sous `minWidth` tant que le créateur est affiché.
+            VStack(spacing: 0) {
+                LibraryProblemBanner(library: store.library)
+                MacroStepsPane(model: model, monitor: model.monitor, paletteItems: model.paletteItems, onBack: onBack)
             }
+            .frame(minWidth: Self.stepsMinWidth, maxWidth: .infinity, maxHeight: .infinity)
+            // Réglages du bloc : largeur fixe, les étapes gardent la place (photo de la CI : lignes coupées).
+            // Sous la barre de titre, comme la palette : une liste qui la touche défilait jusqu'en haut de la fenêtre.
+            MacroInspectorView(model: model)
+                .padding(.top, MainWindowChrome.titleBarHeight - 8 + 4)
+                .frame(width: 270)
+                .frame(maxHeight: .infinity)
+                .background(MockPlate(cornerRadius: 19, top: 0.10, bottom: 0.04, border: 0.16))
+                .overlay(alignment: .leading) { Rectangle().fill(Swiss.line).frame(width: 1) }
         }
         .padding(8)
         .frame(minWidth: Self.minWidth, maxWidth: .infinity, maxHeight: .infinity)
@@ -121,8 +126,11 @@ struct MacroCreatorView: View {
         .onChange(of: link.request) { request in model.handle(request) }
     }
 
-    /// Étapes (430 au plus serré) + « Ajouter une étape » (300) + écarts et marges de la page.
-    static var minWidth: CGFloat { 430 + 24 + 347 + 2 * ReadableLayout.inset + 16 }
+    /// Largeur des étapes au plus serré : la ligne du haut (←, nom, touches, « Enregistrer ») et « Commencer
+    /// l'enregistrement » y tiennent sans rien couper.
+    static let stepsMinWidth: CGFloat = 430
+    /// Palette + étapes + réglages + marges.
+    static var minWidth: CGFloat { EditorView.sidebarWidth + stepsMinWidth + 270 + 16 }
 
     /// Fenêtre plus étroite que le créateur à son ouverture : élargie tout de suite (sur l'écran), plutôt que de couper
     /// la colonne des étapes.
@@ -135,6 +143,182 @@ struct MacroCreatorView: View {
             if frame.maxX > screen.maxX { frame.origin.x = max(screen.minX, screen.maxX - frame.width) }
             window.setFrame(frame, display: true, animate: false)
         }
+    }
+}
+
+// MARK: - Liste des étapes
+
+private struct MacroStepsPane: View {
+    @ObservedObject var model: MacroEditorModel
+    @ObservedObject var monitor: MacroRunMonitor
+    let paletteItems: [PaletteItem]
+    /// ← : retour aux raccourcis (avec la question « Enregistrer ou supprimer » si besoin).
+    let onBack: () -> Void
+    /// Pendant un glisser (bloc de la liste ou de la palette) : la place où il tombera, dessinée en trait rouge.
+    @State private var dropLine: StepDropLine?
+    /// Largeur d'une ligne : l'image qui suit la souris a la taille du bloc entier.
+    @State private var rowWidth: CGFloat = 420
+    /// Bloc de la palette ou de la liste au-dessus de la zone en pointillés.
+    @State private var zoneTargeted = false
+
+    var body: some View {
+        Group {
+            if model.draft != nil {
+                VStack(alignment: .leading, spacing: 12) {
+                    MacroHeader(model: model, onBack: onBack)
+                        .padding(.horizontal, 22)
+                    list
+                }
+                // Sous la barre de titre : elle ne laisse passer aucun clic.
+                .padding(.top, MainWindowChrome.contentTop)
+            } else {
+                VStack(spacing: 10) {
+                    SectionIcon(symbol: "wand.and.stars", tint: .purple, size: 44)
+                    Text("Aucune macro ouverte").font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
+                    Button("Nouvelle macro") { model.newMacro() }
+                        .primaryButton()
+                        .controlSize(.large)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .topLeading) {
+                    CreatorBackButton(action: onBack)
+                        .padding(.leading, 22)
+                        .padding(.top, MainWindowChrome.contentTop)
+                }
+            }
+        }
+        .floatingBar(.bottom) {
+            MacroResultBanner(model: model, monitor: monitor)
+        }
+    }
+
+    /// Ressort court et sans rebond visible, façon Apple : les lignes s'écartent pour le bloc ajouté, glissent quand
+    /// on les range, se resserrent quand on en supprime. Seulement au moment du changement : rien ne tourne au repos.
+    static let spring = Animation.spring(response: 0.32, dampingFraction: 0.86)
+
+    /// Les étapes dans une carte (maquette : une plaque claire, un trait fin entre deux lignes), puis la zone en
+    /// pointillés où lâcher un bloc. Toujours une liste : sélection, ⌫, rangement et dépôt entre deux lignes.
+    private var list: some View {
+        let rows = model.rows
+        return List(selection: $model.selection) {
+            ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                MacroStepRowView(row: row, status: status(row), current: monitor.current == row.blockID && row.kind == .block,
+                                 selected: model.selection == row.id,
+                                 onToggle: { on in model.setEnabled(row.blockID, on) })
+                    .equatable()
+                    // Survol : toute la ligne de la couleur de son bloc (pas la ligne choisie, ni une fin de boucle).
+                    .cardRow(.position(index: index, count: rows.count),
+                             hover: row.kind == .block ? Swiss.text : nil,
+                             selected: model.selection == row.id,
+                             stamp: row.kind == .block ? Swiss.brandRed : nil)   // l'encoche orange, pour tous (05/11)
+                    .tag(row.id)
+                    // Pas de sélection bleue de macOS : la ligne choisie est blanche, sur son encoche (02/11).
+                    .background(NoSystemSelection().frame(width: 0, height: 0))
+                    // Clic droit : Désactiver, Supprimer, sans le contour bleu de macOS (04/11).
+                    .overlay(RightClickMenu(items: { menuItems(row) }))
+                    // Glisser-déposer à nous (07/11 au soir, « quand je joue avec un bloc du milieu ça fait crash ») :
+                    // plus le rangement de la liste de macOS (onMove), qui faisait tomber l'app ; le bloc entier suit
+                    // la souris, un trait rouge montre où il tombera (moitié haute : au-dessus, moitié basse : dessous).
+                    .modifier(StepDragDrop(row: row, index: index, count: rows.count, width: rowWidth, line: $dropLine,
+                                           select: { [model] in
+                                               model.selection = row.id
+                                               NoSystemSelection.focusList()      // ⌫ et les flèches pour la liste
+                                           },
+                                           drop: { providers, before in drop(providers, before: before) }))
+            }
+            if !rows.isEmpty {
+                dropZone
+                    .listRowInsets(EdgeInsets(top: 12, leading: CardRowBackground.inset, bottom: 8,
+                                              trailing: CardRowBackground.inset))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+            }
+        }
+        .listStyle(.inset)
+        .glassListBackground()
+        // Largeur d'une ligne (sans les marges de la carte) : celle de l'image du bloc glissé.
+        .background(GeometryReader { g in
+            Color.clear
+                .onAppear { rowWidth = max(200, g.size.width - 2 * CardRowBackground.inset - 16) }
+                .onChange(of: g.size.width) { w in rowWidth = max(200, w - 2 * CardRowBackground.inset - 16) }
+        })
+        .onDeleteCommand { withAnimation(Self.spring) { model.deleteSelection() } }
+        .overlay {
+            if model.rows.isEmpty {
+                // 20/11 : plus d'enregistrement ; 16/11 : un état vide = son titre seul. Un bloc de la palette (clic ou
+                // glisser) commence la macro.
+                Text("Aucune étape").font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
+                .padding(20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .onDrop(of: [.plainText], isTargeted: nil) { providers in
+                    dropFromPalette(providers, beforeRow: 0)
+                    return true
+                }
+            }
+        }
+    }
+
+    private func dropFromPalette(_ providers: [NSItemProvider], beforeRow row: Int) {
+        let items = paletteItems
+        PaletteDrag.load(providers) { [model] id in
+            guard let item = items.first(where: { $0.id == id }) else { return }
+            withAnimation(Self.spring) { model.insert(item, beforeRow: row) }
+        }
+    }
+
+    /// Bloc lâché avant la ligne `before` : une ligne de la liste y est rangée (avec ce qu'elle contient), un bloc de
+    /// la palette y est ajouté.
+    private func drop(_ providers: [NSItemProvider], before: Int) {
+        let items = paletteItems
+        StepDrag.load(providers) { [model] payload in
+            switch payload {
+            case .step(let id):
+                guard let from = model.rows.firstIndex(where: { $0.id == id }) else { return }
+                withAnimation(Self.spring) { model.move(fromOffsets: IndexSet(integer: from), toOffset: before) }
+            case .palette(let id):
+                guard let item = items.first(where: { $0.id == id }) else { return }
+                withAnimation(Self.spring) { model.insert(item, beforeRow: before) }
+            }
+        }
+    }
+
+    private func status(_ row: MacroStepRow) -> MacroRunMonitor.Status? {
+        guard row.kind == .block else { return nil }
+        return monitor.statuses[row.blockID]
+    }
+
+    /// Menu du clic droit d'un bloc (rien pour une ligne de fin de boucle).
+    private func menuItems(_ row: MacroStepRow) -> [RightClickMenu.Item?] {
+        guard row.kind == .block else { return [] }
+        let model = model
+        return [
+            RightClickMenu.Item(title: row.ownEnabled ? String(localized: "Désactiver") : String(localized: "Activer")) {
+                model.setEnabled(row.blockID, !row.ownEnabled)
+            },
+            nil,
+            RightClickMenu.Item(title: String(localized: "Supprimer"), destructive: true) {
+                model.selection = row.id
+                withAnimation(Self.spring) { model.deleteSelection() }
+            },
+        ]
+    }
+
+    /// Zone en pointillés sous les étapes (maquette) : un bloc de la palette, ou de la liste, lâché ici va à la fin.
+    private var dropZone: some View {
+        Text("Glisse un bloc ici")
+            .font(.system(size: 13))
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .overlay(Rectangle()
+                .strokeBorder(zoneTargeted ? Swiss.brandRed : Swiss.keyLine,
+                              style: StrokeStyle(lineWidth: zoneTargeted ? 2 : 1, dash: [5, 4])))
+            .contentShape(Rectangle())
+            .onDrop(of: [.plainText], isTargeted: $zoneTargeted) { providers in
+                drop(providers, before: model.rows.count)
+                return true
+            }
     }
 }
 
@@ -177,7 +361,7 @@ struct StepDropLine: Equatable {
 }
 
 /// Une ligne qui se glisse (bloc entier) et qui reçoit un dépôt (trait rouge au-dessus ou au-dessous).
-struct StepDragDrop: ViewModifier {
+private struct StepDragDrop: ViewModifier {
     let row: MacroStepRow
     let index: Int
     let count: Int
@@ -188,18 +372,6 @@ struct StepDragDrop: ViewModifier {
     let select: () -> Void
     let drop: ([NSItemProvider], Int) -> Void
     @State private var height: CGFloat = 40
-
-    /// Écrit à la main : la page du créateur (autre fichier) le pose sur ses lignes.
-    init(row: MacroStepRow, index: Int, count: Int, width: CGFloat, line: Binding<StepDropLine?>,
-         select: @escaping () -> Void, drop: @escaping ([NSItemProvider], Int) -> Void) {
-        self.row = row
-        self.index = index
-        self.count = count
-        self.width = width
-        self._line = line
-        self.select = select
-        self.drop = drop
-    }
 
     /// Écart ouvert entre les deux blocs voisins de l'endroit où le bloc tombera (08/11, « il n'y a pas d'animation…
     /// refais une animation avec le bloc… pour que les gens comprennent qu'ils peuvent glisser ») : les deux lignes
@@ -462,6 +634,92 @@ private struct BadgeCapsule: View {
     }
 }
 
+// MARK: - En-tête : nom, état, raccourci
+
+private struct MacroHeader: View {
+    @ObservedObject var model: MacroEditorModel
+    let onBack: () -> Void
+
+    private var nameBinding: Binding<String> {
+        let editor = model
+        return Binding(get: { editor.draft?.name ?? "" }, set: { editor.rename($0) })
+    }
+
+    private var triggerBinding: Binding<KeyCombo?> {
+        let editor = model
+        return Binding(get: { editor.trigger }, set: { editor.setTrigger($0) })
+    }
+
+    /// Maquette : ← rond, le nom en grand (champ), les touches du raccourci (clic : en taper d'autres), « Enregistrer ».
+    /// 28/11 (« pas du tout clair… retourner au pattern qu'on avait avant ») : le créateur en colonnes revient.
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                CreatorBackButton(action: onBack)
+                // 06/11 : le nom comme le titre des pages de raccourcis (minuscules + point carré) ; un clic le renomme.
+                MacroNameTitle(name: nameBinding)
+                    .layoutPriority(1)                         // le nom garde la place, le reste se serre
+                CaptureField(id: "macro-trigger-\(model.draft?.id.uuidString ?? "")", role: .trigger, combo: triggerBinding,
+                             compact: true)
+                    .disabled(model.ephemeral)               // exemple de la mesure : jamais enregistré
+                    .fixedSize()
+                saveButton
+            }
+            .frame(minHeight: 52)
+            // 20/11 (« Enregistrer clics et touches doit être supprimé ») : plus de barre d'enregistrement ; ce qui cloche
+            // est dit à l'enregistrement (`saveButton`).
+        }
+    }
+
+    /// Toujours actif (30/10, « le bouton enregistrer ne fonctionne plus ») : chaque changement s'enregistre seul
+    /// une demi-seconde après, le bouton restait donc grisé sur « Enregistrée ». Il enregistre ce qui reste et
+    /// revient à la liste des macros.
+    private var saveButton: some View {
+        Button {
+            // Un raccourci posé sur une macro pas prête : on prévient avant de revenir (06/11, « un message de
+            // prévention »). Sinon, enregistrée sans question (03/11).
+            if model.trigger != nil, let warning = model.saveWarning {
+                let answer = SwissDialog.run(String(localized: "Ce raccourci ne marchera pas encore"), warning,
+                                             buttons: [String(localized: "Enregistrer quand même"),
+                                                       String(localized: "Corriger")])
+                guard answer == 0 else { return }
+            }
+            model.commit()
+            onBack()
+        } label: {
+            // Une coche devant (01/11 : « un rectangle blanc, pas très compréhensible ») ; 02/11 : le nom de la macro
+            // prenait la place et le mot était écrasé (un carré blanc en hauteur, la coche seule) : le bouton garde sa
+            // largeur, en paysage, le mot écrit en entier.
+            // 02/11, encore : « un truc horizontal où il y a juste écrit Enregistrer, comme tous les boutons » : le mot
+            // seul, en capitales, sans icône.
+            Text("Enregistrer")
+                .lineLimit(1)
+                .fixedSize()
+        }
+        // 05/11 : blanc sous Papier, comme sous Orange ; sous Noir, accordé aux touches juste à gauche.
+        .buttonStyle(KeyLikeButtonStyle())
+        .fixedSize()
+        .layoutPriority(2)
+        .keyboardShortcut("s", modifiers: .command)
+        .help("Enregistrer et revenir aux macros (⌘S)")
+    }
+}
+
+/// Nom de la macro en titre (07/11, vidéo : « le texte se décale… ce n'est pas la même police… le point orange tout le
+/// temps, même quand la personne écrit ») : un seul champ, le même au repos et pendant la frappe (Inter Display gras
+/// resserré, en minuscules comme les titres des pages), suivi de son point carré à la couleur du thème ; un clic
+/// dedans le renomme, rien ne bouge. Entrée ou Échap rendent la main.
+private struct MacroNameTitle: View {
+    @Binding var name: String
+
+    var body: some View {
+        MacroTitleField(name: $name, size: 34, placeholder: String(localized: "Nom de la macro"))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: MacroTitleFieldView.height(size: 34))
+            .accessibilityLabel(Text("Nom de la macro"))
+    }
+}
+
 struct MacroTitleField: NSViewRepresentable {
     @Binding var name: String
     let size: CGFloat
@@ -663,7 +921,7 @@ private struct CreatorBackButton: View {
 
 // MARK: - Bandeau du résultat de l'essai
 
-struct MacroResultBanner: View {
+private struct MacroResultBanner: View {
     @ObservedObject var model: MacroEditorModel
     @ObservedObject var monitor: MacroRunMonitor
 
