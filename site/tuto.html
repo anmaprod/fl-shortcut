@@ -118,20 +118,42 @@ main { max-width: 1100px; margin: 0 auto; padding: 0 20px 64px; }
 .rows li.hl .meta, .rows li.hl .meta span:last-child { color: var(--a-bg); }
 
 /* 04 macros */
-.creator-top { display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 12px; }
-.creator-head { display: flex; align-items: baseline; gap: 18px; margin-bottom: 16px; }
-.creator-head .a-title { font-size: 25px; border-bottom: 1px solid var(--a-ink); padding-bottom: 4px; }
-.creator-head .tch { font-size: 12px; color: var(--a-gray); } .creator-head .tch b { color: var(--a-ink); font-size: 15px; margin-left: 6px; }
-.creator { display: grid; grid-template-columns: 1.45fr 1fr; gap: 16px; align-items: start; }
-.srows { border-top: 1px solid var(--a-ink); }
-.srow { display: flex; gap: 12px; align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--a-line); font-size: 13px; }
-.srow .n { color: var(--a-gray); font-size: 10px; width: 16px; }
-.srow em { font-style: normal; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
-.srow.add { color: var(--a-gray); }
-.addbox { border: 1.5px solid var(--a-ink); padding: 10px 12px 8px; font-size: 12px; }
-.addbox .grp { color: var(--a-gray); font-size: 10px; margin: 7px 0 2px; }
-.addbox div:not(.grp):not(.a-label) { padding: 2.5px 0; }
-.addbox .hov { background: var(--a-ink); color: var(--a-bg); margin: 0 -12px; padding-left: 12px !important; }
+/* Créateur de macros en colonnes (28/11, « retourner au pattern qu'on avait avant ») : palette, étapes, réglages. */
+.mk { display: grid; grid-template-columns: 25% 1fr 25%; min-height: 300px; font-size: 11.5px; }
+.mk > div { padding: 14px 12px; min-width: 0; }
+.mk .pal { border-right: 1px solid var(--a-line); }
+.mk .ins { border-left: 1px solid var(--a-line); }
+.mk .cat { font: 700 8.5px/1.2 var(--a-font); letter-spacing: 1.1px; text-transform: uppercase; color: var(--a-gray); margin: 10px 0 5px; }
+.mk .cat:first-child { margin-top: 0; }
+.mk .blk { display: flex; align-items: center; gap: 7px; padding: 3px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mk .blk::before { content: ""; flex: none; width: 7px; height: 7px; box-shadow: inset 0 0 0 1.2px var(--a-ink); }
+.mk .blk.hov { background: var(--a-ink); color: var(--a-bg); margin: 0 -12px; padding-left: 12px; }
+.mk .blk.hov::before { box-shadow: inset 0 0 0 1.2px var(--a-bg); }
+.mk .head { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
+.mk .back { flex: none; width: 22px; height: 22px; box-shadow: inset 0 0 0 1.5px var(--a-ink); display: grid; place-items: center; font-size: 12px; }
+.mk .head .a-title { font-size: 16px; letter-spacing: -0.05em; flex: 1; white-space: nowrap; overflow: hidden; }
+.mk .head .k { font-size: 12px; font-weight: 700; }
+.mk .head .a-btn { height: 22px; padding: 0 7px; font-size: 8px; }
+.mk .row { display: flex; align-items: center; gap: 7px; height: 30px; border-bottom: 1px solid var(--a-line); white-space: nowrap; overflow: hidden; }
+.mk .row:first-of-type { border-top: 1px solid var(--a-line); }
+.mk .row .n { width: 12px; color: var(--a-gray); font-size: 9.5px; text-align: right; flex: none; }
+.mk .row .sq { flex: none; width: 7px; height: 7px; box-shadow: inset 0 0 0 1.2px var(--a-ink); }
+.mk .row b { font-weight: 700; }
+.mk .row .v { color: var(--a-gray); overflow: hidden; text-overflow: ellipsis; }
+.mk .row .sw { margin-left: auto; flex: none; width: 20px; height: 11px; background: var(--a-ink); position: relative; }
+.mk .row .sw::after { content: ""; position: absolute; right: 2px; top: 2px; width: 7px; height: 7px; background: var(--a-bg); }
+.mk .row.on { background: var(--a-ink); color: var(--a-bg); margin: 0 -12px; padding: 0 12px; box-shadow: 0 3px 0 var(--red); }
+.mk .row.on .n, .mk .row.on .v { color: var(--a-bg); }
+.mk .row.on .sq { background: var(--red); box-shadow: none; }
+.mk .row.on .sw { background: var(--a-bg); } .mk .row.on .sw::after { background: var(--a-ink); }
+.mk .ins h4 { margin: 0; font-size: 12px; display: flex; align-items: center; gap: 7px; }
+.mk .ins h4::before { content: ""; width: 8px; height: 8px; background: var(--red); }
+.mk .ins p { margin: 4px 0 0 15px; color: var(--a-gray); font-size: 10px; line-height: 1.35; }
+.mk .ins .set { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--a-line); }
+.mk .ins .fld { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; gap: 8px; }
+.mk .ins .fld span:last-child { box-shadow: inset 0 0 0 1.2px var(--a-ink); padding: 3px 8px; font-weight: 600; }
+.mk .ins .rm { display: block; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--a-line); color: var(--red); }
+@media (max-width: 720px) { .mk { grid-template-columns: 1fr; } .mk .pal, .mk .ins { display: none; } }
 
 /* 05 organiser */
 .org-head { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1.5px solid var(--a-ink); }
@@ -322,7 +344,7 @@ footer { padding-top: 40px; color: var(--gray); font-size: 13px; }
     <h2>les macros<span class="point">.</span></h2>
     <ul class="lines">
       <li>Clique <b>Nouvelle macro</b>.</li>
-      <li>Ajoute ses étapes à droite.</li>
+      <li>Choisis ses étapes à gauche.</li>
       <li>Donne-lui une touche.</li>
       <li class="sub">Elle fait tout d'un coup, dans FL. <span class="k">Échap</span> l'arrête.</li>
     </ul>
@@ -330,21 +352,30 @@ footer { padding-top: 40px; color: var(--gray); font-size: 13px; }
   <div class="stage" aria-hidden="true">
     <div class="app">
       <div class="bar"><span class="lights"><i></i><i></i><i></i></span><span>Trouver</span><span>Raccourcis</span><span class="on">Macros</span><span>Communauté</span><span>Compte</span><span>Aide</span></div>
-      <div class="page">
-        <div class="creator-top"><span class="u">← Macros</span><span class="a-btn lc">Terminé</span></div>
-        <div class="creator-head"><span class="a-title">Export Stems</span><span class="tch">Touche<b>⌃E</b></span></div>
-        <div class="creator">
-          <div class="srows">
-            <div class="srow"><span class="n">01</span><span>Choisir <em>File › Export › All playlist tracks</em> dans le menu</span></div>
-            <div class="srow"><span class="n">02</span><span>Attendre <em>1 s</em></span></div>
-            <div class="srow"><span class="n">03</span><span>Appuyer sur <em>Entrée</em></span></div>
-          </div>
-          <div class="addbox">
-            <div class="a-label">Ajouter une étape</div>
-            <div class="grp">Clavier</div><div>Appuyer sur une touche</div>
-            <div class="grp">FL Studio</div><div>Choisir dans un menu de FL</div><div class="hov">Ouvrir une fenêtre de FL</div><div>Cliquer sur un bouton de FL</div><div>Ouvrir un preset</div>
-            <div class="grp">Temps</div><div>Attendre</div>
-          </div>
+      <div class="mk">
+        <div class="pal">
+          <div class="cat">FL Studio</div>
+          <div class="blk">Menu de FL</div><div class="blk">Ouvrir une page de FL</div><div class="blk">Cliquer sur…</div>
+          <div class="blk">Ouvrir un preset</div><div class="blk">Action dans FL</div><div class="blk">Nom et couleur</div>
+          <div class="cat">Clavier</div>
+          <div class="blk hov">Touche ou raccourci</div>
+          <div class="cat">Souris</div>
+          <div class="blk">Clic de souris</div>
+          <div class="cat">Attente</div>
+          <div class="blk">Attendre</div>
+        </div>
+        <div>
+          <div class="head"><span class="back">‹</span><span class="a-title">export stems<span class="point">.</span></span><span class="k">⌃E</span><span class="a-btn">Enregistrer</span></div>
+          <div class="row"><span class="n">1</span><span class="sq"></span><b>Menu de FL</b><span class="v">File › Export › All playlist tracks</span><span class="sw"></span></div>
+          <div class="row"><span class="n">2</span><span class="sq"></span><b>Attendre</b><span class="v">1 s</span><span class="sw"></span></div>
+          <div class="row on"><span class="n">3</span><span class="sq"></span><b>Touche ou raccourci</b><span class="v">Entrée</span><span class="sw"></span></div>
+        </div>
+        <div class="ins">
+          <h4>Touche ou raccourci</h4>
+          <p>Appuie sur une touche dans FL.</p>
+          <div class="set"><div class="a-label">Réglages</div>
+            <div class="fld"><span>Touche</span><span>Entrée</span></div></div>
+          <span class="rm">Retirer ce bloc</span>
         </div>
       </div>
     </div>

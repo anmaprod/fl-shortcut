@@ -44,11 +44,10 @@ Le même tuto en page web : [site/tuto.html](site/tuto.html).
 - **Raccourcis** : toutes les pages de FL (Playlist, Piano roll, Channel rack, Mixer…) et *Mes raccourcis*.
 
 ### 4. Les macros
-[![Clique Nouvelle macro, ajoute ses étapes à droite, donne-lui une touche.](docs/images/tuto-4-macros.png)](site/tuto.html#macros)
+[![Clique Nouvelle macro, choisis ses étapes à gauche, donne-lui une touche.](docs/images/tuto-4-macros.png)](site/tuto.html#macros)
 
-- **Nouvelle macro**, puis ajoute ses étapes à droite. Elles se lisent comme des phrases : appuyer sur une touche,
-  choisir dans un menu de FL, ouvrir une fenêtre, cliquer sur un bouton, ouvrir un preset, renommer la piste,
-  attendre…
+- **Nouvelle macro**, puis choisis ses étapes à gauche, d'un clic ou en les glissant : menu de FL, page de FL,
+  bouton, preset, action, nom et couleur, touche, clic de souris, attente… Leurs réglages sont à droite.
 - Donne-lui une touche : elle fait tout d'un coup, dans FL. **Échap** l'arrête.
 
 ### 5. Organiser
