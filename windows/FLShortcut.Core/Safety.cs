@@ -8,21 +8,22 @@ public static class ForbiddenTargets
     /// Raison du refus, ou null si la cible est autorisée.
     public static string? Reason(KeyCombo c)
     {
-        if (c.Win) return "Win+… est réservé à Windows";
-        if (c.Ctrl && c.Alt) return "Ctrl+Alt (AltGr) est réservé au système et à la saisie de caractères";
-        if (c.Alt && c.Vk == Vk.F(4)) return "Alt+F4 ferme l'application";
-        if (c.Alt && c.Vk == Vk.Tab) return "Alt+Tab change d'application";
-        if (c.Alt && c.Vk == Vk.Escape) return "Alt+Échap change d'application";
-        if (c.Ctrl && c.Vk == Vk.Escape) return c.Shift ? "Ctrl+Maj+Échap ouvre le Gestionnaire des tâches" : "Ctrl+Échap ouvre le menu Démarrer";
-        if (c.Vk is Vk.LWin or Vk.RWin or Vk.Apps) return "Touche système";
-        if (c.Vk == Vk.Snapshot) return "Capture d'écran système";
+        if (c.Win) return Loc.T("Win+… est réservé à Windows");
+        if (c.Ctrl && c.Alt) return Loc.T("Ctrl+Alt est réservé à AltGr");
+        if (c.Alt && c.Vk == Vk.F(4)) return Loc.T("Alt+F4 ferme l'application");
+        if (c.Alt && c.Vk == Vk.Tab) return Loc.T("Alt+Tab change d'application");
+        if (c.Alt && c.Vk == Vk.Escape) return Loc.T("Alt+Échap change d'application");
+        if (c.Ctrl && c.Vk == Vk.Escape) return c.Shift ? Loc.T("Ctrl+Maj+Échap ouvre le Gestionnaire des tâches") : Loc.T("Ctrl+Échap ouvre le menu Démarrer");
+        if (c.Vk is Vk.LWin or Vk.RWin or Vk.Apps) return Loc.T("Touche système");
+        if (c.Vk == Vk.Snapshot) return Loc.T("Capture d'écran système");
         return null;
     }
 
     public static bool IsForbidden(KeyCombo c) => Reason(c) is not null;
 }
 
-/// Raccourcis déjà pris par Windows ou par FL Studio (avertissements seulement).
+/// Raccourcis déjà pris par Windows ou par FL Studio (avertissements seulement). Textes traduits à l'affichage
+/// (ShortcutIssue.Message) : leur anglais est dans en-windows.strings, vérifié par les essais.
 public sealed class ConflictTable
 {
     public IReadOnlyDictionary<KeyCombo, string> Windows { get; }
@@ -60,11 +61,11 @@ public sealed class ConflictTable
         var fl = new Dictionary<KeyCombo, string>
         {
             [new KeyCombo(Vk.Space)] = "FL : lecture / stop",
-            [new KeyCombo(Vk.F(5))] = "FL : Playlist (F5)",
-            [new KeyCombo(Vk.F(6))] = "FL : Channel Rack (F6)",
-            [new KeyCombo(Vk.F(7))] = "FL : Piano Roll (F7)",
-            [new KeyCombo(Vk.F(8))] = "FL : Plugin picker (F8)",
-            [new KeyCombo(Vk.F(9))] = "FL : Mixer (F9)",
+            [new KeyCombo(Vk.F(5))] = "FL : Playlist",
+            [new KeyCombo(Vk.F(6))] = "FL : Channel Rack",
+            [new KeyCombo(Vk.F(7))] = "FL : Piano Roll",
+            [new KeyCombo(Vk.F(8))] = "FL : Plugin picker",
+            [new KeyCombo(Vk.F(9))] = "FL : Mixer",
             [Ctrl('S')] = "FL : enregistrer le projet",
             [Ctrl('S', shift: true)] = "FL : enregistrer sous",
             [Ctrl('Z')] = "FL : annuler",
@@ -79,7 +80,7 @@ public sealed class ConflictTable
             [Ctrl('V')] = "FL : coller",
             [Ctrl('X')] = "FL : couper",
             [new KeyCombo(Vk.Letter('M'), Alt: true)] = "FL : mute des clips",
-            [new KeyCombo(Vk.Letter('Z'), Ctrl: true, Alt: true)] = "FL : rétablir (Ctrl+Alt+Z)",
+            [new KeyCombo(Vk.Letter('Z'), Ctrl: true, Alt: true)] = "FL : rétablir",
         };
         foreach (var (ch, label) in new (char, string)[]
                  {

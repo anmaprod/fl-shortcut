@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tuto FL Shortcuts</title>
+<meta name="description" content="Bien démarrer avec FL Shortcuts : installer, autoriser, tes raccourcis, tes macros, l'Organiser, la Communauté.">
+<link rel="icon" href="img/icone.png">
+<style>
+/* 23/11 : le tuto aux couleurs du site public (web/public/index.html : noir, blanc, rouge #FF3B1F, Helvetica Neue,
+   titres en minuscules avec un point rouge) ; dans chaque étape, l'app d'aujourd'hui dessinée (thème Papier, menus
+   dans la barre de la fenêtre), d'après les photos de la CI. Les images du README en sont tirées :
+   node docs/images/rendre-tuto.js (sections data-capture et .hero). Aucun script, rien venu d'ailleurs. */
+:root {
+  --ink: #000000; --paper: #FFFFFF; --gray: #8C8C8C; --line: #2C2C2C; --red: #FF3B1F;
+  --text: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  /* L'app (thème Papier, direction A) */
+  --a-bg: #F3F2EE; --a-ink: #111111; --a-gray: #67655F; --a-faint: #A8A59E; --a-line: #D9D6CF;
+  --a-font: Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--ink); color: var(--paper); }
+body { font: 16px/1.5 var(--text); -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+main { max-width: 1100px; margin: 0 auto; padding: 0 20px 64px; }
+.label { font: 700 11px/1.25 var(--text); letter-spacing: 1.4px; text-transform: uppercase; color: var(--gray); }
+.point { color: var(--red); }
+
+.top { display: flex; align-items: center; justify-content: space-between; height: 64px; border-bottom: 1px solid var(--line); }
+.brand { font: 700 22px/1 var(--text); letter-spacing: -0.04em; text-decoration: none; }
+
+.hero { padding: 56px 0 40px; }
+.hero h1 { font: 700 clamp(56px, 11vw, 128px)/0.9 var(--text); letter-spacing: -0.055em; margin: 14px 0 22px; }
+.hero p { font-size: 20px; margin: 0; max-width: 34ch; }
+.nav { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0;
+  margin: 36px 0 0; padding: 0; border-top: 1px solid var(--line); }
+.nav a { display: flex; gap: 10px; align-items: baseline; padding: 14px 0; text-decoration: none; font-size: 15px; border-bottom: 1px solid var(--line); }
+.nav a b { color: var(--red); font-size: 11px; letter-spacing: 1.4px; }
+.nav a:hover { color: var(--red); }
+
+.step { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px 40px; align-items: center;
+  padding: 48px 0; border-bottom: 1px solid var(--line); }
+.step h2 { font: 700 clamp(40px, 6vw, 64px)/0.95 var(--text); letter-spacing: -0.05em; margin: 10px 0 22px; }
+.lines { list-style: none; margin: 0; padding: 0; }
+.lines li { position: relative; padding: 0 0 0 22px; margin: 0 0 12px; font-size: 17px; line-height: 1.4; }
+.lines li::before { content: ""; position: absolute; left: 0; top: 0.5em; width: 8px; height: 8px; background: var(--red); }
+.lines li.sub { color: var(--gray); font-size: 15px; }
+.lines li.sub .k { border-color: var(--gray); font-size: 12px; }
+.lines li.sub::before { background: var(--line); }
+.k { display: inline-block; font: 600 14px/1 var(--text); border: 1.5px solid var(--paper); padding: 3px 6px; margin: 0 1px; }
+
+/* ---------- L'app dessinée ---------- */
+.stage { position: relative; }
+.app { background: var(--a-bg); color: var(--a-ink); font-family: var(--a-font); overflow: hidden; }
+.bar { display: flex; align-items: center; gap: 18px; height: 40px; padding: 0 16px; font-size: 12.5px; color: var(--a-gray); }
+.lights { display: flex; gap: 6px; margin-right: 22px; }
+.lights i { width: 9px; height: 9px; box-shadow: inset 0 0 0 1.5px var(--a-faint); }
+.lights.off i { box-shadow: inset 0 0 0 1.5px var(--a-line); }
+.bar .on { color: var(--a-ink); font-weight: 600; }
+.bar .dot::after { content: ""; display: inline-block; width: 5px; height: 5px; background: var(--red); margin-left: 5px; vertical-align: 2px; }
+.page { padding: 18px 28px 26px; }
+.a-label { font: 700 9.5px/1.2 var(--a-font); letter-spacing: 1.2px; text-transform: uppercase; color: var(--a-gray); }
+.a-title { font: 700 30px/1 var(--a-font); letter-spacing: -0.05em; }
+.a-title .point, .page .point { color: var(--red); }
+.a-btn { display: inline-flex; align-items: center; justify-content: center; height: 30px; padding: 0 14px; background: var(--a-ink);
+  color: var(--a-bg); font: 700 10px/1 var(--a-font); letter-spacing: 1.2px; text-transform: uppercase; white-space: nowrap; }
+.a-btn.out { background: transparent; color: var(--a-ink); box-shadow: inset 0 0 0 1.5px var(--a-ink); }
+.a-btn.red { background: transparent; color: var(--red); box-shadow: inset 0 0 0 1.5px var(--red); }
+.a-btn.plain { background: transparent; color: var(--a-ink); }
+.a-btn.lc { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 600; }
+.u { text-decoration: underline; text-underline-offset: 3px; }
+.rule { border-top: 1.5px solid var(--a-ink); }
+.cursor { position: absolute; width: 18px; height: 18px; pointer-events: none; }
+.cursor svg { display: block; }
+
+/* 01 installer */
+.duo { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.finder { padding: 26px 18px 22px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; font-size: 12.5px; }
+.tile { position: relative; display: inline-flex; align-items: flex-end; justify-content: center; width: 76px; height: 76px;
+  background: #0D0D0D; }
+.tile b { font: 800 38px/1 var(--text); letter-spacing: -0.07em; color: #fff; margin-bottom: 15px; }
+.tile i { width: 9px; height: 9px; background: var(--red); margin: 0 0 18px 3px; }
+.tile.small { width: 28px; height: 28px; }
+.tile.small b { font-size: 14px; margin-bottom: 6px; }
+.tile.small i { width: 4px; height: 4px; margin: 0 0 7px 1px; }
+.taskbar { margin-top: auto; width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; height: 46px; background: #EEF0F3; border-top: 1px solid #C9CDD3; }
+.taskbar .ic { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.taskbar .ic::after { content: ""; width: 5px; height: 3px; background: #8A8F96; }
+.taskbar .ic.me { padding: 4px 6px 2px; background: #DDE1E6; outline: 2px solid var(--red); outline-offset: 2px; }
+.taskbar .ic.me::after { width: 14px; background: #0067C0; }
+.win-logo { width: 22px; height: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+.win-logo i { background: #0067C0; }
+.fl-ic { width: 28px; height: 28px; background: #2D3136; color: #F2A33A; font: 700 11px/28px var(--text); text-align: center; }
+
+/* 02 autoriser */
+.welcome { padding: 26px 34px 26px; }
+.wordmark { display: flex; align-items: center; gap: 12px; font: 800 34px/1 var(--text); letter-spacing: -0.06em; margin-bottom: 22px; }
+.perms { border: 1px solid var(--a-line); }
+.perm { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-top: 1px solid var(--a-line); }
+.perm:first-child { border-top: 0; }
+.perm div { flex: 1; } .perm b { display: block; font-size: 15px; letter-spacing: -0.02em; } .perm small { color: var(--a-gray); font-size: 11.5px; }
+.perm .a-btn { height: 24px; font-size: 9px; padding: 0 9px; }
+.welcome .go { display: flex; justify-content: flex-end; margin-top: 22px; }
+.welcome .go .a-btn { width: 52%; height: 36px; }
+
+/* 03 trouver */
+.steps-line { display: flex; gap: 18px; font-size: 12.5px; color: var(--a-faint); margin-bottom: 26px; }
+.steps-line b { font-weight: 500; margin-right: 5px; } .steps-line .cur { color: var(--a-ink); font-weight: 600; } .steps-line .cur b { color: var(--red); }
+.find { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; align-items: start; }
+.bigkey { font: 500 64px/1 var(--a-font); letter-spacing: -0.03em; padding: 18px 0 12px; border-bottom: 1.5px solid var(--a-ink); }
+.hint { color: var(--a-gray); font-size: 11.5px; margin-top: 8px; }
+.rows { list-style: none; margin: 4px 0 0; padding: 0; border-top: 1.5px solid var(--a-ink); }
+.rows li { padding: 9px 0 10px; border-bottom: 1px solid var(--a-line); }
+.rows .meta { display: flex; justify-content: space-between; gap: 10px; font-size: 11px; color: var(--a-gray); }
+.rows .meta span:last-child { color: var(--a-ink); }
+.rows .name { font-size: 17px; letter-spacing: -0.02em; margin-top: 4px; }
+.rows li.hl { background: var(--a-ink); color: var(--a-bg); margin: 0 -8px; padding-left: 8px; padding-right: 8px; }
+.rows li.hl .meta, .rows li.hl .meta span:last-child { color: var(--a-bg); }
+
+/* 04 macros */
+/* Créateur de macros en colonnes (28/11, « retourner au pattern qu'on avait avant ») : palette, étapes, réglages. */
+.mk { display: grid; grid-template-columns: 25% 1fr 25%; min-height: 300px; font-size: 11.5px; }
+.mk > div { padding: 14px 12px; min-width: 0; }
+.mk .pal { border-right: 1px solid var(--a-line); }
+.mk .ins { border-left: 1px solid var(--a-line); }
+.mk .cat { font: 700 8.5px/1.2 var(--a-font); letter-spacing: 1.1px; text-transform: uppercase; color: var(--a-gray); margin: 10px 0 5px; }
+.mk .cat:first-child { margin-top: 0; }
+.mk .blk { display: flex; align-items: center; gap: 7px; padding: 3px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mk .blk::before { content: ""; flex: none; width: 7px; height: 7px; box-shadow: inset 0 0 0 1.2px var(--a-ink); }
+.mk .blk.hov { background: var(--a-ink); color: var(--a-bg); margin: 0 -12px; padding-left: 12px; }
+.mk .blk.hov::before { box-shadow: inset 0 0 0 1.2px var(--a-bg); }
+.mk .head { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
+.mk .back { flex: none; width: 22px; height: 22px; box-shadow: inset 0 0 0 1.5px var(--a-ink); display: grid; place-items: center; font-size: 12px; }
+.mk .head .a-title { font-size: 16px; letter-spacing: -0.05em; flex: 1; white-space: nowrap; overflow: hidden; }
+.mk .head .k { font-size: 12px; font-weight: 700; }
+.mk .head .a-btn { height: 22px; padding: 0 7px; font-size: 8px; }
+.mk .row { display: flex; align-items: center; gap: 7px; height: 30px; border-bottom: 1px solid var(--a-line); white-space: nowrap; overflow: hidden; }
+.mk .row:first-of-type { border-top: 1px solid var(--a-line); }
+.mk .row .n { width: 12px; color: var(--a-gray); font-size: 9.5px; text-align: right; flex: none; }
+.mk .row .sq { flex: none; width: 7px; height: 7px; box-shadow: inset 0 0 0 1.2px var(--a-ink); }
+.mk .row b { font-weight: 700; }
+.mk .row .v { color: var(--a-gray); overflow: hidden; text-overflow: ellipsis; }
+.mk .row .sw { margin-left: auto; flex: none; width: 20px; height: 11px; background: var(--a-ink); position: relative; }
+.mk .row .sw::after { content: ""; position: absolute; right: 2px; top: 2px; width: 7px; height: 7px; background: var(--a-bg); }
+.mk .row.on { background: var(--a-ink); color: var(--a-bg); margin: 0 -12px; padding: 0 12px; box-shadow: 0 3px 0 var(--red); }
+.mk .row.on .n, .mk .row.on .v { color: var(--a-bg); }
+.mk .row.on .sq { background: var(--red); box-shadow: none; }
+.mk .row.on .sw { background: var(--a-bg); } .mk .row.on .sw::after { background: var(--a-ink); }
+.mk .ins h4 { margin: 0; font-size: 12px; display: flex; align-items: center; gap: 7px; }
+.mk .ins h4::before { content: ""; width: 8px; height: 8px; background: var(--red); }
+.mk .ins p { margin: 4px 0 0 15px; color: var(--a-gray); font-size: 10px; line-height: 1.35; }
+.mk .ins .set { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--a-line); }
+.mk .ins .fld { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; gap: 8px; }
+.mk .ins .fld span:last-child { box-shadow: inset 0 0 0 1.2px var(--a-ink); padding: 3px 8px; font-weight: 600; }
+.mk .ins .rm { display: block; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--a-line); color: var(--red); }
+@media (max-width: 720px) { .mk { grid-template-columns: 1fr; } .mk .pal, .mk .ins { display: none; } }
+
+/* 05 organiser */
+.org-head { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1.5px solid var(--a-ink); }
+.org-head .a-title { flex: 1; }
+.fambar { display: flex; gap: 3px; margin: 10px 0 4px; } .fambar i { height: 4px; }
+.famnames { display: flex; gap: 12px; font: 700 8.5px/1 var(--a-font); letter-spacing: 1px; color: var(--a-gray); margin-bottom: 8px; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.fam { margin-top: 10px; }
+.fam .fh { display: flex; align-items: center; gap: 7px; font: 700 10px/1 var(--a-font); letter-spacing: 1px; padding-bottom: 6px; border-bottom: 2px solid; }
+.fam .fh i { width: 10px; height: 10px; } .fam .fh span { flex: 1; } .fam .fh small { color: var(--a-gray); font-size: 8px; letter-spacing: .8px; }
+.snd { display: flex; align-items: center; gap: 6px; padding: 6px 0; border-bottom: 1px solid var(--a-line); font-size: 11px; }
+.snd span { flex: 1; } .snd .to { color: var(--a-gray); }
+.snd .kind { width: 74px; box-shadow: inset 0 0 0 1px var(--a-ink); padding: 3px 6px; font-size: 10.5px; }
+.org-foot { display: flex; justify-content: flex-end; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--a-line); }
+.org-foot .a-btn { height: 30px; }
+.keep { position: absolute; right: -6px; bottom: -26px; width: 52%; padding: 16px 16px 14px; }
+.keep .a-title { font-size: 17px; letter-spacing: -0.04em; padding-bottom: 8px; border-bottom: 1px solid var(--a-ink); margin-bottom: 10px; }
+.keep .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.keep .two div { height: 74px; display: flex; flex-direction: column; justify-content: space-between; padding: 8px; font: 700 8.5px/1 var(--a-font); letter-spacing: 1px; }
+.keep .yes { background: var(--a-ink); color: var(--a-bg); } .keep .no { box-shadow: inset 0 0 0 1.5px var(--a-ink); }
+.keep .yes p, .keep .no p { margin: 0; display: grid; gap: 4px; }
+.keep .yes p i { display: block; height: 4px; } .keep .no p i { display: block; height: 4px; background: #77746E; }
+
+/* 06 communauté */
+.com-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.tabs { display: flex; gap: 18px; align-items: flex-end; font-size: 12px; color: var(--a-gray); padding-bottom: 0; border-bottom: 1.5px solid var(--a-ink); }
+.tabs span { padding-bottom: 7px; } .tabs .cur { color: var(--a-ink); font-weight: 600; box-shadow: inset 0 -2px 0 var(--a-ink); }
+.tabs .search { margin-left: auto; width: 34%; border-bottom: 1.5px solid var(--a-faint); color: var(--a-faint); padding-bottom: 4px; margin-bottom: 6px; }
+.cards { display: grid; grid-template-columns: 1fr 1fr; column-gap: 22px; }
+.card { padding: 12px 0 12px; border-bottom: 1px solid var(--a-ink); }
+.who { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 600; }
+.av { width: 17px; height: 17px; border-radius: 50%; background: var(--a-ink); color: var(--a-bg); font-size: 9px; display: inline-flex; align-items: center; justify-content: center; text-transform: uppercase; }
+.card h4 { font: 500 15px/1.25 var(--a-font); letter-spacing: -0.02em; margin: 8px 0 12px; min-height: 38px; }
+.stats { display: flex; align-items: baseline; gap: 12px; font-size: 10px; color: var(--a-gray); }
+.stats b { font-size: 16px; color: var(--a-ink); margin-right: 2px; } .stats .star { color: var(--red); font-size: 14px; }
+.stats .a-btn { margin-left: auto; height: 24px; padding: 0 10px; }
+
+/* 07 au quotidien */
+.desk { position: relative; height: 330px; overflow: hidden; background: var(--ink); border: 1px solid var(--line); }
+.menubar { display: flex; justify-content: flex-end; align-items: center; gap: 16px; height: 28px; padding: 0 14px; background: #E9E8E4; color: #111; font: 500 12px/1 var(--a-font); }
+.menubar .me { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 22px; background: rgba(0,0,0,.12); }
+.menu { position: absolute; top: 34px; right: 18px; width: 280px; background: var(--a-bg); color: var(--a-ink); font-family: var(--a-font);
+  box-shadow: inset 0 0 0 2px var(--a-ink); padding: 4px 0 6px; font-size: 13.5px; }
+.menu .mh { display: flex; align-items: center; gap: 10px; padding: 10px 14px 9px; font-weight: 600; font-size: 16px; letter-spacing: -0.02em; }
+.menu .sep { height: 1px; background: var(--a-line); margin: 4px 0; }
+.menu .it { display: flex; justify-content: space-between; height: 34px; align-items: center; padding: 0 14px; margin: 0 2px; }
+.menu .it.hov { background: var(--a-ink); color: var(--a-bg); }
+.menu .it.grey { color: var(--a-gray); font-size: 12.5px; }
+.menu .it small { color: var(--a-gray); font-size: 11.5px; }
+.pause { position: absolute; left: 22px; bottom: 22px; display: flex; align-items: center; gap: 6px; }
+.pause .cap { background: var(--a-bg); color: var(--a-ink); font: 700 20px/1 var(--a-font); padding: 9px 11px; box-shadow: inset 0 0 0 2px var(--a-ink), 3px 3px 0 var(--red); }
+.pause em { font-style: normal; color: #fff; font-size: 12px; margin-left: 8px; opacity: .8; }
+
+footer { padding-top: 40px; color: var(--gray); font-size: 13px; }
+
+@media (max-width: 820px) {
+  .step { grid-template-columns: 1fr; padding: 40px 0; }
+  .keep { position: static; width: auto; margin-top: 14px; }
+  .menu { right: 16px; }
+  .page { padding: 16px 16px 20px; }
+}
+</style>
+</head>
+<body>
+<main>
+<header class="top">
+  <a class="brand" href="./">fl shortcuts<span class="point">.</span></a>
+  <span class="label">Tuto</span>
+</header>
+
+<section class="hero" aria-label="Bien démarrer avec FL Shortcuts">
+  <span class="label">Sept étapes, une seule fois</span>
+  <h1>bien démarrer<span class="point">.</span></h1>
+  <p>Tes raccourcis, tes macros et ton projet rangé dans FL Studio.</p>
+  <ol class="nav" aria-label="Étapes">
+    <li><a href="#installer"><b>01</b>Installer</a></li>
+    <li><a href="#autoriser"><b>02</b>Autoriser</a></li>
+    <li><a href="#raccourcis"><b>03</b>Tes raccourcis</a></li>
+    <li><a href="#macros"><b>04</b>Les macros</a></li>
+    <li><a href="#organiser"><b>05</b>Organiser</a></li>
+    <li><a href="#communaute"><b>06</b>La Communauté</a></li>
+    <li><a href="#quotidien"><b>07</b>Au quotidien</a></li>
+  </ol>
+</section>
+
+<!-- 01 -->
+<section class="step" id="installer" data-capture="tuto-1-installer">
+  <div class="text">
+    <span class="label">Étape 01</span>
+    <h2>installer<span class="point">.</span></h2>
+    <ul class="lines">
+      <li>Mac : ouvre <b>FLShortcuts.pkg</b> et suis l'installation.</li>
+      <li>Windows : double-clique sur l'installeur, puis <b>Installer</b>.</li>
+      <li class="sub">Bloqué ? Mac : Réglages Système › Confidentialité et sécurité › Ouvrir quand même. Windows :
+        Informations complémentaires › Exécuter quand même.</li>
+    </ul>
+  </div>
+  <div class="stage duo" aria-hidden="true">
+    <div class="app">
+      <div class="bar"><span class="lights"><i></i><i></i><i></i></span></div>
+      <div class="finder">
+        <span class="tile"><b>fl</b><i></i></span>
+        <span>FLShortcuts.pkg</span>
+        <span class="a-btn" style="margin-top:8px">Installer</span>
+        <span class="a-label" style="margin-top:6px">Mac</span>
+      </div>
+    </div>
+    <div class="app" style="display:flex;flex-direction:column">
+      <div class="bar"><span class="lights off"><i></i><i></i><i></i></span></div>
+      <div class="finder" style="padding-bottom:12px">
+        <span class="a-label">Windows</span>
+        <span style="color:var(--a-gray)">Son logo reste dans la barre des tâches.</span>
+      </div>
+      <div class="taskbar">
+        <span class="ic"><span class="win-logo"><i></i><i></i><i></i><i></i></span></span>
+        <span class="ic"><span class="fl-ic">FL</span></span>
+        <span class="ic me"><span class="tile small"><b>fl</b><i></i></span></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 02 -->
+<section class="step" id="autoriser" data-capture="tuto-2-autoriser">
+  <div class="text">
+    <span class="label">Étape 02</span>
+    <h2>autoriser<span class="point">.</span></h2>
+    <ul class="lines">
+      <li>Clique <b>Autoriser</b> : le clavier, puis le son de FL.</li>
+      <li>Le son de FL sert à l'Organiser.</li>
+      <li>Ouvre FL Shortcuts avant FL Studio.</li>
+      <li class="sub">Windows : rien à autoriser. Installe loopMIDI si l'accueil le demande.</li>
+    </ul>
+  </div>
+  <div class="stage" aria-hidden="true">
+    <div class="app">
+      <div class="bar"><span class="lights"><i></i><i></i><i></i></span></div>
+      <div class="welcome">
+        <div class="wordmark">
+          <svg width="40" height="40" viewBox="0 0 1024 1024"><circle cx="590" cy="440" r="365" fill="none" stroke="#111" stroke-width="80"/><circle cx="470" cy="580" r="345" fill="#F3F2EE"/><circle cx="470" cy="580" r="290" fill="#FF3B1F"/></svg>
+          <span>fl shortcuts<span class="point">.</span></span>
+        </div>
+        <div class="perms">
+          <div class="perm"><div><b>Clavier</b><small>Pour tes raccourcis dans FL.</small></div><span class="a-btn plain">Autorisé</span></div>
+          <div class="perm"><div><b>Son de FL</b><small>Pour écouter tes sons.</small></div><span class="a-btn red">À autoriser</span></div>
+          <div class="perm"><div><b>Lien avec FL</b><small>Pour les actions de FL et l'Organiser.</small></div><span class="a-btn red">À installer</span></div>
+        </div>
+        <div class="go"><span class="a-btn">Autoriser</span></div>
+      </div>
+    </div>
+    <span class="cursor" style="right:20%;bottom:30px"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 2v13l3.4-3.2 2.3 5 2-1-2.3-4.9H13z" fill="#fff" stroke="#000" stroke-width="1.2"/></svg></span>
+  </div>
+</section>
+
+<!-- 03 -->
+<section class="step" id="raccourcis" data-capture="tuto-3-raccourcis">
+  <div class="text">
+    <span class="label">Étape 03</span>
+    <h2>tes raccourcis<span class="point">.</span></h2>
+    <ul class="lines">
+      <li>Dans <b>Trouver</b>, appuie sur une touche.</li>
+      <li>Clique <b>Changer</b>, puis tape la nouvelle.</li>
+      <li><b>Remettre</b> remet celle de FL.</li>
+      <li class="sub">Toutes les pages de FL sont dans Raccourcis.</li>
+    </ul>
+  </div>
+  <div class="stage" aria-hidden="true">
+    <div class="app">
+      <div class="bar"><span class="lights"><i></i><i></i><i></i></span><span class="on">Trouver</span><span>Raccourcis</span><span>Macros</span><span>Communauté</span><span>Compte</span><span>Aide</span></div>
+      <div class="page">
+        <div class="steps-line"><span><b>1</b>Touche</span><span class="cur"><b>2</b>Action</span><span><b>3</b>Nouvelle touche</span></div>
+        <div class="find">
+          <div><div class="bigkey">⌘S</div></div>
+          <ul class="rows">
+            <li><div class="meta"><span>Général</span><span class="u">Changer</span></div><div class="name">Enregistrer le projet</div></li>
+            <li class="hl"><div class="meta"><span>Lecture et enregistrement</span><span class="u">Changer</span></div><div class="name">Couper tous les sons</div></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 04 -->
+<section class="step" id="macros" data-capture="tuto-4-macros">
+  <div class="text">
+    <span class="label">Étape 04</span>
+    <h2>les macros<span class="point">.</span></h2>
+    <ul class="lines">
+      <li>Clique <b>Nouvelle macro</b>.</li>
+      <li>Choisis ses étapes à gauche.</li>
+      <li>Donne-lui une touche.</li>
+      <li class="sub">Elle fait tout d'un coup, dans FL. <span class="k">Échap</span> l'arrête.</li>
+    </ul>
+  </div>
+  <div class="stage" aria-hidden="true">
+    <div class="app">
+      <div class="bar"><span class="lights"><i></i><i></i><i></i></span><span>Trouver</span><span>Raccourcis</span><span class="on">Macros</span><span>Communauté</span><span>Compte</span><span>Aide</span></div>
+      <div class="mk">
+        <div class="pal">
+          <div class="cat">FL Studio</div>
+          <div class="blk">Menu de FL</div><div class="blk">Ouvrir une page de FL</div><div class="blk">Cliquer sur…</div>
+          <div class="blk">Ouvrir un preset</div><div class="blk">Action dans FL</div><div class="blk">Nom et couleur</div>
+          <div class="cat">Clavier</div>
+          <div class="blk hov">Touche ou raccourci</div>
+          <div class="cat">Souris</div>
+          <div class="blk">Clic de souris</div>
+          <div class="cat">Attente</div>
+          <div class="blk">Attendre</div>
+        </div>
+        <div>
+          <div class="head"><span class="back">‹</span><span class="a-title">export stems<span class="point">.</span></span><span class="k">⌃E</span><span class="a-btn">Enregistrer</span></div>
+          <div class="row"><span class="n">1</span><span class="sq"></span><b>Menu de FL</b><span class="v">File › Export › All playlist tracks</span><span class="sw"></span></div>
+          <div class="row"><span class="n">2</span><span class="sq"></span><b>Attendre</b><span class="v">1 s</span><span class="sw"></span></div>
+          <div class="row on"><span class="n">3</span><span class="sq"></span><b>Touche ou raccourci</b><span class="v">Entrée</span><span class="sw"></span></div>
+        </div>
+        <div class="ins">
+          <h4>Touche ou raccourci</h4>
+          <p>Appuie sur une touche dans FL.</p>
+          <div class="set"><div class="a-label">Réglages</div>
+            <div class="fld"><span>Touche</span><span>Entrée</span></div></div>
+          <span class="rm">Retirer ce bloc</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 05 -->
+<section class="step" id="organiser" data-capture="tuto-5-organiser">
+  <div class="text">
+    <span class="label">Étape 05</span>
+    <h2>organiser<span class="point">.</span></h2>
+    <ul class="lines">
+      <li>Ouvre ton projet dans FL.</li>
+      <li>Appuie sur <span class="k">⌘⌥O</span> dans FL.</li>
+      <li>Garde la version rangée, ou reviens comme avant.</li>
+      <li class="sub">Windows : <span class="k">Ctrl+Alt+O</span>. Sons, Mixer et Playlist rangés par famille, dans une copie.
+        La première fois, il te guide pour relier FL.</li>
+    </ul>
+  </div>
+  <div class="stage" aria-hidden="true" style="padding-bottom:30px">
+    <div class="app">
+      <div class="bar"><span class="lights off"><i></i><i></i><i></i></span></div>
+      <div class="page" style="padding-top:8px">
+        <div class="org-head"><span class="a-title">organiser<span class="point">.</span></span><span class="a-btn out" style="height:24px;font-size:8.5px">Rangement automatique</span><span class="a-btn out" style="height:24px;font-size:8.5px">Options</span></div>
+        <div class="fambar"><i style="flex:1;background:#FF5FA2"></i><i style="flex:2;background:#FFC20E"></i><i style="flex:1;background:#3355FF"></i><i style="flex:3;background:#FF3B1F"></i><i style="flex:1;background:#14B8A0"></i></div>
+        <div class="famnames"><span>VOIX 1</span><span>MÉLODIES 2</span><span>BASSE 1</span><span>DRUMS 3</span><span>FX 1</span></div>
+        <div class="cols">
+          <div>
+            <div class="fam"><div class="fh" style="border-color:#FF5FA2"><i style="background:#FF5FA2"></i><span>VOIX</span><small>MIXER 2</small></div>
+              <div class="snd"><span>Vocal Chop</span><b class="to">→</b><span class="kind">Voix</span></div></div>
+            <div class="fam"><div class="fh" style="border-color:#FFC20E"><i style="background:#FFC20E"></i><span>MÉLODIES</span><small>MIXER 4</small></div>
+              <div class="snd"><span>Serum Lead</span><b class="to">→</b><span class="kind">Lead</span></div>
+              <div class="snd"><span>Pluck</span><b class="to">→</b><span class="kind">Pluck</span></div></div>
+          </div>
+          <div>
+            <div class="fam"><div class="fh" style="border-color:#FF3B1F"><i style="background:#FF3B1F"></i><span>DRUMS</span><small>MIXER 7</small></div>
+              <div class="snd"><span>BEAM KICK</span><b class="to">→</b><span class="kind">Kick</span></div>
+              <div class="snd"><span>CLAP 2</span><b class="to">→</b><span class="kind">Clap</span></div>
+              <div class="snd"><span>OPEN HAT</span><b class="to">→</b><span class="kind">Open Hat</span></div></div>
+          </div>
+        </div>
+        <div class="org-foot"><span class="a-btn out">Annuler</span><span class="a-btn">Organiser</span></div>
+      </div>
+    </div>
+    <div class="app keep">
+      <div class="a-title">tu gardes la version rangée<span class="point">.</span></div>
+      <div class="two">
+        <div class="yes"><p><i style="background:#FF5FA2"></i><i style="background:#FFC20E"></i><i style="background:#3355FF"></i><i style="background:#FF3B1F"></i></p>GARDER</div>
+        <div class="no"><p><i style="width:40%"></i><i style="width:70%;margin-left:20%"></i><i style="width:30%;margin-left:50%"></i></p>REVENIR COMME AVANT</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 06 -->
+<section class="step" id="communaute" data-capture="tuto-6-communaute">
+  <div class="text">
+    <span class="label">Étape 06</span>
+    <h2>la communauté<span class="point">.</span></h2>
+    <ul class="lines">
+      <li>Crée ton compte.</li>
+      <li>Ajoute les macros des autres.</li>
+      <li><b>Partager</b> envoie les tiennes.</li>
+      <li class="sub">Ton compte garde tes raccourcis et tes macros en ligne, avec trois thèmes : Papier, Noir, Orange.</li>
+    </ul>
+  </div>
+  <div class="stage" aria-hidden="true">
+    <div class="app">
+      <div class="bar"><span class="lights"><i></i><i></i><i></i></span><span>Trouver</span><span>Raccourcis</span><span>Macros</span><span class="on dot">Communauté</span><span>Compte</span><span>Aide</span></div>
+      <div class="page">
+        <div class="com-head"><span class="a-title" style="font-size:26px;letter-spacing:-0.03em;font-weight:600">Communauté</span><span class="a-btn lc">Partager</span></div>
+        <div class="tabs"><span class="cur">Les plus ajoutées</span><span class="dot">Abonnements</span><span>Les miens</span><span class="search">Chercher</span></div>
+        <div class="cards">
+          <div class="card"><div class="who"><span class="av">s</span>studio.nord</div><h4>Armer la piste et lancer l'enregistrement</h4>
+            <div class="stats"><span><span class="star">★</span> <b>4,6</b> sur 5</span><span><b>312</b> ajouts</span><span class="a-btn out lc">Ajouter</span></div></div>
+          <div class="card"><div class="who"><span class="av">k</span>kit.808</div><h4>Export Stems en un geste</h4>
+            <div class="stats"><span><span class="star">★</span> <b>4,4</b> sur 5</span><span><b>188</b> ajouts</span><span class="a-btn out lc">Ajouter</span></div></div>
+          <div class="card"><div class="who"><span class="av">n</span>nuit.blanche</div><h4>Ouvre un VST</h4>
+            <div class="stats"><span><span class="star">★</span> <b>4,2</b> sur 5</span><span><b>96</b> ajouts</span><span class="a-btn out lc">Ajouter</span></div></div>
+          <div class="card"><div class="who"><span class="av">b</span>beatmaker.lyon</div><h4>Nommer et colorer la piste en vert</h4>
+            <div class="stats"><span><b>41</b> ajouts</span><span class="a-btn out lc">Ajouter</span></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 07 -->
+<section class="step" id="quotidien" data-capture="tuto-7-quotidien">
+  <div class="text">
+    <span class="label">Étape 07</span>
+    <h2>au quotidien<span class="point">.</span></h2>
+    <ul class="lines">
+      <li>L'icône en haut de l'écran ouvre le menu.</li>
+      <li><span class="k">⌃⌥⌘F</span> met en pause ou reprend.</li>
+      <li>Les mises à jour s'installent toutes seules.</li>
+      <li class="sub">Windows : le logo dans la barre des tâches, <span class="k">Ctrl+Alt+Maj+F</span>. Une question ? Aide ›
+        Écrire à l'équipe.</li>
+    </ul>
+  </div>
+  <div class="stage" aria-hidden="true">
+    <div class="desk">
+      <div class="menubar"><span class="me"><svg width="15" height="15" viewBox="0 0 1024 1024"><circle cx="590" cy="440" r="365" fill="none" stroke="#111" stroke-width="90"/><circle cx="470" cy="580" r="345" fill="#E9E8E4"/><circle cx="470" cy="580" r="290" fill="#111"/></svg></span><span>lun. 23 nov. 10:42</span></div>
+      <div class="menu">
+        <div class="mh"><svg width="22" height="22" viewBox="0 0 1024 1024"><circle cx="590" cy="440" r="365" fill="none" stroke="#111" stroke-width="80"/><circle cx="470" cy="580" r="345" fill="#F3F2EE"/><circle cx="470" cy="580" r="290" fill="#111"/></svg>FL Shortcuts</div>
+        <div class="sep"></div>
+        <div class="it">Modifier les raccourcis…</div>
+        <div class="it">Macros…</div>
+        <div class="it hov">Organiser…</div>
+        <div class="sep"></div>
+        <div class="it">Ouvrir FL Shortcuts</div>
+        <div class="it">Quitter <small>⌘Q</small></div>
+        <div class="sep"></div>
+        <div class="it grey">Désinstaller FL Shortcuts…</div>
+      </div>
+      <div class="pause"><span class="cap">⌃</span><span class="cap">⌥</span><span class="cap">⌘</span><span class="cap">F</span><em>pause</em></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>Outil indépendant, gratuit, non affilié à Image-Line. « FL Studio » est une marque d'Image-Line.</p>
+</footer>
+</main>
+</body>
+</html>

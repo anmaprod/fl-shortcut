@@ -154,7 +154,7 @@ enum MacroLibrary {
             switch self {
             case .missing(let names):
                 let labels = names.map { Self.label(for: $0) }.joined(separator: ", ")
-                return "Position(s) à apprendre : \(labels)."
+                return String(localized: "Position(s) à apprendre : \(labels).")
             case .invalid(let why):
                 return why
             }
@@ -162,9 +162,9 @@ enum MacroLibrary {
 
         private static func label(for spot: String) -> String {
             switch spot {
-            case Macro.Spot.arm: return "bouton d'armement"
-            case Macro.Spot.inputMenu: return "sélecteur d'entrée"
-            case Macro.Spot.firstInput: return "première entrée"
+            case Macro.Spot.arm: return String(localized: "bouton d'armement")
+            case Macro.Spot.inputMenu: return String(localized: "sélecteur d'entrée")
+            case Macro.Spot.firstInput: return String(localized: "première entrée")
             default: return spot
             }
         }
@@ -183,7 +183,7 @@ enum MacroLibrary {
             case .failure(let e): return .failure(e)
             }
         case .autoRecord:
-            return .failure(.invalid("Modèle développé en blocs."))
+            return .failure(.invalid(String(localized: "Modèle développé en blocs.")))
         }
         if let why = validate(built, forbidden: forbidden) { return .failure(.invalid(why)) }
         return .success(built)
@@ -225,39 +225,39 @@ enum MacroLibrary {
 
     /// Bornes strictes (SEC-05) : nombre d'étapes, durées, cibles interdites, chemins sans caractères de contrôle.
     static func validate(_ steps: [MacroStep], forbidden: ForbiddenTargets) -> String? {
-        guard !steps.isEmpty else { return "La macro est vide." }
-        guard steps.count <= maxSteps else { return "Macro trop longue (\(maxSteps) étapes au plus)." }
+        guard !steps.isEmpty else { return String(localized: "La macro est vide.") }
+        guard steps.count <= maxSteps else { return String(localized: "Macro trop longue (\(maxSteps) étapes au plus).") }
         var total = 0
         for (i, s) in steps.enumerated() {
             let n = i + 1
             switch s.kind {
             case .key:
-                guard let combo = s.combo, combo.isValidKey else { return "Étape \(n) : touche non prise en charge." }
-                if let why = forbidden.reason(for: combo) { return "Étape \(n) : touche interdite (\(why))." }
+                guard let combo = s.combo, combo.isValidKey else { return String(localized: "Étape \(n) : touche non prise en charge.") }
+                if let why = forbidden.reason(for: combo) { return String(localized: "Étape \(n) : touche interdite (\(why)).") }
             case .delay:
-                guard (0...maxDelayMs).contains(s.ms) else { return "Étape \(n) : pause hors limites." }
+                guard (0...maxDelayMs).contains(s.ms) else { return String(localized: "Étape \(n) : pause hors limites.") }
                 total += s.ms
             case .click:
-                guard let spot = s.spot, spot.isFinite else { return "Étape \(n) : position invalide." }
+                guard let spot = s.spot, spot.isFinite else { return String(localized: "Étape \(n) : position invalide.") }
             case .menu:
                 guard (1...3).contains(s.titles.count), s.titles.allSatisfy({ !$0.isEmpty && $0.count <= 80 }) else {
-                    return "Étape \(n) : titres de menu invalides."
+                    return String(localized: "Étape \(n) : titres de menu invalides.")
                 }
-                guard s.fallback.count <= 3, s.fallback.allSatisfy(\.isFinite) else { return "Étape \(n) : positions de secours invalides." }
+                guard s.fallback.count <= 3, s.fallback.allSatisfy(\.isFinite) else { return String(localized: "Étape \(n) : positions de secours invalides.") }
                 total += 2_000
             case .waitDialog, .waitDialogClose:
-                guard (100...maxWaitMs).contains(s.ms) else { return "Étape \(n) : attente hors limites." }
+                guard (100...maxWaitMs).contains(s.ms) else { return String(localized: "Étape \(n) : attente hors limites.") }
                 total += s.ms
             case .trackMenu:
                 // Chaque titre peut porter des variantes séparées par « | ».
                 guard (1...3).contains(s.titles.count), s.titles.allSatisfy({ !$0.isEmpty && $0.count <= 160 }) else {
-                    return "Étape \(n) : titres de menu invalides."
+                    return String(localized: "Étape \(n) : titres de menu invalides.")
                 }
                 total += 4_000
             case .recordOn:
                 if let combo = s.combo {
-                    guard combo.isValidKey else { return "Étape \(n) : touche REC non prise en charge." }
-                    if let why = forbidden.reason(for: combo) { return "Étape \(n) : touche REC interdite (\(why))." }
+                    guard combo.isValidKey else { return String(localized: "Étape \(n) : touche REC non prise en charge.") }
+                    if let why = forbidden.reason(for: combo) { return String(localized: "Étape \(n) : touche REC interdite (\(why)).") }
                 }
                 total += 3_000
             case .feedbackCheck, .armTrack:
@@ -267,12 +267,12 @@ enum MacroLibrary {
             case .chooseFile:
                 guard let p = s.path, !p.isEmpty, p.count <= 1024,
                       !p.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
-                    return "Étape \(n) : chemin de fichier invalide."
+                    return String(localized: "Étape \(n) : chemin de fichier invalide.")
                 }
                 total += 3_000
             }
         }
-        guard total <= maxTotalMs else { return "Macro trop longue (durée totale)." }
+        guard total <= maxTotalMs else { return String(localized: "Macro trop longue (durée totale).") }
         return nil
     }
 }

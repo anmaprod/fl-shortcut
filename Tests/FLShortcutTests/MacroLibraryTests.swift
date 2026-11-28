@@ -44,7 +44,8 @@ final class MacroLibraryTests: XCTestCase {
     func testStoreSavesAfterAChangeAndKeepsThePreviousFileOnce() throws {
         let storage = MemoryMacroLibraryStorage(data: try MacroLibraryCodec.encode([sample()]))
         let original = storage.data
-        let store = MacroLibraryStore(storage: storage, saveDelay: 0)
+        // Délai long : seul saveNow écrit (avec 0, l'écriture différée pouvait passer avant et compter double).
+        let store = MacroLibraryStore(storage: storage, saveDelay: 60)
         XCTAssertEqual(store.macros.count, 1)
         XCTAssertNil(store.loadWarning)
         store.add(sample("Nouvelle"))
@@ -185,7 +186,7 @@ final class MacroLibraryTests: XCTestCase {
         let json = try JSONDecoder().decode(JSONValue.self, from: data)
         XCTAssertEqual(json["format"]?.string, "flsmacro")
         XCTAssertEqual(json["version"]?.int, 1)
-        XCTAssertEqual(json["exportedBy"]?.string, "FL Shortcut 1.2 (macOS)")
+        XCTAssertEqual(json["exportedBy"]?.string, "FL Shortcuts 1.2 (macOS)")
         XCTAssertEqual(json["macro"]?["name"]?.string, "Ma macro")
         let blocks = try XCTUnwrap(json["macro"]?["blocks"]?.array)
         XCTAssertEqual(blocks.count, 5)
@@ -294,18 +295,33 @@ final class MacroLibraryTests: XCTestCase {
     func testGalleryTemplatesAreValidExceptLearning() {
         let gallery = MacroTemplates.gallery(layout: FakeLayout.qwerty)
         XCTAssertGreaterThanOrEqual(gallery.count, 4)
+        // À régler sur chaque Mac : les deux clics de « 3/4 » (à montrer dans FL), le preset de « Enregistrement
+        // Rapide », le plugin de « Ouvre un VST ».
+        let setup = ["threeFour": "2", "quickDrop": "1", "openVST": "2"]
         for t in gallery {
             let doc = t.make(FakeLayout.qwerty)
             XCTAssertFalse(doc.blocks.isEmpty, t.id)
-            XCTAssertNil(MacroProgram.compile(doc, forbidden: .physical).problem, t.id)
             XCTAssertFalse(t.summary.isEmpty)
+            let problem = MacroProgram.compile(doc, forbidden: .physical).problem
+            if let step = setup[t.id] {
+                XCTAssertTrue(problem?.contains("Étape \(step) ") ?? false, "\(t.id) : \(problem ?? "aucun problème")")
+            } else {
+                XCTAssertNil(problem, t.id)
+            }
         }
         // Deux copies d'un modèle ne partagent aucun id.
         let a = gallery[0].make(FakeLayout.qwerty), b = gallery[0].make(FakeLayout.qwerty)
         XCTAssertTrue(Set(allIDs(a.blocks)).isDisjoint(with: allIDs(b.blocks)))
-        // « Enregistrement rapide » personnalisé : mêmes blocs que le modèle (ids mis à part).
-        var m = Macro()
-        m.recKey = AppMode.nativeEquivalent(of: 3, layout: FakeLayout.qwerty)
-        XCTAssertEqual(a.blocks.map(\.body), MacroTemplates.enregistrementRapide(m).map(\.body))
+        // Les macros du propriétaire, telles qu'il les a faites (25/10).
+        func bodies(_ id: String) -> [BlockBody]? { gallery.first { $0.id == id }?.make(FakeLayout.qwerty).blocks.map(\.body) }
+        XCTAssertEqual(bodies("threeFour"), [.menuBar(titles: ["Options", "Project general settings"]),
+                                             .click(.toLearn, button: .left), .click(.toLearn, button: .left)])
+        XCTAssertEqual(bodies("quickDrop"), [.dropFile(path: "")])
+        XCTAssertEqual(bodies("exportStems"), [.menuBar(titles: ["File", "Export", "All playlist tracks", "Time selection..."])])
+        XCTAssertEqual(bodies("openVST"), [.openPage(.channelRack), .pageOption(id: "channelRack.addInstrument", name: "")])
+        // Retirés de la galerie : nouvelle version, Mixer et Playlist, armer et REC ; puis (25/10) l'ancien
+        // « Enregistrement rapide », « Organiser », « Enregistrer puis exporter en WAV ».
+        XCTAssertTrue(Set(gallery.map(\.id)).isDisjoint(with: ["saveNew", "mixerPlaylist", "armRec", MacroTemplates.autoRecordID,
+                                                               MacroTemplates.organizeID, "saveExport"]))
     }
 }

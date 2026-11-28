@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>FL Shortcuts : confidentialité et mentions légales</title>
+<meta name="description" content="Ce que FL Shortcuts garde, pourquoi, combien de temps, et qui édite ce site.">
+<link rel="icon" href="icon.png">
+<style>
+  /* 23/11 : style suisse, comme le site public et l'app : fond noir, texte blanc, Helvetica Neue, titre en
+     minuscules avec un point rouge, coins carrés, traits fins, rouge seulement pour les puces. */
+  :root { --ink: #000000; --paper: #FFFFFF; --gray: #8C8C8C; --line: #2C2C2C; --red: #FF3B1F;
+    --text: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--ink); color: var(--paper); }
+  body { font: 16px/1.6 var(--text); -webkit-font-smoothing: antialiased; }
+  main { max-width: 760px; margin: 0 auto; padding: 0 20px 64px; }
+  main > p:first-child { display: flex; align-items: center; height: 64px; margin: 0 0 48px; border-bottom: 1px solid var(--line);
+    font-weight: 700; letter-spacing: -0.02em; }
+  main > p:first-child a { text-decoration: none; }
+  h1 { font: 700 clamp(48px, 9vw, 96px)/0.95 var(--text); letter-spacing: -0.05em; margin: 0 0 12px; text-transform: lowercase; }
+  h1::after { content: "."; color: var(--red); }
+  h2 { font: 700 11px/1.25 var(--text); letter-spacing: 1.4px; text-transform: uppercase; color: var(--gray);
+    margin: 40px 0 14px; padding-top: 18px; border-top: 1px solid var(--line); }
+  p, li { max-width: 68ch; }
+  ul { list-style: none; padding: 0; }
+  li { position: relative; padding-left: 22px; margin: 10px 0; }
+  li::before { content: ""; position: absolute; left: 0; top: 0.6em; width: 8px; height: 8px; background: var(--red); }
+  .muted { color: var(--gray); }
+  a { color: inherit; text-underline-offset: 3px; }
+  a:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+  footer { margin-top: 48px; color: var(--gray); font-size: 0.85rem; border-top: 1px solid var(--line); padding-top: 16px; }
+</style>
+</head>
+<body>
+<main>
+  <p><a href="./">← FL Shortcuts</a></p>
+  <h1>Confidentialité</h1>
+  <p class="muted">Mise à jour le 21 novembre 2026.</p>
+
+  <h2>Sans compte</h2>
+  <p>Rien ne quitte ton ordinateur. L'appli n'écoute le clavier que quand FL Studio est devant et ne garde aucune
+    frappe. Le son de FL n'est écouté que pendant l'Organiser, sur ton ordinateur, et n'est jamais envoyé.</p>
+  <p>Toutes les 6 heures, l'appli demande à GitHub s'il existe une nouvelle version. GitHub voit alors l'adresse IP de
+    ton ordinateur, comme pour n'importe quel téléchargement.</p>
+
+  <h2>Avec un compte</h2>
+  <ul>
+    <li>Ton adresse mail et ton mot de passe, pour te connecter. Le mot de passe est gardé sous une forme qu'on ne peut
+      pas relire.</li>
+    <li>Ton pseudo et, si tu en mets une, ta photo. Les autres comptes les voient dans la Communauté.</li>
+    <li>Tes raccourcis, tes macros et tes couleurs récentes, si tu sauvegardes en ligne, pour les retrouver sur un autre
+      ordinateur.</li>
+    <li>Ce que tu partages, suis, notes ou signales dans la Communauté.</li>
+    <li>Tes messages à l'équipe : le message, l'état de l'appli (des nombres, jamais tes sons, tes pistes ni ce que tu
+      tapes) et la capture si tu en joins une.</li>
+    <li>Si tu coches « Aider l'ordinateur de tout le monde » : des nombres qui décrivent des sons, jamais le son, son
+      nom ni ce que tu écris.</li>
+  </ul>
+  <p>Rien n'est vendu, ni utilisé pour de la publicité. Ce site n'a aucun outil de mesure d'audience.</p>
+
+  <h2>Combien de temps</h2>
+  <ul>
+    <li>Ton compte et ce qui va avec : jusqu'à ce que tu le supprimes, dans l'appli (Compte › Supprimer mon compte).
+      Tout est alors effacé, messages à l'équipe compris.</li>
+    <li>Les captures jointes aux messages : 180 jours.</li>
+    <li>Les nombres partagés pour l'ordinateur : gardés pour qu'il apprenne. Ils ne sont plus liés à toi une fois ton
+      compte supprimé.</li>
+  </ul>
+
+  <h2>Qui s'en occupe</h2>
+  <ul>
+    <li>Supabase Inc. (États-Unis) héberge la base et envoie les codes de connexion.</li>
+    <li>Resend Inc. (États-Unis) envoie tes messages à l'équipe par mail.</li>
+    <li>GitHub, Inc. (États-Unis) héberge ce site, les téléchargements et les mises à jour.</li>
+  </ul>
+  <p>Ces envois hors de l'Union européenne suivent les clauses contractuelles types de la Commission européenne, et le
+    Data Privacy Framework pour Resend.</p>
+
+  <h2>Tes droits</h2>
+  <p>Dans l'appli, tu peux voir et corriger ton profil, et supprimer ton compte à tout moment. Pour une copie de tes
+    données ou une question : Aide › Écrire à l'équipe. Tu peux aussi saisir la CNIL
+    (<a href="https://www.cnil.fr/fr/plaintes">cnil.fr</a>).</p>
+  <p>Tu as moins de 15 ans : demande l'accord d'un parent avant de créer un compte.</p>
+
+  <h2 id="mentions">Mentions légales</h2>
+  <p>Éditeur : FL Shortcuts, projet personnel et non professionnel.</p>
+  <p>Hébergeur du site : GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, États-Unis.</p>
+  <p>FL Shortcuts est un outil indépendant, non affilié à Image-Line. « FL Studio » est une marque d'Image-Line.</p>
+
+  <footer>
+    <p><a href="./">Retour au téléchargement</a></p>
+  </footer>
+</main>
+</body>
+</html>

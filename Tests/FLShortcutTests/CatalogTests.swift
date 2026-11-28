@@ -49,16 +49,48 @@ final class CatalogTests: XCTestCase {
         XCTAssertNil(back.remap)
     }
 
-    func testChangingAndResettingAnAction() throws {
+    /// « Mes raccourcis » : vide au départ ; un raccourci changé y arrive, un raccourci créé aussi, jamais une macro.
+    func testMyShortcutsListsOnlyWhatYouChangedOrCreated() throws {
         let store = makeStore()
-        let row = try XCTUnwrap(store.catalogRows().rows.first { $0.entry.id == "action.mx" })
-        let original = row.current
-        XCTAssertNotNil(original)                                  // ⌃4 dans le profil Recommandé
-        store.setTrigger(nil, for: row)
-        XCTAssertNil(store.catalogRows().rows.first { $0.entry.id == "action.mx" }?.current)
-        let cleared = try XCTUnwrap(store.catalogRows().rows.first { $0.entry.id == "action.mx" })
-        store.reset(cleared)
-        XCTAssertEqual(store.catalogRows().rows.first { $0.entry.id == "action.mx" }?.current, original)
+        var data = store.catalogRows()
+        XCTAssertEqual(MyShortcuts.count(rows: data.rows, others: data.others, starters: store.freshRemaps()), 0,
+                       "rien de changé au départ, même les raccourcis de départ sans ligne (sans le lien avec FL)")
+        let row = try XCTUnwrap(data.rows.first { $0.entry.id == "fl.pianoRoll.p" })
+        store.setTrigger(KeyCombo(keyCode: 35, control: true), for: row)                 // ⌃P
+        let created = Remap(trigger: KeyCombo(keyCode: 5, control: true),                  // ⌃G : créé à la main
+                            sends: KeyCombo(keyCode: 111, option: true, shift: true))    // ⌥⇧F12, hors catalogue
+        store.upsert(created)
+        store.upsert(Remap(trigger: KeyCombo(keyCode: 9, control: true), macroRef: UUID()))   // ⌃V : une macro
+        data = store.catalogRows()
+        XCTAssertEqual(MyShortcuts.changed(data.rows).map(\.id), ["fl.pianoRoll.p"])
+        XCTAssertEqual(MyShortcuts.created(data.others, starters: store.freshRemaps()).map(\.id), [created.id])
+        XCTAssertEqual(MyShortcuts.count(rows: data.rows, others: data.others, starters: store.freshRemaps()), 2)
+        store.reset(try XCTUnwrap(data.rows.first { $0.entry.id == "fl.pianoRoll.p" }))
+        data = store.catalogRows()
+        XCTAssertTrue(MyShortcuts.changed(data.rows).isEmpty, "revenu à la touche d'origine : il repart")
+    }
+
+    func testSearchWithAShortcutFindsWhatItDoesNowAndInFL() throws {
+        let store = makeStore()
+        let row = try XCTUnwrap(store.catalogRows().rows.first { $0.entry.id == "fl.pianoRoll.p" })
+        let original = try XCTUnwrap(row.entry.defaultTrigger)
+        XCTAssertTrue(KeySearch.matches(row, original))
+        let custom = KeyCombo(keyCode: 35, control: true)          // ⌃P
+        store.setTrigger(custom, for: row)
+        let changed = try XCTUnwrap(store.catalogRows().rows.first { $0.entry.id == "fl.pianoRoll.p" })
+        XCTAssertTrue(KeySearch.matches(changed, custom), "sa touche actuelle")
+        XCTAssertTrue(KeySearch.matches(changed, original), "celle qu'on connaît de FL")
+        XCTAssertFalse(KeySearch.matches(changed, KeyCombo(keyCode: 35, command: true, control: true)))
+    }
+
+    /// 07/11 : plus d'« Actions en plus » qui doublent une touche de FL (Ouvrir le Mixer = F9) ; le ⌃4 du profil
+    /// Recommandé reste un de tes raccourcis, hors des lignes de FL.
+    func testActionsThatDoubleAnFLKeyAreNotListed() throws {
+        let store = makeStore()
+        let (rows, others) = store.catalogRows()
+        XCTAssertFalse(rows.contains { if case .action = $0.entry.kind { return true } else { return false } })
+        XCTAssertNotNil(rows.first { $0.entry.id == "fl.general.f9" }, "la ligne de FL reste")
+        XCTAssertEqual(others.first { $0.actionID == 33 }?.trigger, KeyCombo(keyCode: 21, control: true))
     }
 
     // Une touche ne sert qu'une fois : annonce, reprise, et proposition de rechoisir pour l'autre raccourci.
@@ -66,19 +98,101 @@ final class CatalogTests: XCTestCase {
         let store = makeStore()
         let rows = store.catalogRows().rows
         let pianoP = try XCTUnwrap(rows.first { $0.entry.id == "fl.pianoRoll.p" })
-        let mixer = try XCTUnwrap(rows.first { $0.entry.id == "action.mx" })
-        let taken = try XCTUnwrap(mixer.current)                    // touche du profil Recommandé
+        let taken = KeyCombo(keyCode: 21, control: true)            // ⌃4 du profil Recommandé (Ouvrir le Mixer)
         let found = store.clashes(for: taken, editing: pianoP)
-        XCTAssertEqual(found.map(\.id), ["action.mx"])
+        XCTAssertEqual(found.count, 1)
+        XCTAssertNil(found[0].row)
         XCTAssertFalse(found[0].isFLKey)
         let follow = store.release(found)
         store.setTrigger(taken, for: pianoP)
-        XCTAssertEqual(follow, "action.mx")
-        let after = store.catalogRows().rows
-        XCTAssertNil(after.first { $0.entry.id == "action.mx" }?.current)
-        XCTAssertEqual(after.first { $0.entry.id == "fl.pianoRoll.p" }?.current, taken)
+        XCTAssertNil(follow)
+        let after = store.catalogRows()
+        XCTAssertNil(after.others.first { $0.actionID == 33 }?.trigger)
+        XCTAssertEqual(after.rows.first { $0.entry.id == "fl.pianoRoll.p" }?.current, taken)
         // Revenir à sa propre touche d'origine n'est jamais un conflit (doublons propres à FL).
         XCTAssertTrue(store.clashes(for: try XCTUnwrap(pianoP.entry.defaultTrigger), editing: pianoP).isEmpty)
+    }
+
+    /// Essai 2.1 du 13/11 (« ça fait 1>2>1 ») : deux raccourcis de FL échangent leurs touches sans boucle. Le premier
+    /// prend la touche du second (on propose de rechoisir pour le second), puis le second prend l'ancienne touche du
+    /// premier : plus aucun conflit, aucune touche signalée prise.
+    func testTwoFLKeysCanBeSwapped() throws {
+        let store = makeStore()
+        var rows = store.catalogRows().rows
+        func key(_ row: CatalogRow) -> KeyCombo? {
+            if case .native(let k) = row.entry.kind { return k }
+            return nil
+        }
+        let used = Set(store.remaps.filter(\.enabled).compactMap(\.trigger))
+        let natives = rows.filter { key($0) != nil }
+        let unique = natives.filter { row in
+            natives.filter { key($0) == key(row) }.count == 1 && !used.contains(key(row)!) && row.current == key(row)
+        }
+        XCTAssertGreaterThanOrEqual(unique.count, 2)
+        let first = unique[0], second = unique[1]
+        let a = try XCTUnwrap(key(first)), b = try XCTUnwrap(key(second))
+
+        let found = store.clashes(for: b, editing: first)
+        XCTAssertTrue(found.contains { $0.id == second.id && $0.isFLKey })
+        XCTAssertEqual(store.release(found), second.id, "on propose de rechoisir pour le second")
+        store.setTrigger(b, for: first)
+        rows = store.catalogRows().rows
+        let secondNow = try XCTUnwrap(rows.first { $0.id == second.id })
+        XCTAssertTrue(store.clashes(for: a, editing: secondNow).isEmpty, "le premier a quitté sa touche : elle est libre")
+        store.setTrigger(a, for: secondNow)
+        rows = store.catalogRows().rows
+        XCTAssertEqual(rows.first { $0.id == first.id }?.current, b)
+        XCTAssertEqual(rows.first { $0.id == second.id }?.current, a)
+        XCTAssertNil(rows.first { $0.id == first.id }?.takenBy)
+        XCTAssertNil(rows.first { $0.id == second.id }?.takenBy)
+    }
+
+    /// 19/11 : une touche ne fait qu'une seule chose ; la même action dans deux pages la partage. « Échanger » donne
+    /// l'ancienne touche à ce qui avait la nouvelle.
+    func testSameActionInTwoPagesSharesAKeyButTwoActionsNever() throws {
+        let store = makeStore()
+        let rows = store.catalogRows().rows
+        let zoomPlaylist = try XCTUnwrap(rows.first { $0.entry.id == "fl.playlist.z" })
+        let zoomPiano = try XCTUnwrap(rows.first { $0.entry.id == "fl.pianoRoll.z" })
+        let undoSteps = try XCTUnwrap(rows.first { $0.entry.id == "fl.general.cmd-opt-z" })
+        let z = try XCTUnwrap(zoomPlaylist.current)
+        XCTAssertTrue(zoomPlaylist.entry.sameAction(as: zoomPiano.entry))
+        XCTAssertFalse(zoomPlaylist.entry.sameAction(as: undoSteps.entry))
+        let found = store.clashes(for: z, editing: undoSteps)
+        XCTAssertEqual(Set(found.compactMap { $0.row?.id }), [zoomPlaylist.id, zoomPiano.id], "deux actions différentes")
+        XCTAssertEqual(KeyChangeLine.grouped(found).count, 1, "la même action : une seule ligne")
+        XCTAssertEqual(KeyChangeLine.grouped(found).first?.places, "Playlist, Piano Roll")
+        let old = undoSteps.current
+        store.swap(found, to: old)
+        store.setTrigger(z, for: undoSteps)
+        let after = store.catalogRows().rows
+        XCTAssertEqual(after.first { $0.id == undoSteps.id }?.current, z)
+        XCTAssertEqual(after.first { $0.id == zoomPlaylist.id }?.current, old)
+        XCTAssertEqual(after.first { $0.id == zoomPiano.id }?.current, old)
+        XCTAssertNil(after.first { $0.id == zoomPlaylist.id }?.takenBy, "la même action partage sa touche")
+        XCTAssertNil(after.first { $0.id == zoomPiano.id }?.takenBy)
+    }
+
+    /// 19/11 : changer l'outil zoom de la Playlist propose celui du Piano Roll (même action, même touche, nouvelle
+    /// touche libre là-bas) ; changé aussi, aucun conflit entre eux.
+    func testTheSameActionInOtherPagesIsOffered() throws {
+        let store = makeStore()
+        let rows = store.catalogRows().rows
+        let zoomPlaylist = try XCTUnwrap(rows.first { $0.entry.id == "fl.playlist.z" })
+        let zoomPiano = try XCTUnwrap(rows.first { $0.entry.id == "fl.pianoRoll.z" })
+        let z = zoomPlaylist.current
+        let free = KeyCombo(keyCode: 7, option: true, control: true, shift: true)            // ⌃⌥⇧X
+        XCTAssertTrue(store.clashes(for: free, editing: zoomPlaylist).isEmpty)
+        store.setTrigger(free, for: zoomPlaylist)
+        let twins = store.twins(of: zoomPlaylist, old: z, new: free)
+        XCTAssertEqual(twins.map(\.id), [zoomPiano.id])
+        XCTAssertTrue(store.clashes(for: free, editing: twins[0]).isEmpty, "même action : pas un conflit")
+        store.setTrigger(free, for: twins[0])
+        let after = store.catalogRows().rows
+        XCTAssertEqual(after.first { $0.id == zoomPiano.id }?.current, free)
+        XCTAssertNil(after.first { $0.id == zoomPiano.id }?.takenBy)
+        XCTAssertNil(after.first { $0.id == zoomPlaylist.id }?.takenBy)
+        XCTAssertTrue(store.twins(of: zoomPlaylist, old: z, new: free).isEmpty, "déjà changé : plus rien à proposer")
     }
 
     func testTakingAnFLKeyIsAnnouncedAndFlagged() throws {

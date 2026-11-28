@@ -2,12 +2,15 @@
 // fois sur « Default audio device » (Output) et « Default input device » (Input) dans Options › Audio settings, la
 // suit tout seul (vérifié sur la vidéo de l'utilisateur : la ligne Status de FL passe de « 1x2 outputs » à
 // « 2x2 outputs » quand la SSL 2+ devient la sortie du Mac). Aucun clic dans FL ; CoreAudio n'est interrogé qu'au
-// moment du bloc, rien ne tourne au repos.
+// moment du bloc (ou dans sa fiche), rien ne tourne au repos.
+// - La carte peut être choisie dans la fiche du bloc (retenue sur ce Mac) : elle passe avant le choix automatique.
+// - Le changement est relu : si macOS garde l'ancienne sortie, le bloc échoue en le disant (il ne réussit plus en
+//   silence), et le journal garde ce qu'il a vu (types de liaison et nombres de flux, jamais les noms).
 import CoreAudio
 import Foundation
 
 /// Un périphérique audio, tel que le bloc en a besoin.
-struct AudioDeviceInfo: Equatable {
+struct AudioDeviceInfo: Equatable, Identifiable {
     let id: AudioObjectID
     let uid: String
     let name: String
@@ -15,11 +18,15 @@ struct AudioDeviceInfo: Equatable {
     /// Nombre de flux d'entrée et de sortie (0 : pas d'entrée, ou pas de sortie).
     let inputs: Int
     let outputs: Int
+
+    var isExternal: Bool { SoundCard.externalTransports.contains(transport) }
 }
 
 enum SoundCard {
     /// Carte choisie la dernière fois (identifiant CoreAudio), préférée si plusieurs cartes sont branchées.
     static let preferredKey = "soundCard.lastUID"
+    /// Carte choisie dans la fiche du bloc : toujours celle-là quand elle est branchée, quelle que soit sa liaison.
+    static let chosenKey = "soundCard.chosenUID"
 
     /// Cartes son : branchées en USB, Thunderbolt, FireWire, PCI ou AVB (pas les haut-parleurs du Mac, l'HDMI, le
     /// Bluetooth, AirPlay ni les périphériques virtuels ou agrégés).
@@ -28,10 +35,18 @@ enum SoundCard {
         kAudioDeviceTransportTypePCI, kAudioDeviceTransportTypeAVB,
     ]
 
-    /// La carte à utiliser : une carte externe avec une sortie, de préférence avec une entrée aussi ; parmi elles,
-    /// celle choisie la dernière fois si elle est branchée, sinon la première.
-    static func choose(_ devices: [AudioDeviceInfo], preferredUID: String?) -> AudioDeviceInfo? {
-        let cards = devices.filter { externalTransports.contains($0.transport) && $0.outputs > 0 }
+    /// Appareils qu'on peut choisir dans la fiche : tous ceux qui ont une sortie, sauf les agrégés et les virtuels.
+    static func selectable(_ devices: [AudioDeviceInfo]) -> [AudioDeviceInfo] {
+        let hidden: Set<UInt32> = [kAudioDeviceTransportTypeAggregate, kAudioDeviceTransportTypeAutoAggregate,
+                                   kAudioDeviceTransportTypeVirtual]
+        return devices.filter { $0.outputs > 0 && !hidden.contains($0.transport) && !$0.uid.isEmpty }
+    }
+
+    /// La carte à utiliser : celle choisie dans la fiche si elle est branchée ; sinon une carte externe avec une
+    /// sortie, de préférence avec une entrée aussi ; parmi elles, celle de la dernière fois, sinon la première.
+    static func choose(_ devices: [AudioDeviceInfo], preferredUID: String?, chosenUID: String? = nil) -> AudioDeviceInfo? {
+        if let chosenUID, let chosen = selectable(devices).first(where: { $0.uid == chosenUID }) { return chosen }
+        let cards = devices.filter { $0.isExternal && $0.outputs > 0 }
         let withInput = cards.filter { $0.inputs > 0 }
         let pool = withInput.isEmpty ? cards : withInput
         return pool.first { $0.uid == preferredUID } ?? pool.first
@@ -43,15 +58,55 @@ enum SoundCard {
         case failed(String)
     }
 
-    /// Met la carte en sortie (et en entrée si elle en a une) par défaut du Mac.
+    /// Met la carte en sortie (et en entrée si elle en a une) par défaut du Mac, puis vérifie que macOS l'a prise.
     static func apply(defaults: UserDefaults = .standard) -> Outcome {
-        guard let card = choose(list(), preferredUID: defaults.string(forKey: preferredKey)) else { return .noCard }
-        guard setDefault(kAudioHardwarePropertyDefaultOutputDevice, card.id) else {
-            return .failed("macOS a refusé de changer la sortie audio")
+        let devices = list()
+        // Journal : ce qui a été vu, sans les noms (liaison, flux d'entrée / de sortie).
+        MacroLog.shared.write("AUDIO", "\(devices.count) devices: "
+                              + devices.map { "\(fourCC($0.transport)) \($0.inputs)/\($0.outputs)" }.joined(separator: ", "))
+        guard let card = choose(devices, preferredUID: defaults.string(forKey: preferredKey),
+                                chosenUID: defaults.string(forKey: chosenKey)) else { return .noCard }
+        MacroLog.shared.write("AUDIO", "card \(fourCC(card.transport)) \(card.inputs)/\(card.outputs)")
+        let status = setDefault(kAudioHardwarePropertyDefaultOutputDevice, card.id)
+        guard waitForDefault(kAudioHardwarePropertyDefaultOutputDevice, card.id) else {
+            MacroLog.shared.write("AUDIO", "output not taken (status \(status))")
+            return .failed(String(localized: "macOS a gardé l'ancienne sortie audio au lieu de « \(card.name.displaySafe(max: 40)) »")
+                           + (status == noErr ? "" : String(localized: " (erreur \(status))")))
         }
-        let input = card.inputs > 0 && setDefault(kAudioHardwarePropertyDefaultInputDevice, card.id)
+        var input = false
+        if card.inputs > 0 {
+            let inStatus = setDefault(kAudioHardwarePropertyDefaultInputDevice, card.id)
+            input = waitForDefault(kAudioHardwarePropertyDefaultInputDevice, card.id)
+            if !input { MacroLog.shared.write("AUDIO", "input not taken (status \(inStatus))") }
+        }
         defaults.set(card.uid, forKey: preferredKey)
         return .done(name: card.name, input: input)
+    }
+
+    /// Appareil par défaut du Mac (sortie ou entrée), relu jusqu'à ce qu'il soit `device` (1 s au plus).
+    private static func waitForDefault(_ selector: AudioObjectPropertySelector, _ device: AudioObjectID) -> Bool {
+        for _ in 0..<20 {
+            if currentDefault(selector) == device { return true }
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+        return false
+    }
+
+    /// Sortie (ou entrée) par défaut du Mac en ce moment.
+    static func currentDefault(_ selector: AudioObjectPropertySelector = kAudioHardwarePropertyDefaultOutputDevice) -> AudioObjectID? {
+        var a = address(selector)
+        var id = AudioObjectID(kAudioObjectUnknown)
+        var size = UInt32(MemoryLayout<AudioObjectID>.size)
+        guard AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &a, 0, nil, &size, &id) == noErr,
+              id != AudioObjectID(kAudioObjectUnknown) else { return nil }
+        return id
+    }
+
+    /// « usb  », « bltn »… : le type de liaison lisible dans le journal.
+    static func fourCC(_ value: UInt32) -> String {
+        let bytes = [24, 16, 8, 0].map { UInt8((value >> $0) & 0xFF) }
+        guard bytes.allSatisfy({ (32...126).contains($0) }) else { return String(value) }
+        return String(decoding: bytes, as: UTF8.self)
     }
 
     // MARK: CoreAudio
@@ -97,10 +152,11 @@ enum SoundCard {
         return value.takeRetainedValue() as String
     }
 
-    private static func setDefault(_ selector: AudioObjectPropertySelector, _ device: AudioObjectID) -> Bool {
+    @discardableResult
+    private static func setDefault(_ selector: AudioObjectPropertySelector, _ device: AudioObjectID) -> OSStatus {
         var a = address(selector)
         var id = device
         return AudioObjectSetPropertyData(AudioObjectID(kAudioObjectSystemObject), &a, 0, nil,
-                                          UInt32(MemoryLayout<AudioObjectID>.size), &id) == noErr
+                                          UInt32(MemoryLayout<AudioObjectID>.size), &id)
     }
 }

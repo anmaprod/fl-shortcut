@@ -44,8 +44,13 @@ final class Store: ObservableObject {
     static let shared = Store()
 
     @Published var remaps: [Remap] {
-        didSet { recompute(); scheduleSave() }
+        didSet { recompute(); scheduleSave(); onDataChange?() }
     }
+    /// Après chaque changement des raccourcis ou des macros (sauvegarde en ligne du compte : AccountBackup).
+    var onDataChange: (() -> Void)?
+    /// Le profil n'a pas pu être lu entièrement au lancement (Store.load) : jusqu'à son remplacement par la
+    /// sauvegarde du compte, il n'est jamais envoyé à la place de celle-ci.
+    private(set) var loadIncomplete = false
     @Published var enabled: Bool {
         didSet {
             defaults.set(enabled, forKey: "enabled")
@@ -57,9 +62,12 @@ final class Store: ObservableObject {
         didSet { pushConfig() }
     }
     @Published private(set) var issues: [UUID: [ShortcutIssue]] = [:]
-    @Published var loadWarning: String? = nil
-    @Published private(set) var saveError: String? = nil
+    // Chaque avertissement et chaque erreur d'enregistrement rejoint les derniers problèmes (message d'aide).
+    @Published var loadWarning: String? = nil { didSet { if let v = loadWarning, v != oldValue { ProblemLog.shared.add(v) } } }
+    @Published private(set) var saveError: String? = nil { didSet { if let v = saveError, v != oldValue { ProblemLog.shared.add(v) } } }
     @Published private(set) var toggleCombo = KeyCombo(keyCode: 3, command: true, option: true, control: true)
+    /// ⌘⌥O dans FL : l'Organiser (21/11), sur la touche O de la disposition du clavier.
+    private(set) var organizerCombo = KeyCombo(keyCode: 31, command: true, option: true)
     /// Dernier état avant un remplacement (profil, import) : permet d'annuler.
     @Published private(set) var undoSnapshot: [Remap]? = nil
 
@@ -110,6 +118,7 @@ final class Store: ObservableObject {
         enabled = defaults.object(forKey: "enabled") as? Bool ?? true
 
         let loaded = Store.load(storage: storage, layout: layout)
+        loadIncomplete = loaded.incomplete
         var initial = loaded.remaps
         var needsSave = loaded.needsSave
         // Une seule fois : ancien « Enregistrement rapide » jamais réglé (armement demandé, aucune position
@@ -122,20 +131,30 @@ final class Store: ObservableObject {
                 needsSave = true
             }
         }
-        // Une seule fois : la macro d'exemple rejoint un profil existant (jamais le profil « Vide », jamais à la
-        // place d'une touche déjà prise). Ajoutée avant la publication du profil : une seule écriture.
-        if !defaults.bool(forKey: Self.exampleMacroKey) {
-            defaults.set(true, forKey: Self.exampleMacroKey)
-            let example = ProfilePreset.exampleMacro(layout: layout)
-            if !initial.isEmpty, !initial.contains(where: { $0.kind == .macro }),
-               !initial.contains(where: { $0.trigger == example.trigger }) {
-                initial.append(example)
-                needsSave = true
-            }
+        // Une seule fois : l'ancienne macro d'exemple (⌃R), jamais réglée, quitte le profil : « Mes raccourcis »
+        // ne montre que ce que tu as changé ou créé. Retirée avant la publication du profil : une seule écriture.
+        if !defaults.bool(forKey: Self.exampleMacroRemovalKey) {
+            defaults.set(true, forKey: Self.exampleMacroRemovalKey)
+            let before = initial.count
+            initial.removeAll { Self.isUntouchedExample($0, layout: layout) }
+            if initial.count != before { needsSave = true }
         }
         remaps = initial
         loadWarning = loaded.warning
-        self.library.onChange = { [weak self] in self?.recompute() }
+        // Une seule fois : plus aucune note sous les blocs des macros enregistrées (demande de l'utilisateur).
+        // Une macro sans note n'est pas réécrite.
+        if !defaults.bool(forKey: Self.macroNotesRemovalKey) {
+            defaults.set(true, forKey: Self.macroNotesRemovalKey)
+            for doc in self.library.macros {
+                var clean = doc
+                clean.blocks = MacroTemplates.withoutNotes(doc.blocks)
+                self.library.update(clean)
+            }
+        }
+        self.library.onChange = { [weak self] in
+            self?.recompute()
+            self?.onDataChange?()
+        }
         refreshLayoutDependentState()
         if needsSave { saveNow() }
 
@@ -155,13 +174,29 @@ final class Store: ObservableObject {
 
     // MARK: Chargement
 
-    static let exampleMacroKey = "exampleMacroAdded"
+    static let exampleMacroRemovalKey = "exampleMacroRemoved"
+    static let macroNotesRemovalKey = "macroNotesRemoved"
+
+    /// L'ancienne macro d'exemple telle que livrée : sur ⌃R, rien d'appris ni de réglé (modèle automatique, ou
+    /// l'ancien « quickRecord »). Une macro que tu as réglée ou déplacée sur une autre touche reste.
+    static func isUntouchedExample(_ remap: Remap, layout: KeyboardLayout) -> Bool {
+        let example = ProfilePreset.exampleMacro(layout: layout)
+        guard remap.kind == .macro, remap.macroRef == nil, remap.trigger == example.trigger,
+              var macro = remap.macro, var reference = example.macro else { return false }
+        macro.template = .autoRecord
+        macro.recKey = nil
+        reference.recKey = nil
+        return macro == reference
+    }
     static let autoRecordMigrationKey = "autoRecordMigrated"
 
     struct LoadResult {
         var remaps: [Remap]
         var warning: String?
         var needsSave: Bool
+        /// Profil illisible, inaccessible ou en partie illisible : ce qui est chargé n'est pas ce que l'utilisateur
+        /// avait (la sauvegarde en ligne ne doit pas l'envoyer à la place de la bonne).
+        var incomplete = false
     }
 
     static func load(storage: ProfileStorage, layout: KeyboardLayout) -> LoadResult {
@@ -170,8 +205,8 @@ final class Store: ObservableObject {
             stored = try storage.read()
         } catch {
             return LoadResult(remaps: ProfilePreset.recommended.remaps(layout: layout),
-                              warning: "Profil inaccessible (\(error.localizedDescription)). Profil recommandé chargé.",
-                              needsSave: false)
+                              warning: String(localized: "Profil inaccessible (\(error.localizedDescription)). Profil recommandé chargé."),
+                              needsSave: false, incomplete: true)
         }
         // Nom distinct : `guard let data` dans la portée d'une constante locale `data` ne compile pas.
         guard let data = stored else {
@@ -185,20 +220,21 @@ final class Store: ObservableObject {
             if decoded.dropped > 0 || decoded.sourceVersion < ProfileCodec.currentVersion {
                 let label = decoded.sourceVersion < ProfileCodec.currentVersion ? "v1" : "partiel"
                 if let name = try? storage.backup(data, label: label) {
-                    notes.append("Copie de l'ancien profil : \(name).")
+                    notes.append(String(localized: "Copie de l'ancien profil : \(name)."))
                     needsSave = true                     // migration vers v2, original conservé
                 }
             }
-            if decoded.dropped > 0 { notes.append("\(decoded.dropped) raccourci(s) illisible(s) ignoré(s).") }
+            if decoded.dropped > 0 { notes.append(String(localized: "\(decoded.dropped) raccourci(s) illisible(s) ignoré(s).")) }
             let unknown = decoded.remaps.filter { $0.kind == .flAction && $0.actionID == nil }.count
-            if unknown > 0 { notes.append("\(unknown) raccourci(s) avec une action inconnue, désactivé(s).") }
+            if unknown > 0 { notes.append(String(localized: "\(unknown) raccourci(s) avec une action inconnue, désactivé(s).")) }
             return LoadResult(remaps: decoded.remaps, warning: notes.isEmpty ? nil : notes.joined(separator: " "),
-                              needsSave: needsSave)
+                              needsSave: needsSave, incomplete: decoded.dropped > 0)
         } catch {
             let name = try? storage.backup(data, label: "illisible")
-            let where_ = name.map { " Une copie a été gardée (\($0))." } ?? ""
+            let where_ = name.map { String(localized: " Une copie a été gardée (\($0)).") } ?? ""
             return LoadResult(remaps: ProfilePreset.recommended.remaps(layout: layout),
-                              warning: "Profil illisible : profil recommandé chargé.\(where_)", needsSave: false)
+                              warning: String(localized: "Profil illisible : profil recommandé chargé.\(where_)"), needsSave: false,
+                              incomplete: true)
         }
     }
 
@@ -222,8 +258,8 @@ final class Store: ObservableObject {
         if pushToTap {
             // « La piste sur laquelle j'ai cliqué » : suivie seulement si une macro vise la dernière piste cliquée.
             TrackMemory.shared.setActive(activeNeeds.contains(.pisteVisee))
-            // Ports MIDI présents (sans aucun trafic) seulement si une macro passe par le lien avec FL.
-            MIDILink.shared.setOnDemand(activeNeeds.contains(.lienMIDI))
+            // Plus de ports MIDI au lancement (retour du 01/11 : FL saccadait tant qu'il voyait « FL Shortcuts Link ») :
+            // seulement entre « Démarrer » et la fermeture de l'Organiser, ou le temps d'un bloc de macro.
         }
     }
 
@@ -242,6 +278,7 @@ final class Store: ObservableObject {
         catalogCache = nil
         toggleCombo = KeyCombo(keyCode: KeyNames.keyCode(for: "f", layout: layout) ?? 3,
                                command: true, option: true, control: true)
+        organizerCombo = KeyCombo(keyCode: KeyNames.keyCode(for: "o", layout: layout) ?? 31, command: true, option: true)
         forbidden = ForbiddenTargets.make(layout: layout)
         conflicts = ConflictTable.make(layout: layout, systemHotKeys: systemHotKeys())
         recompute()
@@ -252,10 +289,12 @@ final class Store: ObservableObject {
         let snapshot = (enabled, index, toggleCombo, forbidden, recording)
         let natives = AppMode.actionNatives(layout: layout)
         let light = AppMode.light
+        let organizer = organizerCombo
         EventTap.shared.updateConfig {
             $0.enabled = snapshot.0
             $0.index = snapshot.1
             $0.toggle = snapshot.2
+            $0.organizer = organizer
             $0.forbidden = snapshot.3
             $0.recording = snapshot.4
             $0.actionNatives = natives
@@ -313,6 +352,42 @@ final class Store: ObservableObject {
         remaps = preview.remaps
     }
 
+    // MARK: Sauvegarde en ligne (AccountBackup)
+
+    /// Remplace raccourcis et macros d'un coup (sauvegarde du compte reprise, déconnexion), écrits tout de suite ;
+    /// pas d'« Annuler » vers l'état d'avant.
+    func replaceAll(_ new: [Remap], macros: [MacroDoc]) {
+        undoSnapshot = nil
+        loadIncomplete = false
+        library.replaceAll(macros)
+        remaps = new
+        saveNow()
+        library.saveNow()
+    }
+
+    /// Raccourcis du premier lancement (profil recommandé, macro d'exemple comprise), sans aucune macro en blocs :
+    /// ce que la déconnexion laisse sur le Mac.
+    func freshRemaps() -> [Remap] { ProfilePreset.recommended.remaps(layout: layout) }
+
+    /// Rien de personnel sur ce Mac : raccourcis du premier lancement et aucune macro en blocs (identifiants mis à
+    /// part, ils changent à chaque création).
+    var isUntouched: Bool {
+        library.macros.isEmpty && Self.withoutIDs(remaps) == Self.withoutIDs(freshRemaps())
+    }
+
+    /// Profil encodé sans ses identifiants (UUID), pour comparer deux profils de même contenu.
+    static func withoutIDs(_ remaps: [Remap]) -> String {
+        let text = (try? ProfileCodec.encode(remaps)).map { String(decoding: $0, as: UTF8.self) } ?? ""
+        return text.replacingOccurrences(of: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}",
+                                         with: "-", options: .regularExpression)
+    }
+
+    /// Copie datée du profil dans Application Support (avant de le remplacer par la sauvegarde du compte).
+    @discardableResult
+    func keepCopy(label: String) -> String? {
+        (try? ProfileCodec.encode(remaps)).flatMap { try? storage.backup($0, label: label) }
+    }
+
     // MARK: Sauvegarde
 
     private func scheduleSave() {
@@ -328,7 +403,7 @@ final class Store: ObservableObject {
             }
             DispatchQueue.main.async {
                 guard let self else { return }
-                let message = failure.map { "Enregistrement impossible : \($0)" }
+                let message = failure.map { String(localized: "Enregistrement impossible : \($0)") }
                 if self.saveError != message { self.saveError = message }   // pas de publication inutile
             }
         }
@@ -345,7 +420,7 @@ final class Store: ObservableObject {
             try storage.write(ProfileCodec.encode(remaps))
             saveError = nil
         } catch {
-            saveError = "Enregistrement impossible : \(error.localizedDescription)"
+            saveError = String(localized: "Enregistrement impossible : \(error.localizedDescription)")
         }
     }
 }

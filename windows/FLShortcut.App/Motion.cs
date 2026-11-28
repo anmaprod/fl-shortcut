@@ -85,6 +85,59 @@ internal static class Motion
         sb.Begin();
     }
 
+    /// Guide (17/11, comme le Mac `Motion.pageMorph`/`morphIn`) : l'élément arrive transparent, un peu plus bas et à
+    /// peine plus petit, puis se pose net à sa place après `delayMs` (le flou du Mac n'existe pas ici).
+    public static void Morph(UIElement element, int delayMs, double fromY = 16)
+    {
+        if (!Enabled)
+        {
+            element.Opacity = 1;
+            return;
+        }
+        var scale = new ScaleTransform { ScaleX = 0.985, ScaleY = 0.985 };
+        var shift = new TranslateTransform { Y = fromY };
+        element.RenderTransformOrigin = new Windows.Foundation.Point(0.5, 0.5);
+        element.RenderTransform = new TransformGroup { Children = { scale, shift } };
+        element.Opacity = 0;
+        var ease = new ExponentialEase { Exponent = 5, EasingMode = EasingMode.EaseOut };
+        var sb = new Storyboard();
+        sb.Children.Add(Animate(element, "Opacity", 0, 1, 500, delayMs, ease));
+        sb.Children.Add(Animate(shift, "Y", fromY, 0, 750, delayMs, ease));
+        sb.Children.Add(Animate(scale, "ScaleX", 0.985, 1, 750, delayMs, ease));
+        sb.Children.Add(Animate(scale, "ScaleY", 0.985, 1, 750, delayMs, ease));
+        sb.Completed += (_, _) =>
+        {
+            element.Opacity = 1;
+            shift.Y = 0;
+            scale.ScaleX = 1;
+            scale.ScaleY = 1;
+            sb.Stop();
+        };
+        sb.Begin();
+    }
+
+    /// Page du guide qui s'en va (comme le Mac) : elle monte en s'effaçant (0,5 s) pendant que la nouvelle arrive.
+    public static void Leave(UIElement element, Action done, double toY = -12)
+    {
+        if (!Enabled)
+        {
+            done();
+            return;
+        }
+        var shift = new TranslateTransform();
+        element.RenderTransform = shift;
+        var ease = new SineEase { EasingMode = EasingMode.EaseInOut };
+        var sb = new Storyboard();
+        sb.Children.Add(Animate(element, "Opacity", null, 0, 500, 0, ease));
+        sb.Children.Add(Animate(shift, "Y", 0, toY, 500, 0, ease));
+        sb.Completed += (_, _) =>
+        {
+            done();
+            sb.Stop();
+        };
+        sb.Begin();
+    }
+
     /// Petit « pop » (0,85 → 1) pour signaler un changement d'état (statut, touche capturée).
     public static void Pop(UIElement element, int delayMs = 0, double from = 0.85)
     {

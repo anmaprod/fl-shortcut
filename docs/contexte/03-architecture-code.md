@@ -1,4 +1,4 @@
-# Créateur de macros pour FL Shortcut : état actuel, architecture cible, plan
+# Créateur de macros pour FL Shortcuts : état actuel, architecture cible, plan
 
 Aucun fichier modifié. Les références sont au format `Fichier.swift:ligne` (dépôt `/home/user/fl-shortcut`).
 
@@ -258,7 +258,7 @@ struct KeyRef: Codable, Equatable { var combo: KeyCombo; var char: String? }
 
 ### 2.3 Stockage : bibliothèque séparée et compatibilité
 
-- **Nouveau fichier `MacroLibraryStore.swift`.** Il écrit `Application Support/FL Shortcut/macros.json`, en 0600 et de façon atomique (`SecureFile`), avec des copies de secours.
+- **Nouveau fichier `MacroLibraryStore.swift`.** Il écrit `Application Support/FL Shortcuts/macros.json`, en 0600 et de façon atomique (`SecureFile`), avec des copies de secours.
   - Il couvre aussi la désinstallation : le dossier entier est supprimé (Uninstaller.swift:95-98).
 - **Lien depuis le raccourci :** `Remap` gagne `macroRef: UUID?` pour les macros en blocs.
   - Les modèles `autoRecord` restent en ligne dans le profil, tels quels : aucun changement pour les profils existants.
@@ -288,7 +288,7 @@ struct KeyRef: Codable, Equatable { var combo: KeyCombo; var char: String? }
 ### 2.4 Format d'échange `.flsmacro`
 
 ```json
-{ "format": "flsmacro", "version": 1, "exportedBy": "FL Shortcut 1.x (macOS)",
+{ "format": "flsmacro", "version": 1, "exportedBy": "FL Shortcuts 1.x (macOS)",
   "macro": { "name": "Armer et enregistrer si éteint",
     "blocks": [
       { "type": "if", "id": "…", "condition": { "type": "flState", "query": "isrec", "op": "eq", "value": 0 },
@@ -653,6 +653,6 @@ Les tailles sont des ordres de grandeur, en lignes.
 
 **Points à vérifier sur un vrai FL avant l'incrément 4 :**
 - les fonctions de l'API proposées pour les requêtes et les actions paramétrées, et leur API minimale (audit/04) ;
-- que FL ne transforme pas un CC 112 ou 80-87 sur le canal 16 du port « FL Shortcut » en contrôle lié quand le script est ancien.
+- que FL ne transforme pas un CC 112 ou 80-87 sur le canal 16 du port « FL Shortcuts » en contrôle lié quand le script est ancien.
 
 **Point à vérifier dès l'incrément 3 :** si `CGEventSource.keyState(.combinedSessionState, 53)` voit les Échap que nous envoyons par le flux du système (PresetChooser.swift:77).

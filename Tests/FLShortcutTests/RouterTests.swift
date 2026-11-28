@@ -149,6 +149,21 @@ final class RouterTests: XCTestCase {
         XCTAssertEqual(toggles, 1)
     }
 
+    /// 21/11 (maquette « un seul logo », comme Ctrl+Alt+O sur Windows) : ⌘⌥O dans FL ouvre l'Organiser ; ailleurs, en
+    /// pause ou pris par un raccourci de l'utilisateur, rien de plus.
+    func testCommandOptionOOpensTheOrganizerOnlyInFL() {
+        var router = KeyRouter()
+        let cfg = config([])
+        let o = cfg.organizer
+        XCTAssertEqual(router.route(down(o), config: cfg, link: linked), RouterDecision(swallow: true, effects: [.openOrganizer]))
+        XCTAssertEqual(router.route(down(o, repeat: true), config: cfg, link: linked), .swallowOnly)
+        XCTAssertEqual(router.route(up(o), config: cfg, link: linked), .swallowOnly)
+        XCTAssertEqual(router.route(down(o, fl: false), config: cfg, link: linked), .pass)
+        XCTAssertEqual(router.route(down(o), config: config([], enabled: false), link: linked), .pass)
+        let mine = config([Remap(trigger: o, action: 13)])
+        XCTAssertEqual(router.route(down(o), config: mine, link: linked).effects, [.sendAction(13)])
+    }
+
     /// Touche seule pendant que FL s'en sert (saisie de texte, menu, clavier-piano) : elle va à FL ; un raccourci
     /// avec ⌘ ⌃ ⌥ marche toujours.
     func testTypingInFLLetsBareKeysThrough() {

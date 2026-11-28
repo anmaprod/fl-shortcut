@@ -16,13 +16,13 @@ enum SecureFile {
 
         var errorDescription: String? {
             switch self {
-            case .missing(let p): return "Introuvable : \(p)"
-            case .symlink(let p): return "Refusé : \(p) est un lien symbolique."
-            case .notADirectory(let p): return "Refusé : \(p) n'est pas un dossier."
-            case .notARegularFile(let p): return "Refusé : \(p) n'est pas un fichier ordinaire."
-            case .notOwned(let p): return "Refusé : \(p) n'appartient pas à ton compte."
-            case .tooLarge(let p): return "Fichier trop volumineux : \(p)"
-            case .posix(let what, let code): return "\(what) : \(String(cString: strerror(code)))"
+            case .missing(let p): return String(localized: "Introuvable : \(p)")
+            case .symlink(let p): return String(localized: "Refusé : \(p) est un lien symbolique.")
+            case .notADirectory(let p): return String(localized: "Refusé : \(p) n'est pas un dossier.")
+            case .notARegularFile(let p): return String(localized: "Refusé : \(p) n'est pas un fichier ordinaire.")
+            case .notOwned(let p): return String(localized: "Refusé : \(p) n'appartient pas à ton compte.")
+            case .tooLarge(let p): return String(localized: "Fichier trop volumineux : \(p)")
+            case .posix(let what, let code): return String(localized: "\(what) : \(String(cString: strerror(code)))")
             }
         }
     }
@@ -47,7 +47,7 @@ enum SecureFile {
         var st = stat()
         guard lstat(path, &st) == 0 else {
             let code = errno
-            throw code == ENOENT ? Failure.missing(path) : Failure.posix("Accès refusé à \(path)", code)
+            throw code == ENOENT ? Failure.missing(path) : Failure.posix(String(localized: "Accès refusé à \(path)"), code)
         }
         let type = Int(st.st_mode) & Int(S_IFMT)
         if type == Int(S_IFLNK) { throw Failure.symlink(path) }

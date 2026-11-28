@@ -1,7 +1,7 @@
 #!/bin/bash
 defaults write app.flshortcut.FLShortcut debugSnapshots -bool YES
 C="$HOME/Library/Caches/app.flshortcut.FLShortcut"; rm -f "$C"/*.png
-pkill -x FLShortcut; sleep 1.5; open "$HOME/Applications/FL Shortcut.app"; sleep 5
+pkill -x FLShortcut; sleep 1.5; open "$HOME/Applications/FL Shortcuts.app"; sleep 5
 /tmp/fls_post app.flshortcut.debug.open; sleep 3
 /tmp/fls_post app.flshortcut.debug.snapshot avant; sleep 1
 # Clic réel sur « Piano Roll » puis « Mixer » dans la barre latérale (points depuis le haut-gauche de la fenêtre)

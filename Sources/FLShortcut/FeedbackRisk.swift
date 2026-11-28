@@ -25,10 +25,12 @@ enum FeedbackRisk {
         }
 
         var message: String {
-            let i = input?.name ?? "micro"
-            let o = output?.name ?? "haut-parleurs"
-            return "FL enregistre avec « \(i) » et joue le son sur « \(o) » : le micro reprendrait le son des "
-                + "haut-parleurs (larsen). Branche un casque, ou choisis ta carte son dans FL (Options › Audio Settings) avant de lancer la lecture."
+            let i = input?.name ?? String(localized: "micro")
+            let o = output?.name ?? String(localized: "haut-parleurs")
+            return String(localized: """
+                FL enregistre avec « \(i) » et joue le son sur « \(o) » : le micro reprendrait le son des \
+                haut-parleurs (larsen). Branche un casque, ou choisis ta carte son dans FL (Options › Audio Settings) avant de lancer la lecture.
+                """)
         }
     }
 
@@ -98,7 +100,7 @@ enum FeedbackRisk {
         var value: Unmanaged<CFString>?
         var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
         guard AudioObjectGetPropertyData(device, &address, 0, nil, &size, &value) == noErr,
-              let cf = value?.takeRetainedValue() else { return "appareil audio" }
+              let cf = value?.takeRetainedValue() else { return String(localized: "appareil audio") }
         return cf as String
     }
 
@@ -119,15 +121,12 @@ enum FeedbackRisk {
 /// Fenêtre d'explication (thread principal) : la macro ne lance pas l'enregistrement tant que le risque existe.
 enum FeedbackAlert {
     static func show(_ report: FeedbackRisk.Report) {
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = "Tout est prêt, mais attention au larsen"
-        alert.informativeText = report.message
-            + "\n\nLa piste et le REC sont prêts : il ne reste qu'à changer d'entrée ou de sortie."
-        alert.addButton(withTitle: "OK")
-        alert.addButton(withTitle: "Réglages Son…")
-        NSApp.activate(ignoringOtherApps: true)
-        if alert.runModal() == .alertSecondButtonReturn,
+        // Au style suisse (02/11).
+        let answer = SwissDialog.run(String(localized: "Tout est prêt, mais attention au larsen"),
+                                     report.message
+                                        + String(localized: "\n\nLa piste et le REC sont prêts : il ne reste qu'à changer d'entrée ou de sortie."),
+                                     buttons: [String(localized: "OK"), String(localized: "Réglages Son…")])
+        if answer == 1,
            let url = URL(string: "x-apple.systempreferences:com.apple.Sound-Settings.extension") {
             NSWorkspace.shared.open(url)
         }
