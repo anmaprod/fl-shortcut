@@ -104,6 +104,24 @@ enum TextLook {
         return items.filter { normalized($0.text) == wanted }.min { distance($0) < distance($1) }
     }
 
+    /// 28/11 (journal de son Mac : la 1re macro après le lancement a mis 31 s à lire le titre d'une page, les suivantes
+    /// 0,3 s) : macOS charge sa lecture de texte à la première demande. Chargée une fois en arrière-plan au lancement, sur
+    /// une petite image vide fabriquée ici (rien de l'écran n'est lu).
+    static func warmUp() {
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 3) {
+            let side = 64
+            guard let context = CGContext(data: nil, width: side * 4, height: side, bitsPerComponent: 8, bytesPerRow: 0,
+                                          space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue)
+            else { return }
+            context.setFillColor(gray: 1, alpha: 1)
+            context.fill(CGRect(x: 0, y: 0, width: side * 4, height: side))
+            guard let image = context.makeImage() else { return }
+            let start = Date()
+            _ = read(image, size: CGSize(width: side * 4, height: side))
+            MacroLog.shared.write("TEXT", "text reading ready in \(Int(Date().timeIntervalSince(start) * 1000)) ms")
+        }
+    }
+
     /// Textes de `image` (une fenêtre de `size` points), lignes et mots ; `region` (points) : seulement là.
     static func read(_ image: CGImage, size: CGSize, region: CGRect? = nil) -> [Item] {
         guard size.width > 0, size.height > 0 else { return [] }

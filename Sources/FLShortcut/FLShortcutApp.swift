@@ -276,6 +276,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AppStatus.shared.start()
         PauseIndicator.shared.bind()
         DebugSnapshot.start()
+        TextLook.warmUp()                        // la 1re macro qui lit FL ne patiente plus 30 s (28/11)
         // Plus jamais rien dans les listes de plugins de FL (demande du 28/10) : ce que d'anciennes versions y avaient
         // ajouté (catégorie « FL Shortcuts » de Add › Channel et des effets) part à la Corbeille. Jamais en mode capture.
         if !DebugSnapshot.enabled {

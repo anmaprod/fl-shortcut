@@ -575,9 +575,29 @@ extension MacroEffectsMac {
         case .failure(.stopped(let why)): return .cancel(why)
         case .failure(.timeout): return .fail(String(localized: "le menu « Arrangement » de FL ne s'est pas ouvert"))
         }
-        guard let image = ScreenLook.captureImage(windowNumber: menu.number, size: menu.bounds.size, scale: 2),
-              let line = TextLook.read(image, size: menu.bounds.size)
-                .first(where: { TextLook.normalized($0.text) == wanted }) else {
+        // 28/11 (essais sur son Mac : « cette ligne est introuvable » à chaque fois, 0,1 s après le clic) : FL dessine son
+        // menu juste après l'ouverture de sa fenêtre, il était lu vide. Comme les menus de la fenêtre de FL (qui
+        // marchent) : un temps pour se dessiner, puis lu jusqu'à trois fois ; la ligne retrouvée comme eux (« … » et
+        // raccourci affiché au bout permis). Journal : le nombre de lignes lues, jamais un nom.
+        Thread.sleep(forTimeInterval: 0.12)
+        var found: TextLook.Item?
+        var counts: [Int] = []
+        for attempt in 0..<3 where found == nil {
+            if attempt > 0 { Thread.sleep(forTimeInterval: 0.25) }
+            if let stop = shouldStop(ctx.pid) {
+                postKey(KeyCombo(keyCode: 53), pid: ctx.pid)
+                return .cancel(stop)
+            }
+            guard let image = ScreenLook.captureImage(windowNumber: menu.number, size: menu.bounds.size, scale: 2) else {
+                counts.append(-1)
+                continue
+            }
+            let items = TextLook.read(image, size: menu.bounds.size)
+            counts.append(items.count)
+            found = Self.menuEntry(item, in: items)
+        }
+        guard let line = found else {
+            MacroLog.shared.write("FL", "arrangement menu: line not found (lines read \(counts))")
             postKey(KeyCombo(keyCode: 53), pid: ctx.pid)                                 // Échap : menu refermé
             return .fail(String(localized: "cette ligne est introuvable dans le menu « Arrangement » de FL"))
         }

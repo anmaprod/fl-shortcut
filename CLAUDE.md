@@ -37,7 +37,16 @@
   la page (48) et sous la barre de titre (Mac `PaperGrid.lines`, essai `testPaperGridIsSquaredPaper` ; Windows
   `MacLook.PaperGrid`), liste des raccourcis du Mac sans fond plein (`ClearScrollBackground`), créateur Windows
   transparent en Papier ; les lignes de 44 ne sont PAS encore remises à 48 (à voir sur les photos de la CI). VU MARCHER
-  chez lui le 28/11 : ⌘⌥O dans FL ouvre l'Organiser, « Ouvre un VST » et « Export Stems ». Puis : sons libres de droit proches de ses packs ; Windows, clic gauche ou droit sur
+  chez lui le 28/11 : ⌘⌥O dans FL ouvre l'Organiser, « Ouvre un VST » et « Export Stems ». Puis :
+  ESSAIS SUR SON MAC (28/11, Remote Control, dossier `~/Documents/fl-shortcut` — vieux clone avec des fichiers Windows
+  effacés à la main : NE PAS y toucher —, FL Studio 2026 26.1.7, macOS 27.2.1, app 0.1.0, projet de test) : méthode
+  « comme un humain », sans capture d'écran entière (refusée, et règle du propriétaire) : la touche de la macro envoyée
+  à FL, puis `~/Library/Logs/FL Shortcuts/macro.log` lu (lignes RUN / STEP / END). Ses macros : ⌘, = plugin au Channel
+  rack (OK), ⌘M = Export Stems (OK, ⌘A AVANT : « il faut tout sélectionner avant »), ⌘. = Playlist › Arrangement « Add
+  one » (ÉCHEC : menu lu vide, FL le dessine juste après l'ouverture de sa fenêtre → corrigé : attente 0,12 s puis
+  lu 3 fois, `menuEntry` ; Windows : `MenuText.Find`) ; 1re macro après le lancement : 31 s pour lire le titre d'une page
+  (chargement de la lecture de texte de macOS) → `TextLook.warmUp()` au lancement. Toujours regarder s'il y a une manip
+  à faire avant (⌘A…) quand une macro échoue. Puis : sons libres de droit proches de ses packs ; Windows, clic gauche ou droit sur
   l'app = le menu de l'icône, plus rien sous la flèche (déjà fait le 21/11 d'après les notes : à revérifier).
 - **En cours (19-20/11)** : maquette « Minimal » (`docs/maquettes/fl-shortcuts-minimal.html`) mise dans l'app, tout
   fait le 20/11 au soir (voir « Fenêtre « Minimal » ») ; reste à relire les photos de la CI page par page ;

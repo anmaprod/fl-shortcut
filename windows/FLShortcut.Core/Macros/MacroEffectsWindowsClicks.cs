@@ -156,8 +156,9 @@ public sealed partial class MacroEffectsWindows
         if (menu is not { } m || Settled(m.Id) is not { } current)
             return Abandon(new StepResult.Fail(Loc.T("le menu « Arrangement » de FL ne s'est pas ouvert")));
         var items = _fl.MenuItems(current.Id) ?? _fl.ReadText(current.Id);
-        if (items?.Where(t => MenuText.Normalized(t.Text) == wanted).OrderBy(t => t.Y).Cast<TextItem?>().FirstOrDefault()
-            is not { } line)
+        // 28/11 (comme le Mac) : la ligne retrouvée comme dans les autres menus de FL (« … » et raccourci affiché au bout
+        // permis, une lettre mal lue près pour un nom long), plus seulement au texte exact.
+        if ((items is null ? null : MenuText.Find(item, items)) is not { } line)
         {
             _fl.Log("FL", $"arrangement menu: line not among {items?.Count ?? 0} item(s)");
             return Abandon(new StepResult.Fail(Loc.T("cette ligne est introuvable dans le menu « Arrangement » de FL")));
